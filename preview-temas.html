@@ -12,11 +12,17 @@
             --text-sec: #475569;
             --card-bg: rgba(255, 255, 255, 0.7);
             --card-border: rgba(255, 255, 255, 1);
+            --card-text: #1e293b;
+            --card-text-sec: #475569;
             --btn-bg: #2563eb;
             --btn-text: #ffffff;
             --input-bg: #f8fafc;
             --input-border: #f1f5f9;
             --input-focus: #3b82f6;
+            --balance-from: #4f75ff;
+            --balance-to: #375ee3;
+            --balance-text: #ffffff;
+            --balance-mini-bg: rgba(255,255,255,0.15);
             --overlay-bg: rgba(15, 23, 42, 0.4);
         }
 
@@ -92,12 +98,13 @@
 
         /* ===== BALANCE CARD ===== */
         .balance-card {
-            background: linear-gradient(to right, #4f75ff, #375ee3);
+            background: linear-gradient(to right, var(--balance-from), var(--balance-to));
             border-radius: 1.5rem;
             padding: 1.5rem;
-            color: #ffffff;
+            color: var(--balance-text);
             margin-bottom: 1rem;
-            box-shadow: 0 10px 25px rgba(55, 94, 227, 0.3);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            transition: background 0.3s, color 0.3s;
         }
         .balance-label {
             font-size: 12px;
@@ -117,7 +124,7 @@
         }
         .balance-mini {
             flex: 1;
-            background: rgba(255,255,255,0.15);
+            background: var(--balance-mini-bg);
             border-radius: 0.75rem;
             padding: 0.625rem 0.75rem;
         }
@@ -136,7 +143,7 @@
             font-family: inherit;
             font-size: 14px;
             font-weight: 500;
-            color: var(--text-main);
+            color: var(--card-text);
             outline: none;
             transition: border-color 0.15s, background-color 0.15s;
             margin-bottom: 0.75rem;
@@ -150,7 +157,7 @@
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.15em;
-            color: var(--text-sec);
+            color: var(--card-text-sec);
             margin-bottom: 0.375rem;
             transition: color 0.3s;
         }
@@ -194,8 +201,8 @@
             flex-shrink: 0;
         }
         .tx-info { flex: 1; }
-        .tx-name { font-size: 14px; font-weight: 700; color: var(--text-main); transition: color 0.3s; }
-        .tx-date { font-size: 11px; color: var(--text-sec); transition: color 0.3s; }
+        .tx-name { font-size: 14px; font-weight: 700; color: var(--card-text); transition: color 0.3s; }
+        .tx-date { font-size: 11px; color: var(--card-text-sec); transition: color 0.3s; }
         .tx-amount { font-size: 14px; font-weight: 800; text-align: right; }
         .tx-positive { color: #10b981; }
         .tx-negative { color: #ef4444; }
@@ -238,7 +245,7 @@
             gap: 2px;
             font-size: 10px;
             font-weight: 600;
-            color: var(--text-sec);
+            color: var(--card-text-sec);
             transition: color 0.3s;
         }
         .nav-item.active { color: var(--btn-bg); font-weight: 800; }
@@ -256,8 +263,8 @@
         <div class="glass-card" style="display:flex;align-items:center;gap:0.75rem;padding:1rem 1.25rem;">
             <div style="width:38px;height:38px;border-radius:50%;background:var(--btn-bg);display:flex;align-items:center;justify-content:center;color:var(--btn-text);font-weight:900;font-size:16px;">B</div>
             <div style="flex:1;">
-                <div style="font-size:13px;font-weight:800;color:var(--text-main);transition:color 0.3s;">Olá, Denys 👋</div>
-                <div style="font-size:11px;color:var(--text-sec);transition:color 0.3s;">Abril 2026</div>
+                <div style="font-size:13px;font-weight:800;color:var(--card-text);transition:color 0.3s;">Olá, Denys 👋</div>
+                <div style="font-size:11px;color:var(--card-text-sec);transition:color 0.3s;">Abril 2026</div>
             </div>
             <div class="badge">PRO</div>
         </div>
@@ -356,14 +363,78 @@
 
     <script>
         const themes = {
-            padrao:   { label:'Gelo',     color:'#f4f7fb', ring:'#cbd5e1', bg:'#f4f7fb', text:'#1e293b', sec:'#475569', glass:'rgba(255,255,255,0.7)',  border:'rgba(255,255,255,1)',   btnBg:'#2563eb', btnText:'#ffffff', inputBg:'#f8fafc',              inputBorder:'#f1f5f9',              inputFocus:'#3b82f6' },
-            hbo:      { label:'HBO Dark', color:'#000000', ring:'#334155', bg:'#000000', text:'#ffffff', sec:'#94a3b8', glass:'rgba(15,20,25,0.9)',     border:'rgba(255,255,255,0.1)', btnBg:'#ffffff', btnText:'#000000', inputBg:'rgba(255,255,255,0.08)', inputBorder:'rgba(255,255,255,0.15)', inputFocus:'#ffffff' },
-            azul:     { label:'Azul',     color:'#1075e8', ring:'#60a5fa', bg:'#1075e8', text:'#ffffff', sec:'#dbeafe', glass:'rgba(255,255,255,0.15)', border:'rgba(255,255,255,0.3)', btnBg:'#ffffff', btnText:'#1075e8', inputBg:'rgba(255,255,255,0.12)', inputBorder:'rgba(255,255,255,0.25)', inputFocus:'#ffffff' },
-            roxo:     { label:'Roxo',     color:'#8c52ff', ring:'#a78bfa', bg:'#8c52ff', text:'#ffffff', sec:'#ede9fe', glass:'rgba(255,255,255,0.15)', border:'rgba(255,255,255,0.3)', btnBg:'#ffffff', btnText:'#8c52ff', inputBg:'rgba(255,255,255,0.12)', inputBorder:'rgba(255,255,255,0.25)', inputFocus:'#ffffff' },
-            rosa:     { label:'Rosa',     color:'#ff4d94', ring:'#f9a8d4', bg:'#ff4d94', text:'#ffffff', sec:'#fce7f3', glass:'rgba(255,255,255,0.15)', border:'rgba(255,255,255,0.3)', btnBg:'#ffffff', btnText:'#ff4d94', inputBg:'rgba(255,255,255,0.12)', inputBorder:'rgba(255,255,255,0.25)', inputFocus:'#ffffff' },
-            amarelo:  { label:'Amarelo',  color:'#ffc700', ring:'#fbbf24', bg:'#ffc700', text:'#1a1a1a', sec:'#78716c', glass:'rgba(255,255,255,0.50)', border:'rgba(255,255,255,0.8)', btnBg:'#1a1a1a', btnText:'#ffc700', inputBg:'rgba(255,255,255,0.55)', inputBorder:'rgba(255,255,255,0.7)',  inputFocus:'#1a1a1a' },
-            verde:    { label:'Verde',    color:'#21c25e', ring:'#4ade80', bg:'#21c25e', text:'#ffffff', sec:'#dcfce7', glass:'rgba(255,255,255,0.15)', border:'rgba(255,255,255,0.3)', btnBg:'#ffffff', btnText:'#21c25e', inputBg:'rgba(255,255,255,0.12)', inputBorder:'rgba(255,255,255,0.25)', inputFocus:'#ffffff' },
-            vermelho: { label:'Vermelho', color:'#c8102e', ring:'#f87171', bg:'#c8102e', text:'#ffffff', sec:'#fee2e2', glass:'rgba(255,255,255,0.15)', border:'rgba(255,255,255,0.3)', btnBg:'#ffffff', btnText:'#c8102e', inputBg:'rgba(255,255,255,0.12)', inputBorder:'rgba(255,255,255,0.25)', inputFocus:'#ffffff' }
+            padrao: {
+                label:'Gelo', color:'#f4f7fb', ring:'#cbd5e1',
+                bg:'#f4f7fb', text:'#1e293b', sec:'#475569',
+                glass:'rgba(255,255,255,0.7)', border:'rgba(255,255,255,1)',
+                cardText:'#1e293b', cardTextSec:'#475569',
+                btnBg:'#2563eb', btnText:'#ffffff',
+                inputBg:'#f8fafc', inputBorder:'#f1f5f9', inputFocus:'#3b82f6',
+                balFrom:'#4f75ff', balTo:'#375ee3', balText:'#fff', balMiniBg:'rgba(255,255,255,0.15)'
+            },
+            hbo: {
+                label:'HBO Dark', color:'#000000', ring:'#334155',
+                bg:'#000000', text:'#ffffff', sec:'#94a3b8',
+                glass:'rgba(15,20,25,0.95)', border:'rgba(255,255,255,0.1)',
+                cardText:'#e2e8f0', cardTextSec:'#94a3b8',
+                btnBg:'#ffffff', btnText:'#000000',
+                inputBg:'rgba(255,255,255,0.08)', inputBorder:'rgba(255,255,255,0.15)', inputFocus:'#ffffff',
+                balFrom:'#1e293b', balTo:'#0f172a', balText:'#fff', balMiniBg:'rgba(255,255,255,0.08)'
+            },
+            azul: {
+                label:'Azul', color:'#1075e8', ring:'#60a5fa',
+                bg:'#1075e8', text:'#ffffff', sec:'#dbeafe',
+                glass:'rgba(255,255,255,0.92)', border:'rgba(255,255,255,0.5)',
+                cardText:'#1e293b', cardTextSec:'#475569',
+                btnBg:'#ffffff', btnText:'#1075e8',
+                inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#1075e8',
+                balFrom:'#0a5cc4', balTo:'#084da8', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
+            },
+            roxo: {
+                label:'Roxo', color:'#8c52ff', ring:'#a78bfa',
+                bg:'#8c52ff', text:'#ffffff', sec:'#ede9fe',
+                glass:'rgba(255,255,255,0.92)', border:'rgba(255,255,255,0.5)',
+                cardText:'#1e293b', cardTextSec:'#475569',
+                btnBg:'#ffffff', btnText:'#8c52ff',
+                inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#8c52ff',
+                balFrom:'#7040d4', balTo:'#5a2ebf', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
+            },
+            rosa: {
+                label:'Rosa', color:'#ff4d94', ring:'#f9a8d4',
+                bg:'#ff4d94', text:'#ffffff', sec:'#fce7f3',
+                glass:'rgba(255,255,255,0.92)', border:'rgba(255,255,255,0.5)',
+                cardText:'#1e293b', cardTextSec:'#475569',
+                btnBg:'#ffffff', btnText:'#ff4d94',
+                inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#ff4d94',
+                balFrom:'#d4407d', balTo:'#b83568', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
+            },
+            amarelo: {
+                label:'Amarelo', color:'#ffc700', ring:'#fbbf24',
+                bg:'#ffc700', text:'#1a1a1a', sec:'#78716c',
+                glass:'rgba(255,255,255,0.93)', border:'rgba(255,255,255,0.7)',
+                cardText:'#1a1a1a', cardTextSec:'#57534e',
+                btnBg:'#1a1a1a', btnText:'#ffc700',
+                inputBg:'#fffcf0', inputBorder:'#e2e8f0', inputFocus:'#b8930a',
+                balFrom:'#b8930a', balTo:'#9a7b08', balText:'#fff', balMiniBg:'rgba(255,255,255,0.22)'
+            },
+            verde: {
+                label:'Verde', color:'#21c25e', ring:'#4ade80',
+                bg:'#21c25e', text:'#ffffff', sec:'#dcfce7',
+                glass:'rgba(255,255,255,0.92)', border:'rgba(255,255,255,0.5)',
+                cardText:'#1e293b', cardTextSec:'#475569',
+                btnBg:'#ffffff', btnText:'#21c25e',
+                inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#21c25e',
+                balFrom:'#178a42', balTo:'#126b34', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
+            },
+            vermelho: {
+                label:'Vermelho', color:'#c8102e', ring:'#f87171',
+                bg:'#c8102e', text:'#ffffff', sec:'#fee2e2',
+                glass:'rgba(255,255,255,0.92)', border:'rgba(255,255,255,0.5)',
+                cardText:'#1e293b', cardTextSec:'#475569',
+                btnBg:'#ffffff', btnText:'#c8102e',
+                inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#c8102e',
+                balFrom:'#a00d24', balTo:'#8b0a1e', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
+            }
         };
 
         let activeTheme = 'padrao';
@@ -402,11 +473,17 @@
             r.setProperty('--text-sec', t.sec);
             r.setProperty('--card-bg', t.glass);
             r.setProperty('--card-border', t.border);
+            r.setProperty('--card-text', t.cardText);
+            r.setProperty('--card-text-sec', t.cardTextSec);
             r.setProperty('--btn-bg', t.btnBg);
             r.setProperty('--btn-text', t.btnText);
             r.setProperty('--input-bg', t.inputBg);
             r.setProperty('--input-border', t.inputBorder);
             r.setProperty('--input-focus', t.inputFocus);
+            r.setProperty('--balance-from', t.balFrom);
+            r.setProperty('--balance-to', t.balTo);
+            r.setProperty('--balance-text', t.balText);
+            r.setProperty('--balance-mini-bg', t.balMiniBg);
 
             // Update active button state
             document.querySelectorAll('.theme-btn').forEach(b => {

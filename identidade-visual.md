@@ -70,11 +70,17 @@ Visual limpo, minimalista, inspirado em iOS. Base clara com cards de vidro trans
 | **Texto secundário** | `#475569` (slate-600) | `--text-sec` |
 | **Card (vidro)** | `rgba(255, 255, 255, 0.7)` | `--card-bg` |
 | **Card borda** | `rgba(255, 255, 255, 1)` | `--card-border` |
+| **Card texto** | `#1e293b` | `--card-text` |
+| **Card texto sec** | `#475569` | `--card-text-sec` |
 | **Botão primário bg** | `#2563eb` (blue-600) | `--btn-bg` |
 | **Botão primário texto** | `#ffffff` | `--btn-text` |
 | **Input bg** | `#f8fafc` (slate-50) | `--input-bg` |
 | **Input border** | `#f1f5f9` (slate-100) | `--input-border` |
 | **Input border focus** | `#3b82f6` (blue-500) | `--input-focus` |
+| **Saldo gradiente from** | `#4f75ff` | `--balance-from` |
+| **Saldo gradiente to** | `#375ee3` | `--balance-to` |
+| **Saldo texto** | `#ffffff` | `--balance-text` |
+| **Saldo mini bg** | `rgba(255,255,255,0.15)` | `--balance-mini-bg` |
 
 ---
 
@@ -87,40 +93,63 @@ Inspirado na HBO Max. Preto absoluto com cards quase opacos e bordas sutis.
 | **Fundo** | `#000000` (preto puro) | `--bg-page` |
 | **Texto principal** | `#ffffff` | `--text-main` |
 | **Texto secundário** | `#94a3b8` (slate-400) | `--text-sec` |
-| **Card (vidro)** | `rgba(15, 20, 25, 0.9)` | `--card-bg` |
+| **Card (vidro)** | `rgba(15, 20, 25, 0.95)` | `--card-bg` |
 | **Card borda** | `rgba(255, 255, 255, 0.1)` | `--card-border` |
+| **Card texto** | `#e2e8f0` | `--card-text` |
+| **Card texto sec** | `#94a3b8` | `--card-text-sec` |
 | **Botão primário bg** | `#ffffff` | `--btn-bg` |
 | **Botão primário texto** | `#000000` | `--btn-text` |
 | **Input bg** | `rgba(255, 255, 255, 0.08)` | `--input-bg` |
 | **Input border** | `rgba(255, 255, 255, 0.15)` | `--input-border` |
 | **Input border focus** | `#ffffff` | `--input-focus` |
+| **Saldo gradiente from** | `#1e293b` | `--balance-from` |
+| **Saldo gradiente to** | `#0f172a` | `--balance-to` |
+| **Saldo texto** | `#ffffff` | `--balance-text` |
+| **Saldo mini bg** | `rgba(255,255,255,0.08)` | `--balance-mini-bg` |
 
 ---
 
 ### 🎨 Temas 3-8 — Cores Imersivas (Sólidas)
 
-Quando o usuário escolhe uma cor, **o fundo inteiro** assume o tom sólido. Os cards ficam super translúcidos, mostrando a cor por trás. Botão primário inverte para branco (ou preto) para contraste.
+Quando o usuário escolhe uma cor, **o fundo inteiro** assume o tom sólido. Os cards ficam **quase opacos em branco** (`rgba(255,255,255,0.92)`), criando contraste nítido com o fundo colorido (estilo iOS). Botão primário inverte para branco (ou preto) para contraste. O **card de saldo** assume um gradiente mais escuro da cor do tema.
 
-| # | Tema | Hex Fundo | Texto | Texto Sec | Card (Vidro) | Card Borda | Botão BG | Botão Texto | Inspiração |
-|---|---|---|---|---|---|---|---|---|---|
-| 3 | **Azul** | `#1075e8` | `#ffffff` | `#dbeafe` | `rgba(255,255,255,0.15)` | `rgba(255,255,255,0.3)` | `#ffffff` | `#1075e8` | Amil / Nav Dasa |
-| 4 | **Roxo** | `#8c52ff` | `#ffffff` | `#ede9fe` | `rgba(255,255,255,0.15)` | `rgba(255,255,255,0.3)` | `#ffffff` | `#8c52ff` | Life360 |
-| 5 | **Rosa** | `#ff4d94` | `#ffffff` | `#fce7f3` | `rgba(255,255,255,0.15)` | `rgba(255,255,255,0.3)` | `#ffffff` | `#ff4d94` | — |
-| 6 | **Amarelo** | `#ffc700` | `#1a1a1a` | `#78716c` | `rgba(255,255,255,0.50)` | `rgba(255,255,255,0.8)` | `#1a1a1a` | `#ffc700` | Will Bank |
-| 7 | **Verde** | `#21c25e` | `#ffffff` | `#dcfce7` | `rgba(255,255,255,0.15)` | `rgba(255,255,255,0.3)` | `#ffffff` | `#21c25e` | PicPay |
-| 8 | **Vermelho** | `#c8102e` | `#ffffff` | `#fee2e2` | `rgba(255,255,255,0.15)` | `rgba(255,255,255,0.3)` | `#ffffff` | `#c8102e` | Flamengo |
+| # | Tema | Hex Fundo | Texto (página) | Texto Sec (página) | Card BG | Card Borda | Card Texto | Card Texto Sec | Botão BG | Botão Texto | Inspiração |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 3 | **Azul** | `#1075e8` | `#ffffff` | `#dbeafe` | `rgba(255,255,255,0.92)` | `rgba(255,255,255,0.5)` | `#1e293b` | `#475569` | `#ffffff` | `#1075e8` | Amil / Nav Dasa |
+| 4 | **Roxo** | `#8c52ff` | `#ffffff` | `#ede9fe` | `rgba(255,255,255,0.92)` | `rgba(255,255,255,0.5)` | `#1e293b` | `#475569` | `#ffffff` | `#8c52ff` | Life360 |
+| 5 | **Rosa** | `#ff4d94` | `#ffffff` | `#fce7f3` | `rgba(255,255,255,0.92)` | `rgba(255,255,255,0.5)` | `#1e293b` | `#475569` | `#ffffff` | `#ff4d94` | — |
+| 6 | **Amarelo** | `#ffc700` | `#1a1a1a` | `#78716c` | `rgba(255,255,255,0.93)` | `rgba(255,255,255,0.7)` | `#1a1a1a` | `#57534e` | `#1a1a1a` | `#ffc700` | Will Bank |
+| 7 | **Verde** | `#21c25e` | `#ffffff` | `#dcfce7` | `rgba(255,255,255,0.92)` | `rgba(255,255,255,0.5)` | `#1e293b` | `#475569` | `#ffffff` | `#21c25e` | PicPay |
+| 8 | **Vermelho** | `#c8102e` | `#ffffff` | `#fee2e2` | `rgba(255,255,255,0.92)` | `rgba(255,255,255,0.5)` | `#1e293b` | `#475569` | `#ffffff` | `#c8102e` | Flamengo |
 
-> **Amarelo** tem regras especiais: texto escuro (`#1a1a1a`), texto secundário neutro (`#78716c`), card mais opaco (50%), e botão preto — tudo para manter contraste WCAG AA.
+> **Amarelo** tem regras especiais: texto escuro (`#1a1a1a`), card texto escuro (`#1a1a1a` / `#57534e`), botão preto — tudo para manter contraste WCAG AA.
+
+### Card de Saldo — Gradiente por Tema
+
+O card de saldo usa gradiente específico por tema (tom mais escuro da cor base):
+
+| # | Tema | `--balance-from` | `--balance-to` | `--balance-text` | `--balance-mini-bg` |
+|---|---|---|---|---|---|
+| 1 | **Gelo** | `#4f75ff` | `#375ee3` | `#ffffff` | `rgba(255,255,255,0.15)` |
+| 2 | **HBO** | `#1e293b` | `#0f172a` | `#ffffff` | `rgba(255,255,255,0.08)` |
+| 3 | **Azul** | `#0a5cc4` | `#084da8` | `#ffffff` | `rgba(255,255,255,0.18)` |
+| 4 | **Roxo** | `#7040d4` | `#5a2ebf` | `#ffffff` | `rgba(255,255,255,0.18)` |
+| 5 | **Rosa** | `#d4407d` | `#b83568` | `#ffffff` | `rgba(255,255,255,0.18)` |
+| 6 | **Amarelo** | `#b8930a` | `#9a7b08` | `#ffffff` | `rgba(255,255,255,0.22)` |
+| 7 | **Verde** | `#178a42` | `#126b34` | `#ffffff` | `rgba(255,255,255,0.18)` |
+| 8 | **Vermelho** | `#a00d24` | `#8b0a1e` | `#ffffff` | `rgba(255,255,255,0.18)` |
 
 ### Input nos Temas Imersivos
 
-| Elemento | Temas Escuros (Azul, Roxo, Rosa, Verde, Vermelho) | Tema Amarelo |
+Nos temas imersivos os inputs ficam dentro dos cards opacos, então usam fundo claro:
+
+| Elemento | Temas (Azul–Vermelho exceto Amarelo) | Tema Amarelo |
 |---|---|---|
-| **Input bg** | `rgba(255, 255, 255, 0.12)` | `rgba(255, 255, 255, 0.55)` |
-| **Input border** | `rgba(255, 255, 255, 0.25)` | `rgba(255, 255, 255, 0.7)` |
-| **Input border focus** | `#ffffff` | `#1a1a1a` |
-| **Input text** | `#ffffff` | `#1a1a1a` |
-| **Placeholder** | `rgba(255, 255, 255, 0.5)` | `rgba(0, 0, 0, 0.4)` |
+| **Input bg** | `#f8fafc` | `#fffcf0` |
+| **Input border** | `#e2e8f0` | `#e2e8f0` |
+| **Input border focus** | cor do tema (ex: `#1075e8`) | `#b8930a` |
+| **Input text** | `#1e293b` (escuro, dentro do card) | `#1a1a1a` |
+| **Placeholder** | `rgba(0, 0, 0, 0.4)` | `rgba(0, 0, 0, 0.4)` |
 
 ---
 
@@ -134,11 +163,17 @@ Quando o usuário escolhe uma cor, **o fundo inteiro** assume o tom sólido. Os 
   --text-sec: #475569;
   --card-bg: rgba(255, 255, 255, 0.7);
   --card-border: rgba(255, 255, 255, 1);
+  --card-text: #1e293b;
+  --card-text-sec: #475569;
   --btn-bg: #2563eb;
   --btn-text: #ffffff;
   --input-bg: #f8fafc;
   --input-border: #f1f5f9;
   --input-focus: #3b82f6;
+  --balance-from: #4f75ff;
+  --balance-to: #375ee3;
+  --balance-text: #ffffff;
+  --balance-mini-bg: rgba(255,255,255,0.15);
   --overlay-bg: rgba(15, 23, 42, 0.4);
 }
 ```
@@ -147,14 +182,70 @@ Quando o usuário escolhe uma cor, **o fundo inteiro** assume o tom sólido. Os 
 
 ```javascript
 const themes = {
-  padrao:   { bg:'#f4f7fb', text:'#1e293b', sec:'#475569', glass:'rgba(255,255,255,0.7)',  border:'rgba(255,255,255,1)',   btnBg:'#2563eb', btnText:'#ffffff', inputBg:'#f8fafc',              inputBorder:'#f1f5f9',              inputFocus:'#3b82f6' },
-  hbo:      { bg:'#000000', text:'#ffffff', sec:'#94a3b8', glass:'rgba(15,20,25,0.9)',     border:'rgba(255,255,255,0.1)', btnBg:'#ffffff', btnText:'#000000', inputBg:'rgba(255,255,255,0.08)', inputBorder:'rgba(255,255,255,0.15)', inputFocus:'#ffffff' },
-  azul:     { bg:'#1075e8', text:'#ffffff', sec:'#dbeafe', glass:'rgba(255,255,255,0.15)', border:'rgba(255,255,255,0.3)', btnBg:'#ffffff', btnText:'#1075e8', inputBg:'rgba(255,255,255,0.12)', inputBorder:'rgba(255,255,255,0.25)', inputFocus:'#ffffff' },
-  roxo:     { bg:'#8c52ff', text:'#ffffff', sec:'#ede9fe', glass:'rgba(255,255,255,0.15)', border:'rgba(255,255,255,0.3)', btnBg:'#ffffff', btnText:'#8c52ff', inputBg:'rgba(255,255,255,0.12)', inputBorder:'rgba(255,255,255,0.25)', inputFocus:'#ffffff' },
-  rosa:     { bg:'#ff4d94', text:'#ffffff', sec:'#fce7f3', glass:'rgba(255,255,255,0.15)', border:'rgba(255,255,255,0.3)', btnBg:'#ffffff', btnText:'#ff4d94', inputBg:'rgba(255,255,255,0.12)', inputBorder:'rgba(255,255,255,0.25)', inputFocus:'#ffffff' },
-  amarelo:  { bg:'#ffc700', text:'#1a1a1a', sec:'#78716c', glass:'rgba(255,255,255,0.50)', border:'rgba(255,255,255,0.8)', btnBg:'#1a1a1a', btnText:'#ffc700', inputBg:'rgba(255,255,255,0.55)', inputBorder:'rgba(255,255,255,0.7)',  inputFocus:'#1a1a1a' },
-  verde:    { bg:'#21c25e', text:'#ffffff', sec:'#dcfce7', glass:'rgba(255,255,255,0.15)', border:'rgba(255,255,255,0.3)', btnBg:'#ffffff', btnText:'#21c25e', inputBg:'rgba(255,255,255,0.12)', inputBorder:'rgba(255,255,255,0.25)', inputFocus:'#ffffff' },
-  vermelho: { bg:'#c8102e', text:'#ffffff', sec:'#fee2e2', glass:'rgba(255,255,255,0.15)', border:'rgba(255,255,255,0.3)', btnBg:'#ffffff', btnText:'#c8102e', inputBg:'rgba(255,255,255,0.12)', inputBorder:'rgba(255,255,255,0.25)', inputFocus:'#ffffff' }
+  padrao: {
+    bg:'#f4f7fb', text:'#1e293b', sec:'#475569',
+    glass:'rgba(255,255,255,0.7)', border:'rgba(255,255,255,1)',
+    cardText:'#1e293b', cardTextSec:'#475569',
+    btnBg:'#2563eb', btnText:'#ffffff',
+    inputBg:'#f8fafc', inputBorder:'#f1f5f9', inputFocus:'#3b82f6',
+    balFrom:'#4f75ff', balTo:'#375ee3', balText:'#fff', balMiniBg:'rgba(255,255,255,0.15)'
+  },
+  hbo: {
+    bg:'#000000', text:'#ffffff', sec:'#94a3b8',
+    glass:'rgba(15,20,25,0.95)', border:'rgba(255,255,255,0.1)',
+    cardText:'#e2e8f0', cardTextSec:'#94a3b8',
+    btnBg:'#ffffff', btnText:'#000000',
+    inputBg:'rgba(255,255,255,0.08)', inputBorder:'rgba(255,255,255,0.15)', inputFocus:'#ffffff',
+    balFrom:'#1e293b', balTo:'#0f172a', balText:'#fff', balMiniBg:'rgba(255,255,255,0.08)'
+  },
+  azul: {
+    bg:'#1075e8', text:'#ffffff', sec:'#dbeafe',
+    glass:'rgba(255,255,255,0.92)', border:'rgba(255,255,255,0.5)',
+    cardText:'#1e293b', cardTextSec:'#475569',
+    btnBg:'#ffffff', btnText:'#1075e8',
+    inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#1075e8',
+    balFrom:'#0a5cc4', balTo:'#084da8', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
+  },
+  roxo: {
+    bg:'#8c52ff', text:'#ffffff', sec:'#ede9fe',
+    glass:'rgba(255,255,255,0.92)', border:'rgba(255,255,255,0.5)',
+    cardText:'#1e293b', cardTextSec:'#475569',
+    btnBg:'#ffffff', btnText:'#8c52ff',
+    inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#8c52ff',
+    balFrom:'#7040d4', balTo:'#5a2ebf', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
+  },
+  rosa: {
+    bg:'#ff4d94', text:'#ffffff', sec:'#fce7f3',
+    glass:'rgba(255,255,255,0.92)', border:'rgba(255,255,255,0.5)',
+    cardText:'#1e293b', cardTextSec:'#475569',
+    btnBg:'#ffffff', btnText:'#ff4d94',
+    inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#ff4d94',
+    balFrom:'#d4407d', balTo:'#b83568', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
+  },
+  amarelo: {
+    bg:'#ffc700', text:'#1a1a1a', sec:'#78716c',
+    glass:'rgba(255,255,255,0.93)', border:'rgba(255,255,255,0.7)',
+    cardText:'#1a1a1a', cardTextSec:'#57534e',
+    btnBg:'#1a1a1a', btnText:'#ffc700',
+    inputBg:'#fffcf0', inputBorder:'#e2e8f0', inputFocus:'#b8930a',
+    balFrom:'#b8930a', balTo:'#9a7b08', balText:'#fff', balMiniBg:'rgba(255,255,255,0.22)'
+  },
+  verde: {
+    bg:'#21c25e', text:'#ffffff', sec:'#dcfce7',
+    glass:'rgba(255,255,255,0.92)', border:'rgba(255,255,255,0.5)',
+    cardText:'#1e293b', cardTextSec:'#475569',
+    btnBg:'#ffffff', btnText:'#21c25e',
+    inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#21c25e',
+    balFrom:'#178a42', balTo:'#126b34', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
+  },
+  vermelho: {
+    bg:'#c8102e', text:'#ffffff', sec:'#fee2e2',
+    glass:'rgba(255,255,255,0.92)', border:'rgba(255,255,255,0.5)',
+    cardText:'#1e293b', cardTextSec:'#475569',
+    btnBg:'#ffffff', btnText:'#c8102e',
+    inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#c8102e',
+    balFrom:'#a00d24', balTo:'#8b0a1e', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
+  }
 };
 
 function applyTheme(name) {
@@ -166,11 +257,17 @@ function applyTheme(name) {
   r.setProperty('--text-sec', t.sec);
   r.setProperty('--card-bg', t.glass);
   r.setProperty('--card-border', t.border);
+  r.setProperty('--card-text', t.cardText);
+  r.setProperty('--card-text-sec', t.cardTextSec);
   r.setProperty('--btn-bg', t.btnBg);
   r.setProperty('--btn-text', t.btnText);
   r.setProperty('--input-bg', t.inputBg);
   r.setProperty('--input-border', t.inputBorder);
   r.setProperty('--input-focus', t.inputFocus);
+  r.setProperty('--balance-from', t.balFrom);
+  r.setProperty('--balance-to', t.balTo);
+  r.setProperty('--balance-text', t.balText);
+  r.setProperty('--balance-mini-bg', t.balMiniBg);
   localStorage.setItem('bud_theme', name);
 }
 
@@ -193,11 +290,13 @@ applyTheme(saved);
 
 ## 🎭 Gradientes
 
-### Gradiente Card de Saldo
+### Gradiente Card de Saldo (Adaptativo por Tema)
 ```css
-background: linear-gradient(to right, #4f75ff, #375ee3);
+background: linear-gradient(to right, var(--balance-from), var(--balance-to));
+color: var(--balance-text);
 ```
-- Usado no card principal de saldo (mantém gradiente próprio, não usa tema)
+- Cada tema define seu próprio gradiente via `--balance-from` e `--balance-to`
+- No Gelo: azul `#4f75ff → #375ee3`; no Verde: `#178a42 → #126b34`; etc.
 
 ### Gradiente Banner Premium / Dark Panels
 ```css
@@ -266,9 +365,10 @@ As superfícies de vidro se adaptam ao tema ativo via CSS variables.
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
 }
 ```
-- No tema Gelo: vidro branco semi-transparente
-- Nos temas imersivos: vidro quase transparente, mostra a cor do fundo
-- No tema HBO: vidro escuro, quase opaco
+- No tema Gelo: vidro branco semi-transparente (`rgba(255,255,255,0.7)`)
+- Nos temas imersivos: vidro branco quase opaco (`rgba(255,255,255,0.92)`) — cria contraste com fundo colorido
+- No tema HBO: vidro escuro, quase opaco (`rgba(15,20,25,0.95)`)
+- Texto dentro dos cards usa `var(--card-text)` e `var(--card-text-sec)` (separado do texto de página)
 
 ### `.glass-panel`
 ```css
