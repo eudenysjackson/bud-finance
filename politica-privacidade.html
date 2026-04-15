@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="description" content="Política de Privacidade — Bud Finance">
+  <title>Política de Privacidade - Bud Finance</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+
+  <!-- Google Fonts — Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS (build estático) -->
+  <link rel="stylesheet" href="css/tailwind.css">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: #f0f4f8;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    /* ── Blobs ─────────────────────────────── */
+    .blob { position: fixed; border-radius: 9999px; pointer-events: none; z-index: 0; }
+    .blob-blue { top:0; left:0; width:40%; height:40%; background:rgba(147,197,253,0.4); filter:blur(100px); }
+    .blob-cyan { bottom:0; right:0; width:30%; height:30%; background:rgba(103,232,249,0.3); filter:blur(100px); }
+
+    /* ── Glass card (wider for text content) ─ */
+    .policy-card {
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      padding: 2rem;
+      border-radius: 2rem;
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 42rem;
+      position: relative;
+      z-index: 10;
+      border: 1px solid #fff;
+    }
+    @media (min-width:768px) { .policy-card { padding: 2.5rem; } }
+
+    /* ── Typography ──────────────────────── */
+    .policy-card h1 {
+      font-size: 1.375rem; font-weight: 800; color: #1e293b;
+      letter-spacing: -0.025em; text-align: center; margin-bottom: 0.25rem;
+    }
+    .policy-card .subtitle {
+      font-size: 0.75rem; color: #64748b; text-align: center;
+      font-weight: 500; margin-bottom: 1.5rem;
+    }
+    .policy-card h2 {
+      font-size: 1rem; font-weight: 700; color: #1e293b;
+      margin-top: 1.5rem; margin-bottom: 0.5rem;
+      padding-bottom: 0.375rem;
+      border-bottom: 2px solid #eff6ff;
+    }
+    .policy-card p, .policy-card li {
+      font-size: 0.8125rem; color: #475569;
+      line-height: 1.7; font-weight: 450;
+    }
+    .policy-card p { margin-bottom: 0.75rem; }
+    .policy-card ul {
+      list-style: none; padding-left: 0; margin-bottom: 0.75rem;
+    }
+    .policy-card li {
+      padding-left: 1.25rem; position: relative; margin-bottom: 0.375rem;
+    }
+    .policy-card li::before {
+      content: '•'; position: absolute; left: 0;
+      color: #3b82f6; font-weight: 700;
+    }
+    .policy-card strong { color: #1e293b; }
+
+    /* ── Back link ───────────────────────── */
+    .back-link {
+      display: inline-flex; align-items: center; gap: 0.375rem;
+      color: #2563eb; font-weight: 700; font-size: 0.8125rem;
+      text-decoration: none; transition: color .2s;
+    }
+    .back-link:hover { color: #1d4ed8; text-decoration: underline; }
+
+    /* ── Divider ─────────────────────────── */
+    .divider {
+      border: none; border-top: 1px solid #f1f5f9;
+      margin: 1.5rem 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ Blobs ════════════════════════════════════════════════════ -->
+  <div class="blob blob-blue" aria-hidden="true"></div>
+  <div class="blob blob-cyan" aria-hidden="true"></div>
+
+  <!-- ═══ Card ═════════════════════════════════════════════════════ -->
+  <div class="policy-card" role="main">
+
+    <!-- Header -->
+    <div style="text-align:center;margin-bottom:0.5rem;">
+      <img src="logo.png" alt="Bud Finance"
+           style="width:3rem;height:3rem;object-fit:contain;margin:0 auto 0.75rem;display:block;">
+    </div>
+    <h1>Política de Privacidade</h1>
+    <p class="subtitle">Última atualização: 15 de abril de 2026 — Versão 1.0</p>
+
+    <!-- ─── 1. Introdução ────────────────────────────────────────── -->
+    <h2>1. Introdução</h2>
+    <p>
+      O <strong>Bud Finance</strong> é uma plataforma de <strong>controle financeiro pessoal</strong>,
+      desenvolvida para ajudar você a organizar suas receitas, despesas e metas.
+      Esta Política de Privacidade descreve como coletamos, utilizamos, armazenamos
+      e protegemos seus dados pessoais, em conformidade com a
+      <strong>Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD)</strong>.
+    </p>
+    <p>
+      Ao criar uma conta ou utilizar nossos serviços, você declara ter lido e
+      concordado com os termos abaixo.
+    </p>
+
+    <!-- ─── 2. Isenção de Responsabilidade Financeira ────────────── -->
+    <h2>2. Isenção de Responsabilidade Financeira</h2>
+    <p>
+      O Bud Finance é <strong>exclusivamente uma ferramenta de controle e organização financeira</strong>.
+      Nós <strong>não</strong>:
+    </p>
+    <ul>
+      <li>Realizamos operações financeiras, transferências ou investimentos em nome do usuário;</li>
+      <li>Custodiamos, movimentamos ou temos acesso ao dinheiro, contas bancárias ou ativos financeiros de qualquer usuário;</li>
+      <li>Prestamos consultoria financeira, de investimentos ou de qualquer natureza regulamentada;</li>
+      <li>Oferecemos garantias sobre resultados financeiros, rendimentos ou economia.</li>
+    </ul>
+    <p>
+      <strong>Toda e qualquer decisão financeira é de responsabilidade exclusiva do usuário.</strong>
+      O Bud Finance se limita a fornecer ferramentas para que você registre e visualize
+      suas próprias informações financeiras.
+    </p>
+
+    <!-- ─── 3. Dados Coletados ───────────────────────────────────── -->
+    <h2>3. Dados Coletados</h2>
+    <p>Coletamos os seguintes dados pessoais:</p>
+    <ul>
+      <li><strong>Dados de cadastro:</strong> nome completo, e-mail, telefone (WhatsApp);</li>
+      <li><strong>Dados de autenticação:</strong> senha (armazenada com criptografia pelo Firebase Authentication — nunca temos acesso à senha em texto plano);</li>
+      <li><strong>Dados de uso:</strong> registros financeiros que você inserir voluntariamente (receitas, despesas, categorias, metas);</li>
+      <li><strong>Dados técnicos:</strong> endereço IP, tipo de navegador, data e hora de acesso (para segurança e prevenção de fraude);</li>
+      <li><strong>Dados de indicação:</strong> código de indicação utilizado, se aplicável.</li>
+    </ul>
+
+    <!-- ─── 4. Finalidade do Tratamento ──────────────────────────── -->
+    <h2>4. Finalidade do Tratamento</h2>
+    <p>Seus dados são utilizados para:</p>
+    <ul>
+      <li>Criar e manter sua conta de acesso;</li>
+      <li>Prover as funcionalidades de controle financeiro;</li>
+      <li>Enviar comunicações essenciais (verificação de e-mail, recuperação de senha);</li>
+      <li>Processar seu programa de indicações e eventuais descontos;</li>
+      <li>Gerenciar planos e assinaturas (gratuitos e pagos);</li>
+      <li>Cumprir obrigações legais e regulatórias;</li>
+      <li>Garantir a segurança da plataforma.</li>
+    </ul>
+
+    <!-- ─── 5. Base Legal (LGPD) ─────────────────────────────────── -->
+    <h2>5. Base Legal (LGPD — Art. 7º)</h2>
+    <p>O tratamento dos seus dados pessoais se fundamenta nas seguintes bases legais:</p>
+    <ul>
+      <li><strong>Consentimento (Art. 7º, I):</strong> ao criar sua conta e aceitar esta política;</li>
+      <li><strong>Execução de contrato (Art. 7º, V):</strong> para prover os serviços contratados (inclusive planos futuros);</li>
+      <li><strong>Legítimo interesse (Art. 7º, IX):</strong> para segurança, prevenção de fraude e melhoria dos serviços;</li>
+      <li><strong>Cumprimento de obrigação legal (Art. 7º, II):</strong> quando exigido por legislação aplicável.</li>
+    </ul>
+
+    <!-- ─── 6. Compartilhamento de Dados ─────────────────────────── -->
+    <h2>6. Compartilhamento de Dados</h2>
+    <p>Seus dados podem ser compartilhados com:</p>
+    <ul>
+      <li><strong>Firebase (Google):</strong> autenticação e armazenamento em nuvem (Firestore), com servidores conforme padrões internacionais de segurança;</li>
+      <li><strong>EmailJS:</strong> envio de e-mails transacionais (boas-vindas, verificação);</li>
+      <li><strong>Autoridades competentes:</strong> quando exigido por decisão judicial ou lei aplicável.</li>
+    </ul>
+    <p>
+      <strong>Não vendemos, alugamos ou compartilhamos seus dados pessoais com terceiros
+      para fins de marketing ou publicidade.</strong>
+    </p>
+
+    <!-- ─── 7. Armazenamento e Segurança ─────────────────────────── -->
+    <h2>7. Armazenamento e Segurança</h2>
+    <p>Adotamos medidas técnicas para proteger seus dados:</p>
+    <ul>
+      <li>Autenticação via Firebase com criptografia de senhas;</li>
+      <li>Comunicação via HTTPS (criptografia em trânsito);</li>
+      <li>Sanitização de inputs para prevenção de ataques XSS;</li>
+      <li>Mensagens de erro genéricas para evitar enumeração de contas;</li>
+      <li>Timestamps de consentimento gerados pelo servidor (imutáveis).</li>
+    </ul>
+    <p>
+      Seus dados ficam armazenados nos servidores do Google Cloud (Firebase) pelo
+      tempo necessário para prover os serviços ou conforme exigido por lei.
+    </p>
+
+    <!-- ─── 8. Planos e Assinaturas ──────────────────────────────── -->
+    <h2>8. Planos e Assinaturas</h2>
+    <p>
+      O Bud Finance oferece um período de teste gratuito (trial). No futuro, serão
+      disponibilizados <strong>planos pagos</strong> com funcionalidades adicionais.
+    </p>
+    <ul>
+      <li>Os dados de pagamento serão processados por plataformas de pagamento terceirizadas com certificação PCI-DSS — <strong>não armazenamos dados de cartão de crédito</strong>;</li>
+      <li>Ao assinar um plano, dados adicionais poderão ser coletados conforme necessário para a cobrança;</li>
+      <li>Os termos específicos de cada plano serão informados no momento da contratação;</li>
+      <li>Esta política será atualizada quando os planos forem lançados.</li>
+    </ul>
+
+    <!-- ─── 9. Seus Direitos (LGPD — Art. 18) ───────────────────── -->
+    <h2>9. Seus Direitos (LGPD — Art. 18)</h2>
+    <p>Você pode, a qualquer momento, solicitar:</p>
+    <ul>
+      <li><strong>Confirmação</strong> da existência de tratamento dos seus dados;</li>
+      <li><strong>Acesso</strong> aos dados pessoais que mantemos sobre você;</li>
+      <li><strong>Correção</strong> de dados incompletos, inexatos ou desatualizados;</li>
+      <li><strong>Anonimização, bloqueio ou eliminação</strong> de dados desnecessários ou tratados em desconformidade;</li>
+      <li><strong>Portabilidade</strong> dos dados a outro fornecedor de serviço;</li>
+      <li><strong>Eliminação</strong> dos dados tratados com base no consentimento;</li>
+      <li><strong>Revogação</strong> do consentimento a qualquer momento;</li>
+      <li><strong>Informação</strong> sobre com quem seus dados foram compartilhados.</li>
+    </ul>
+    <p>
+      Para exercer qualquer um desses direitos, entre em contato conosco pelo
+      e-mail informado na seção de contato abaixo.
+    </p>
+
+    <!-- ─── 10. Retenção de Dados ────────────────────────────────── -->
+    <h2>10. Retenção de Dados</h2>
+    <ul>
+      <li>Seus dados são mantidos enquanto sua conta estiver ativa;</li>
+      <li>Após exclusão da conta, os dados serão eliminados em até 30 dias, exceto quando houver obrigação legal de retenção;</li>
+      <li>Registros de consentimento LGPD são mantidos pelo prazo legal mesmo após exclusão da conta.</li>
+    </ul>
+
+    <!-- ─── 11. Cookies e Armazenamento Local ────────────────────── -->
+    <h2>11. Cookies e Armazenamento Local</h2>
+    <p>
+      Utilizamos <strong>localStorage</strong> do navegador para armazenar preferências
+      de interface (como tema visual selecionado). Não utilizamos cookies de
+      rastreamento ou publicidade. Os dados de autenticação são gerenciados
+      diretamente pelo Firebase SDK.
+    </p>
+
+    <!-- ─── 12. Menores de Idade ─────────────────────────────────── -->
+    <h2>12. Menores de Idade</h2>
+    <p>
+      O Bud Finance não é destinado a menores de 18 anos. Não coletamos
+      intencionalmente dados de menores. Caso identifiquemos que um menor
+      criou uma conta, os dados serão eliminados.
+    </p>
+
+    <!-- ─── 13. Alterações nesta Política ────────────────────────── -->
+    <h2>13. Alterações nesta Política</h2>
+    <p>
+      Esta política pode ser atualizada periodicamente. Alterações significativas
+      serão comunicadas por e-mail ou notificação no aplicativo. A versão mais
+      recente estará sempre disponível nesta página, com a data de atualização
+      no topo.
+    </p>
+
+    <!-- ─── 14. Contato ──────────────────────────────────────────── -->
+    <h2>14. Contato</h2>
+    <p>
+      Para dúvidas, solicitações de direitos LGPD ou qualquer questão sobre
+      esta política, entre em contato:
+    </p>
+    <ul>
+      <li><strong>E-mail:</strong> contato@budfinance.com.br</li>
+      <li><strong>Responsável pelo tratamento:</strong> Bud Finance</li>
+    </ul>
+
+    <hr class="divider">
+
+    <!-- ─── Footer ───────────────────────────────────────────────── -->
+    <div style="text-align:center;">
+      <a href="index.html" class="back-link">← Voltar para o login</a>
+      <p style="font-size:0.6875rem;color:#94a3b8;margin-top:0.75rem;">
+        © 2026 Bud Finance — Todos os direitos reservados.
+      </p>
+    </div>
+
+  </div>
+
+</body>
+</html>
