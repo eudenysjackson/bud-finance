@@ -101,6 +101,46 @@
 
 ---
 
+### DEC-009 — Usuário escolhe a própria senha no cadastro (sem senha temporária)
+
+- **Data**: 15/04/2026
+- **O que foi decidido**: O formulário de cadastro tem campos de senha + confirmação. Nenhuma senha temporária é gerada ou enviada por email.
+- **Por quê**: Senha em texto plano no email é risco crítico. User-chosen password elimina o vetor.
+- **Consequências**: `primeiroLogin: false` no Firestore. `gerarSenhaTemp()` removido. Email de boas-vindas não contém credenciais.
+- **Quando revisar**: Nunca — é regra de segurança permanente.
+
+---
+
+### DEC-010 — Indicações como subcollection (não arrayUnion)
+
+- **Data**: 15/04/2026
+- **O que foi decidido**: Indicações ficam em `usuarios/{uid}/indicacoes/{indicadoUid}` em vez de array no documento do indicador.
+- **Por quê**: Arrays no Firestore não permitem remoção/edição granular de itens. Subcollection permite queries, paginação e exclusão individual.
+- **Consequências**: Contagem de indicações requer query `.size()` ou campo `totalIndicacoes` mantido por trigger.
+- **Quando revisar**: Se modelo de referral mudar significativamente.
+
+---
+
+### DEC-011 — serverTimestamp() para datas de compliance (LGPD, cadastro)
+
+- **Data**: 15/04/2026
+- **O que foi decidido**: `dataCadastro` e `lgpdConsentimentoData` usam `serverTimestamp()` do Firestore, nunca `new Date()` do client.
+- **Por quê**: Timestamps de auditoria devem ser imutáveis e timezone-proof. `new Date()` é manipulável pelo usuário.
+- **Consequências**: Campos aparecem como `null` até o write ser confirmado pelo server. Leitura imediata pós-write pode ver `null`.
+- **Quando revisar**: Nunca — é regra de compliance.
+
+---
+
+### DEC-012 — reCAPTCHA v3 com placeholder e fallback DEV_SKIP
+
+- **Data**: 15/04/2026
+- **O que foi decidido**: `getRecaptchaToken()` tenta executar reCAPTCHA v3 e, se o script não estiver carregado (dev local), retorna `__DEV_SKIP__`. Cloud Function valida o token em produção.
+- **Por quê**: Permite desenvolvimento local sem reCAPTCHA configurado, mas protege produção.
+- **Consequências**: Em dev local o token é dummy. Cloud Function **deve** rejeitar `__DEV_SKIP__` em produção.
+- **Quando revisar**: Quando reCAPTCHA for configurado de fato (trocar site key placeholder).
+
+---
+
 ### DEC-005 — Mensagens de erro genéricas no login
 
 - **Data**: 15/04/2026

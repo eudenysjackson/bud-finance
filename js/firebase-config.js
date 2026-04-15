@@ -6,7 +6,7 @@
 (function () {
   'use strict';
 
-  // ─── Placeholder config ─────────────────────────────────────────────
+  // ─── Firebase placeholder config ─────────────────────────────────────
   // Replace these values with your actual Firebase project credentials.
   // For local development you can fill them in directly.
   // For production, inject via CI/CD environment variables or server-side rendering.
@@ -28,6 +28,22 @@
     );
   }
 
-  // Expose as a frozen object on window so other modules can consume it
+  // ─── Cloud Functions URL ──────────────────────────────────────────────
+  // Base URL for Firebase Cloud Functions (used by recuperar-senha, etc.)
+  window.BUD_FUNCTIONS_URL = "__CLOUD_FUNCTIONS_URL__";
+
+  // ─── EmailJS protected config ─────────────────────────────────────────
+  // In production, move email sending to a Cloud Function (server-side).
+  // These are kept here as placeholders for the client-side fallback.
+  window.BUD_EMAILJS_CONFIG = Object.freeze({
+    publicKey:  "__EMAILJS_PUBLIC_KEY__",
+    serviceId:  "__EMAILJS_SERVICE_ID__",
+    templateId: "__EMAILJS_TEMPLATE_ID__"
+  });
+
+  // ─── reCAPTCHA v3 site key ────────────────────────────────────────────
+  window.BUD_RECAPTCHA_SITE_KEY = "__RECAPTCHA_SITE_KEY__";
+
+  // Expose Firebase config as a frozen object
   window.BUD_FIREBASE_CONFIG = Object.freeze(config);
 })();

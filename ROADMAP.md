@@ -21,22 +21,27 @@
   - Modal de verificação de email (style.cssText, sem Tailwind dinâmico)
   - Keybindings (Enter), sanitização XSS, erro genérico anti-enumeração
   - Closure para dados sensíveis (sem senha no DOM)
+- [x] **Tela de Cadastro** (`cadastro.html` + `js/cadastro.js`)
+  - Formulário completo com senha escolhida pelo usuário (sem temp password)
+  - Indicador de força de senha (4 barras), blocklist de senhas comuns
+  - reCAPTCHA v3 placeholder com fallback DEV_SKIP
+  - serverTimestamp para dataCadastro e lgpdConsentimentoData
+  - Subcollection `usuarios/{uid}/indicacoes/{uid}` (não arrayUnion)
+  - Email de boas-vindas fire-and-forget (sem senha no email)
+  - Matrícula BUD-XXXX-XXXX via crypto
+- [x] **Tela Recuperar Senha** (`recuperar-senha.html` + `js/recuperar-senha.js`)
+  - Glassmorphism consistente com login (blobs, glass card)
+  - POST para Cloud Function /reset-senha com res.ok check
+  - Delayed redirect 3s + safety timeout 30s
+  - Mensagens genéricas anti-enumeração
+- [x] **firebase-config.js expandido** — BUD_FUNCTIONS_URL, BUD_EMAILJS_CONFIG, BUD_RECAPTCHA_SITE_KEY
+- [x] **index.js atualizado** — Email verification enforced para TODOS os usuários
 
 ---
 
 ## 📋 Backlog (ordenado por prioridade)
 
-> ⚠️ **NÃO implementar sem meu pedido.**
-
-4. **Tela de Cadastro** (`cadastro.html` + `js/cadastro.js`)
-   - Formulário completo (nome, email, WhatsApp, código indicação)
-   - Criação de usuário Firebase + Firestore
-   - Envio de email de verificação
-   - Envio de credenciais via EmailJS
-
-5. **Tela Recuperar Senha** (`recuperar-senha.html` + `js/recuperar-senha.js`)
-   - Input email + botão enviar link
-   - POST para Cloud Function `/reset-senha`
+> ⚠️ **NÃO implementar sem meu pedido.
 
 6. **Tela Ação Auth** (`acao-auth.html` + `js/acao-auth.js`)
    - Processamento do link de reset (oobCode)

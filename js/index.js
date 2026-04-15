@@ -190,8 +190,8 @@ formLogin.addEventListener('submit', async function (e) {
       return;
     }
 
-    // 7. Check: email verification required
-    if (userData.emailVerificationRequired === true && !user.emailVerified) {
+    // 7. Check: email not verified — enforce for ALL users
+    if (!user.emailVerified) {
       const resend = await showEmailVerificationModal();
       if (resend) {
         try {

@@ -40,10 +40,14 @@
 | `budSanitize(str)` | Strip HTML tags + trim — anti-XSS | Todas as páginas | ✅ `bud-utils.js` |
 | `buscarEmailPorMatricula(matricula)` | Consulta Firestore → retorna email ou null | `index.js` | ✅ `index.js` |
 | `showEmailVerificationModal()` | Modal (style.cssText) para reenvio de verificação | `index.js` | ✅ `index.js` |
-| `verificarForca(senha)` | Calcula força da senha (0-4) e atualiza barras | `acao-auth.js`, `trocar-senha.js` | ⏳ backlog |
-| `gerarCodigoUnico()` | Gera string 8 chars alfanumérica maiúscula | `cadastro.js` | ⏳ backlog |
-| `gerarCodigoUnicoValidado()` | Gera código + valida unicidade no Firestore | `cadastro.js` | ⏳ backlog |
-| `gerarSenhaTemp()` | Gera senha temporária para novo cadastro | `cadastro.js` | ⏳ backlog |
+| `verificarForca(senha)` / `calcStrength(pw)` | Calcula força da senha (0-4) e atualiza barras | `cadastro.js` | ✅ `cadastro.js` |
+| `gerarMatricula()` | Gera `BUD-XXXX-XXXX` com crypto.getRandomValues | `cadastro.js` | ✅ `cadastro.js` |
+| `gerarCodigoIndicacao()` | Gera 8 chars alfanumérica maiúscula | `cadastro.js` | ✅ `cadastro.js` |
+| `validarCodigoIndicacao(codigo)` | Query Firestore → retorna {uid, nome} ou null | `cadastro.js` | ✅ `cadastro.js` |
+| `getRecaptchaToken()` | Placeholder reCAPTCHA v3 — retorna token ou __DEV_SKIP__ | `cadastro.js` | ✅ `cadastro.js` |
+| `enviarEmailBoasVindas(...)` | Fire-and-forget welcome email via EmailJS (sem senha) | `cadastro.js` | ✅ `cadastro.js` |
+| `isEmailValido(email)` | Regex básica de email | `cadastro.js`, `recuperar-senha.js` | ✅ |
+| `gerarSenhaTemp()` | ~~Gera senha temporária~~ | — | ❌ REMOVIDO (user escolhe senha) |
 
 ---
 
@@ -57,6 +61,11 @@
 | `click → btnLogin` | Fluxo de login completo | Firebase Auth + Firestore ✅ |
 | `click → toggleSenha` | Alterna password/text no input | DOM (`index.html`) ✅ |
 | `submit → formLogin` | Previne submit e dispara login | DOM (`index.html`) ✅ |
+| `submit → formCadastro` | Validação + criação Auth + Firestore doc | DOM (`cadastro.html`) ✅ |
+| `submit → formRecuperar` | Valida email + POST /reset-senha | DOM (`recuperar-senha.html`) ✅ |
+| `input → novaSenha (cadastro)` | Atualiza indicador de força (4 barras) | DOM (`cadastro.html`) ✅ |
+| `input → telefone` | Máscara BR (XX) XXXXX-XXXX | DOM (`cadastro.html`) ✅ |
+| `click → toggleNovaSenha/Confirmar` | Alterna password/text | DOM (`cadastro.html`) ✅ |
 | `click → toggle senha` | Alterna password/text no input | DOM |
 | `input → novaSenha` | Atualiza indicador de força | DOM |
 
@@ -79,12 +88,24 @@
 | `bloqueado` | boolean | ✅ | Se conta está bloqueada |
 | `dataCadastro` | timestamp | ✅ | Data de criação |
 | `codigoIndicacao` | string | ✅ | Código único 8 chars (gerado) |
-| `indicadoPor` | object/null | ❌ | `{codigo, uid, nome, dataIndicacao}` |
-| `descontoIndicacao` | number | ✅ | 0 ou 30 (%) |
-| `descontoIndicacaoUsado` | boolean | ✅ | Se já usou desconto |
-| `indicacoes` | array | ❌ | Lista de usuários indicados |
-| `totalIndicacoes` | number | ❌ | Contador de indicações |
+| `indicadoPor` | object/null | ❌ | `{codigo, uid, nome}` |
+| `descontoIndicacao` | number | ❌ | 30 (%) — se veio indicação |
+| `descontoIndicacaoUsado` | boolean | ❌ | Se já usou desconto |
+| `lgpdConsentimento` | boolean | ✅ | Consentimento LGPD |
+| `lgpdConsentimentoData` | timestamp | ✅ | serverTimestamp() |
+| `lgpdVersaoPolitica` | string | ✅ | Versão da política aceita |
+| `status` | string | ✅ | `ativo`, `inativo` |
+| `funcionalidades` | object | ✅ | Feature flags |
 | `role` | string | ❌ | `admin` para administradores |
+
+### Subcollection: `usuarios/{uid}/indicacoes/{indicadoUid}`
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `nome` | string | ✅ | Nome do indicado |
+| `email` | string | ✅ | Email do indicado |
+| `data` | timestamp | ✅ | serverTimestamp() |
+| `assinouPlano` | boolean | ✅ | Se ativou plano pago |
 
 ### Collection: `chamados`
 
@@ -162,6 +183,7 @@
 |---|---|---|
 | 15/04/2026 | Documento criado com base na spec da tela de login e fluxo de autenticação | Copilot |
 | 15/04/2026 | Etapa 1 implementada: `index.html`, `js/index.js`, `js/firebase-config.js`, `js/bud-utils.js`. Helpers `budShowToast`, `budSanitize`, `showEmailVerificationModal`, `buscarEmailPorMatricula` ativos. | Copilot |
+| 15/04/2026 | Etapa 2 implementada: `cadastro.html`, `js/cadastro.js`, `recuperar-senha.html`, `js/recuperar-senha.js`. Correções: user escolhe senha (sem temp), reCAPTCHA placeholder, serverTimestamp, subcoleção indicações, email verification enforced no login, res.ok check, delayed redirect. | Copilot |
 
 ---
 
@@ -173,4 +195,8 @@
 | `js/index.js` | ✅ | Lógica de login — Firebase Auth modular, matrícula lookup, modal email, anti-XSS |
 | `js/firebase-config.js` | ✅ | Config Firebase via `window.BUD_FIREBASE_CONFIG` (placeholders seguros) |
 | `js/bud-utils.js` | ✅ | Toast system (`budShowToast`) + sanitização (`budSanitize`) |
+| `cadastro.html` | ✅ | Tela de cadastro — glassmorphism, senha escolhida pelo user, indicador força, LGPD |
+| `js/cadastro.js` | ✅ | Criação de conta — Firebase Auth modular, matrícula, reCAPTCHA placeholder, subcoleção indicações |
+| `recuperar-senha.html` | ✅ | Tela de recuperação — glassmorphism consistente com login, blobs |
+| `js/recuperar-senha.js` | ✅ | POST /reset-senha — res.ok check, delayed redirect 3s, safety timeout 30s |
 | `css/tailwind.css` | ⏳ | Pendente — build estático do Tailwind |
