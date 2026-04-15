@@ -115,12 +115,12 @@ Quando o usuário escolhe uma cor, **o fundo inteiro** assume o tom sólido. Os 
 
 | # | Tema | Hex Fundo | Texto (página) | Texto Sec (página) | Card BG | Card Borda | Card Texto | Card Texto Sec | Botão BG | Botão Texto | Inspiração |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 3 | **Azul** | `#1075e8` | `#ffffff` | `#dbeafe` | `rgba(255,255,255,0.92)` | `rgba(255,255,255,0.5)` | `#1e293b` | `#475569` | `#ffffff` | `#1075e8` | Amil / Nav Dasa |
-| 4 | **Roxo** | `#8c52ff` | `#ffffff` | `#ede9fe` | `rgba(255,255,255,0.92)` | `rgba(255,255,255,0.5)` | `#1e293b` | `#475569` | `#ffffff` | `#8c52ff` | Life360 |
+| 3 | **Azul** | `#005BAA` | `#ffffff` | `#dbeafe` | `rgba(255,255,255,0.92)` | `rgba(255,255,255,0.5)` | `#1e293b` | `#475569` | `#ffffff` | `#005BAA` | Amil / Nav Dasa |
+| 4 | **Roxo** | `#7C3AED` | `#ffffff` | `#ede9fe` | `rgba(255,255,255,0.92)` | `rgba(255,255,255,0.5)` | `#1e293b` | `#475569` | `#ffffff` | `#7C3AED` | Life360 |
 | 5 | **Rosa** | `#ff4d94` | `#ffffff` | `#fce7f3` | `rgba(255,255,255,0.92)` | `rgba(255,255,255,0.5)` | `#1e293b` | `#475569` | `#ffffff` | `#ff4d94` | — |
 | 6 | **Amarelo** | `#ffc700` | `#1a1a1a` | `#78716c` | `rgba(255,255,255,0.93)` | `rgba(255,255,255,0.7)` | `#1a1a1a` | `#57534e` | `#1a1a1a` | `#ffc700` | Will Bank |
-| 7 | **Verde** | `#21c25e` | `#ffffff` | `#dcfce7` | `rgba(255,255,255,0.92)` | `rgba(255,255,255,0.5)` | `#1e293b` | `#475569` | `#ffffff` | `#21c25e` | PicPay |
-| 8 | **Vermelho** | `#c8102e` | `#ffffff` | `#fee2e2` | `rgba(255,255,255,0.92)` | `rgba(255,255,255,0.5)` | `#1e293b` | `#475569` | `#ffffff` | `#c8102e` | Flamengo |
+| 7 | **Verde** | `#11c76f` | `#ffffff` | `#dcfce7` | `rgba(255,255,255,0.92)` | `rgba(255,255,255,0.5)` | `#1e293b` | `#475569` | `#ffffff` | `#11c76f` | PicPay |
+| 8 | **Vermelho** | `#ed1c24` | `#ffffff` | `#fee2e2` | `rgba(255,255,255,0.92)` | `rgba(255,255,255,0.5)` | `#1e293b` | `#475569` | `#ffffff` | `#ed1c24` | Flamengo |
 
 > **Amarelo** tem regras especiais: texto escuro (`#1a1a1a`), card texto escuro (`#1a1a1a` / `#57534e`), botão preto — tudo para manter contraste WCAG AA.
 
@@ -132,12 +132,12 @@ O card de saldo usa gradiente específico por tema (tom mais escuro da cor base)
 |---|---|---|---|---|---|
 | 1 | **Gelo** | `#4f75ff` | `#375ee3` | `#ffffff` | `rgba(255,255,255,0.15)` |
 | 2 | **HBO** | `#1e293b` | `#0f172a` | `#ffffff` | `rgba(255,255,255,0.08)` |
-| 3 | **Azul** | `#0a5cc4` | `#084da8` | `#ffffff` | `rgba(255,255,255,0.18)` |
-| 4 | **Roxo** | `#7040d4` | `#5a2ebf` | `#ffffff` | `rgba(255,255,255,0.18)` |
+| 3 | **Azul** | `#004a91` | `#003b75` | `#ffffff` | `rgba(255,255,255,0.18)` |
+| 4 | **Roxo** | `#6929d4` | `#5521b5` | `#ffffff` | `rgba(255,255,255,0.18)` |
 | 5 | **Rosa** | `#d4407d` | `#b83568` | `#ffffff` | `rgba(255,255,255,0.18)` |
-| 6 | **Amarelo** | `#b8930a` | `#9a7b08` | `#ffffff` | `rgba(255,255,255,0.22)` |
-| 7 | **Verde** | `#178a42` | `#126b34` | `#ffffff` | `rgba(255,255,255,0.18)` |
-| 8 | **Vermelho** | `#a00d24` | `#8b0a1e` | `#ffffff` | `rgba(255,255,255,0.18)` |
+| 6 | **Amarelo** | `#1a1a1a` | `#2d3748` | `#ffffff` | `rgba(255,255,255,0.12)` |
+| 7 | **Verde** | `#0ea55c` | `#0b8a4c` | `#ffffff` | `rgba(255,255,255,0.18)` |
+| 8 | **Vermelho** | `#c8171e` | `#a71219` | `#ffffff` | `rgba(255,255,255,0.18)` |
 
 ### Input nos Temas Imersivos
 
@@ -147,7 +147,7 @@ Nos temas imersivos os inputs ficam dentro dos cards opacos, então usam fundo c
 |---|---|---|
 | **Input bg** | `#f8fafc` | `#fffcf0` |
 | **Input border** | `#e2e8f0` | `#e2e8f0` |
-| **Input border focus** | cor do tema (ex: `#1075e8`) | `#b8930a` |
+| **Input border focus** | cor do tema (ex: `#005BAA`) | `#1a1a1a` |
 | **Input text** | `#1e293b` (escuro, dentro do card) | `#1a1a1a` |
 | **Placeholder** | `rgba(0, 0, 0, 0.4)` | `rgba(0, 0, 0, 0.4)` |
 
@@ -199,20 +199,20 @@ const themes = {
     balFrom:'#1e293b', balTo:'#0f172a', balText:'#fff', balMiniBg:'rgba(255,255,255,0.08)'
   },
   azul: {
-    bg:'#1075e8', text:'#ffffff', sec:'#dbeafe',
+    bg:'#005BAA', text:'#ffffff', sec:'#dbeafe',
     glass:'rgba(255,255,255,0.92)', border:'rgba(255,255,255,0.5)',
     cardText:'#1e293b', cardTextSec:'#475569',
-    btnBg:'#ffffff', btnText:'#1075e8',
-    inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#1075e8',
-    balFrom:'#0a5cc4', balTo:'#084da8', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
+    btnBg:'#ffffff', btnText:'#005BAA',
+    inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#005BAA',
+    balFrom:'#004a91', balTo:'#003b75', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
   },
   roxo: {
-    bg:'#8c52ff', text:'#ffffff', sec:'#ede9fe',
+    bg:'#7C3AED', text:'#ffffff', sec:'#ede9fe',
     glass:'rgba(255,255,255,0.92)', border:'rgba(255,255,255,0.5)',
     cardText:'#1e293b', cardTextSec:'#475569',
-    btnBg:'#ffffff', btnText:'#8c52ff',
-    inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#8c52ff',
-    balFrom:'#7040d4', balTo:'#5a2ebf', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
+    btnBg:'#ffffff', btnText:'#7C3AED',
+    inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#7C3AED',
+    balFrom:'#6929d4', balTo:'#5521b5', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
   },
   rosa: {
     bg:'#ff4d94', text:'#ffffff', sec:'#fce7f3',
@@ -227,24 +227,24 @@ const themes = {
     glass:'rgba(255,255,255,0.93)', border:'rgba(255,255,255,0.7)',
     cardText:'#1a1a1a', cardTextSec:'#57534e',
     btnBg:'#1a1a1a', btnText:'#ffc700',
-    inputBg:'#fffcf0', inputBorder:'#e2e8f0', inputFocus:'#b8930a',
-    balFrom:'#b8930a', balTo:'#9a7b08', balText:'#fff', balMiniBg:'rgba(255,255,255,0.22)'
+    inputBg:'#fffcf0', inputBorder:'#e2e8f0', inputFocus:'#1a1a1a',
+    balFrom:'#1a1a1a', balTo:'#2d3748', balText:'#fff', balMiniBg:'rgba(255,255,255,0.12)'
   },
   verde: {
-    bg:'#21c25e', text:'#ffffff', sec:'#dcfce7',
+    bg:'#11c76f', text:'#ffffff', sec:'#dcfce7',
     glass:'rgba(255,255,255,0.92)', border:'rgba(255,255,255,0.5)',
     cardText:'#1e293b', cardTextSec:'#475569',
-    btnBg:'#ffffff', btnText:'#21c25e',
-    inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#21c25e',
-    balFrom:'#178a42', balTo:'#126b34', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
+    btnBg:'#ffffff', btnText:'#11c76f',
+    inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#11c76f',
+    balFrom:'#0ea55c', balTo:'#0b8a4c', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
   },
   vermelho: {
-    bg:'#c8102e', text:'#ffffff', sec:'#fee2e2',
+    bg:'#ed1c24', text:'#ffffff', sec:'#fee2e2',
     glass:'rgba(255,255,255,0.92)', border:'rgba(255,255,255,0.5)',
     cardText:'#1e293b', cardTextSec:'#475569',
-    btnBg:'#ffffff', btnText:'#c8102e',
-    inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#c8102e',
-    balFrom:'#a00d24', balTo:'#8b0a1e', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
+    btnBg:'#ffffff', btnText:'#ed1c24',
+    inputBg:'#f8fafc', inputBorder:'#e2e8f0', inputFocus:'#ed1c24',
+    balFrom:'#c8171e', balTo:'#a71219', balText:'#fff', balMiniBg:'rgba(255,255,255,0.18)'
   }
 };
 
@@ -296,7 +296,7 @@ background: linear-gradient(to right, var(--balance-from), var(--balance-to));
 color: var(--balance-text);
 ```
 - Cada tema define seu próprio gradiente via `--balance-from` e `--balance-to`
-- No Gelo: azul `#4f75ff → #375ee3`; no Verde: `#178a42 → #126b34`; etc.
+- No Gelo: azul `#4f75ff → #375ee3`; no Verde: `#0ea55c → #0b8a4c`; etc.
 
 ### Gradiente Banner Premium / Dark Panels
 ```css
