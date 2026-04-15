@@ -79,22 +79,21 @@
 
 ## 4. Regras de UI/UX
 
-### Paleta de Cores
+### Paleta de Cores (Sistema de Temas)
 
-| Uso | Cor | Classe Tailwind |
+O projeto usa **CSS custom properties** (`var(--nome)`) para todas as cores dinâmicas.
+8 temas disponíveis: Padrão Gelo, Dark HBO, Azul, Roxo, Rosa, Amarelo, Verde, Vermelho.
+
+> Consultar `identidade-visual.md` para especificação completa de cada tema.
+
+**Cores fixas (não mudam entre temas)**:
+
+| Uso | Cor | Tailwind |
 |---|---|---|
-| **Background body** | `#f0f4f8` | `bg-[#f0f4f8]` |
-| **Card glass** | `rgba(255,255,255,0.9)` | `bg-white/90` |
-| **Primário** | `#2563eb` | `text-blue-600`, `bg-blue-600` |
-| **Primário hover** | `#1d4ed8` | `hover:bg-blue-700` |
-| **Texto principal** | `#1e293b` | `text-slate-800` |
-| **Texto secundário** | `#64748b` | `text-slate-500` |
-| **Input bg** | `#f8fafc` | `bg-slate-50` |
-| **Input border** | `#f1f5f9` | `border-slate-100` |
-| **Input border focus** | `#3b82f6` | `focus:border-blue-500` |
-| **Blob azul** | `bg-blue-300/40` | — |
-| **Blob ciano** | `bg-cyan-300/30` | — |
-| **Dark bg** | `#0f172a` | — |
+| **Receita/positivo** | `#10b981` | emerald-500 |
+| **Despesa/negativo** | `#ef4444` | red-500 |
+| **Aviso** | `#f59e0b` | amber-500 |
+| **Destaque** | `#06b6d4` | cyan-500 |
 
 ### Bordas e Arredondamento
 - **Card**: `rounded-[2rem]` (32px)
@@ -117,10 +116,9 @@
 - **Testar em**: iPhone SE (375px), iPhone 12 (390px), iPad (768px), Desktop (1280px+)
 
 ### Glassmorphism
-- `backdrop-blur-xl` no card
-- `bg-white/90` (semi-transparente)
-- `shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]`
-- `border border-white`
+- `.glass-card`: `var(--card-bg)` + `backdrop-filter: blur(20px)` + `var(--card-border)`
+- `.glass-panel`: `var(--card-bg)` + `backdrop-filter: blur(24px)` (header/sidebar)
+- Adapta automaticamente ao tema ativo via CSS variables
 
 ---
 

@@ -88,3 +88,13 @@
 - **Por quê**: DEC-002 — classes Tailwind dinâmicas não funcionam com build estático.
 - **Consequências**: Estilo do modal é definido via `style.cssText` inline.
 - **Quando revisar**: Se migrar para build JIT do Tailwind.
+
+---
+
+### DEC-008 — Sistema de Temas com CSS Custom Properties
+
+- **Data**: 15/04/2026
+- **O que foi decidido**: Implementar 8 temas (Gelo, HBO Dark, Azul, Roxo, Rosa, Amarelo, Verde, Vermelho) via CSS variables (`--bg-page`, `--text-main`, `--card-bg`, etc.) trocados em runtime por JS.
+- **Por quê**: Permitir personalização visual total sem duplicar CSS. Cada tema muda o fundo, vidro, botões e inputs mantendo a integridade do layout.
+- **Consequências**: Todas as cores dinâmicas devem usar `var(--nome)`. Cores de sentimento (verde/vermelho/âmbar) permanecem fixas. Tema salvo em `localStorage.bud_theme`.
+- **Quando revisar**: Se o número de temas crescer além de 10 ou se for necessário temas por usuário no backend.
