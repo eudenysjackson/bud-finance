@@ -61,6 +61,46 @@
 
 ---
 
+### DEC-005 — Firebase config via window.BUD_FIREBASE_CONFIG (não hardcoded)
+
+- **Data**: 15/04/2026
+- **O que foi decidido**: Chaves Firebase ficam em `js/firebase-config.js` como placeholders. Em produção serão injetadas via build/CI.
+- **Por quê**: Evitar commitar API keys no repositório. Facilitar rotação de credenciais.
+- **Consequências**: Exige passo de configuração antes do primeiro deploy. Módulos consomem `window.BUD_FIREBASE_CONFIG`.
+- **Quando revisar**: Se adotar bundler (Vite/Webpack) com `.env` nativo.
+
+---
+
+### DEC-006 — Modais criados em JS usam style.cssText (não classes Tailwind)
+
+- **Data**: 15/04/2026
+- **O que foi decidido**: Overlays/modais criados dinamicamente via JS usam `el.style.cssText` em vez de `className` com classes Tailwind.
+- **Por quê**: Build estático do Tailwind não inclui classes não presentes nos templates HTML. Classes arbitrárias (`bg-black/50`, `z-[9999]`) não existem no CSS gerado.
+- **Consequências**: Modais JS são mais verbosos porém confiáveis. Toda estilização dinâmica é inline.
+- **Quando revisar**: Se migrar para Tailwind JIT em runtime.
+
+---
+
+### DEC-007 — Sanitização de inputs + erro genérico anti-enumeração
+
+- **Data**: 15/04/2026
+- **O que foi decidido**: (1) Todo input do usuário passa por `budSanitize()` (strip HTML tags) antes de ir ao Firestore. (2) Busca por matrícula retorna erro genérico "Credenciais inválidas" sem revelar se a matrícula existe.
+- **Por quê**: Prevenir XSS stored e impedir enumeração de usuários.
+- **Consequências**: Função global `budSanitize()` em `bud-utils.js`. Mensagens de erro uniformes.
+- **Quando revisar**: Se adotar DOMPurify ou framework com sanitização nativa.
+
+---
+
+### DEC-008 — Dados sensíveis em closures, nunca no DOM
+
+- **Data**: 15/04/2026
+- **O que foi decidido**: Senhas e tokens temporários ficam em variáveis locais (closures) do JS, nunca armazenados em `dataset`, `localStorage` ou atributos do DOM.
+- **Por quê**: Elementos DOM são acessíveis via DevTools / XSS. Closures são inacessíveis externamente.
+- **Consequências**: Fluxo de troca de senha precisará usar closure ou referência de módulo para manter a senha temporária.
+- **Quando revisar**: Se adotar state management que ofereça encapsulamento equivalente.
+
+---
+
 ### DEC-005 — Mensagens de erro genéricas no login
 
 - **Data**: 15/04/2026

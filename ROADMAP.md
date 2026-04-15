@@ -11,27 +11,22 @@
 
 - [x] Documentos de governança criados (PROJECT_RULES, ARCHITECTURE_MAP, DECISIONS_LOG, ERRORS_LOG, ROADMAP)
 - [x] `.github/copilot-instructions.md` configurado
+- [x] **Identidade visual** — 8 temas imersivos com cores reais de marca
+- [x] **Firebase Config** (`js/firebase-config.js`) — placeholder seguro via `window.BUD_FIREBASE_CONFIG`
+- [x] **Utils globais** (`js/bud-utils.js`) — `budShowToast()` + `budSanitize()`
+- [x] **Tela de Login** (`index.html` + `js/index.js`)
+  - Card glassmorphic com blobs decorativos + splash screen
+  - Inputs email/matrícula + senha com toggle
+  - Lógica Firebase Auth modular (v10.8.1, sem compat)
+  - Modal de verificação de email (style.cssText, sem Tailwind dinâmico)
+  - Keybindings (Enter), sanitização XSS, erro genérico anti-enumeração
+  - Closure para dados sensíveis (sem senha no DOM)
 
 ---
 
 ## 📋 Backlog (ordenado por prioridade)
 
 > ⚠️ **NÃO implementar sem meu pedido.**
-
-1. **Tela de Login** (`index.html` + `js/index.js`)
-   - Card glassmorphic com blobs decorativos
-   - Inputs email/matrícula + senha com toggle
-   - Lógica Firebase Auth completa
-   - Modal de reenvio de verificação de email
-   - Keybindings (Enter)
-   - Splash screen / loader
-
-2. **Firebase Config** (`js/firebase-config.js`)
-   - Configuração do Firebase App
-   - Exposição via `window.BUD_FIREBASE_CONFIG`
-
-3. **Utils globais** (`js/bud-utils.js`)
-   - Sistema de toasts (`budShowToast`)
 
 4. **Tela de Cadastro** (`cadastro.html` + `js/cadastro.js`)
    - Formulário completo (nome, email, WhatsApp, código indicação)

@@ -17,6 +17,10 @@ Os 5 documentos abaixo governam este projeto. **Consulte-os antes de agir.**
 - Stack: HTML5 + Tailwind CSS (build estático) + Vanilla JS (ES6+) + Firebase 10.8.1
 - NUNCA usar classes Tailwind em elementos criados dinamicamente via JS — usar `style` inline
 - NUNCA expor se um email/matrícula existe nas mensagens de erro
+- NUNCA armazenar senhas/tokens em DOM (dataset) ou localStorage — usar closures
+- Todo input de usuário deve ser sanitizado com `budSanitize()` antes de Firestore
+- Firebase config via `window.BUD_FIREBASE_CONFIG` (placeholders, sem keys hardcoded)
+- Firebase SDK Modular (v10.8.1) — NUNCA usar SDK Compat
 - Toda tarefa finalizada deve atualizar o `ARCHITECTURE_MAP.md`
 - Todo erro encontrado deve ser registrado no `ERRORS_LOG.md`
 - Toda decisão não-óbvia deve ser registrada no `DECISIONS_LOG.md`

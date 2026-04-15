@@ -34,14 +34,16 @@
 
 ## 🧠 Neurônios (Helpers)
 
-| Nome | Cálculo/Tratamento | Quem usa |
-|---|---|---|
-| `budShowToast(msg, tipo)` | Exibe notificação toast (success, error, warning) | Todas as páginas |
-| `buscarEmailPorMatricula(matricula)` | Consulta Firestore → retorna email ou null | `index.js` |
-| `verificarForca(senha)` | Calcula força da senha (0-4) e atualiza barras | `acao-auth.js`, `trocar-senha.js` |
-| `gerarCodigoUnico()` | Gera string 8 chars alfanumérica maiúscula | `cadastro.js` |
-| `gerarCodigoUnicoValidado()` | Gera código + valida unicidade no Firestore | `cadastro.js` |
-| `gerarSenhaTemp()` | Gera senha temporária para novo cadastro | `cadastro.js` |
+| Nome | Cálculo/Tratamento | Quem usa | Status |
+|---|---|---|---|
+| `budShowToast(msg, tipo)` | Exibe notificação toast (success, error, warning, info) | Todas as páginas | ✅ `bud-utils.js` |
+| `budSanitize(str)` | Strip HTML tags + trim — anti-XSS | Todas as páginas | ✅ `bud-utils.js` |
+| `buscarEmailPorMatricula(matricula)` | Consulta Firestore → retorna email ou null | `index.js` | ✅ `index.js` |
+| `showEmailVerificationModal()` | Modal (style.cssText) para reenvio de verificação | `index.js` | ✅ `index.js` |
+| `verificarForca(senha)` | Calcula força da senha (0-4) e atualiza barras | `acao-auth.js`, `trocar-senha.js` | ⏳ backlog |
+| `gerarCodigoUnico()` | Gera string 8 chars alfanumérica maiúscula | `cadastro.js` | ⏳ backlog |
+| `gerarCodigoUnicoValidado()` | Gera código + valida unicidade no Firestore | `cadastro.js` | ⏳ backlog |
+| `gerarSenhaTemp()` | Gera senha temporária para novo cadastro | `cadastro.js` | ⏳ backlog |
 
 ---
 
@@ -50,9 +52,11 @@
 | Nome | Estado que gerencia | Store que consome |
 |---|---|---|
 | `onAuthStateChanged` | Sessão do usuário (logado/deslogado) | Firebase Auth |
-| `keypress Enter → identificador` | Foca campo senha | DOM (`index.html`) |
-| `keypress Enter → senha` | Dispara click no btnLogin | DOM (`index.html`) |
-| `click → btnLogin` | Fluxo de login completo | Firebase Auth + Firestore |
+| `keypress Enter → identificador` | Foca campo senha | DOM (`index.html`) ✅ |
+| `keypress Enter → senha` | Dispara click no btnLogin | DOM (`index.html`) ✅ |
+| `click → btnLogin` | Fluxo de login completo | Firebase Auth + Firestore ✅ |
+| `click → toggleSenha` | Alterna password/text no input | DOM (`index.html`) ✅ |
+| `submit → formLogin` | Previne submit e dispara login | DOM (`index.html`) ✅ |
 | `click → toggle senha` | Alterna password/text no input | DOM |
 | `input → novaSenha` | Atualiza indicador de força | DOM |
 
@@ -157,3 +161,16 @@
 | Data | Alteração | Autor |
 |---|---|---|
 | 15/04/2026 | Documento criado com base na spec da tela de login e fluxo de autenticação | Copilot |
+| 15/04/2026 | Etapa 1 implementada: `index.html`, `js/index.js`, `js/firebase-config.js`, `js/bud-utils.js`. Helpers `budShowToast`, `budSanitize`, `showEmailVerificationModal`, `buscarEmailPorMatricula` ativos. | Copilot |
+
+---
+
+## 📂 Arquivos Implementados
+
+| Arquivo | Status | Descrição |
+|---|---|---|
+| `index.html` | ✅ | Tela de login — glassmorphism, blobs, splash screen |
+| `js/index.js` | ✅ | Lógica de login — Firebase Auth modular, matrícula lookup, modal email, anti-XSS |
+| `js/firebase-config.js` | ✅ | Config Firebase via `window.BUD_FIREBASE_CONFIG` (placeholders seguros) |
+| `js/bud-utils.js` | ✅ | Toast system (`budShowToast`) + sanitização (`budSanitize`) |
+| `css/tailwind.css` | ⏳ | Pendente — build estático do Tailwind |
