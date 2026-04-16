@@ -77,7 +77,7 @@
     .bud-btn-primary:disabled { opacity:.65; cursor:not-allowed; }
 
     /* ── Strength bars ────────── */
-    .strength-bar { height:6px; flex:1; border-radius:3px; background:#e2e8f0; transition:background-color .3s; }
+    .strength-bar { height:8px; flex:1; border-radius:4px; background:#cbd5e1; transition:background-color .3s; }
 
     /* ── Toggle password ──────── */
     .toggle-pw {
@@ -261,6 +261,82 @@
   <!-- Scripts -->
   <script src="js/firebase-config.js"></script>
   <script src="js/bud-utils.js"></script>
+
+  <!-- UI enhancements (phone mask, toggles, strength) — runs without Firebase -->
+  <script>
+    (function () {
+      var tel = document.getElementById('telefone');
+      var pw  = document.getElementById('novaSenha');
+      var cf  = document.getElementById('confirmarSenha');
+      var tPw = document.getElementById('toggleNovaSenha');
+      var tCf = document.getElementById('toggleConfirmarSenha');
+      var bars = [
+        document.getElementById('bar1'),
+        document.getElementById('bar2'),
+        document.getElementById('bar3'),
+        document.getElementById('bar4')
+      ];
+      var ftxt = document.getElementById('forcaTexto');
+
+      // Phone mask BR
+      tel.addEventListener('input', function () {
+        var v = this.value.replace(/\D/g, '').substring(0, 11);
+        if (v.length > 6) v = '(' + v.substring(0,2) + ') ' + v.substring(2,7) + '-' + v.substring(7);
+        else if (v.length > 2) v = '(' + v.substring(0,2) + ') ' + v.substring(2);
+        else if (v.length > 0) v = '(' + v;
+        this.value = v;
+      });
+
+      // Password toggles
+      function tog(btn, inp) {
+        btn.addEventListener('click', function () {
+          var show = inp.type === 'password';
+          inp.type = show ? 'text' : 'password';
+          btn.textContent = show ? '\uD83D\uDC41\u200D\uD83D\uDDE8' : '\uD83D\uDC41';
+        });
+      }
+      tog(tPw, pw);
+      tog(tCf, cf);
+
+      // Strength indicator
+      var COLORS  = ['#f87171','#fb923c','#facc15','#34d399'];
+      var TEXTS   = ['Muito fraca','Fraca','Boa','Forte'];
+      var TCOLORS = ['#ef4444','#f97316','#ca8a04','#10b981'];
+
+      function calcStrength(p) {
+        var s = 0;
+        if (p.length >= 6) s++;
+        if (p.length >= 8) s++;
+        if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++;
+        if (/[0-9]/.test(p) || /[^A-Za-z0-9]/.test(p)) s++;
+        return s;
+      }
+      window.budCalcStrength = calcStrength;
+
+      pw.addEventListener('input', function () {
+        var v = this.value;
+        if (!v) {
+          bars.forEach(function (b) { b.style.background = '#cbd5e1'; });
+          ftxt.textContent = 'Mínimo 8 caracteres';
+          ftxt.style.color = '#94a3b8';
+          return;
+        }
+        if (v.length < 6) {
+          bars.forEach(function (b) { b.style.background = '#cbd5e1'; });
+          ftxt.textContent = 'Mínimo 8 caracteres';
+          ftxt.style.color = '#ef4444';
+          return;
+        }
+        var s = calcStrength(v);
+        bars.forEach(function (b, i) {
+          b.style.background = i < s ? COLORS[s - 1] : '#cbd5e1';
+        });
+        ftxt.textContent = TEXTS[s - 1] || '';
+        ftxt.style.color = TCOLORS[s - 1] || '#94a3b8';
+      });
+    })();
+  </script>
+
   <script type="module" src="js/cadastro.js"></script>
 </body>
 </html>

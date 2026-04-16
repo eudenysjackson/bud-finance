@@ -28,18 +28,7 @@ const confirmarInput    = document.getElementById('confirmarSenha');
 const codigoInput       = document.getElementById('codigoIndicacao');
 const lgpdCheckbox      = document.getElementById('lgpdConsent');
 const btn               = document.getElementById('btnCadastro');
-const toggleNovaSenha   = document.getElementById('toggleNovaSenha');
-const toggleConfirmar   = document.getElementById('toggleConfirmarSenha');
 const showMatriculaEl   = document.getElementById('showMatricula');
-
-// Strength bars
-const bars = [
-  document.getElementById('bar1'),
-  document.getElementById('bar2'),
-  document.getElementById('bar3'),
-  document.getElementById('bar4')
-];
-const forcaTexto = document.getElementById('forcaTexto');
 
 // ─── Common weak passwords blocklist ────────────────────────────────
 const SENHAS_COMUNS = [
@@ -47,66 +36,6 @@ const SENHAS_COMUNS = [
   '111111','abc123','000000','654321','admin','welcome','abcdef',
   'senha123','mudar123','trocar123'
 ];
-
-// ─── Phone mask (BR) ────────────────────────────────────────────────
-telefoneInput.addEventListener('input', function () {
-  let v = this.value.replace(/\D/g, '').substring(0, 11);
-  if (v.length > 6) {
-    v = '(' + v.substring(0,2) + ') ' + v.substring(2,7) + '-' + v.substring(7);
-  } else if (v.length > 2) {
-    v = '(' + v.substring(0,2) + ') ' + v.substring(2);
-  } else if (v.length > 0) {
-    v = '(' + v;
-  }
-  this.value = v;
-});
-
-// ─── Password toggle ────────────────────────────────────────────────
-function setupToggle(btn, input) {
-  btn.addEventListener('click', function () {
-    const show = input.type === 'password';
-    input.type = show ? 'text' : 'password';
-    btn.textContent = show ? '👁‍🗨' : '👁';
-  });
-}
-setupToggle(toggleNovaSenha, novaSenhaInput);
-setupToggle(toggleConfirmar, confirmarInput);
-
-// ─── Password strength indicator ────────────────────────────────────
-const STRENGTH_COLORS = ['#f87171','#fb923c','#facc15','#34d399'];
-const STRENGTH_TEXTS  = ['Muito fraca','Fraca','Boa','Forte'];
-const STRENGTH_TEXT_COLORS = ['#ef4444','#f97316','#ca8a04','#10b981'];
-
-function calcStrength(pw) {
-  let s = 0;
-  if (pw.length >= 6)  s++;
-  if (pw.length >= 8)  s++;
-  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) s++;
-  if (/[0-9]/.test(pw) || /[^A-Za-z0-9]/.test(pw)) s++;
-  return s;
-}
-
-novaSenhaInput.addEventListener('input', function () {
-  const pw = this.value;
-  if (!pw) {
-    bars.forEach(function (b) { b.style.background = '#e2e8f0'; });
-    forcaTexto.textContent = 'Mínimo 8 caracteres';
-    forcaTexto.style.color = '#94a3b8';
-    return;
-  }
-  if (pw.length < 6) {
-    bars.forEach(function (b) { b.style.background = '#e2e8f0'; });
-    forcaTexto.textContent = 'Mínimo 8 caracteres';
-    forcaTexto.style.color = '#ef4444';
-    return;
-  }
-  const s = calcStrength(pw);
-  bars.forEach(function (b, i) {
-    b.style.background = i < s ? STRENGTH_COLORS[s - 1] : '#e2e8f0';
-  });
-  forcaTexto.textContent = STRENGTH_TEXTS[s - 1] || '';
-  forcaTexto.style.color = STRENGTH_TEXT_COLORS[s - 1] || '#94a3b8';
-});
 
 // ─── Generate matrícula (BUD-XXXX-XXXX) ─────────────────────────────
 function gerarMatricula() {
@@ -223,7 +152,7 @@ form.addEventListener('submit', async function (e) {
     window.budShowToast('Essa senha é muito comum. Escolha uma mais segura.', 'warning');
     return;
   }
-  var strength = calcStrength(senha);
+  var strength = window.budCalcStrength(senha);
   if (strength < 2) {
     window.budShowToast('Sua senha é muito fraca. Use letras e números.', 'warning');
     return;
