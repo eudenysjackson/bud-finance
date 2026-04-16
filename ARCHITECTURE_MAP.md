@@ -29,6 +29,11 @@
 | **FormResetSenha** | Nova senha + confirmar + indicador força | `acao-auth.html` |
 | **FormTrocarSenha** | Nova senha + confirmar (primeiro login) | `trocar-senha.html` |
 | **IndicadorForcaSenha** | 4 barras de progresso de força da senha | `acao-auth.html`, `trocar-senha.html` |
+| **StateValidating** | Spinner + texto "Validando link..." | `acao-auth.html` |
+| **StateSuccess** | Pulse ring + mensagem de sucesso + link login | `acao-auth.html` |
+| **StateError** | Pulse ring error + mensagem + link recuperar | `acao-auth.html` |
+| **UserBadge** | Iniciais + nome + matrícula do usuário logado | `trocar-senha.html` |
+| **StateUnauthorized** | Tela de acesso não autorizado + link login | `trocar-senha.html` |
 
 ---
 
@@ -48,6 +53,10 @@
 | `enviarEmailBoasVindas(...)` | Fire-and-forget welcome email via EmailJS (sem senha) | `cadastro.js` | ✅ `cadastro.js` |
 | `isEmailValido(email)` | Regex básica de email | `cadastro.js`, `recuperar-senha.js` | ✅ |
 | `gerarSenhaTemp()` | ~~Gera senha temporária~~ | — | ❌ REMOVIDO (user escolhe senha) |
+| `getOobCode()` | Extrai oobCode da URL (query param) | `acao-auth.js` | ✅ `acao-auth.js` |
+| `showSection(section)` | Alterna visibilidade entre estados visuais | `acao-auth.js`, `trocar-senha.js` | ✅ |
+| `calcStrength(pw)` [acao-auth] | Calcula força da senha (0-4) e atualiza barras | `acao-auth.js` | ✅ `acao-auth.js` |
+| `calcStrength(pw)` [trocar-senha] | Calcula força da senha (0-4) e atualiza barras | `trocar-senha.js` | ✅ `trocar-senha.js` |
 
 ---
 
@@ -68,6 +77,13 @@
 | `click → toggleNovaSenha/Confirmar` | Alterna password/text | DOM (`cadastro.html`) ✅ |
 | `click → toggle senha` | Alterna password/text no input | DOM |
 | `input → novaSenha` | Atualiza indicador de força | DOM |
+| `submit → formResetSenha` | Valida senha + confirmPasswordReset(oobCode) | DOM (`acao-auth.html`) ✅ |
+| `input → novaSenha (acao-auth)` | Atualiza indicador de força (4 barras) | DOM (`acao-auth.html`) ✅ |
+| `click → toggleNovaSenha/Confirmar (acao-auth)` | Alterna password/text | DOM (`acao-auth.html`) ✅ |
+| `onAuthStateChanged (trocar-senha)` | Verifica Auth + primeiroLogin Firestore | Firebase Auth ✅ |
+| `submit → formTrocarSenha` | Valida senha + updatePassword + updateDoc | DOM (`trocar-senha.html`) ✅ |
+| `input → novaSenha (trocar-senha)` | Atualiza indicador de força (4 barras) | DOM (`trocar-senha.html`) ✅ |
+| `click → toggleNovaSenha/Confirmar (trocar-senha)` | Alterna password/text | DOM (`trocar-senha.html`) ✅ |
 
 ---
 
@@ -126,8 +142,8 @@
 | `/` | Login | `index.html` | Página inicial |
 | `/cadastro` | Sign-up | `cadastro.html` | Novo usuário |
 | `/recuperar-senha` | Recuperar senha | `recuperar-senha.html` | Solicitar reset |
-| `/acao-auth` | Processar reset | `acao-auth.html` | Recebe `?mode=&oobCode=` |
-| `/trocar-senha` | Trocar senha | `trocar-senha.html` | Primeiro login |
+| `/acao-auth` | Processar reset | `acao-auth.html` | ✅ Recebe `?oobCode=` — 4 estados visuais |
+| `/trocar-senha` | Trocar senha | `trocar-senha.html` | ✅ Guard: Auth + `primeiroLogin: true` |
 | `/dashboard` | App principal | `dashboard.html` | Após login |
 | `/admin` | Painel admin | `admin.html` | `role: admin` |
 | `/politica-privacidade` | LGPD | `politica-privacidade.html` | Termos |
@@ -184,6 +200,7 @@
 | 15/04/2026 | Documento criado com base na spec da tela de login e fluxo de autenticação | Copilot |
 | 15/04/2026 | Etapa 1 implementada: `index.html`, `js/index.js`, `js/firebase-config.js`, `js/bud-utils.js`. Helpers `budShowToast`, `budSanitize`, `showEmailVerificationModal`, `buscarEmailPorMatricula` ativos. | Copilot |
 | 15/04/2026 | Etapa 2 implementada: `cadastro.html`, `js/cadastro.js`, `recuperar-senha.html`, `js/recuperar-senha.js`. Correções: user escolhe senha (sem temp), reCAPTCHA placeholder, serverTimestamp, subcoleção indicações, email verification enforced no login, res.ok check, delayed redirect. | Copilot |
+| 15/04/2026 | Etapa 3 implementada: `acao-auth.html` + `js/acao-auth.js` (processar link reset com oobCode, 4 estados visuais), `trocar-senha.html` + `js/trocar-senha.js` (troca obrigatória no 1º login com guard Auth+Firestore, user badge personalizado). DEC-013 e DEC-014 registradas. | Copilot |
 
 ---
 
@@ -199,4 +216,10 @@
 | `js/cadastro.js` | ✅ | Criação de conta — Firebase Auth modular, matrícula, reCAPTCHA placeholder, subcoleção indicações |
 | `recuperar-senha.html` | ✅ | Tela de recuperação — glassmorphism consistente com login, blobs |
 | `js/recuperar-senha.js` | ✅ | POST /reset-senha — res.ok check, delayed redirect 3s, safety timeout 30s |
+| `acao-auth.html` | ✅ | Tela processar reset — glassmorphism, 4 estados (validando/form/sucesso/erro) |
+| `js/acao-auth.js` | ✅ | verifyPasswordResetCode + confirmPasswordReset, indicador força, blocklist senhas |
+| `trocar-senha.html` | ✅ | Tela troca obrigatória — glassmorphism, user badge (nome+matrícula), 3 estados |
+| `js/trocar-senha.js` | ✅ | onAuthStateChanged guard, updatePassword + updateDoc(primeiroLogin:false) |
+| `politica-privacidade.html` | ✅ | Página LGPD completa — glassmorphism, conteúdo estático |
+| `preview-temas.html` | ✅ | Preview dos 8 temas com CSS custom properties |
 | `css/tailwind.css` | ⏳ | Pendente — build estático do Tailwind |

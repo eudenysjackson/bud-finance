@@ -36,42 +36,37 @@
   - Mensagens genéricas anti-enumeração
 - [x] **firebase-config.js expandido** — BUD_FUNCTIONS_URL, BUD_EMAILJS_CONFIG, BUD_RECAPTCHA_SITE_KEY
 - [x] **index.js atualizado** — Email verification enforced para TODOS os usuários
+- [x] **Política de Privacidade** (`politica-privacidade.html`) — Página LGPD completa com glassmorphism
+- [x] **Sistema de Temas / Dark Mode** — 8 temas via CSS variables (inclui Dark HBO), preview em `preview-temas.html`, persistência em `localStorage.bud_theme` (DEC-008)
+- [x] **Tela Ação Auth** (`acao-auth.html` + `js/acao-auth.js`)
+  - 4 estados: validando (spinner) → formulário → sucesso → erro
+  - `verifyPasswordResetCode` antes de mostrar form
+  - Indicador de força (4 barras), blocklist de senhas comuns
+  - Tratamento de links expirados/usados com mensagens amigáveis
+- [x] **Tela Trocar Senha** (`trocar-senha.html` + `js/trocar-senha.js`)
+  - Guard duplo: `onAuthStateChanged` + `primeiroLogin: true` no Firestore
+  - User badge personalizado (nome + matrícula + iniciais)
+  - `updatePassword` + `updateDoc(primeiroLogin: false)` → redirect dashboard
+  - Tratamento de `auth/requires-recent-login` com re-login forçado
 
 ---
 
 ## 📋 Backlog (ordenado por prioridade)
 
-> ⚠️ **NÃO implementar sem meu pedido.
+> ⚠️ **NÃO implementar sem meu pedido.**
 
-6. **Tela Ação Auth** (`acao-auth.html` + `js/acao-auth.js`)
-   - Processamento do link de reset (oobCode)
-   - Formulário nova senha + confirmar
-   - Indicador de força (4 barras)
-
-7. **Tela Trocar Senha** (`trocar-senha.html` + `js/trocar-senha.js`)
-   - Primeiro login obrigatório
-   - Formulário nova senha + confirmar
-   - Atualiza `primeiroLogin: false`
-
-8. **Dashboard** (`dashboard.html`)
+1. **Dashboard** (`dashboard.html`)
    - A definir
 
-9. **Dark Mode** (`js/dark-mode.js`)
-   - Toggle dark/light
-   - Persistência em `localStorage.nexo_dark_mode`
+2. **Painel Admin** (`admin.html`)
+   - CRM com listagem de usuários
+   - Block/Unblock de contas
+   - Gestão de chamados
 
-10. **Painel Admin** (`admin.html`)
-    - CRM com listagem de usuários
-    - Block/Unblock de contas
-    - Gestão de chamados
-
-11. **Política de Privacidade** (`politica-privacidade.html`)
-    - Página LGPD estática
-
-12. **Cloud Functions** (Backend)
-    - `/reset-senha` — envio de link de reset
-    - `/chamado` — registro e envio de bug/sugestão
-    - Rate limiting
+3. **Cloud Functions** (Backend)
+   - `/reset-senha` — envio de link de reset
+   - `/chamado` — registro e envio de bug/sugestão
+   - Rate limiting
 
 ---
 

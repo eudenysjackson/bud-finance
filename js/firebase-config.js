@@ -36,9 +36,12 @@
   // In production, move email sending to a Cloud Function (server-side).
   // These are kept here as placeholders for the client-side fallback.
   window.BUD_EMAILJS_CONFIG = Object.freeze({
-    publicKey:  "__EMAILJS_PUBLIC_KEY__",
-    serviceId:  "__EMAILJS_SERVICE_ID__",
-    templateId: "__EMAILJS_TEMPLATE_ID__"
+    publicKey:  "H6fMBL3s0Npuw8OO0e",
+    serviceId:  "service_tg3mlvh",
+    templates: Object.freeze({
+      boasVindas:     "template_pdch2ip",
+      recuperarSenha: "template_2mp7qgq"
+    })
   });
 
   // ─── reCAPTCHA v3 site key ────────────────────────────────────────────

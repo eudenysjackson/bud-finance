@@ -179,7 +179,7 @@ function enviarEmailBoasVindas(email, nome, matricula) {
     return;
   }
   // Fire-and-forget — does NOT block UI
-  emailjs.send(cfg.serviceId, cfg.templateId, {
+  emailjs.send(cfg.serviceId, cfg.templates.boasVindas, {
     to_email: email,
     to_name: nome,
     matricula: matricula

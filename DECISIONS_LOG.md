@@ -178,3 +178,23 @@
 - **Por quê**: Permitir personalização visual total sem duplicar CSS. Cada tema muda o fundo, vidro, botões e inputs mantendo a integridade do layout.
 - **Consequências**: Todas as cores dinâmicas devem usar `var(--nome)`. Cores de sentimento (verde/vermelho/âmbar) permanecem fixas. Tema salvo em `localStorage.bud_theme`.
 - **Quando revisar**: Se o número de temas crescer além de 10 ou se for necessário temas por usuário no backend.
+
+---
+
+### DEC-013 — Redirecionamento forçado de primeiroLogin via onAuthStateChanged
+
+- **Data**: 15/04/2026
+- **O que foi decidido**: A tela `trocar-senha.html` usa `onAuthStateChanged` para verificar se o usuário está logado E se `primeiroLogin === true` no Firestore. Se o usuário não está logado, mostra tela de "não autorizado". Se `primeiroLogin` é `false`, redireciona direto para o dashboard.
+- **Por quê**: Garantir que nenhum usuário com senha temporária/primeira acesse o dashboard sem trocar a senha. O guard duplo (Auth + Firestore) impede bypass via URL direta.
+- **Consequências**: O fluxo é: `index.js` detecta `primeiroLogin: true` → redireciona para `trocar-senha.html` → `trocar-senha.js` valida novamente Auth+Firestore → só libera após `updatePassword` + `updateDoc(primeiroLogin: false)`. Sessão expirada (`auth/requires-recent-login`) força re-login.
+- **Quando revisar**: Se o fluxo de onboarding mudar ou se adotar Custom Claims no Firebase Auth.
+
+---
+
+### DEC-014 — acao-auth.html valida oobCode antes de mostrar formulário
+
+- **Data**: 15/04/2026
+- **O que foi decidido**: A tela `acao-auth.html` chama `verifyPasswordResetCode(auth, oobCode)` antes de exibir o formulário de nova senha. Se o código é inválido/expirado, mostra tela de erro com link para solicitar novo reset.
+- **Por quê**: Evitar que o usuário preencha o formulário inteiro para só então descobrir que o link não funciona. UX de 3 estados (validando → formulário → sucesso/erro) é clara e segura.
+- **Consequências**: 4 estados visuais na página: validando (spinner), formulário, sucesso, erro. Cada erro do Firebase (`expired-action-code`, `invalid-action-code`) gera mensagem específica e amigável.
+- **Quando revisar**: Se Firebase mudar a API de password reset ou se adotar links dinâmicos.
