@@ -11,12 +11,12 @@
   // For local development you can fill them in directly.
   // For production, inject via CI/CD environment variables or server-side rendering.
   const config = {
-    apiKey:            "__FIREBASE_API_KEY__",
-    authDomain:        "__FIREBASE_AUTH_DOMAIN__",
-    projectId:         "__FIREBASE_PROJECT_ID__",
-    storageBucket:     "__FIREBASE_STORAGE_BUCKET__",
-    messagingSenderId: "__FIREBASE_MESSAGING_SENDER_ID__",
-    appId:             "__FIREBASE_APP_ID__"
+    apiKey:            "AIzaSyCQTUUZqlentDVWc4nJUubmNSu5ucdn5Jw",
+    authDomain:        "meuappfinancas-982ea.firebaseapp.com",
+    projectId:         "meuappfinancas-982ea",
+    storageBucket:     "meuappfinancas-982ea.firebasestorage.app",
+    messagingSenderId: "620239464929",
+    appId:             "1:620239464929:web:2bc6aa2c45c33932f28aa0"
   };
 
   // Validate — fail fast if placeholders are still present

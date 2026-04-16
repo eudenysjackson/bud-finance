@@ -107,14 +107,16 @@ function enviarEmailBoasVindas(email, nome, matricula) {
     console.warn('[Bud Finance] EmailJS not configured. Welcome email skipped.');
     return;
   }
+  // Initialize EmailJS SDK before sending
+  emailjs.init(cfg.publicKey);
   // Fire-and-forget — does NOT block UI
   emailjs.send(cfg.serviceId, cfg.templates.boasVindas, {
     to_email: email,
     to_name: nome,
     matricula: matricula
     // NOTE: No password in email. User chose their own.
-  }, cfg.publicKey).catch(function (_e) {
-    // Silent fail — welcome email is nice-to-have, not critical
+  }).catch(function (err) {
+    console.warn('[Bud Finance] Welcome email failed:', err);
   });
 }
 
@@ -203,10 +205,8 @@ form.addEventListener('submit', async function (e) {
       matricula: matricula,
       primeiroLogin: false, // User chose own password — no forced change
       dataCadastro: serverTimestamp(),
-      plano: 'trial',
-      // trialFim should be calculated server-side via Cloud Function onCreate trigger
+      // plano and role are set server-side (Firestore rules block these on create)
       status: 'ativo',
-      role: 'user',
       funcionalidades: {},
       lgpdConsentimento: true,
       lgpdConsentimentoData: serverTimestamp(),
@@ -250,11 +250,11 @@ form.addEventListener('submit', async function (e) {
     // 12. Send email verification
     await sendEmailVerification(user);
 
-    // 13. Sign out (user must verify email before logging in)
-    await signOut(auth);
-
-    // 14. Fire-and-forget welcome email (no password included)
+    // 13. Fire-and-forget welcome email BEFORE signOut
     enviarEmailBoasVindas(email, nome, matricula);
+
+    // 14. Sign out (user must verify email before logging in)
+    await signOut(auth);
 
     // 15. Show success UI
     showMatriculaEl.textContent = matricula;
