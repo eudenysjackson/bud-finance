@@ -108,3 +108,13 @@
 - **Causa raiz**: Desenvolvida separadamente sem referência ao design system.
 - **Solução aplicada**: Refeita com mesmos blobs (blue+cyan), glass card (`rounded-2rem`, `backdrop-blur-24px`), `max-w-24rem`.
 - **Regra de prevenção**: Toda nova página auth deve copiar a base do `index.html` (blobs + glass card).
+
+---
+
+### ERR-011 — oobCode ausente no reset de senha
+- **Data**: 16/04/2026
+- **Descrição**: Backend retornava `{success: true}` sem `oobCode` ao tentar resetar senha de usuário existente.
+- **Causa raiz**: Domínio de redirecionamento passado para `generatePasswordResetLink` não estava cadastrado nos Domínios Autorizados do Firebase Auth.
+- **Solução aplicada**: Removido parâmetro de URL customizada; uso do fluxo padrão do Firebase.
+- **Regra de prevenção**: Nunca passar domínio customizado para reset de senha sem garantir que está autorizado no Firebase Auth. Validar sempre após deploy.
+- **Status**: Resolvido em 16/04/2026.

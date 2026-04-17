@@ -198,3 +198,12 @@
 - **Por quê**: Evitar que o usuário preencha o formulário inteiro para só então descobrir que o link não funciona. UX de 3 estados (validando → formulário → sucesso/erro) é clara e segura.
 - **Consequências**: 4 estados visuais na página: validando (spinner), formulário, sucesso, erro. Cada erro do Firebase (`expired-action-code`, `invalid-action-code`) gera mensagem específica e amigável.
 - **Quando revisar**: Se Firebase mudar a API de password reset ou se adotar links dinâmicos.
+
+---
+
+### DEC-015 — Reset de senha: fluxo padrão Firebase
+- **Data**: 16/04/2026
+- **O que foi decidido**: Usar o fluxo padrão de reset de senha do Firebase Auth, sem parâmetros de URL customizados.
+- **Por quê**: Evitar falhas silenciosas causadas por domínios não autorizados e garantir estabilidade do reset de senha.
+- **Consequências**: O link de reset sempre funcionará, desde que o domínio do app esteja autorizado no Firebase. Menos risco de erro oculto.
+- **Quando revisar**: Se houver necessidade de customizar o redirecionamento pós-reset, garantir que o domínio esteja autorizado antes de alterar.
