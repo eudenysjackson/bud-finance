@@ -97,6 +97,7 @@ app.post('/reset-senha', async function (req, res) {
     try {
       userRecord = await auth.getUserByEmail(email);
     } catch (_e) {
+      console.log('[reset-senha] getUserByEmail failed:', _e.code, _e.message);
       // User not found — return success anyway (anti-enumeration)
       return res.json({ success: true });
     }
@@ -114,9 +115,7 @@ app.post('/reset-senha', async function (req, res) {
 
     // Generate password reset link (Firebase Admin SDK)
     // This does NOT send any email — just returns the URL.
-    var resetLink = await auth.generatePasswordResetLink(email, {
-      url: 'https://bud-finance.example.com/index.html' // redirect after reset (optional)
-    });
+    var resetLink = await auth.generatePasswordResetLink(email);
 
     // Replace the Firebase-hosted action URL with our acao-auth.html page
     // The link contains ?oobCode=XXX which acao-auth.html reads
@@ -133,7 +132,7 @@ app.post('/reset-senha', async function (req, res) {
     });
 
   } catch (err) {
-    console.error('[reset-senha] Error:', err.message);
+    console.error('[reset-senha] Error:', err.code, err.message, err.stack);
     // Generic success to prevent information leakage
     return res.json({ success: true });
   }
