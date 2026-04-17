@@ -11,12 +11,12 @@
   // For local development you can fill them in directly.
   // For production, inject via CI/CD environment variables or server-side rendering.
   const config = {
-    apiKey:            "AIzaSyCQTUUZqlentDVWc4nJUubmNSu5ucdn5Jw",
-    authDomain:        "meuappfinancas-982ea.firebaseapp.com",
-    projectId:         "meuappfinancas-982ea",
-    storageBucket:     "meuappfinancas-982ea.firebasestorage.app",
-    messagingSenderId: "620239464929",
-    appId:             "1:620239464929:web:2bc6aa2c45c33932f28aa0"
+    apiKey:            "AIzaSyButVkGdicSWMBSeNJCfO01DQ3HXQR1O3Q",
+    authDomain:        "bud-finance.firebaseapp.com",
+    projectId:         "bud-finance",
+    storageBucket:     "bud-finance.firebasestorage.app",
+    messagingSenderId: "825768884924",
+    appId:             "1:825768884924:web:551a6da252d8d249dd2eb9"
   };
 
   // Validate — fail fast if placeholders are still present
@@ -36,7 +36,7 @@
   // In production, move email sending to a Cloud Function (server-side).
   // These are kept here as placeholders for the client-side fallback.
   window.BUD_EMAILJS_CONFIG = Object.freeze({
-    publicKey:  "H6fMBL3s0Npuw8OO0e",
+    publicKey:  "H6fMBL3s0Npuw8O0e",
     serviceId:  "service_tg3mlvh",
     templates: Object.freeze({
       boasVindas:     "template_pdch2ip",

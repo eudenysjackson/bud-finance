@@ -3,7 +3,7 @@
 
 import { initializeApp }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, sendEmailVerification }
+import { getAuth, signInWithEmailAndPassword, signOut }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, collection, query, where, getDocs }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -190,23 +190,7 @@ formLogin.addEventListener('submit', async function (e) {
       return;
     }
 
-    // 7. Check: email not verified — enforce for ALL users
-    if (!user.emailVerified) {
-      const resend = await showEmailVerificationModal();
-      if (resend) {
-        try {
-          await sendEmailVerification(user);
-          window.budShowToast('E-mail de verificação reenviado! Verifique sua caixa de entrada.', 'success');
-        } catch (_verErr) {
-          window.budShowToast('Erro ao reenviar verificação. Tente novamente mais tarde.', 'error');
-        }
-      }
-      await signOut(auth);
-      resetBtn();
-      return;
-    }
-
-    // 8. Redirect based on first login
+    // 7. Redirect based on first login
     if (userData.primeiroLogin === true) {
       window.location.href = 'trocar-senha.html';
     } else {

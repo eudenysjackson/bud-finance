@@ -4,7 +4,7 @@
 
 import { initializeApp }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, updateProfile, sendEmailVerification, signOut }
+import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
   getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs,
@@ -113,8 +113,8 @@ function enviarEmailBoasVindas(email, nome, matricula) {
   emailjs.send(cfg.serviceId, cfg.templates.boasVindas, {
     to_email: email,
     to_name: nome,
-    matricula: matricula
-    // NOTE: No password in email. User chose their own.
+    matricula: matricula,
+    app_url: window.location.origin + '/index.html'
   }).catch(function (err) {
     console.warn('[Bud Finance] Welcome email failed:', err);
   });
@@ -247,16 +247,13 @@ form.addEventListener('submit', async function (e) {
       }
     }
 
-    // 12. Send email verification
-    await sendEmailVerification(user);
-
-    // 13. Fire-and-forget welcome email BEFORE signOut
+    // 12. Fire-and-forget welcome email BEFORE signOut
     enviarEmailBoasVindas(email, nome, matricula);
 
-    // 14. Sign out (user must verify email before logging in)
+    // 13. Sign out (user will log in from login page)
     await signOut(auth);
 
-    // 15. Show success UI
+    // 14. Show success UI
     showMatriculaEl.textContent = matricula;
     formSection.classList.add('hidden');
     successSection.classList.add('active');

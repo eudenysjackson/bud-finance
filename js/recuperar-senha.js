@@ -1,6 +1,7 @@
 // js/recuperar-senha.js — Bud Finance Password Recovery (ES Module)
-// Posts to Cloud Function /reset-senha — does NOT use Firebase Auth directly.
-// This prevents leaking whether an email exists in the system.
+// Calls backend /reset-senha to generate a reset link (no ugly Firebase email).
+// Then sends the custom EmailJS template with the link.
+// Firebase SDK Modular v10.8.1 — NO compat layer.
 
 var BACKEND_URL = window.BUD_FUNCTIONS_URL || '';
 
@@ -12,9 +13,6 @@ var emailInput = document.getElementById('email');
 function isEmailValido(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
-
-// ─── Timeout safety (30s) ───────────────────────────────────────────
-var safetyTimer = null;
 
 function resetBtn() {
   btn.textContent = 'Enviar link de recuperação';
@@ -37,60 +35,49 @@ form.addEventListener('submit', async function (e) {
     return;
   }
 
-  // Loading state
   btn.textContent = 'Enviando...';
   btn.disabled = true;
 
-  // Safety timeout — re-enable button after 30s if network stalls
-  safetyTimer = setTimeout(function () {
-    if (btn.disabled && btn.textContent === 'Enviando...') {
-      resetBtn();
-      window.budShowToast('A requisição demorou demais. Tente novamente.', 'warning');
-    }
-  }, 30000);
-
   try {
+    // 1. Call backend to generate reset link (no Firebase email sent)
     var res = await fetch(BACKEND_URL + '/reset-senha', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email })
     });
 
-    clearTimeout(safetyTimer);
-
-    // Check HTTP status before parsing JSON
-    if (!res.ok) {
-      throw new Error('HTTP ' + res.status);
-    }
-
     var data = await res.json();
 
-    if (data.success) {
-      // Show success feedback — delay redirect so user reads the message
-      btn.textContent = '✅ Link enviado!';
-      btn.classList.add('bud-btn-success');
-      window.budShowToast(
-        'Se este e-mail estiver cadastrado, você receberá um link. Verifique também a caixa de spam.',
-        'success',
-        4000
-      );
-
-      // Redirect after 3s so user can read the toast
-      setTimeout(function () {
-        window.location.href = 'index.html';
-      }, 3000);
-    } else {
-      // Server returned success:false — still show generic message (anti-enumeration)
-      window.budShowToast(
-        'Se este e-mail estiver cadastrado, você receberá um link em instantes.',
-        'info'
-      );
-      resetBtn();
+    // 2. If backend returned oobCode, send custom email via EmailJS
+    if (data.success && data.data && data.data.oobCode) {
+      var cfg = window.BUD_EMAILJS_CONFIG;
+      if (cfg && !cfg.publicKey.startsWith('__') && typeof emailjs !== 'undefined') {
+        var resetUrl = window.location.origin + '/acao-auth.html?oobCode=' + data.data.oobCode;
+        emailjs.init(cfg.publicKey);
+        // Fire-and-forget — don't block UI waiting for EmailJS
+        emailjs.send(cfg.serviceId, cfg.templates.recuperarSenha, {
+          to_email: data.data.email,
+          to_name: data.data.userName,
+          reset_url: resetUrl
+        }).catch(function (err) {
+          console.warn('[Bud Finance] Reset email failed:', err);
+        });
+      }
     }
-
   } catch (_err) {
-    clearTimeout(safetyTimer);
-    window.budShowToast('Erro ao enviar. Verifique sua conexão e tente novamente.', 'error');
-    resetBtn();
+    // Silently ignore — show success anyway (anti-enumeration)
   }
+
+  // Always show success (anti-enumeration)
+  btn.textContent = '✅ Link enviado!';
+  btn.classList.add('bud-btn-success');
+  window.budShowToast(
+    'Se este e-mail estiver cadastrado, você receberá um link. Verifique também a caixa de spam.',
+    'success',
+    4000
+  );
+
+  setTimeout(function () {
+    window.location.href = 'index.html';
+  }, 3000);
 });
