@@ -33,12 +33,8 @@ const bars = [
   document.getElementById('bar4')
 ];
 
-// ─── Common weak passwords blocklist ────────────────────────────────
-const SENHAS_COMUNS = [
-  '123456','12345678','123456789','1234567890','password','qwerty',
-  '111111','abc123','000000','654321','admin','welcome','abcdef',
-  'senha123','mudar123','trocar123'
-];
+// ─── SENHAS_COMUNS and calcStrength are in bud-utils.js ────────────
+// window.BUD_SENHAS_COMUNS and window.budCalcStrength
 
 // ─── Sections helper ────────────────────────────────────────────────
 function showSection(section) {
@@ -65,14 +61,6 @@ var STRENGTH_COLORS      = ['#f87171','#fb923c','#facc15','#34d399'];
 var STRENGTH_TEXTS       = ['Muito fraca','Fraca','Boa','Forte'];
 var STRENGTH_TEXT_COLORS = ['#ef4444','#f97316','#ca8a04','#10b981'];
 
-function calcStrength(pw) {
-  var s = 0;
-  if (pw.length >= 6)  s++;
-  if (pw.length >= 8)  s++;
-  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) s++;
-  if (/[0-9]/.test(pw) || /[^A-Za-z0-9]/.test(pw)) s++;
-  return s;
-}
 
 novaSenhaInput.addEventListener('input', function () {
   var pw = this.value;
@@ -158,11 +146,11 @@ form.addEventListener('submit', async function (e) {
     window.budShowToast('A senha deve ter pelo menos 8 caracteres.', 'warning');
     return;
   }
-  if (SENHAS_COMUNS.includes(senha.toLowerCase())) {
+  if (window.BUD_SENHAS_COMUNS.includes(senha.toLowerCase())) {
     window.budShowToast('Essa senha é muito comum. Escolha uma mais segura.', 'warning');
     return;
   }
-  var strength = calcStrength(senha);
+  var strength = window.budCalcStrength(senha);
   if (strength < 2) {
     window.budShowToast('Sua senha é muito fraca. Use letras e números.', 'warning');
     return;

@@ -1,7 +1,7 @@
 # ARCHITECTURE_MAP.md — Inventário Vivo do Ecossistema
 
 **Projeto**: Bud Finance  
-**Última atualização**: 15/04/2026
+**Última atualização**: 17/04/2026
 
 > **REGRA**: Antes de criar algo novo, consulte este doc. Ao finalizar qualquer tarefa, atualize.  
 > Se algo novo quebrar uma conexão existente, **pare e avise o usuário**.
@@ -43,9 +43,11 @@
 |---|---|---|---|
 | `budShowToast(msg, tipo)` | Exibe notificação toast (success, error, warning, info) | Todas as páginas | ✅ `bud-utils.js` |
 | `budSanitize(str)` | Strip HTML tags + trim — anti-XSS | Todas as páginas | ✅ `bud-utils.js` |
+| `budCalcStrength(pw)` | Calcula força da senha (0-4) | `cadastro.js`, `acao-auth.js`, `trocar-senha.js` | ✅ `bud-utils.js` |
+| `BUD_SENHAS_COMUNS` | Blocklist de senhas fracas comuns | `cadastro.js`, `acao-auth.js`, `trocar-senha.js` | ✅ `bud-utils.js` |
 | `buscarEmailPorMatricula(matricula)` | Consulta Firestore → retorna email ou null | `index.js` | ✅ `index.js` |
-| `showEmailVerificationModal()` | Modal (style.cssText) para reenvio de verificação | `index.js` | ✅ `index.js` |
-| `verificarForca(senha)` / `calcStrength(pw)` | Calcula força da senha (0-4) e atualiza barras | `cadastro.js` | ✅ `cadastro.js` |
+| `showEmailVerificationModal()` | Modal (style.cssText) para reenvio de verificação | `index.js` | ✅ `index.js` (wired) |
+| `verificarForca(senha)` / `calcStrength(pw)` | ~~Local~~ → Migrado para `window.budCalcStrength` | `bud-utils.js` | ✅ `bud-utils.js` |
 | `gerarMatricula()` | Gera `BUD-XXXX-XXXX` com crypto.getRandomValues | `cadastro.js` | ✅ `cadastro.js` |
 | `gerarCodigoIndicacao()` | Gera 8 chars alfanumérica maiúscula | `cadastro.js` | ✅ `cadastro.js` |
 | `validarCodigoIndicacao(codigo)` | Query Firestore → retorna {uid, nome} ou null | `cadastro.js` | ✅ `cadastro.js` |
@@ -55,8 +57,8 @@
 | `gerarSenhaTemp()` | ~~Gera senha temporária~~ | — | ❌ REMOVIDO (user escolhe senha) |
 | `getOobCode()` | Extrai oobCode da URL (query param) | `acao-auth.js` | ✅ `acao-auth.js` |
 | `showSection(section)` | Alterna visibilidade entre estados visuais | `acao-auth.js`, `trocar-senha.js` | ✅ |
-| `calcStrength(pw)` [acao-auth] | Calcula força da senha (0-4) e atualiza barras | `acao-auth.js` | ✅ `acao-auth.js` |
-| `calcStrength(pw)` [trocar-senha] | Calcula força da senha (0-4) e atualiza barras | `trocar-senha.js` | ✅ `trocar-senha.js` |
+| `calcStrength(pw)` [acao-auth] | ~~Local~~ → Migrado para `window.budCalcStrength` | `bud-utils.js` | ✅ `bud-utils.js` |
+| `calcStrength(pw)` [trocar-senha] | ~~Local~~ → Migrado para `window.budCalcStrength` | `bud-utils.js` | ✅ `bud-utils.js` |
 
 ---
 
@@ -98,7 +100,7 @@
 | `telefone` | string | ✅ | WhatsApp |
 | `matricula` | string | ❌ | Matrícula (BUD-XXXX ou NEX-XXXX) |
 | `plano` | string | ✅ | `trial`, `free`, `starter`, `pro`, `plus` |
-| `primeiroLogin` | boolean | ✅ | `true` até trocar senha |
+| `primeiroLogin` | boolean | ✅ | `false` no cadastro atual (DEC-009). Reservado `true` para contas criadas por admin |
 | `emailVerified` | boolean | ✅ | Se verificou email |
 | `emailVerificationRequired` | boolean | ✅ | Se precisa verificar email |
 | `bloqueado` | boolean | ✅ | Se conta está bloqueada |
@@ -198,6 +200,7 @@
 | Data | Alteração | Autor |
 |---|---|---|
 | 15/04/2026 | Documento criado com base na spec da tela de login e fluxo de autenticação | Copilot |
+| 17/04/2026 | DRY: `calcStrength`+`SENHAS_COMUNS` migrados para `bud-utils.js`. Email verification wired em `index.js`. `primeiroLogin` doc atualizado. `firebase-config.example.js` criado. `css/tailwind.css` placeholder criado. | Copilot |
 | 15/04/2026 | Etapa 1 implementada: `index.html`, `js/index.js`, `js/firebase-config.js`, `js/bud-utils.js`. Helpers `budShowToast`, `budSanitize`, `showEmailVerificationModal`, `buscarEmailPorMatricula` ativos. | Copilot |
 | 15/04/2026 | Etapa 2 implementada: `cadastro.html`, `js/cadastro.js`, `recuperar-senha.html`, `js/recuperar-senha.js`. Correções: user escolhe senha (sem temp), reCAPTCHA placeholder, serverTimestamp, subcoleção indicações, email verification enforced no login, res.ok check, delayed redirect. | Copilot |
 | 15/04/2026 | Etapa 3 implementada: `acao-auth.html` + `js/acao-auth.js` (processar link reset com oobCode, 4 estados visuais), `trocar-senha.html` + `js/trocar-senha.js` (troca obrigatória no 1º login com guard Auth+Firestore, user badge personalizado). DEC-013 e DEC-014 registradas. | Copilot |

@@ -1,0 +1,12 @@
+/*
+ * tailwind.css — Bud Finance (Placeholder)
+ *
+ * Este arquivo é referenciado por todas as páginas HTML.
+ * Futuramente será gerado via Tailwind CLI build:
+ *   npx tailwindcss -i ./src/input.css -o ./css/tailwind.css --minify
+ *
+ * Por enquanto, estilos estão inline em cada HTML (<style> tag).
+ * Este placeholder evita erros 404 no console.
+ *
+ * DEC-002: Tailwind CSS com build estático (sem JIT em runtime).
+ */

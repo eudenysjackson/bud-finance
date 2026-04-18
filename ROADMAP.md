@@ -1,7 +1,7 @@
 # ROADMAP.md — Foco e Controle de Escopo
 
 **Projeto**: Bud Finance  
-**Última atualização**: 15/04/2026
+**Última atualização**: 17/04/2026
 
 > **REGRA**: NÃO implementar itens do Backlog sem pedido explícito do usuário.
 
@@ -31,7 +31,7 @@
   - Matrícula BUD-XXXX-XXXX via crypto
 - [x] **Tela Recuperar Senha** (`recuperar-senha.html` + `js/recuperar-senha.js`)
   - Glassmorphism consistente com login (blobs, glass card)
-  - POST para Cloud Function /reset-senha com res.ok check
+  - POST para Cloud Function /reset-senha
   - Delayed redirect 3s + safety timeout 30s
   - Mensagens genéricas anti-enumeração
 - [x] **firebase-config.js expandido** — BUD_FUNCTIONS_URL, BUD_EMAILJS_CONFIG, BUD_RECAPTCHA_SITE_KEY
@@ -72,4 +72,4 @@
 
 ## 🐛 Bugs Conhecidos
 
-_Nenhum bug registrado ainda._
+Consultar [`ERRORS_LOG.md`](ERRORS_LOG.md) para histórico completo (ERR-001 a ERR-011).

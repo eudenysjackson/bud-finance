@@ -30,12 +30,8 @@ const lgpdCheckbox      = document.getElementById('lgpdConsent');
 const btn               = document.getElementById('btnCadastro');
 const showMatriculaEl   = document.getElementById('showMatricula');
 
-// ─── Common weak passwords blocklist ────────────────────────────────
-const SENHAS_COMUNS = [
-  '123456','12345678','123456789','1234567890','password','qwerty',
-  '111111','abc123','000000','654321','admin','welcome','abcdef',
-  'senha123','mudar123','trocar123'
-];
+// ─── SENHAS_COMUNS and calcStrength are in bud-utils.js ────────────
+// window.BUD_SENHAS_COMUNS and window.budCalcStrength
 
 // ─── Generate matrícula (BUD-XXXX-XXXX) ─────────────────────────────
 function gerarMatricula() {
@@ -150,7 +146,7 @@ form.addEventListener('submit', async function (e) {
     window.budShowToast('A senha deve ter pelo menos 8 caracteres.', 'warning');
     return;
   }
-  if (SENHAS_COMUNS.includes(senha.toLowerCase())) {
+  if (window.BUD_SENHAS_COMUNS.includes(senha.toLowerCase())) {
     window.budShowToast('Essa senha é muito comum. Escolha uma mais segura.', 'warning');
     return;
   }

@@ -1,0 +1,14 @@
+{
+  "name": "bud-finance",
+  "private": true,
+  "description": "Bud Finance — testes automatizados com Playwright",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "http-server": "^14.1.1"
+  }
+}

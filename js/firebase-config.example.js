@@ -11,12 +11,12 @@
   // For local development you can fill them in directly.
   // For production, inject via CI/CD environment variables or server-side rendering.
   const config = {
-    apiKey:            "AIzaSyButVkGdicSWMBSeNJCfO01DQ3HXQR1O3Q",
-    authDomain:        "bud-finance.firebaseapp.com",
-    projectId:         "bud-finance",
-    storageBucket:     "bud-finance.firebasestorage.app",
-    messagingSenderId: "825768884924",
-    appId:             "1:825768884924:web:551a6da252d8d249dd2eb9"
+    apiKey:            "__FIREBASE_API_KEY__",
+    authDomain:        "__PROJECT_ID__.firebaseapp.com",
+    projectId:         "__PROJECT_ID__",
+    storageBucket:     "__PROJECT_ID__.firebasestorage.app",
+    messagingSenderId: "__MESSAGING_SENDER_ID__",
+    appId:             "__APP_ID__"
   };
 
   // Validate — fail fast if placeholders are still present
@@ -30,17 +30,17 @@
 
   // ─── Cloud Functions URL ──────────────────────────────────────────────
   // Base URL for Firebase Cloud Functions (used by recuperar-senha, etc.)
-  window.BUD_FUNCTIONS_URL = "https://bud-finance-backend.onrender.com";
+  window.BUD_FUNCTIONS_URL = "__BACKEND_URL__";
 
   // ─── EmailJS protected config ─────────────────────────────────────────
   // In production, move email sending to a Cloud Function (server-side).
   // These are kept here as placeholders for the client-side fallback.
   window.BUD_EMAILJS_CONFIG = Object.freeze({
-    publicKey:  "H6fMBL3s0Npuw8O0e",
-    serviceId:  "service_tg3mlvh",
+    publicKey:  "__EMAILJS_PUBLIC_KEY__",
+    serviceId:  "__EMAILJS_SERVICE_ID__",
     templates: Object.freeze({
-      boasVindas:     "template_pdch2ip",
-      recuperarSenha: "template_2mp7qgq"
+      boasVindas:     "__EMAILJS_TEMPLATE_BOAS_VINDAS__",
+      recuperarSenha: "__EMAILJS_TEMPLATE_RECUPERAR_SENHA__"
     })
   });
 

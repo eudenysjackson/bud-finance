@@ -1,7 +1,7 @@
 # ERRORS_LOG.md — Memória de Cura
 
 **Projeto**: Bud Finance  
-**Última atualização**: 15/04/2026
+**Última atualização**: 17/04/2026
 
 > **REGRA**: Antes de resolver um bug, verificar se já foi resolvido aqui.  
 > Todo erro encontrado deve ser registrado neste doc.
@@ -99,6 +99,7 @@
 - **Causa raiz**: Happy-path only.
 - **Solução aplicada**: Adicionado `if (!res.ok) throw new Error('HTTP ' + res.status)` antes de `res.json()`.
 - **Regra de prevenção**: Todo `fetch()` deve verificar `res.ok` antes de parsear body.
+- **Status**: Resolvido em 17/04/2026 (fix aplicado em `js/recuperar-senha.js`).
 
 ---
 

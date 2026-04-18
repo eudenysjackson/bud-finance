@@ -1,7 +1,7 @@
 # DECISIONS_LOG.md — Registro de Decisões Arquiteturais
 
 **Projeto**: Bud Finance  
-**Última atualização**: 15/04/2026
+**Última atualização**: 17/04/2026
 
 > **REGRA**: Antes de refatorar qualquer padrão, ler este doc primeiro.  
 > Toda decisão não-óbvia deve ser registrada aqui.
@@ -141,7 +141,7 @@
 
 ---
 
-### DEC-005 — Mensagens de erro genéricas no login
+### DEC-016 — Mensagens de erro genéricas no login
 
 - **Data**: 15/04/2026
 - **O que foi decidido**: Nunca revelar se email/matrícula existe ou não. Erro sempre genérico: "E-mail/matrícula ou senha incorretos."
@@ -151,17 +151,15 @@
 
 ---
 
-### DEC-006 — Primeiro login obriga troca de senha
+### ~~DEC-006~~ — ~~Primeiro login obriga troca de senha~~ (OBSOLETO)
 
 - **Data**: 15/04/2026
-- **O que foi decidido**: Cadastro gera senha temporária; no primeiro login, redireciona para `trocar-senha.html` antes do dashboard.
-- **Por quê**: Segurança — garante que o usuário defina uma senha forte pessoal.
-- **Consequências**: Flag `primeiroLogin: true` no Firestore. Redirecionamento antes do dashboard.
-- **Quando revisar**: Se o fluxo de onboarding mudar.
+- **Status**: ❌ **SUPERSEDED by DEC-009** — Usuário agora escolhe a própria senha no cadastro. Não há senha temporária nem troca forçada. `primeiroLogin: false` no cadastro atual.
+- **Quando revisar**: N/A — decisão obsoleta.
 
 ---
 
-### DEC-007 — Modal de reenvio de verificação de email criado via JS
+### DEC-017 — Modal de reenvio de verificação de email criado via JS
 
 - **Data**: 15/04/2026
 - **O que foi decidido**: O modal é criado em runtime via `document.createElement` com estilos inline (não classes Tailwind).
@@ -171,7 +169,7 @@
 
 ---
 
-### DEC-008 — Sistema de Temas com CSS Custom Properties
+### DEC-018 — Sistema de Temas com CSS Custom Properties
 
 - **Data**: 15/04/2026
 - **O que foi decidido**: Implementar 8 temas (Gelo, HBO Dark, Azul, Roxo, Rosa, Amarelo, Verde, Vermelho) via CSS variables (`--bg-page`, `--text-main`, `--card-bg`, etc.) trocados em runtime por JS.

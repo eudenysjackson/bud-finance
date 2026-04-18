@@ -92,7 +92,26 @@
     return clean.replace(/\s+/g, ' ').trim();
   }
 
+  // ─── Common weak passwords blocklist ───────────────────────────────
+  var BUD_SENHAS_COMUNS = [
+    '123456','12345678','123456789','1234567890','password','qwerty',
+    '111111','abc123','000000','654321','admin','welcome','abcdef',
+    'senha123','mudar123','trocar123'
+  ];
+
+  // ─── Password strength calculator ────────────────────────────────────
+  function budCalcStrength(pw) {
+    var s = 0;
+    if (pw.length >= 6)  s++;
+    if (pw.length >= 8)  s++;
+    if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) s++;
+    if (/[0-9]/.test(pw) || /[^A-Za-z0-9]/.test(pw)) s++;
+    return s;
+  }
+
   // ─── Exports ──────────────────────────────────────────────────────────
-  window.budShowToast = budShowToast;
-  window.budSanitize  = budSanitize;
+  window.budShowToast  = budShowToast;
+  window.budSanitize   = budSanitize;
+  window.budCalcStrength  = budCalcStrength;
+  window.BUD_SENHAS_COMUNS = BUD_SENHAS_COMUNS;
 })();

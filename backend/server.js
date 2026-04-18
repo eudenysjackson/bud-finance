@@ -27,6 +27,8 @@ app.use(express.json());
 const ALLOWED_ORIGINS = [
   'http://localhost:8080',
   'http://127.0.0.1:8080',
+  'http://localhost:3001',
+  'http://127.0.0.1:3001',
   // Add your production domain here when deployed:
   // 'https://bud-finance.example.com'
 ];
@@ -64,13 +66,13 @@ function isRateLimited(email) {
   return false;
 }
 
-// Clean up rate limit map every 5 minutes
+// Clean up rate limit map every 2 minutes (matches 1-minute window)
 setInterval(function () {
   const now = Date.now();
   for (const [key, entry] of rateLimitMap) {
     if (now - entry.start > RATE_LIMIT_WINDOW) rateLimitMap.delete(key);
   }
-}, 5 * 60 * 1000);
+}, 2 * 60 * 1000);
 
 // ─── POST /reset-senha ─────────────────────────────────────────────
 // Generates a password reset link (does NOT send email).

@@ -40,32 +40,40 @@ form.addEventListener('submit', async function (e) {
 
   try {
     // 1. Call backend to generate reset link (no Firebase email sent)
+    console.log('[Bud] Calling backend:', BACKEND_URL + '/reset-senha');
     var res = await fetch(BACKEND_URL + '/reset-senha', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email })
     });
 
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+
     var data = await res.json();
+    console.log('[Bud] Backend response:', data);
 
     // 2. If backend returned oobCode, send custom email via EmailJS
     if (data.success && data.data && data.data.oobCode) {
       var cfg = window.BUD_EMAILJS_CONFIG;
+      console.log('[Bud] EmailJS cfg:', cfg ? 'loaded' : 'MISSING', 'emailjs:', typeof emailjs);
       if (cfg && !cfg.publicKey.startsWith('__') && typeof emailjs !== 'undefined') {
         var resetUrl = window.location.origin + '/acao-auth.html?oobCode=' + data.data.oobCode;
         emailjs.init(cfg.publicKey);
-        // Fire-and-forget — don't block UI waiting for EmailJS
         emailjs.send(cfg.serviceId, cfg.templates.recuperarSenha, {
           to_email: data.data.email,
           to_name: data.data.userName,
           reset_url: resetUrl
+        }).then(function (r) {
+          console.log('[Bud] EmailJS sent OK:', r);
         }).catch(function (err) {
-          console.warn('[Bud Finance] Reset email failed:', err);
+          console.error('[Bud] EmailJS FAILED:', err);
         });
       }
+    } else {
+      console.warn('[Bud] No oobCode returned. User may not exist.');
     }
-  } catch (_err) {
-    // Silently ignore — show success anyway (anti-enumeration)
+  } catch (err) {
+    console.error('[Bud] Backend call FAILED:', err);
   }
 
   // Always show success (anti-enumeration)
