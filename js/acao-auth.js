@@ -76,7 +76,7 @@ novaSenhaInput.addEventListener('input', function () {
     forcaTexto.style.color = '#ef4444';
     return;
   }
-  var s = calcStrength(pw);
+  var s = window.budCalcStrength(pw);
   bars.forEach(function (b, i) {
     b.style.background = i < s ? STRENGTH_COLORS[s - 1] : '#e2e8f0';
   });

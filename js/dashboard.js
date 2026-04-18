@@ -4,7 +4,8 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
-  getFirestore, doc, getDoc, collection, query, orderBy, limit, onSnapshot
+  getFirestore, doc, getDoc, collection, query, orderBy, limit, onSnapshot,
+  addDoc, serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
@@ -18,6 +19,17 @@ let transacoesGlobais = [];
 let valoresOcultos = localStorage.getItem('bud_valores_ocultos') === 'true';
 let dataFiltro = new Date();
 const _unsubs = [];
+
+// ─── Estado do modal ─────────────────────────────────────────────────────
+let tipoAtual = 'receita';   // 'receita' | 'despesa'
+let planoAtual = 'free';
+let trialExpirado = false;
+
+// ─── Categorias ──────────────────────────────────────────────────────────
+var CATEGORIAS = {
+  receita: ['Salário', 'Freelance', 'Investimentos', 'Transferência recebida', 'Bônus', 'Outros'],
+  despesa: ['Alimentação', 'Transporte', 'Saúde', 'Moradia', 'Lazer', 'Educação', 'Vestuário', 'Contas e serviços', 'Outros']
+};
 
 // ─── Formatação ─────────────────────────────────────────────────────────
 function formatarValor(valor) {
@@ -237,6 +249,261 @@ function configurarBannerPlano(userData) {
   }
 }
 
+// ─── Modal Lançamento ────────────────────────────────────────────────────
+var dpViewYear = new Date().getFullYear();
+var dpViewMonth = new Date().getMonth();
+var DP_MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function renderCalendar() {
+  var dpDays = document.getElementById('dpDays');
+  var dpMonthYear = document.getElementById('dpMonthYear');
+  if (!dpDays || !dpMonthYear) return;
+  dpMonthYear.textContent = DP_MESES[dpViewMonth] + ' ' + dpViewYear;
+  dpDays.innerHTML = '';
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  var selectedVal = (document.getElementById('inputData') || {}).value || '';
+  var firstDay = new Date(dpViewYear, dpViewMonth, 1).getDay();
+  var daysInMonth = new Date(dpViewYear, dpViewMonth + 1, 0).getDate();
+  var daysInPrevMonth = new Date(dpViewYear, dpViewMonth, 0).getDate();
+  // Dias do mês anterior
+  for (var i = firstDay - 1; i >= 0; i--) {
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'dp-day dp-other-month';
+    btn.textContent = daysInPrevMonth - i;
+    dpDays.appendChild(btn);
+  }
+  // Dias do mês atual
+  for (var d = 1; d <= daysInMonth; d++) {
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'dp-day';
+    btn.textContent = d;
+    var dateStr = dpViewYear + '-' + String(dpViewMonth + 1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    var dateObj = new Date(dpViewYear, dpViewMonth, d);
+    if (dateObj.getTime() === hoje.getTime()) btn.classList.add('dp-today');
+    if (selectedVal === dateStr) btn.classList.add('dp-selected');
+    (function(ds) {
+      btn.addEventListener('click', function(e) { e.stopPropagation(); selecionarData(ds); });
+    })(dateStr);
+    dpDays.appendChild(btn);
+  }
+  // Completar última linha
+  var totalCells = firstDay + daysInMonth;
+  var remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+  for (var j = 1; j <= remaining; j++) {
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'dp-day dp-other-month';
+    btn.textContent = j;
+    dpDays.appendChild(btn);
+  }
+}
+
+function selecionarData(dateStr) {
+  var hidden = document.getElementById('inputData');
+  var texto = document.getElementById('datepickerTexto');
+  var trigger = document.getElementById('datepickerBtn');
+  if (hidden) hidden.value = dateStr;
+  if (texto && dateStr) {
+    var parts = dateStr.split('-');
+    texto.textContent = parts[2] + '/' + parts[1] + '/' + parts[0];
+  }
+  if (trigger) {
+    trigger.classList.add('has-value');
+    trigger.classList.remove('open', 'error');
+    trigger.setAttribute('aria-expanded', 'false');
+  }
+  fecharDatepicker();
+  renderCalendar();
+}
+
+function fecharDatepicker() {
+  var dd = document.getElementById('datepickerDropdown');
+  var btn = document.getElementById('datepickerBtn');
+  if (dd) dd.classList.remove('open');
+  if (btn) { btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+}
+
+function preencherCategorias(tipo) {
+  var dropdown = document.getElementById('categoriaDropdown');
+  var hidden = document.getElementById('inputCategoria');
+  var texto = document.getElementById('categoriaTexto');
+  var trigger = document.getElementById('categoriaBtn');
+  if (!dropdown) return;
+  // Limpa seleção
+  if (hidden) hidden.value = '';
+  if (texto) texto.textContent = 'Selecione...';
+  if (trigger) {
+    trigger.classList.remove('has-value', 'open', 'error');
+    trigger.setAttribute('aria-expanded', 'false');
+  }
+  dropdown.innerHTML = '';
+  dropdown.classList.remove('open');
+  CATEGORIAS[tipo].forEach(function (cat) {
+    var div = document.createElement('div');
+    div.className = 'custom-select-option';
+    div.textContent = cat;
+    div.setAttribute('role', 'option');
+    div.addEventListener('click', function (e) {
+      e.stopPropagation();
+      dropdown.querySelectorAll('.custom-select-option').forEach(function (o) { o.classList.remove('selected'); });
+      div.classList.add('selected');
+      if (hidden) hidden.value = cat;
+      if (texto) texto.textContent = cat;
+      if (trigger) {
+        trigger.classList.add('has-value');
+        trigger.classList.remove('open', 'error');
+        trigger.setAttribute('aria-expanded', 'false');
+      }
+      dropdown.classList.remove('open');
+    });
+    dropdown.appendChild(div);
+  });
+}
+
+function atualizarModalTipo(tipo) {
+  tipoAtual = tipo;
+  var btnR = document.getElementById('tipoBtnReceita');
+  var btnD = document.getElementById('tipoBtnDespesa');
+  var titulo = document.getElementById('modalTitulo');
+  var submit = document.getElementById('btnSubmitLancamento');
+
+  if (btnR) { btnR.className = 'tipo-btn' + (tipo === 'receita' ? ' active-receita' : ''); }
+  if (btnD) { btnD.className = 'tipo-btn' + (tipo === 'despesa' ? ' active-despesa' : ''); }
+  if (titulo) titulo.textContent = tipo === 'receita' ? 'Nova Receita' : 'Nova Despesa';
+  if (submit) {
+    submit.textContent = tipo === 'receita' ? 'Salvar Receita' : 'Salvar Despesa';
+    submit.className = 'modal-submit modal-submit-' + tipo;
+  }
+  preencherCategorias(tipo);
+}
+
+function aplicarMascaraValor(input) {
+  var raw = input.value.replace(/\D/g, '');
+  if (!raw) { input.value = ''; return; }
+  var num = parseInt(raw, 10) / 100;
+  input.value = num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function abrirModal(tipo) {
+  if (trialExpirado) {
+    if (window.budShowToast) window.budShowToast('Período de testes encerrado. Faça upgrade para lançar transações.', 'error');
+    return;
+  }
+  // Resetar form
+  var form = document.getElementById('formLancamento');
+  if (form) form.reset();
+  // Resetar custom dropdown de categoria
+  var catHidden = document.getElementById('inputCategoria');
+  if (catHidden) catHidden.value = '';
+  var catTexto = document.getElementById('categoriaTexto');
+  if (catTexto) catTexto.textContent = 'Selecione...';
+  var catBtn = document.getElementById('categoriaBtn');
+  if (catBtn) catBtn.classList.remove('has-value', 'open', 'error');
+  var catDropdown = document.getElementById('categoriaDropdown');
+  if (catDropdown) catDropdown.classList.remove('open');
+  document.querySelectorAll('.modal-input').forEach(function (el) {
+    el.classList.remove('error');
+  });
+  // Resetar datepicker
+  var dpBtnR = document.getElementById('datepickerBtn');
+  if (dpBtnR) dpBtnR.classList.remove('has-value', 'open', 'error');
+  var dpTextoR = document.getElementById('datepickerTexto');
+  if (dpTextoR) dpTextoR.textContent = 'Selecione uma data...';
+  fecharDatepicker();
+  // Data padrão = hoje
+  var hj = new Date();
+  selecionarData(hj.getFullYear() + '-' + String(hj.getMonth()+1).padStart(2,'0') + '-' + String(hj.getDate()).padStart(2,'0'));
+  atualizarModalTipo(tipo);
+  document.getElementById('modalLancamento').classList.add('open');
+  setTimeout(function () {
+    var desc = document.getElementById('inputDescricao');
+    if (desc) desc.focus();
+  }, 100);
+}
+
+function fecharModal() {
+  document.getElementById('modalLancamento').classList.remove('open');
+  fecharDatepicker();
+}
+
+async function handleSubmitLancamento(e) {
+  e.preventDefault();
+  if (!usuarioAtualId) return;
+
+  var inputDescricao = document.getElementById('inputDescricao');
+  var inputValor = document.getElementById('inputValor');
+  var inputCategoria = document.getElementById('inputCategoria');
+  var inputData = document.getElementById('inputData');
+  var btnSubmit = document.getElementById('btnSubmitLancamento');
+
+  // Limpa erros anteriores
+  [inputDescricao, inputValor].forEach(function (el) {
+    el.classList.remove('error');
+  });
+  var categoriaBtn = document.getElementById('categoriaBtn');
+  if (categoriaBtn) categoriaBtn.classList.remove('error');
+  var dpBtnClr = document.getElementById('datepickerBtn');
+  if (dpBtnClr) dpBtnClr.classList.remove('error');
+
+  // Validação
+  var erros = false;
+  var descricaoRaw = inputDescricao.value.trim();
+  if (!descricaoRaw) { inputDescricao.classList.add('error'); erros = true; }
+
+  var valorStr = inputValor.value.replace(/[R$\s.]/g, '').replace(',', '.');
+  var valor = parseFloat(valorStr);
+  if (!valor || valor <= 0) { inputValor.classList.add('error'); erros = true; }
+
+  var categoria = inputCategoria.value;
+  if (!categoria) {
+    var catBtnEl = document.getElementById('categoriaBtn');
+    if (catBtnEl) catBtnEl.classList.add('error');
+    erros = true;
+  }
+
+  var dataStr = inputData.value;
+  if (!dataStr) {
+    var dpBtnErr = document.getElementById('datepickerBtn');
+    if (dpBtnErr) dpBtnErr.classList.add('error');
+    erros = true;
+  }
+
+  if (erros) {
+    if (window.budShowToast) window.budShowToast('Preencha todos os campos.', 'error');
+    return;
+  }
+
+  // Sanitização
+  var descricao = window.budSanitize ? window.budSanitize(descricaoRaw) : descricaoRaw;
+
+  // Converter data para Timestamp (meio-dia para evitar shift de fuso)
+  var dataTimestamp = Timestamp.fromDate(new Date(dataStr + 'T12:00:00'));
+
+  btnSubmit.disabled = true;
+  btnSubmit.textContent = 'Salvando...';
+
+  try {
+    await addDoc(collection(db, 'usuarios', usuarioAtualId, 'transacoes'), {
+      descricao: descricao,
+      valor: valor,           // float (ex: 1500.50) — DEC-016
+      categoria: categoria,
+      data: dataTimestamp,
+      tipo: tipoAtual,
+      dataCriacao: serverTimestamp()
+    });
+    fecharModal();
+    if (window.budShowToast) window.budShowToast(
+      tipoAtual === 'receita' ? 'Receita registrada!' : 'Despesa registrada!',
+      'success'
+    );
+  } catch (err) {
+    console.error('[Dashboard] Erro ao salvar transação:', err);
+    if (window.budShowToast) window.budShowToast('Erro ao salvar. Tente novamente.', 'error');
+  } finally {
+    btnSubmit.disabled = false;
+    btnSubmit.textContent = tipoAtual === 'receita' ? 'Salvar Receita' : 'Salvar Despesa';
+  }
+}
+
 // ─── Sidebar mobile ─────────────────────────────────────────────────────
 function setupSidebar() {
   var sidebar = document.getElementById('sidebar');
@@ -299,6 +566,16 @@ onAuthStateChanged(auth, async function (user) {
 
   usuarioAtualId = user.uid;
 
+  // ── Forçar refresh do token para evitar "Missing permissions" ────
+  try {
+    await user.getIdToken(true);
+  } catch (_tokenErr) {
+    // Token inválido / sessão expirada → redirecionar para login
+    console.warn('[Dashboard] Sessão expirada, redirecionando…');
+    window.location.href = 'index.html';
+    return;
+  }
+
   // ── Buscar dados do usuário no Firestore ──────────────────────────
   try {
     var userSnap = await getDoc(doc(db, 'usuarios', user.uid));
@@ -333,12 +610,25 @@ onAuthStateChanged(auth, async function (user) {
     // ── Banner de plano/trial ───────────────────────────────────────
     configurarBannerPlano(userData);
 
+    // ── Guardar plano para bloqueio no modal ────────────────────────
+    planoAtual = userData.plano || 'free';
+    if (planoAtual === 'trial' && userData.trialFim) {
+      var fimDate = userData.trialFim.toDate ? userData.trialFim.toDate() : new Date(userData.trialFim);
+      trialExpirado = fimDate < new Date();
+    }
+
     // ── Setup listeners de dados ────────────────────────────────────
     setupListeners(user.uid);
 
   } catch (err) {
     console.error('[Dashboard] Erro ao carregar dados:', err);
-    if (window.budShowToast) window.budShowToast('Erro ao carregar dados.', 'error');
+    // Erro de permissão → sessão pode estar inválida
+    if (err && err.code === 'permission-denied') {
+      if (window.budShowToast) window.budShowToast('Sessão expirada. Redirecionando…', 'error');
+      setTimeout(function () { window.location.href = 'index.html'; }, 1500);
+    } else {
+      if (window.budShowToast) window.budShowToast('Erro ao carregar dados.', 'error');
+    }
   }
 });
 
@@ -378,18 +668,131 @@ if (btnSync) {
   });
 }
 
-// ─── Quick actions (placeholder — em breve) ─────────────────────────────
+// ─── Quick actions → abrir modal ────────────────────────────────────────
 var btnNovaReceita = document.getElementById('btnNovaReceita');
 var btnNovaDespesa = document.getElementById('btnNovaDespesa');
 if (btnNovaReceita) {
-  btnNovaReceita.addEventListener('click', function () {
-    if (window.budShowToast) window.budShowToast('Modal de nova receita em breve!', 'info');
-  });
+  btnNovaReceita.addEventListener('click', function () { abrirModal('receita'); });
 }
 if (btnNovaDespesa) {
-  btnNovaDespesa.addEventListener('click', function () {
-    if (window.budShowToast) window.budShowToast('Modal de nova despesa em breve!', 'info');
+  btnNovaDespesa.addEventListener('click', function () { abrirModal('despesa'); });
+}
+
+// ─── Modal: fechar ───────────────────────────────────────────────────────
+var btnFecharModal = document.getElementById('btnFecharModal');
+if (btnFecharModal) {
+  btnFecharModal.addEventListener('click', fecharModal);
+}
+var modalOverlay = document.getElementById('modalLancamento');
+if (modalOverlay) {
+  modalOverlay.addEventListener('click', function (e) {
+    if (e.target === modalOverlay) fecharModal();
   });
+}
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') fecharModal();
+});
+
+// ─── Custom dropdown: categoria ──────────────────────────────────────────
+var categoriaBtn = document.getElementById('categoriaBtn');
+if (categoriaBtn) {
+  categoriaBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var dd = document.getElementById('categoriaDropdown');
+    var isOpen = dd && dd.classList.contains('open');
+    if (isOpen) {
+      dd.classList.remove('open');
+      categoriaBtn.classList.remove('open');
+      categoriaBtn.setAttribute('aria-expanded', 'false');
+    } else {
+      if (dd) dd.classList.add('open');
+      categoriaBtn.classList.add('open');
+      categoriaBtn.setAttribute('aria-expanded', 'true');
+    }
+  });
+  categoriaBtn.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); categoriaBtn.click(); }
+  });
+}
+// Fechar dropdowns ao clicar fora
+document.addEventListener('click', function () {
+  var dd = document.getElementById('categoriaDropdown');
+  var btn = document.getElementById('categoriaBtn');
+  if (dd) dd.classList.remove('open');
+  if (btn) { btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+  fecharDatepicker();
+});
+
+// ─── Custom datepicker ───────────────────────────────────────────────────
+var datepickerBtn = document.getElementById('datepickerBtn');
+if (datepickerBtn) {
+  datepickerBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var dd = document.getElementById('datepickerDropdown');
+    var isOpen = dd && dd.classList.contains('open');
+    if (isOpen) {
+      fecharDatepicker();
+    } else {
+      // Sincronizar view com data selecionada (ou hoje)
+      var hidden = document.getElementById('inputData');
+      if (hidden && hidden.value) {
+        var parts = hidden.value.split('-');
+        dpViewYear = parseInt(parts[0]);
+        dpViewMonth = parseInt(parts[1]) - 1;
+      } else {
+        var now = new Date();
+        dpViewYear = now.getFullYear();
+        dpViewMonth = now.getMonth();
+      }
+      renderCalendar();
+      if (dd) dd.classList.add('open');
+      datepickerBtn.classList.add('open');
+      datepickerBtn.setAttribute('aria-expanded', 'true');
+    }
+  });
+  datepickerBtn.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); datepickerBtn.click(); }
+    if (e.key === 'Escape') fecharDatepicker();
+  });
+}
+var dpPrevBtn = document.getElementById('dpPrevMonth');
+var dpNextBtn = document.getElementById('dpNextMonth');
+if (dpPrevBtn) {
+  dpPrevBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    dpViewMonth--; if (dpViewMonth < 0) { dpViewMonth = 11; dpViewYear--; }
+    renderCalendar();
+  });
+}
+if (dpNextBtn) {
+  dpNextBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    dpViewMonth++; if (dpViewMonth > 11) { dpViewMonth = 0; dpViewYear++; }
+    renderCalendar();
+  });
+}
+// Evitar que cliques dentro do dropdown fechem ao propagar
+var datepickerDropdown = document.getElementById('datepickerDropdown');
+if (datepickerDropdown) {
+  datepickerDropdown.addEventListener('click', function (e) { e.stopPropagation(); });
+}
+
+// ─── Modal: toggle tipo ──────────────────────────────────────────────────
+var tipoBtnReceita = document.getElementById('tipoBtnReceita');
+var tipoBtnDespesa = document.getElementById('tipoBtnDespesa');
+if (tipoBtnReceita) tipoBtnReceita.addEventListener('click', function () { atualizarModalTipo('receita'); });
+if (tipoBtnDespesa) tipoBtnDespesa.addEventListener('click', function () { atualizarModalTipo('despesa'); });
+
+// ─── Modal: máscara de valor ─────────────────────────────────────────────
+var inputValorEl = document.getElementById('inputValor');
+if (inputValorEl) {
+  inputValorEl.addEventListener('input', function () { aplicarMascaraValor(this); });
+}
+
+// ─── Modal: submit ───────────────────────────────────────────────────────
+var formLancamento = document.getElementById('formLancamento');
+if (formLancamento) {
+  formLancamento.addEventListener('submit', handleSubmitLancamento);
 }
 
 // ─── Init sidebar ───────────────────────────────────────────────────────

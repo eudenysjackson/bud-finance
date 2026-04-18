@@ -1,7 +1,7 @@
 # DECISIONS_LOG.md — Registro de Decisões Arquiteturais
 
 **Projeto**: Bud Finance  
-**Última atualização**: 17/04/2026
+**Última atualização**: 18/04/2026
 
 > **REGRA**: Antes de refatorar qualquer padrão, ler este doc primeiro.  
 > Toda decisão não-óbvia deve ser registrada aqui.
@@ -151,6 +151,29 @@
 
 ---
 
+### DEC-018 — Nunca usar `<select>` ou `<input type="date">` nativos — sempre componentes HTML custom
+
+- **Data**: 18/04/2026
+- **O que foi decidido**: Todo `<select>` e `<input type="date">` do projeto DEVEM ser substituídos por componentes HTML/CSS/JS totalmente customizados. NUNCA usar os elementos nativos, nem com `appearance: none`.
+- **Por quê**: `appearance: none` apenas esconde a seta/ícone, mas o **popup dropdown** e o **popup calendário** são renderizados pelo SO e NÃO podem ser estilizados via CSS. No Windows/Chrome, o select nativo abre um dropdown cinza do sistema e o date abre o calendário padrão do Chrome — ambos quebrando a identidade visual glassmorphic/Bud Finance.
+- **Solução definitiva**:
+  - **Select** → `div.custom-select` > `div.custom-select-trigger` (tabindex, role=combobox) + `div.custom-select-dropdown` (opções como `div.custom-select-option`) + `input[type=hidden]`. Abre/fecha via classe `.open`.
+  - **Date** → `div.custom-datepicker` > `div.dp-trigger` (tabindex, role=button) + `div.dp-dropdown` (header com navegação de mês, grid de dias) + `input[type=hidden]`. Calendário renderizado em JS (`renderCalendar()`), seleção via `selecionarData()`.
+- **Consequências**: Mais JS/HTML, mas 100% controle visual. Nunca mais popup nativo. Aplicar em qualquer nova página que precise de select ou date.
+- **Quando revisar**: Nunca — é regra de identidade visual permanente.
+
+---
+
+### DEC-017 — Valores de transações armazenados como float (não centavos)
+
+- **Data**: 18/04/2026
+- **O que foi decidido**: Salvar o campo `valor` no Firestore como `number` float (ex: `1500.50`) e não como inteiro em centavos (ex: `150050`).
+- **Por quê**: A stack (Vanilla JS + Firebase) não exige alta precisão financeira no MVP. Usar float simplifica a leitura, formatação e exibição dos dados sem camadas de conversão. Erros de arredondamento de ponto flutuante são desprezíveis para os valores típicos de finanças pessoais (~2 casas decimais).
+- **Consequências**: Operações de soma acumulam pequenos erros de float; aceitável para MVP. Se precisão for crítica no futuro, migrar para centavos (inteiro) ou usar `Decimal.js`.
+- **Quando revisar**: Se o produto evoluir para relatórios contábeis ou integração com sistemas bancários que exijam precisão absoluta.
+
+---
+
 ### DEC-016 — Mensagens de erro genéricas no login
 
 - **Data**: 15/04/2026
@@ -158,6 +181,26 @@
 - **Por quê**: Segurança — impede enumeração de contas (OWASP).
 - **Consequências**: UX levemente pior (usuário não sabe se errou email ou senha), mas segurança é prioridade.
 - **Quando revisar**: Nunca — é regra de segurança permanente.
+
+---
+
+### DEC-019 — getIdToken(true) antes de acessar Firestore no auth guard
+
+- **Data**: 18/04/2026
+- **O que foi decidido**: No `onAuthStateChanged` do dashboard, chamar `user.getIdToken(true)` antes de qualquer leitura no Firestore. Se o refresh falhar, redirecionar para login.
+- **Por quê**: O Firebase Auth mantém sessão em cache (IndexedDB). Ao recarregar a página, `onAuthStateChanged` pode retornar um `user` com token expirado/stale. O Firestore rejeita com "Missing or insufficient permissions", causando toast de erro a cada F5.
+- **Consequências**: Uma chamada extra de rede (~50ms), mas garante que o token está válido antes de usar. Se a sessão realmente expirou, o redirect é imediato e claro.
+- **Quando revisar**: Se o Firebase SDK passar a fazer refresh automático antes de `getDoc` (atualmente não faz).
+
+---
+
+### DEC-020 — Fontes dos botões de ação escalam no mobile
+
+- **Data**: 18/04/2026
+- **O que foi decidido**: `.quick-btn-label` e `.quick-btn-sub` devem ter font-size maior no `@media (max-width: 768px)` — label de 0.8125rem→0.9375rem, sub de 0.6875rem→0.8125rem.
+- **Por quê**: No mobile (iPhone/Android), os botões "Nova Receita" / "Nova Despesa" ocupam toda a largura mas o texto fica desproporcional em relação aos títulos e valores dos cards vizinhos.
+- **Consequências**: Texto dos quick action buttons fica legível e proporcional em telas pequenas.
+- **Quando revisar**: Se redesenhar os quick action buttons.
 
 ---
 

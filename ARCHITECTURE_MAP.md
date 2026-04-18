@@ -40,6 +40,7 @@
 | **DashQuickActions** | Botões rápidos: Nova Receita, Nova Despesa | `dashboard.html` |
 | **DashAtividades** | Lista das últimas 5 transações do mês (style inline) | `dashboard.html` |
 | **DashGraficoCategorias** | Placeholder para donut chart de despesas | `dashboard.html` |
+| **TransactionModal** | Modal glassmorphic único para Nova Receita e Nova Despesa | `dashboard.html` |
 
 ---
 
@@ -65,6 +66,11 @@
 | `formatarValor(valor)` | Formata número como moeda BRL (R$) | `dashboard.js` | ✅ `dashboard.js` |
 | `getSaudacao()` | Retorna Bom dia/Boa tarde/Boa noite por horário | `dashboard.js` | ✅ `dashboard.js` |
 | `configurarBannerPlano(userData)` | Configura banner trial/free/pago | `dashboard.js` | ✅ `dashboard.js` |
+| `abrirModal(tipo)` | Abre TransactionModal pre-configurado para receita/despesa; bloqueia se trial expirado | `dashboard.js` | ✅ `dashboard.js` |
+| `fecharModal()` | Fecha TransactionModal | `dashboard.js` | ✅ `dashboard.js` |
+| `atualizarModalTipo(tipo)` | Alterna estilo/labels/categorias do modal | `dashboard.js` | ✅ `dashboard.js` |
+| `aplicarMascaraValor(input)` | Máscara de moeda BRL no input de valor | `dashboard.js` | ✅ `dashboard.js` |
+| `handleSubmitLancamento(e)` | Valida, sanitiza e persiste transação no Firestore | `dashboard.js` | ✅ `dashboard.js` |
 | `renderizarDashboard()` | Recalcula saldo/entradas/saídas e atualiza cards | `dashboard.js` | ✅ `dashboard.js` |
 | `setupListeners(uid)` | Inicia onSnapshot de transações (orderBy+limit) | `dashboard.js` | ✅ `dashboard.js` |
 | `cleanupListeners()` | Desregistra todos os onSnapshot ativos | `dashboard.js` | ✅ `dashboard.js` |
@@ -88,7 +94,13 @@
 | `click → btnSync` | Re-cria listeners para forçar re-fetch real do Firestore | Firestore ✅ |
 | `click → btnHamburger` | Abre/fecha sidebar mobile com overlay | DOM (`dashboard.html`) ✅ |
 | `onSnapshot → transacoes` | Atualiza transacoesGlobais[] e re-renderiza dashboard | Firestore ✅ |
-| `click → btnNovaReceita/Despesa` | Placeholder — toast "em breve" | DOM ✅ |
+| `click → btnNovaReceita` | Abre TransactionModal pré-selecionado como Receita | DOM ✅ |
+| `click → btnNovaDespesa` | Abre TransactionModal pré-selecionado como Despesa | DOM ✅ |
+| `click → tipoBtnReceita/Despesa` | Troca tipo dentro do modal (atualizarModalTipo) | DOM ✅ |
+| `input → inputValor` | Aplica máscara de moeda em tempo real | DOM ✅ |
+| `submit → formLancamento` | handleSubmitLancamento: valida + salva no Firestore | Firestore ✅ |
+| `keydown Escape` | Fecha modal se aberto | DOM ✅ |
+| `click → overlay modal` | Fecha modal ao clicar fora do card | DOM ✅ |
 | `click → toggleSenha` | Alterna password/text no input | DOM (`index.html`) ✅ |
 | `submit → formLogin` | Previne submit e dispara login | DOM (`index.html`) ✅ |
 | `submit → formCadastro` | Validação + criação Auth + Firestore doc | DOM (`cadastro.html`) ✅ |

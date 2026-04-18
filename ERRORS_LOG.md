@@ -1,7 +1,7 @@
 # ERRORS_LOG.md — Memória de Cura
 
 **Projeto**: Bud Finance  
-**Última atualização**: 17/04/2026
+**Última atualização**: 18/04/2026
 
 > **REGRA**: Antes de resolver um bug, verificar se já foi resolvido aqui.  
 > Todo erro encontrado deve ser registrado neste doc.
@@ -119,3 +119,25 @@
 - **Solução aplicada**: Removido parâmetro de URL customizada; uso do fluxo padrão do Firebase sem parâmetros de URL customizados (DEC-015).
 - **Regra de prevenção**: Nunca passar domínio customizado para reset de senha sem garantir que está autorizado no Firebase Auth. Validar sempre após deploy.
 - **Status**: ✅ Resolvido em 16/04/2026.
+
+---
+
+### ERR-012 — Indicador de força da senha não funciona na tela de redefinição
+
+- **Data**: 18/04/2026
+- **Descrição**: Na tela `acao-auth.html`, as barras de força da senha não mudavam de cor ao digitar.
+- **Causa raiz**: `acao-auth.js` chamava `calcStrength(pw)` — função inexistente. O nome correto é `window.budCalcStrength(pw)` (exportado por `bud-utils.js`). O `ReferenceError` silencioso matava o event handler `input` e as barras nunca atualizavam.
+- **Solução aplicada**: Corrigido para `window.budCalcStrength(pw)` em `js/acao-auth.js`.
+- **Regra de prevenção**: Sempre usar o prefixo `window.` ao chamar funções exportadas por `bud-utils.js`. Os nomes são: `window.budShowToast`, `window.budSanitize`, `window.budCalcStrength`, `window.BUD_SENHAS_COMUNS`.
+- **Status**: ✅ Resolvido em 18/04/2026.
+
+---
+
+### ERR-013 — Login diz "senha incorreta" quando o erro é do Firestore
+
+- **Data**: 18/04/2026
+- **Descrição**: Após redefinir senha com sucesso, o login falhava com "E-mail/matrícula ou senha incorretos" mesmo com credenciais corretas.
+- **Causa raiz**: O `try/catch` do login era único para `signInWithEmailAndPassword` + `getDoc`. O `signInWithEmailAndPassword` **funcionava**, mas o `getDoc` seguinte falhava com `permission-denied` (token stale do Firebase Auth). Como o catch não distinguia erros de auth vs Firestore, o erro de permissão caía no `else` genérico e mostrava "senha incorretos" — enganando o usuário.
+- **Solução aplicada**: (1) Separar `signInWithEmailAndPassword` em seu próprio try/catch (erros de auth → "senha incorretos"). (2) Adicionar `user.getIdToken(true)` após login para refresh do token. (3) Erros pós-auth (Firestore) → mensagem "Erro de permissão" ou "Erro ao acessar conta" em vez de "senha incorretos".
+- **Regra de prevenção**: NUNCA misturar erros de `signInWithEmailAndPassword` com erros de Firestore no mesmo catch. Sempre separar autenticação de leitura de dados. Sempre fazer `getIdToken(true)` antes de acessar Firestore após login/reload.
+- **Status**: ✅ Resolvido em 18/04/2026.

@@ -175,12 +175,34 @@ formLogin.addEventListener('submit', async function (e) {
     }
 
     // 4. Firebase Auth sign-in
-    const userCredential = await signInWithEmailAndPassword(auth, email, senha);
+    let userCredential;
+    try {
+      userCredential = await signInWithEmailAndPassword(auth, email, senha);
+    } catch (authErr) {
+      console.error('Erro de autenticação:', authErr);
+      if (authErr.code === 'auth/too-many-requests') {
+        window.budShowToast('Muitas tentativas. Aguarde alguns minutos.', 'error');
+      } else if (authErr.code === 'auth/user-disabled') {
+        window.budShowToast('Conta desativada. Entre em contato com o suporte.', 'error');
+      } else {
+        // Generic — never reveal which field is wrong
+        window.budShowToast('E-mail/matrícula ou senha incorretos.', 'error');
+      }
+      resetBtn();
+      return;
+    }
+
     const user = userCredential.user;
 
-    // 5. Fetch user doc from Firestore
-    const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
-    const userData = userDoc.exists() ? userDoc.data() : {};
+    // 5. Fetch user doc from Firestore (tolerante a falha de permissão)
+    let userData = {};
+    try {
+      const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
+      userData = userDoc.exists() ? userDoc.data() : {};
+    } catch (fsErr) {
+      console.warn('[Login] Não foi possível ler perfil do Firestore:', fsErr.code || fsErr);
+      // Prosseguir com userData vazio — dashboard vai lidar com isso
+    }
 
     // 6. Check: blocked account
     if (userData.bloqueado === true) {
@@ -214,17 +236,8 @@ formLogin.addEventListener('submit', async function (e) {
     }
 
   } catch (error) {
-    console.error('Erro no login:', error);
-
-    if (error.code === 'auth/too-many-requests') {
-      window.budShowToast('Muitas tentativas. Aguarde alguns minutos.', 'error');
-    } else if (error.code === 'auth/user-disabled') {
-      window.budShowToast('Conta desativada. Entre em contato com o suporte.', 'error');
-    } else {
-      // Generic — never reveal which field is wrong
-      window.budShowToast('E-mail/matrícula ou senha incorretos.', 'error');
-    }
-
+    console.error('Erro no login (pós-auth):', error);
+    window.budShowToast('Erro ao acessar sua conta. Tente novamente.', 'error');
     resetBtn();
   }
 });
