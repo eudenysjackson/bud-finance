@@ -1,6 +1,6 @@
 // js/recuperar-senha.js — Bud Finance Password Recovery (ES Module)
-// Calls backend /reset-senha to generate a reset link (no ugly Firebase email).
-// Then sends the custom EmailJS template with the link.
+// Calls backend /reset-senha which generates the link AND sends the email.
+// The oobCode never reaches the frontend.
 // Firebase SDK Modular v10.8.1 — NO compat layer.
 
 var BACKEND_URL = window.BUD_FUNCTIONS_URL || '';
@@ -24,7 +24,9 @@ function resetBtn() {
 form.addEventListener('submit', async function (e) {
   e.preventDefault();
 
-  var email = (emailInput.value || '').trim().toLowerCase();
+  var email = window.budSanitize
+    ? window.budSanitize(emailInput.value).toLowerCase()
+    : (emailInput.value || '').trim().toLowerCase();
 
   if (!email) {
     window.budShowToast('Informe seu e-mail.', 'warning');
@@ -39,8 +41,6 @@ form.addEventListener('submit', async function (e) {
   btn.disabled = true;
 
   try {
-    // 1. Call backend to generate reset link (no Firebase email sent)
-    console.log('[Bud] Calling backend:', BACKEND_URL + '/reset-senha');
     var res = await fetch(BACKEND_URL + '/reset-senha', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -48,32 +48,9 @@ form.addEventListener('submit', async function (e) {
     });
 
     if (!res.ok) throw new Error('HTTP ' + res.status);
-
-    var data = await res.json();
-    console.log('[Bud] Backend response:', data);
-
-    // 2. If backend returned oobCode, send custom email via EmailJS
-    if (data.success && data.data && data.data.oobCode) {
-      var cfg = window.BUD_EMAILJS_CONFIG;
-      console.log('[Bud] EmailJS cfg:', cfg ? 'loaded' : 'MISSING', 'emailjs:', typeof emailjs);
-      if (cfg && !cfg.publicKey.startsWith('__') && typeof emailjs !== 'undefined') {
-        var resetUrl = window.location.origin + '/acao-auth.html?oobCode=' + data.data.oobCode;
-        emailjs.init(cfg.publicKey);
-        emailjs.send(cfg.serviceId, cfg.templates.recuperarSenha, {
-          to_email: data.data.email,
-          to_name: data.data.userName,
-          reset_url: resetUrl
-        }).then(function (r) {
-          console.log('[Bud] EmailJS sent OK:', r);
-        }).catch(function (err) {
-          console.error('[Bud] EmailJS FAILED:', err);
-        });
-      }
-    } else {
-      console.warn('[Bud] No oobCode returned. User may not exist.');
-    }
-  } catch (err) {
-    console.error('[Bud] Backend call FAILED:', err);
+    // Backend sends email server-side — no oobCode returned
+  } catch (_err) {
+    // Silently continue — always show success (anti-enumeration)
   }
 
   // Always show success (anti-enumeration)

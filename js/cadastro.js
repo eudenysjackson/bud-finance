@@ -75,7 +75,6 @@ async function getRecaptchaToken() {
   var siteKey = window.BUD_RECAPTCHA_SITE_KEY;
   if (!siteKey || siteKey.startsWith('__') || typeof grecaptcha === 'undefined') {
     // reCAPTCHA not configured — return placeholder for development
-    console.warn('[Bud Finance] reCAPTCHA not configured. Skipping validation.');
     return '__DEV_SKIP__';
   }
   try {
@@ -100,7 +99,6 @@ function resetBtn() {
 function enviarEmailBoasVindas(email, nome, matricula) {
   var cfg = window.BUD_EMAILJS_CONFIG;
   if (!cfg || cfg.publicKey.startsWith('__') || typeof emailjs === 'undefined') {
-    console.warn('[Bud Finance] EmailJS not configured. Welcome email skipped.');
     return;
   }
   // Initialize EmailJS SDK before sending
@@ -111,8 +109,8 @@ function enviarEmailBoasVindas(email, nome, matricula) {
     to_name: nome,
     matricula: matricula,
     app_url: window.location.origin + '/index.html'
-  }).catch(function (err) {
-    console.warn('[Bud Finance] Welcome email failed:', err);
+  }).catch(function () {
+    // Fire-and-forget — email failure is non-critical
   });
 }
 

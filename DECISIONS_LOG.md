@@ -204,7 +204,7 @@
 
 ---
 
-### ~~DEC-006~~ — ~~Primeiro login obriga troca de senha~~ (OBSOLETO)
+### ~~DEC-021~~ — ~~Primeiro login obriga troca de senha~~ (OBSOLETO)
 
 - **Data**: 15/04/2026
 - **Status**: ❌ **SUPERSEDED by DEC-009** — Usuário agora escolhe a própria senha no cadastro. Não há senha temporária nem troca forçada. `primeiroLogin: false` no cadastro atual.
@@ -212,7 +212,7 @@
 
 ---
 
-### DEC-017 — Modal de reenvio de verificação de email criado via JS
+### DEC-022 — Modal de reenvio de verificação de email criado via JS
 
 - **Data**: 15/04/2026
 - **O que foi decidido**: O modal é criado em runtime via `document.createElement` com estilos inline (não classes Tailwind).
@@ -222,7 +222,7 @@
 
 ---
 
-### DEC-018 — Sistema de Temas com CSS Custom Properties
+### DEC-023 — Sistema de Temas com CSS Custom Properties
 
 - **Data**: 15/04/2026
 - **O que foi decidido**: Implementar 8 temas (Gelo, HBO Dark, Azul, Roxo, Rosa, Amarelo, Verde, Vermelho) via CSS variables (`--bg-page`, `--text-main`, `--card-bg`, etc.) trocados em runtime por JS.
@@ -252,9 +252,10 @@
 
 ---
 
-### DEC-015 — Reset de senha: fluxo padrão Firebase
-- **Data**: 16/04/2026
-- **O que foi decidido**: Usar o fluxo padrão de reset de senha do Firebase Auth, sem parâmetros de URL customizados.
-- **Por quê**: Evitar falhas silenciosas causadas por domínios não autorizados e garantir estabilidade do reset de senha.
-- **Consequências**: O link de reset sempre funcionará, desde que o domínio do app esteja autorizado no Firebase. Menos risco de erro oculto.
-- **Quando revisar**: Se houver necessidade de customizar o redirecionamento pós-reset, garantir que o domínio esteja autorizado antes de alterar.
+### DEC-024 — Hardening de segurança: oobCode server-side, limpeza de logs, overflow
+
+- **Data**: 18/04/2026
+- **O que foi decidido**: (1) O oobCode de reset de senha nunca sai do backend — o servidor gera o link E envia o email via EmailJS REST API. (2) Todos os `console.log`/`console.error` que expunham dados operacionais foram removidos. (3) Descrições de transações limitadas a 100 caracteres antes do Firestore. (4) `overflow: hidden` trocado por `overflow-y: auto` nas 5 páginas de autenticação. (5) `cleanupListeners()` chamado antes de `setupListeners()` no auth guard do dashboard para evitar listeners duplicados.
+- **Por quê**: Auditoria de segurança identificou vazamento de oobCode no console do browser, excesso de logging em produção, falta de limites de input, scroll bloqueado em telas pequenas e memory leak por listeners duplicados.
+- **Consequências**: Frontend não manipula mais oobCode. Backend precisa das variáveis de ambiente `EMAILJS_PUBLIC_KEY`, `EMAILJS_SERVICE_ID`, `EMAILJS_TEMPLATE_RECUPERAR_SENHA` e `FRONTEND_URL`. Logs de produção são silenciosos. Auth pages permitem scroll.
+- **Quando revisar**: Quando migrar para serviço de email próprio (SendGrid, SES) ou quando implementar logging estruturado (pino/winston).

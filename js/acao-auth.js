@@ -116,8 +116,6 @@ var oobCode = getOobCode();
     novaSenhaInput.focus();
 
   } catch (err) {
-    console.error('Erro ao validar código:', err);
-
     if (err.code === 'auth/expired-action-code') {
       errorMessage.textContent = 'Este link expirou. Solicite um novo link de recuperação de senha.';
     } else if (err.code === 'auth/invalid-action-code') {
@@ -172,8 +170,6 @@ form.addEventListener('submit', async function (e) {
     window.budShowToast('Senha redefinida com sucesso!', 'success');
 
   } catch (err) {
-    console.error('Erro ao redefinir senha:', err);
-
     if (err.code === 'auth/expired-action-code') {
       errorMessage.textContent = 'O link expirou durante o processo. Solicite um novo.';
       showSection(stateError);

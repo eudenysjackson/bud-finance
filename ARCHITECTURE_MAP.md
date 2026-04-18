@@ -189,9 +189,8 @@
 |---|---|---|---|
 | **Firebase Auth** | Autenticação | `https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js` | Login, cadastro, reset, trocar senha |
 | **Firestore** | Banco de dados | `https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js` | Dados de usuário, chamados |
-| **EmailJS** | Envio de emails | `https://api.emailjs.com/api/v1.0/email/send` | Credenciais signup, chamados |
-| **Cloud Functions** | Backend | `BUD_FUNCTIONS_URL + /reset-senha` | Recuperação de senha |
-| **Cloud Functions** | Backend | `BUD_FUNCTIONS_URL + /chamado` | Reportar bug/sugestão |
+| **EmailJS** | Envio de emails | `https://api.emailjs.com/api/v1.6/email/send` | Reset de senha (via backend), boas-vindas |
+| **Backend (Render)** | Express API | `BUD_FUNCTIONS_URL + /reset-senha` | Gera link + envia email de reset server-side |
 | **Google Fonts** | Tipografia | `fonts.googleapis.com` (Inter) | Todas as páginas |
 
 ---
@@ -235,6 +234,7 @@
 | 15/04/2026 | Etapa 1 implementada: `index.html`, `js/index.js`, `js/firebase-config.js`, `js/bud-utils.js`. Helpers `budShowToast`, `budSanitize`, `showEmailVerificationModal`, `buscarEmailPorMatricula` ativos. | Copilot |
 | 15/04/2026 | Etapa 2 implementada: `cadastro.html`, `js/cadastro.js`, `recuperar-senha.html`, `js/recuperar-senha.js`. Correções: user escolhe senha (sem temp), reCAPTCHA placeholder, serverTimestamp, subcoleção indicações, email verification enforced no login, res.ok check, delayed redirect. | Copilot |
 | 15/04/2026 | Etapa 3 implementada: `acao-auth.html` + `js/acao-auth.js` (processar link reset com oobCode, 4 estados visuais), `trocar-senha.html` + `js/trocar-senha.js` (troca obrigatória no 1º login com guard Auth+Firestore, user badge personalizado). DEC-013 e DEC-014 registradas. | Copilot |
+| 18/04/2026 | Hardening de segurança: oobCode server-side (backend envia email via EmailJS REST API), limpeza de console.log/error de produção, descrição limitada a 100 chars, overflow-y:auto nas auth pages, cleanupListeners antes de setupListeners, IDs duplicados no DECISIONS_LOG corrigidos (DEC-021/022/023). DEC-024, ERR-014, ERR-015 registrados. | Copilot |
 
 ---
 

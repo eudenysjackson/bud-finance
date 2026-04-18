@@ -179,7 +179,6 @@ formLogin.addEventListener('submit', async function (e) {
     try {
       userCredential = await signInWithEmailAndPassword(auth, email, senha);
     } catch (authErr) {
-      console.error('Erro de autenticação:', authErr);
       if (authErr.code === 'auth/too-many-requests') {
         window.budShowToast('Muitas tentativas. Aguarde alguns minutos.', 'error');
       } else if (authErr.code === 'auth/user-disabled') {
@@ -200,7 +199,6 @@ formLogin.addEventListener('submit', async function (e) {
       const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
       userData = userDoc.exists() ? userDoc.data() : {};
     } catch (fsErr) {
-      console.warn('[Login] Não foi possível ler perfil do Firestore:', fsErr.code || fsErr);
       // Prosseguir com userData vazio — dashboard vai lidar com isso
     }
 
@@ -236,7 +234,6 @@ formLogin.addEventListener('submit', async function (e) {
     }
 
   } catch (error) {
-    console.error('Erro no login (pós-auth):', error);
     window.budShowToast('Erro ao acessar sua conta. Tente novamente.', 'error');
     resetBtn();
   }

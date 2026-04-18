@@ -141,3 +141,25 @@
 - **Solução aplicada**: (1) Separar `signInWithEmailAndPassword` em seu próprio try/catch (erros de auth → "senha incorretos"). (2) Adicionar `user.getIdToken(true)` após login para refresh do token. (3) Erros pós-auth (Firestore) → mensagem "Erro de permissão" ou "Erro ao acessar conta" em vez de "senha incorretos".
 - **Regra de prevenção**: NUNCA misturar erros de `signInWithEmailAndPassword` com erros de Firestore no mesmo catch. Sempre separar autenticação de leitura de dados. Sempre fazer `getIdToken(true)` antes de acessar Firestore após login/reload.
 - **Status**: ✅ Resolvido em 18/04/2026.
+
+---
+
+### ERR-014 — oobCode de reset de senha vazava no console do browser
+
+- **Data**: 18/04/2026
+- **Descrição**: `recuperar-senha.js` fazia `console.log('[Bud] Backend response:', data)` que expunha o `oobCode` (token de reset de senha) no console do browser. Extensões ou shoulder surfers podiam capturar o token.
+- **Causa raiz**: Backend retornava `oobCode` para o frontend (que enviava o email via EmailJS client-side). O `console.log` de debug nunca foi removido.
+- **Solução aplicada**: (1) Backend refatorado para enviar o email via EmailJS REST API server-side — o `oobCode` nunca sai do backend. (2) Frontend agora recebe apenas `{ success: true }`. (3) Todos os `console.log`/`console.error` que expunham dados operacionais foram removidos de todos os JS files.
+- **Regra de prevenção**: NUNCA retornar tokens/codes sensíveis para o frontend. NUNCA fazer `console.log` de respostas que contenham tokens. Operações sensíveis (email de reset) devem ser executadas inteiramente no servidor.
+- **Status**: ✅ Resolvido em 18/04/2026.
+
+---
+
+### ERR-015 — Listeners duplicados no dashboard causam memory leak
+
+- **Data**: 18/04/2026
+- **Descrição**: `onAuthStateChanged` no dashboard chamava `setupListeners()` sem cleanup. Se o callback disparasse mais de uma vez (token refresh), listeners `onSnapshot` duplicavam — causando renders dobrados e vazamento de memória.
+- **Causa raiz**: `onAuthStateChanged` pode disparar múltiplas vezes (token refresh), mas `setupListeners()` não limpava subscriptions anteriores.
+- **Solução aplicada**: Adicionado `cleanupListeners()` antes de `setupListeners()` no auth guard do dashboard.
+- **Regra de prevenção**: Sempre chamar cleanup de listeners antes de configurar novos. Em `onAuthStateChanged`, nunca assumir que será chamado apenas uma vez.
+- **Status**: ✅ Resolvido em 18/04/2026.

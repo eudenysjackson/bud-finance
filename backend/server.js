@@ -1,7 +1,7 @@
 // backend/server.js — Bud Finance Backend (Minimal)
 // Generates Firebase password reset links via Admin SDK.
-// The link is NOT emailed by Firebase — it's returned to the frontend,
-// which then sends it via EmailJS with the custom template.
+// Sends the reset email server-side via EmailJS REST API.
+// The oobCode NEVER leaves the backend.
 
 const express = require('express');
 const cors    = require('cors');
@@ -19,9 +19,15 @@ admin.initializeApp({
 const auth = admin.auth();
 const db   = admin.firestore();
 
+// ─── EmailJS config (env vars — set on Render) ─────────────────────
+const EMAILJS_PUBLIC_KEY  = process.env.EMAILJS_PUBLIC_KEY  || '';
+const EMAILJS_SERVICE_ID  = process.env.EMAILJS_SERVICE_ID  || '';
+const EMAILJS_TEMPLATE_ID = process.env.EMAILJS_TEMPLATE_RECUPERAR_SENHA || '';
+const FRONTEND_URL        = process.env.FRONTEND_URL || 'http://localhost:3001';
+
 // ─── Express setup ──────────────────────────────────────────────────
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '10kb' }));
 
 // CORS — allow only the frontend origins
 const ALLOWED_ORIGINS = [
@@ -35,14 +41,13 @@ const ALLOWED_ORIGINS = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (curl, Postman, etc.) in dev
     if (!origin || ALLOWED_ORIGINS.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('CORS not allowed'));
     }
   },
-  methods: ['POST'],
+  methods: ['POST', 'GET'],
   allowedHeaders: ['Content-Type']
 }));
 
@@ -74,9 +79,38 @@ setInterval(function () {
   }
 }, 2 * 60 * 1000);
 
+// ─── Sanitize HTML tags (server-side equivalent of budSanitize) ─────
+function sanitizeStr(str) {
+  if (typeof str !== 'string') return '';
+  return str.replace(/<[^>]*>?/g, '').replace(/\s+/g, ' ').trim();
+}
+
+// ─── Send email via EmailJS REST API ────────────────────────────────
+async function sendEmailViaEmailJS(templateParams) {
+  if (!EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID) {
+    // EmailJS not configured — skip silently
+    return;
+  }
+
+  var response = await fetch('https://api.emailjs.com/api/v1.6/email/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      service_id:  EMAILJS_SERVICE_ID,
+      template_id: EMAILJS_TEMPLATE_ID,
+      user_id:     EMAILJS_PUBLIC_KEY,
+      template_params: templateParams
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error('EmailJS HTTP ' + response.status);
+  }
+}
+
 // ─── POST /reset-senha ─────────────────────────────────────────────
-// Generates a password reset link (does NOT send email).
-// Returns the link + user name so the frontend can send via EmailJS.
+// Generates a password reset link and sends the email SERVER-SIDE.
+// The oobCode NEVER leaves the backend — frontend only gets { success: true }.
 app.post('/reset-senha', async function (req, res) {
   try {
     var email = (req.body.email || '').trim().toLowerCase();
@@ -99,42 +133,42 @@ app.post('/reset-senha', async function (req, res) {
     try {
       userRecord = await auth.getUserByEmail(email);
     } catch (_e) {
-      console.log('[reset-senha] getUserByEmail failed:', _e.code, _e.message);
       // User not found — return success anyway (anti-enumeration)
       return res.json({ success: true });
     }
 
-    // Get user name from Firestore
+    // Get user name from Firestore (sanitize to prevent stored XSS in email)
     var userName = 'Usuário';
     try {
       var userDoc = await db.collection('usuarios').doc(userRecord.uid).get();
       if (userDoc.exists) {
-        userName = userDoc.data().nome || 'Usuário';
+        userName = sanitizeStr(userDoc.data().nome) || 'Usuário';
       }
     } catch (_e) {
       // Non-critical — use default name
     }
 
     // Generate password reset link (Firebase Admin SDK)
-    // This does NOT send any email — just returns the URL.
     var resetLink = await auth.generatePasswordResetLink(email);
 
-    // Replace the Firebase-hosted action URL with our acao-auth.html page
-    // The link contains ?oobCode=XXX which acao-auth.html reads
+    // Extract oobCode and build custom reset URL (server-side only)
     var oobCode = new URL(resetLink).searchParams.get('oobCode');
-    // The frontend will build the final URL using its own origin
+    var resetUrl = FRONTEND_URL + '/acao-auth.html?oobCode=' + encodeURIComponent(oobCode);
 
-    return res.json({
-      success: true,
-      data: {
-        oobCode: oobCode,
-        userName: userName,
-        email: email
-      }
-    });
+    // Send email via EmailJS REST API (oobCode stays on the server)
+    try {
+      await sendEmailViaEmailJS({
+        to_email: email,
+        to_name:  userName,
+        reset_url: resetUrl
+      });
+    } catch (_emailErr) {
+      // Email failed — but don't leak info to the client
+    }
 
-  } catch (err) {
-    console.error('[reset-senha] Error:', err.code, err.message, err.stack);
+    return res.json({ success: true });
+
+  } catch (_err) {
     // Generic success to prevent information leakage
     return res.json({ success: true });
   }

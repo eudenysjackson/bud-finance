@@ -472,8 +472,9 @@ async function handleSubmitLancamento(e) {
     return;
   }
 
-  // Sanitização
+  // Sanitização + limite de comprimento
   var descricao = window.budSanitize ? window.budSanitize(descricaoRaw) : descricaoRaw;
+  descricao = descricao.substring(0, 100);
 
   // Converter data para Timestamp (meio-dia para evitar shift de fuso)
   var dataTimestamp = Timestamp.fromDate(new Date(dataStr + 'T12:00:00'));
@@ -495,8 +496,7 @@ async function handleSubmitLancamento(e) {
       tipoAtual === 'receita' ? 'Receita registrada!' : 'Despesa registrada!',
       'success'
     );
-  } catch (err) {
-    console.error('[Dashboard] Erro ao salvar transação:', err);
+  } catch (_err) {
     if (window.budShowToast) window.budShowToast('Erro ao salvar. Tente novamente.', 'error');
   } finally {
     btnSubmit.disabled = false;
@@ -545,8 +545,8 @@ function setupListeners(uid) {
       return Object.assign({}, d.data(), { id: d.id });
     });
     renderizarDashboard();
-  }, function (err) {
-    console.warn('[Dashboard] Erro ao ouvir transações:', err);
+  }, function (_err) {
+    // Listener error handled silently — user sees stale data
   }));
 }
 
@@ -571,7 +571,6 @@ onAuthStateChanged(auth, async function (user) {
     await user.getIdToken(true);
   } catch (_tokenErr) {
     // Token inválido / sessão expirada → redirecionar para login
-    console.warn('[Dashboard] Sessão expirada, redirecionando…');
     window.location.href = 'index.html';
     return;
   }
@@ -617,11 +616,11 @@ onAuthStateChanged(auth, async function (user) {
       trialExpirado = fimDate < new Date();
     }
 
-    // ── Setup listeners de dados ────────────────────────────────────
+    // ── Setup listeners de dados (limpar anteriores para evitar duplicatas) ──
+    cleanupListeners();
     setupListeners(user.uid);
 
   } catch (err) {
-    console.error('[Dashboard] Erro ao carregar dados:', err);
     // Erro de permissão → sessão pode estar inválida
     if (err && err.code === 'permission-denied') {
       if (window.budShowToast) window.budShowToast('Sessão expirada. Redirecionando…', 'error');
@@ -640,8 +639,7 @@ if (btnLogout) {
       cleanupListeners();
       await signOut(auth);
       window.location.href = 'index.html';
-    } catch (err) {
-      console.error('[Dashboard] Erro ao sair:', err);
+    } catch (_err) {
       if (window.budShowToast) window.budShowToast('Erro ao sair. Tente novamente.', 'error');
     }
   });

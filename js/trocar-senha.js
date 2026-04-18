@@ -135,7 +135,6 @@ onAuthStateChanged(auth, async function (user) {
     novaSenhaInput.focus();
 
   } catch (err) {
-    console.error('Erro ao verificar sessão:', err);
     window.budShowToast('Erro ao carregar dados. Tente novamente.', 'error');
     await signOut(auth);
     showSection(stateUnauthorized);
@@ -199,8 +198,6 @@ form.addEventListener('submit', async function (e) {
     }, 1500);
 
   } catch (err) {
-    console.error('Erro ao trocar senha:', err);
-
     if (err.code === 'auth/requires-recent-login') {
       window.budShowToast('Sessão expirada. Faça login novamente e repita o processo.', 'error');
       setTimeout(async function () {
