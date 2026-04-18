@@ -23,7 +23,7 @@ const db   = admin.firestore();
 const EMAILJS_PUBLIC_KEY  = process.env.EMAILJS_PUBLIC_KEY  || '';
 const EMAILJS_SERVICE_ID  = process.env.EMAILJS_SERVICE_ID  || '';
 const EMAILJS_TEMPLATE_ID = process.env.EMAILJS_TEMPLATE_RECUPERAR_SENHA || '';
-const FRONTEND_URL        = process.env.FRONTEND_URL || 'http://localhost:3001';
+const FRONTEND_URL        = process.env.FRONTEND_URL || 'https://bud-finance.onrender.com';
 
 // ─── Express setup ──────────────────────────────────────────────────
 const app = express();
