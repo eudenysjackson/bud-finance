@@ -259,3 +259,23 @@
 - **Por quê**: Auditoria de segurança identificou vazamento de oobCode no console do browser, excesso de logging em produção, falta de limites de input, scroll bloqueado em telas pequenas e memory leak por listeners duplicados.
 - **Consequências**: Frontend não manipula mais oobCode. Backend precisa das variáveis de ambiente `EMAILJS_PUBLIC_KEY`, `EMAILJS_SERVICE_ID`, `EMAILJS_TEMPLATE_RECUPERAR_SENHA` e `FRONTEND_URL`. Logs de produção são silenciosos. Auth pages permitem scroll.
 - **Quando revisar**: Quando migrar para serviço de email próprio (SendGrid, SES) ou quando implementar logging estruturado (pino/winston).
+
+---
+
+### DEC-025 — Navegação de mês no dashboard: persistência e estratégia de filtro
+
+- **Data**: 18/04/2026
+- **O que foi decidido**: (1) A variável `dataFiltro` foi substituída por dois estados explícitos: `mesVisualizado` (int 0-11) e `anoVisualizado` (int). (2) O filtro reseta para o mês atual ao recarregar a página — **não persiste em sessionStorage nem localStorage**. (3) O Firestore continua buscando **todas** as transações do usuário (até 1.000) via `onSnapshot`; a filtragem por mês é feita client-side em `renderizarDashboard()`. Os botões `btnMesAnterior` / `btnProximoMes` apenas alteram o estado e re-renderizam sem nova leitura do Firestore.
+- **Por quê**: (a) Resetar ao recarregar é o comportamento esperado — o usuário geralmente quer ver o mês atual ao abrir o app. Salvar no sessionStorage adicionaria complexidade sem benefício claro. (b) Filtro client-side evita múltiplos listeners Firestore (um por mês) e mantém a lógica de real-time simples. Com menos de 1.000 transações por usuário (caso de uso típico), o custo de memória é desprezível.
+- **Consequências**: A barra de navegação de mês é funcional. Os cards Saldo/Entradas/Saídas e a lista de Atividades Recentes refletem apenas o mês selecionado. Futuras features de gráfico por categoria devem consumir `mesVisualizado`/`anoVisualizado` diretamente.
+- **Quando revisar**: Se usuários acumularem >1.000 transações (migrar para paginação server-side com `where('data', >=, inicio).where('data', <=, fim)`) ou se houver demanda por persistir o mês entre sessões.
+
+---
+
+### DEC-026 — Biblioteca de gráficos: Chart.js v4 e estratégia de destruição de instâncias
+
+- **Data**: 18/04/2026
+- **O que foi decidido**: (1) Adotar **Chart.js v4.4.2** via CDN (`chart.umd.min.js`) para renderizar o gráfico de Rosca (Doughnut) de despesas por categoria. (2) Manter uma variável global `_chartInstance` para rastrear a instância ativa. A cada re-render (mudança de mês ou novo dado do Firestore), chamar `_chartInstance.destroy()` antes de instanciar um novo gráfico. (3) Filtragem e agrupamento são feitos client-side, consumindo o array `transacoesDoMes` já filtrado por `renderizarDashboard()`.
+- **Por quê**: Chart.js é madura, sem dependências externas, tree-shakeable e tem suporte nativo a doughnut com `cutout`. A alternativa (D3.js) teria complexidade desnecessária para um gráfico simples. A estratégia de `destroy()` é obrigatória no Chart.js para evitar sobreposição de instâncias e memory leak ao re-renderizar no mesmo `<canvas>`.
+- **Consequências**: O `<script>` do Chart.js deve ser carregado **antes** de `firebase-config.js` e `dashboard.js`. O canvas `#chartCategorias` e o container `#graficoContainer` devem existir no HTML. O estado vazio `#graficoCategorias` é mostrado/ocultado via `style.display` (inline, nunca Tailwind dinâmico — DEC-001).
+- **Quando revisar**: Se o número de categorias crescer muito (>9) ou se houver demanda por gráficos de linha (evolução mensal), avaliar biblioteca alternativa ou módulos Chart.js adicionais.

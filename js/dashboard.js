@@ -17,7 +17,8 @@ const db   = getFirestore(app);
 let usuarioAtualId = null;
 let transacoesGlobais = [];
 let valoresOcultos = localStorage.getItem('bud_valores_ocultos') === 'true';
-let dataFiltro = new Date();
+let mesVisualizado = new Date().getMonth();   // 0-based (0 = Jan)
+let anoVisualizado = new Date().getFullYear();
 const _unsubs = [];
 
 // ─── Estado do modal ─────────────────────────────────────────────────────
@@ -57,8 +58,8 @@ function formatarDataHoje() {
 }
 
 function getMesAnoLabel() {
-  var opts = { month: 'long', year: 'numeric' };
-  var str = dataFiltro.toLocaleDateString('pt-BR', opts);
+  var d = new Date(anoVisualizado, mesVisualizado, 1);
+  var str = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
@@ -77,8 +78,12 @@ function atualizarVisibilidadeValores() {
 
 // ─── Renderizar dashboard ───────────────────────────────────────────────
 function renderizarDashboard() {
-  var mesAtual = dataFiltro.getMonth();
-  var anoAtual = dataFiltro.getFullYear();
+  var mesAtual = mesVisualizado;
+  var anoAtual = anoVisualizado;
+
+  // Atualizar label da navegação de mês
+  var navLabel = document.getElementById('navMesAno');
+  if (navLabel) navLabel.textContent = getMesAnoLabel();
 
   var transacoesDoMes = transacoesGlobais.filter(function (t) {
     if (!t.data) return false;
@@ -126,8 +131,94 @@ function renderizarDashboard() {
   // Atividades recentes (últimas 5)
   renderizarAtividades(transacoesDoMes);
 
+  // Gráfico de despesas por categoria
+  renderizarGraficos(transacoesDoMes);
+
   // Apply visibility toggle (sempre — atualiza icon e oculta se necessário)
   atualizarVisibilidadeValores();
+}
+
+// ─── Gráfico Despesas por Categoria ─────────────────────────────────────
+var _chartInstance = null;
+var CHART_CORES = [
+  '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd',
+  '#1d4ed8', '#6366f1', '#8b5cf6', '#a78bfa', '#cbd5e1'
+];
+
+function renderizarGraficos(transacoesDoMes) {
+  var empty     = document.getElementById('graficoCategorias');
+  var container = document.getElementById('graficoContainer');
+  var canvas    = document.getElementById('chartCategorias');
+  if (!empty || !container || !canvas) return;
+
+  // Filtrar apenas despesas do mês (herda o filtro já feito em renderizarDashboard)
+  var despesas = transacoesDoMes.filter(function (t) { return t.tipo === 'despesa'; });
+
+  // Destruir instância anterior para evitar memory leak
+  if (_chartInstance) {
+    _chartInstance.destroy();
+    _chartInstance = null;
+  }
+
+  if (despesas.length === 0) {
+    empty.style.display = '';
+    container.style.display = 'none';
+    return;
+  }
+
+  // Agrupar por categoria
+  var agrupado = {};
+  despesas.forEach(function (t) {
+    var cat = t.categoria || 'Outros';
+    agrupado[cat] = (agrupado[cat] || 0) + (t.valor || 0);
+  });
+  var labels = Object.keys(agrupado);
+  var valores = labels.map(function (k) { return agrupado[k]; });
+  var cores   = labels.map(function (_, i) { return CHART_CORES[i % CHART_CORES.length]; });
+
+  // Mostrar canvas, ocultar estado vazio
+  empty.style.display = 'none';
+  container.style.display = 'block';
+
+  _chartInstance = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: valores,
+        backgroundColor: cores,
+        borderWidth: 0,
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      cutout: '70%',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            font: { family: 'Inter, sans-serif', size: 11, weight: '600' },
+            color: '#64748b',
+            padding: 16,
+            usePointStyle: true,
+            pointStyleWidth: 8
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function (ctx) {
+              var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+              var pct   = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : '0.0';
+              return ' ' + formatarValor(ctx.parsed) + ' (' + pct + '%)';
+            }
+          }
+        }
+      },
+      animation: { animateRotate: true, animateScale: true }
+    }
+  });
 }
 
 // ─── Atividades recentes ────────────────────────────────────────────────
@@ -792,6 +883,28 @@ var formLancamento = document.getElementById('formLancamento');
 if (formLancamento) {
   formLancamento.addEventListener('submit', handleSubmitLancamento);
 }
+
+// ─── Navegação de mês ──────────────────────────────────────────────────
+var btnMesAnterior = document.getElementById('btnMesAnterior');
+var btnProximoMes  = document.getElementById('btnProximoMes');
+if (btnMesAnterior) {
+  btnMesAnterior.addEventListener('click', function () {
+    mesVisualizado--;
+    if (mesVisualizado < 0) { mesVisualizado = 11; anoVisualizado--; }
+    renderizarDashboard();
+  });
+}
+if (btnProximoMes) {
+  btnProximoMes.addEventListener('click', function () {
+    mesVisualizado++;
+    if (mesVisualizado > 11) { mesVisualizado = 0; anoVisualizado++; }
+    renderizarDashboard();
+  });
+}
+
+// ─── Inicializar label de mês ao carregar ───────────────────────────────
+var navMesAnoEl = document.getElementById('navMesAno');
+if (navMesAnoEl) navMesAnoEl.textContent = getMesAnoLabel();
 
 // ─── Init sidebar ───────────────────────────────────────────────────────
 setupSidebar();

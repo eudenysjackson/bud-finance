@@ -215,7 +215,31 @@
     .trial-banner.show { display: flex; }
     .trial-banner-icon { font-size: 1.25rem; }
     .trial-banner-text { flex: 1; }
-
+    /* ── Navegação de mês ────────────────────────────────────── */
+    .mes-nav {
+      display: flex; align-items: center; justify-content: center;
+      gap: 1rem; margin-bottom: 1.25rem;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.9);
+      border-radius: 1rem; padding: 0.625rem 1.25rem;
+      box-shadow: 0 4px 20px -5px rgba(0,0,0,0.06);
+    }
+    .mes-nav-btn {
+      width: 2rem; height: 2rem; border-radius: 0.5rem;
+      background: transparent; border: none; cursor: pointer;
+      font-size: 1.375rem; line-height: 1; color: #64748b;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, color .15s;
+      font-family: inherit; padding: 0;
+    }
+    .mes-nav-btn:hover { background: #f1f5f9; color: #1e293b; }
+    .mes-nav-label {
+      font-size: 0.9375rem; font-weight: 700; color: #1e293b;
+      text-align: center;
+      min-width: 10rem;
+    }
     /* ── Cards grid ───────────────────────────────────────────────── */
     .cards-grid {
       display: grid;
@@ -610,6 +634,13 @@
         <span class="trial-banner-text" id="trialBannerText">Seu período de testes termina em breve.</span>
       </div>
 
+      <!-- Navegação de mês -->
+      <nav class="mes-nav" aria-label="Navegação por mês">
+        <button class="mes-nav-btn" id="btnMesAnterior" aria-label="Mês anterior">‹</button>
+        <span class="mes-nav-label" id="navMesAno" aria-live="polite">Carregando...</span>
+        <button class="mes-nav-btn" id="btnProximoMes" aria-label="Próximo mês">›</button>
+      </nav>
+
       <!-- Summary Cards -->
       <div class="cards-grid">
         <!-- Saldo Total -->
@@ -670,12 +701,17 @@
         </div>
       </div>
 
-      <!-- Gráfico placeholder -->
+      <!-- Gráfico Despesas por Categoria -->
       <div class="dash-section">
         <div class="dash-section-title">Despesas por Categoria</div>
+        <!-- Estado vazio (exibido quando não há despesas no mês) -->
         <div class="dash-empty" id="graficoCategorias">
           <div class="dash-empty-icon">📊</div>
-          <p>Sem dados suficientes para exibir o gráfico.</p>
+          <p>Nenhuma despesa registrada neste mês.</p>
+        </div>
+        <!-- Canvas do gráfico (oculto quando vazio) -->
+        <div id="graficoContainer" style="display:none;position:relative;height:280px;">
+          <canvas id="chartCategorias"></canvas>
         </div>
       </div>
 
@@ -766,6 +802,7 @@
   </div>
 
   <!-- ═══ Firebase + Config ════════════════════════════════════════ -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/bud-utils.js"></script>
   <script type="module" src="js/dashboard.js"></script>

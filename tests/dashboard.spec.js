@@ -138,4 +138,61 @@ test.describe('Dashboard — Estrutura HTML', () => {
     await expect(overlay).toHaveCount(1);
   });
 
+  // ─── Navegação de mês ──────────────────────────────────────────────────
+  test('barra de navegação de mês existe no DOM', async ({ page }) => {
+    const nav = page.locator('nav[aria-label="Navegação por mês"]');
+    await expect(nav).toHaveCount(1);
+  });
+
+  test('botão mês anterior existe com aria-label correto', async ({ page }) => {
+    const btn = page.locator('#btnMesAnterior');
+    await expect(btn).toHaveCount(1);
+    await expect(btn).toHaveAttribute('aria-label', 'Mês anterior');
+  });
+
+  test('botão próximo mês existe com aria-label correto', async ({ page }) => {
+    const btn = page.locator('#btnProximoMes');
+    await expect(btn).toHaveCount(1);
+    await expect(btn).toHaveAttribute('aria-label', 'Próximo mês');
+  });
+
+  test('label navMesAno existe e tem aria-live', async ({ page }) => {
+    const label = page.locator('#navMesAno');
+    await expect(label).toHaveCount(1);
+    await expect(label).toHaveAttribute('aria-live', 'polite');
+  });
+
+  test('botões de navegação são clicáveis', async ({ page }) => {
+    const prev = page.locator('#btnMesAnterior');
+    const next = page.locator('#btnProximoMes');
+    await expect(prev).toBeEnabled();
+    await expect(next).toBeEnabled();
+  });
+
+  // ─── Gráfico de Categorias ────────────────────────────────────────────
+  test('canvas chartCategorias existe no DOM', async ({ page }) => {
+    const canvas = page.locator('#chartCategorias');
+    await expect(canvas).toHaveCount(1);
+  });
+
+  test('container do gráfico existe no DOM', async ({ page }) => {
+    const container = page.locator('#graficoContainer');
+    await expect(container).toHaveCount(1);
+  });
+
+  test('estado vazio graficoCategorias existe', async ({ page }) => {
+    const empty = page.locator('#graficoCategorias');
+    await expect(empty).toHaveCount(1);
+  });
+
+  test('seção Despesas por Categoria tem título correto', async ({ page }) => {
+    const title = page.locator('.dash-section-title').filter({ hasText: 'Despesas por Categoria' });
+    await expect(title).toHaveCount(1);
+  });
+
+  test('Chart.js carregado via script tag', async ({ page }) => {
+    const script = page.locator('script[src*="chart.js"]');
+    await expect(script).toHaveCount(1);
+  });
+
 });

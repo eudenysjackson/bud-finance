@@ -71,7 +71,8 @@
 | `atualizarModalTipo(tipo)` | Alterna estilo/labels/categorias do modal | `dashboard.js` | ✅ `dashboard.js` |
 | `aplicarMascaraValor(input)` | Máscara de moeda BRL no input de valor | `dashboard.js` | ✅ `dashboard.js` |
 | `handleSubmitLancamento(e)` | Valida, sanitiza e persiste transação no Firestore | `dashboard.js` | ✅ `dashboard.js` |
-| `renderizarDashboard()` | Recalcula saldo/entradas/saídas e atualiza cards | `dashboard.js` | ✅ `dashboard.js` |
+| `renderizarDashboard()` | Recalcula saldo/entradas/saídas para o mês selecionado e atualiza cards + label de navegação | `dashboard.js` | ✅ `dashboard.js` |
+| `renderizarGraficos(transacoes)` | Agrega despesas por categoria e renderiza doughnut Chart.js; destrói instância anterior antes de criar nova | `dashboard.js` | ✅ `dashboard.js` |
 | `setupListeners(uid)` | Inicia onSnapshot de transações (orderBy+limit) | `dashboard.js` | ✅ `dashboard.js` |
 | `cleanupListeners()` | Desregistra todos os onSnapshot ativos | `dashboard.js` | ✅ `dashboard.js` |
 | `showSection(section)` | Alterna visibilidade entre estados visuais | `acao-auth.js`, `trocar-senha.js` | ✅ |
@@ -94,6 +95,8 @@
 | `click → btnSync` | Re-cria listeners para forçar re-fetch real do Firestore | Firestore ✅ |
 | `click → btnHamburger` | Abre/fecha sidebar mobile com overlay | DOM (`dashboard.html`) ✅ |
 | `onSnapshot → transacoes` | Atualiza transacoesGlobais[] e re-renderiza dashboard | Firestore ✅ |
+| `click → btnMesAnterior` | Decrementa mesVisualizado (com wraparound jan→dez) e re-renderiza | DOM ✅ |
+| `click → btnProximoMes` | Incrementa mesVisualizado (com wraparound dez→jan) e re-renderiza | DOM ✅ |
 | `click → btnNovaReceita` | Abre TransactionModal pré-selecionado como Receita | DOM ✅ |
 | `click → btnNovaDespesa` | Abre TransactionModal pré-selecionado como Despesa | DOM ✅ |
 | `click → tipoBtnReceita/Despesa` | Troca tipo dentro do modal (atualizarModalTipo) | DOM ✅ |
