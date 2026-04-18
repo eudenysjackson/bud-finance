@@ -26,3 +26,7 @@ build/
 # Logs
 *.log
 npm-debug.log*
+
+# Repomix output (pode conter credenciais em snapshot antigo)
+repomix-output.xml
+repomix-output*.xml

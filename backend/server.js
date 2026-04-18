@@ -35,8 +35,7 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:8080',
   'http://localhost:3001',
   'http://127.0.0.1:3001',
-  // Add your production domain here when deployed:
-  // 'https://bud-finance.example.com'
+  'https://bud-finance.onrender.com'
 ];
 
 app.use(cors({
