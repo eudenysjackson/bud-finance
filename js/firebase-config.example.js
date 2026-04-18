@@ -1,22 +1,22 @@
-// firebase-config.js — Bud Finance
-// Firebase configuration loaded from environment / protected config.
-// In production, these values should be injected via a build step or server-side template.
-// NEVER commit real API keys to version control.
+// firebase-config.example.js — Bud Finance
+// Arquivo de TEMPLATE — pode ser commitado no repositório.
+// Para uso local: copie este arquivo para js/firebase-config.js e preencha os valores reais.
+// Em produção: o script inject-env.sh substitui os placeholders automaticamente via variáveis de ambiente.
+// NUNCA commite js/firebase-config.js com valores reais.
 
 (function () {
   'use strict';
 
-  // ─── Firebase placeholder config ─────────────────────────────────────
-  // Replace these values with your actual Firebase project credentials.
-  // For local development you can fill them in directly.
-  // For production, inject via CI/CD environment variables or server-side rendering.
+  // ─── Firebase ─────────────────────────────────────────────────────────
+  // Variáveis de ambiente esperadas: FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN,
+  // FIREBASE_PROJECT_ID, FIREBASE_STORAGE_BUCKET, FIREBASE_MESSAGING_SENDER_ID, FIREBASE_APP_ID
   const config = {
     apiKey:            "__FIREBASE_API_KEY__",
-    authDomain:        "__PROJECT_ID__.firebaseapp.com",
-    projectId:         "__PROJECT_ID__",
-    storageBucket:     "__PROJECT_ID__.firebasestorage.app",
-    messagingSenderId: "__MESSAGING_SENDER_ID__",
-    appId:             "__APP_ID__"
+    authDomain:        "__FIREBASE_AUTH_DOMAIN__",
+    projectId:         "__FIREBASE_PROJECT_ID__",
+    storageBucket:     "__FIREBASE_STORAGE_BUCKET__",
+    messagingSenderId: "__FIREBASE_MESSAGING_SENDER_ID__",
+    appId:             "__FIREBASE_APP_ID__"
   };
 
   // Validate — fail fast if placeholders are still present
@@ -28,13 +28,14 @@
     );
   }
 
-  // ─── Cloud Functions URL ──────────────────────────────────────────────
-  // Base URL for Firebase Cloud Functions (used by recuperar-senha, etc.)
+  // ─── Backend URL ──────────────────────────────────────────────────────
+  // Variável de ambiente: BACKEND_URL (ex: https://bud-finance-backend.onrender.com)
   window.BUD_FUNCTIONS_URL = "__BACKEND_URL__";
 
-  // ─── EmailJS protected config ─────────────────────────────────────────
-  // In production, move email sending to a Cloud Function (server-side).
-  // These are kept here as placeholders for the client-side fallback.
+  // ─── EmailJS ───────────────────────────────────────────────────────────
+  // Usado no cadastro (email de boas-vindas). Reset de senha é server-side.
+  // Variáveis: EMAILJS_PUBLIC_KEY, EMAILJS_SERVICE_ID,
+  //            EMAILJS_TEMPLATE_BOAS_VINDAS, EMAILJS_TEMPLATE_RECUPERAR_SENHA
   window.BUD_EMAILJS_CONFIG = Object.freeze({
     publicKey:  "__EMAILJS_PUBLIC_KEY__",
     serviceId:  "__EMAILJS_SERVICE_ID__",
@@ -44,9 +45,9 @@
     })
   });
 
-  // ─── reCAPTCHA v3 site key ────────────────────────────────────────────
+  // ─── reCAPTCHA v3 ─────────────────────────────────────────────────────
+  // Variável de ambiente: RECAPTCHA_SITE_KEY
   window.BUD_RECAPTCHA_SITE_KEY = "__RECAPTCHA_SITE_KEY__";
 
-  // Expose Firebase config as a frozen object
   window.BUD_FIREBASE_CONFIG = Object.freeze(config);
 })();

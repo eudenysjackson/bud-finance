@@ -3,6 +3,7 @@
   "private": true,
   "description": "Bud Finance — testes automatizados com Playwright",
   "scripts": {
+    "build": "sh inject-env.sh",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:report": "playwright show-report"
