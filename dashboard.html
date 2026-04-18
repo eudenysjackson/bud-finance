@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="description" content="Bud Finance — Dashboard financeiro">
+  <title>Dashboard - Bud Finance</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+
+  <!-- Google Fonts — Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS (build estático) -->
+  <link rel="stylesheet" href="css/tailwind.css">
+
+  <!-- Inline critical styles -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: #f0f4f8;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    /* ── Splash screen ────────────────────────────────────────────── */
+    #splash {
+      position: fixed; inset: 0;
+      background: #f0f4f8;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 1rem;
+      z-index: 99999;
+      transition: opacity .5s ease;
+    }
+    #splash.hide { opacity: 0; pointer-events: none; }
+    .splash-bar {
+      width: 120px; height: 4px; border-radius: 2px;
+      background: #e2e8f0; overflow: hidden;
+    }
+    .splash-bar-inner {
+      width: 40%; height: 100%; border-radius: 2px;
+      background: #3b82f6;
+      animation: slide-bar 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse-logo {
+      0%, 100% { transform: scale(1); }
+      50%      { transform: scale(1.06); }
+    }
+    @keyframes slide-bar {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+
+    /* ── Blobs ────────────────────────────────────────────────────── */
+    .blob {
+      position: fixed;
+      border-radius: 9999px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .blob-blue {
+      top: -5%; left: -5%;
+      width: 35%; height: 35%;
+      background: rgba(147,197,253,0.30);
+      filter: blur(100px);
+    }
+    .blob-cyan {
+      bottom: -5%; right: -5%;
+      width: 25%; height: 25%;
+      background: rgba(103,232,249,0.20);
+      filter: blur(100px);
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────── */
+    .dash-layout {
+      display: flex;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    /* ── Sidebar ──────────────────────────────────────────────────── */
+    .sidebar {
+      width: 260px;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-right: 1px solid rgba(255,255,255,0.8);
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem 1rem;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 50;
+      transition: transform .3s ease;
+    }
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0 0.5rem 1.25rem; margin-bottom: 0.5rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .sidebar-logo img {
+      width: 2.25rem; height: 2.25rem; object-fit: contain;
+    }
+    .sidebar-logo span {
+      font-size: 1.125rem; font-weight: 800; color: #1e293b;
+      letter-spacing: -0.025em;
+    }
+    .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.75rem; }
+    .sidebar-link {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.625rem 0.75rem; border-radius: 0.75rem;
+      font-size: 0.875rem; font-weight: 600; color: #64748b;
+      text-decoration: none; transition: all .2s;
+      cursor: pointer; border: none; background: none; width: 100%;
+      font-family: inherit;
+    }
+    .sidebar-link:hover { background: rgba(59,130,246,0.08); color: #2563eb; }
+    .sidebar-link.active { background: rgba(59,130,246,0.12); color: #2563eb; }
+    .sidebar-link-icon { font-size: 1.125rem; width: 1.5rem; text-align: center; }
+    .sidebar-user {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.75rem; border-radius: 0.75rem;
+      background: #f8fafc; margin-top: auto;
+    }
+    .sidebar-avatar {
+      width: 2.25rem; height: 2.25rem; border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 800; font-size: 0.8rem;
+      flex-shrink: 0;
+    }
+    .sidebar-user-info { overflow: hidden; }
+    .sidebar-user-name {
+      font-size: 0.8125rem; font-weight: 700; color: #1e293b;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .sidebar-user-id {
+      font-size: 0.6875rem; font-weight: 500; color: #94a3b8;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* ── Main ─────────────────────────────────────────────────────── */
+    .dash-main {
+      flex: 1;
+      margin-left: 260px;
+      padding: 1.5rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────── */
+    .dash-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+    .dash-welcome h1 {
+      font-size: 1.5rem; font-weight: 800; color: #1e293b;
+      letter-spacing: -0.025em;
+    }
+    .dash-welcome p {
+      font-size: 0.8125rem; font-weight: 500; color: #64748b;
+      margin-top: 0.125rem;
+    }
+    .dash-header-actions {
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .dash-icon-btn {
+      width: 2.25rem; height: 2.25rem; border-radius: 0.625rem;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(226,232,240,0.8);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; cursor: pointer; color: #64748b;
+      transition: all .2s;
+    }
+    .dash-icon-btn:hover { background: #fff; color: #2563eb; border-color: #bfdbfe; }
+
+    /* ── Hamburger (mobile only) ──────────────────────────────────── */
+    .hamburger-btn {
+      display: none;
+      width: 2.5rem; height: 2.5rem; border-radius: 0.75rem;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(226,232,240,0.8);
+      align-items: center; justify-content: center;
+      font-size: 1.25rem; cursor: pointer; color: #1e293b;
+      z-index: 60;
+    }
+    .sidebar-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.3); z-index: 40;
+    }
+
+    /* ── Trial Banner ─────────────────────────────────────────────── */
+    .trial-banner {
+      display: none;
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      border: 1px solid #fbbf24;
+      border-radius: 1rem;
+      padding: 0.875rem 1.25rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #92400e;
+      align-items: center;
+      gap: 0.625rem;
+    }
+    .trial-banner.show { display: flex; }
+    .trial-banner-icon { font-size: 1.25rem; }
+    .trial-banner-text { flex: 1; }
+
+    /* ── Cards grid ───────────────────────────────────────────────── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .summary-card {
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.9);
+      border-radius: 1.25rem;
+      padding: 1.25rem;
+      box-shadow: 0 4px 20px -5px rgba(0,0,0,0.06);
+      transition: transform .2s, box-shadow .2s;
+    }
+    .summary-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px -5px rgba(0,0,0,0.1);
+    }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+    .card-label {
+      font-size: 0.6875rem; font-weight: 800; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .card-icon {
+      width: 2rem; height: 2rem; border-radius: 0.5rem;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.875rem;
+    }
+    .card-icon-blue   { background: #eff6ff; color: #2563eb; }
+    .card-icon-green  { background: #f0fdf4; color: #16a34a; }
+    .card-icon-red    { background: #fef2f2; color: #dc2626; }
+    .card-value {
+      font-size: 1.5rem; font-weight: 800; color: #1e293b;
+      letter-spacing: -0.025em;
+    }
+    .card-sub {
+      font-size: 0.75rem; font-weight: 500; color: #94a3b8;
+      margin-top: 0.25rem;
+    }
+
+    /* ── Placeholder sections ─────────────────────────────────────── */
+    .dash-section {
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.9);
+      border-radius: 1.25rem;
+      padding: 1.5rem;
+      box-shadow: 0 4px 20px -5px rgba(0,0,0,0.06);
+      margin-bottom: 1rem;
+    }
+    .dash-section-title {
+      font-size: 0.875rem; font-weight: 800; color: #1e293b;
+      margin-bottom: 1rem;
+    }
+    .dash-empty {
+      text-align: center; padding: 2rem 1rem;
+      color: #94a3b8; font-size: 0.8125rem; font-weight: 500;
+    }
+    .dash-empty-icon {
+      font-size: 2rem; margin-bottom: 0.5rem;
+    }
+
+    /* ── Quick actions grid ───────────────────────────────────────── */
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .quick-btn {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 1rem; border-radius: 1rem;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.9);
+      box-shadow: 0 4px 20px -5px rgba(0,0,0,0.06);
+      cursor: pointer; transition: all .2s;
+      font-family: inherit;
+    }
+    .quick-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px -5px rgba(0,0,0,0.1);
+    }
+    .quick-btn-icon {
+      width: 2.5rem; height: 2.5rem; border-radius: 0.75rem;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.125rem; flex-shrink: 0;
+    }
+    .quick-btn-icon-green { background: #dcfce7; color: #16a34a; }
+    .quick-btn-icon-red   { background: #fee2e2; color: #dc2626; }
+    .quick-btn-label {
+      font-size: 0.8125rem; font-weight: 700; color: #1e293b;
+    }
+    .quick-btn-sub {
+      font-size: 0.6875rem; font-weight: 500; color: #94a3b8;
+    }
+
+    /* ── Responsive: Mobile ───────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      .sidebar-overlay.open {
+        display: block;
+      }
+      .dash-main {
+        margin-left: 0;
+        padding: 1rem;
+      }
+      .hamburger-btn {
+        display: flex;
+      }
+      .cards-grid {
+        grid-template-columns: 1fr;
+      }
+      .quick-actions {
+        grid-template-columns: 1fr;
+      }
+      .dash-welcome h1 {
+        font-size: 1.25rem;
+      }
+      .card-value {
+        font-size: 1.25rem;
+      }
+    }
+    @media (min-width: 769px) and (max-width: 1024px) {
+      .cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ Splash screen ════════════════════════════════════════════ -->
+  <div id="splash">
+    <img src="logo.png" alt="Bud Finance" style="width:56px;height:56px;object-fit:contain;animation:pulse-logo 1.8s ease-in-out infinite;">
+    <div class="splash-bar"><div class="splash-bar-inner"></div></div>
+  </div>
+
+  <!-- ═══ Blobs decorativos ════════════════════════════════════════ -->
+  <div class="blob blob-blue" aria-hidden="true"></div>
+  <div class="blob blob-cyan" aria-hidden="true"></div>
+
+  <!-- ═══ Overlay sidebar mobile ═══════════════════════════════════ -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- ═══ Layout ═══════════════════════════════════════════════════ -->
+  <div class="dash-layout">
+
+    <!-- ─── Sidebar ──────────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <img src="logo.png" alt="Bud Finance">
+        <span>Bud Finance</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="sidebar-link active">
+          <span class="sidebar-link-icon">📊</span> Dashboard
+        </a>
+      </nav>
+
+      <!-- User info -->
+      <div class="sidebar-user">
+        <div class="sidebar-avatar" id="sidebarAvatar">?</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebarUserName">Carregando...</div>
+          <div class="sidebar-user-id" id="sidebarUserId">---</div>
+        </div>
+      </div>
+
+      <!-- Logout -->
+      <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
+        <span class="sidebar-link-icon">🚪</span> Sair
+      </button>
+    </aside>
+
+    <!-- ─── Main Content ─────────────────────────────────────────── -->
+    <main class="dash-main" id="dashMain">
+
+      <!-- Header -->
+      <div class="dash-header">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
+          <div class="dash-welcome">
+            <h1 id="welcomeText">Bom dia! 👋</h1>
+            <p id="welcomeDate">Carregando...</p>
+          </div>
+        </div>
+        <div class="dash-header-actions">
+          <button class="dash-icon-btn" id="btnToggleValues" title="Ocultar/Mostrar valores">👁️</button>
+          <button class="dash-icon-btn" id="btnSync" title="Sincronizar dados">🔄</button>
+        </div>
+      </div>
+
+      <!-- Trial Banner -->
+      <div class="trial-banner" id="trialBanner">
+        <span class="trial-banner-icon">⏳</span>
+        <span class="trial-banner-text" id="trialBannerText">Seu período de testes termina em breve.</span>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="cards-grid">
+        <!-- Saldo Total -->
+        <div class="summary-card">
+          <div class="card-header">
+            <span class="card-label">Saldo Total</span>
+            <div class="card-icon card-icon-blue">💰</div>
+          </div>
+          <div class="card-value" id="cardSaldo">R$ 0,00</div>
+          <div class="card-sub" id="cardSaldoSub">—</div>
+        </div>
+
+        <!-- Entradas do Mês -->
+        <div class="summary-card">
+          <div class="card-header">
+            <span class="card-label">Entradas do Mês</span>
+            <div class="card-icon card-icon-green">📈</div>
+          </div>
+          <div class="card-value" id="cardEntradas" style="color:#16a34a;">R$ 0,00</div>
+          <div class="card-sub" id="cardEntradasSub">—</div>
+        </div>
+
+        <!-- Saídas do Mês -->
+        <div class="summary-card">
+          <div class="card-header">
+            <span class="card-label">Saídas do Mês</span>
+            <div class="card-icon card-icon-red">📉</div>
+          </div>
+          <div class="card-value" id="cardSaidas" style="color:#dc2626;">R$ 0,00</div>
+          <div class="card-sub" id="cardSaidasSub">—</div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="quick-actions">
+        <button class="quick-btn" id="btnNovaReceita">
+          <div class="quick-btn-icon quick-btn-icon-green">+</div>
+          <div>
+            <div class="quick-btn-label">Nova Receita</div>
+            <div class="quick-btn-sub">Registrar entrada</div>
+          </div>
+        </button>
+        <button class="quick-btn" id="btnNovaDespesa">
+          <div class="quick-btn-icon quick-btn-icon-red">−</div>
+          <div>
+            <div class="quick-btn-label">Nova Despesa</div>
+            <div class="quick-btn-sub">Registrar saída</div>
+          </div>
+        </button>
+      </div>
+
+      <!-- Atividades recentes -->
+      <div class="dash-section">
+        <div class="dash-section-title">Atividades Recentes</div>
+        <div class="dash-empty" id="atividadesLista">
+          <div class="dash-empty-icon">📝</div>
+          <p>Nenhuma transação este mês.<br>Comece adicionando uma receita ou despesa!</p>
+        </div>
+      </div>
+
+      <!-- Gráfico placeholder -->
+      <div class="dash-section">
+        <div class="dash-section-title">Despesas por Categoria</div>
+        <div class="dash-empty" id="graficoCategorias">
+          <div class="dash-empty-icon">📊</div>
+          <p>Sem dados suficientes para exibir o gráfico.</p>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ═══ Firebase + Config ════════════════════════════════════════ -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/bud-utils.js"></script>
+  <script type="module" src="js/dashboard.js"></script>
+
+  <!-- Splash dismiss -->
+  <script>
+    (function () {
+      var splash = document.getElementById('splash');
+      if (!splash) return;
+      var minTime = 700;
+      var start = Date.now();
+      window.addEventListener('load', function () {
+        var elapsed = Date.now() - start;
+        var remaining = Math.max(0, minTime - elapsed);
+        setTimeout(function () {
+          splash.classList.add('hide');
+          setTimeout(function () { splash.remove(); }, 600);
+        }, remaining);
+      });
+      setTimeout(function () {
+        if (splash.parentNode) {
+          splash.classList.add('hide');
+          setTimeout(function () { splash.remove(); }, 600);
+        }
+      }, 6000);
+    })();
+  </script>
+</body>
+</html>

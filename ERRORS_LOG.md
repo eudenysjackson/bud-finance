@@ -116,6 +116,6 @@
 - **Data**: 16/04/2026
 - **Descrição**: Backend retornava `{success: true}` sem `oobCode` ao tentar resetar senha de usuário existente.
 - **Causa raiz**: Domínio de redirecionamento passado para `generatePasswordResetLink` não estava cadastrado nos Domínios Autorizados do Firebase Auth.
-- **Solução aplicada**: Removido parâmetro de URL customizada; uso do fluxo padrão do Firebase.
+- **Solução aplicada**: Removido parâmetro de URL customizada; uso do fluxo padrão do Firebase sem parâmetros de URL customizados (DEC-015).
 - **Regra de prevenção**: Nunca passar domínio customizado para reset de senha sem garantir que está autorizado no Firebase Auth. Validar sempre após deploy.
-- **Status**: Resolvido em 16/04/2026.
+- **Status**: ✅ Resolvido em 16/04/2026.

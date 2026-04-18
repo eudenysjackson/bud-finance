@@ -34,6 +34,12 @@
 | **StateError** | Pulse ring error + mensagem + link recuperar | `acao-auth.html` |
 | **UserBadge** | Iniciais + nome + matrícula do usuário logado | `trocar-senha.html` |
 | **StateUnauthorized** | Tela de acesso não autorizado + link login | `trocar-senha.html` |
+| **DashSidebar** | Sidebar fixa (desktop) / hambúrguer (mobile) com nav + user info | `dashboard.html` |
+| **DashSummaryCards** | 3 cards glassmorphic: Saldo Total, Entradas, Saídas | `dashboard.html` |
+| **DashTrialBanner** | Banner condicional trial/free/expirado | `dashboard.html` |
+| **DashQuickActions** | Botões rápidos: Nova Receita, Nova Despesa | `dashboard.html` |
+| **DashAtividades** | Lista das últimas 5 transações do mês (style inline) | `dashboard.html` |
+| **DashGraficoCategorias** | Placeholder para donut chart de despesas | `dashboard.html` |
 
 ---
 
@@ -55,7 +61,13 @@
 | `enviarEmailBoasVindas(...)` | Fire-and-forget welcome email via EmailJS (sem senha) | `cadastro.js` | ✅ `cadastro.js` |
 | `isEmailValido(email)` | Regex básica de email | `cadastro.js`, `recuperar-senha.js` | ✅ |
 | `gerarSenhaTemp()` | ~~Gera senha temporária~~ | — | ❌ REMOVIDO (user escolhe senha) |
-| `getOobCode()` | Extrai oobCode da URL (query param) | `acao-auth.js` | ✅ `acao-auth.js` |
+| `getIniciais(nome)` | Retorna iniciais (2 letras) do nome completo | `dashboard.js` | ✅ `dashboard.js` |
+| `formatarValor(valor)` | Formata número como moeda BRL (R$) | `dashboard.js` | ✅ `dashboard.js` |
+| `getSaudacao()` | Retorna Bom dia/Boa tarde/Boa noite por horário | `dashboard.js` | ✅ `dashboard.js` |
+| `configurarBannerPlano(userData)` | Configura banner trial/free/pago | `dashboard.js` | ✅ `dashboard.js` |
+| `renderizarDashboard()` | Recalcula saldo/entradas/saídas e atualiza cards | `dashboard.js` | ✅ `dashboard.js` |
+| `setupListeners(uid)` | Inicia onSnapshot de transações (orderBy+limit) | `dashboard.js` | ✅ `dashboard.js` |
+| `cleanupListeners()` | Desregistra todos os onSnapshot ativos | `dashboard.js` | ✅ `dashboard.js` |
 | `showSection(section)` | Alterna visibilidade entre estados visuais | `acao-auth.js`, `trocar-senha.js` | ✅ |
 | `calcStrength(pw)` [acao-auth] | ~~Local~~ → Migrado para `window.budCalcStrength` | `bud-utils.js` | ✅ `bud-utils.js` |
 | `calcStrength(pw)` [trocar-senha] | ~~Local~~ → Migrado para `window.budCalcStrength` | `bud-utils.js` | ✅ `bud-utils.js` |
@@ -70,6 +82,13 @@
 | `keypress Enter → identificador` | Foca campo senha | DOM (`index.html`) ✅ |
 | `keypress Enter → senha` | Dispara click no btnLogin | DOM (`index.html`) ✅ |
 | `click → btnLogin` | Fluxo de login completo | Firebase Auth + Firestore ✅ |
+| `onAuthStateChanged (dashboard)` | Auth guard: !user → redirect login; primeiroLogin → redirect trocar-senha | Firebase Auth ✅ |
+| `click → btnLogout` | signOut + cleanup listeners + redirect login | Firebase Auth ✅ |
+| `click → btnToggleValues` | Alterna visibilidade de valores (persiste localStorage) | DOM (`dashboard.html`) ✅ |
+| `click → btnSync` | Re-cria listeners para forçar re-fetch real do Firestore | Firestore ✅ |
+| `click → btnHamburger` | Abre/fecha sidebar mobile com overlay | DOM (`dashboard.html`) ✅ |
+| `onSnapshot → transacoes` | Atualiza transacoesGlobais[] e re-renderiza dashboard | Firestore ✅ |
+| `click → btnNovaReceita/Despesa` | Placeholder — toast "em breve" | DOM ✅ |
 | `click → toggleSenha` | Alterna password/text no input | DOM (`index.html`) ✅ |
 | `submit → formLogin` | Previne submit e dispara login | DOM (`index.html`) ✅ |
 | `submit → formCadastro` | Validação + criação Auth + Firestore doc | DOM (`cadastro.html`) ✅ |
@@ -146,7 +165,7 @@
 | `/recuperar-senha` | Recuperar senha | `recuperar-senha.html` | Solicitar reset |
 | `/acao-auth` | Processar reset | `acao-auth.html` | ✅ Recebe `?oobCode=` — 4 estados visuais |
 | `/trocar-senha` | Trocar senha | `trocar-senha.html` | ✅ Guard: Auth + `primeiroLogin: true` |
-| `/dashboard` | App principal | `dashboard.html` | Após login |
+| `/dashboard` | Dashboard | `dashboard.html` | ✅ Auth guard + primeiroLogin guard + sidebar + 3 cards + trial banner |
 | `/admin` | Painel admin | `admin.html` | `role: admin` |
 | `/politica-privacidade` | LGPD | `politica-privacidade.html` | Termos |
 

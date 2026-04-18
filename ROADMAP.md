@@ -48,6 +48,18 @@
   - User badge personalizado (nome + matrícula + iniciais)
   - `updatePassword` + `updateDoc(primeiroLogin: false)` → redirect dashboard
   - Tratamento de `auth/requires-recent-login` com re-login forçado
+- [x] **Dashboard** (`dashboard.html` + `js/dashboard.js`)
+  - Auth guard via `onAuthStateChanged` → redirect login se deslogado
+  - Guard `primeiroLogin: true` → redirect `trocar-senha.html`
+  - Sidebar lateral (desktop) que vira hambúrguer (mobile)
+  - 3 cards glassmorphic: Saldo Total, Entradas do Mês, Saídas do Mês
+  - Banner trial/free/expirado condicional
+  - Toggle ocultar valores (persiste em localStorage)
+  - Sync real (re-cria listeners Firestore)
+  - Quick actions: Nova Receita / Nova Despesa (placeholder)
+  - Atividades recentes (top 5 transações do mês)
+  - Nome + matrícula + iniciais do usuário com `budSanitize()`
+  - Logout com cleanup de listeners
 
 ---
 
@@ -55,10 +67,7 @@
 
 > ⚠️ **NÃO implementar sem meu pedido.**
 
-1. **Dashboard** (`dashboard.html`)
-   - A definir
-
-2. **Painel Admin** (`admin.html`)
+1. **Painel Admin** (`admin.html`)
    - CRM com listagem de usuários
    - Block/Unblock de contas
    - Gestão de chamados

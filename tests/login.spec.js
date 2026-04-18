@@ -6,8 +6,8 @@ test.describe('Login — index.html', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto('/index.html');
-    // Aguarda o splash desaparecer (até 10s)
-    await page.waitForSelector('#splash.hide', { timeout: 10_000 });
+    // Aguarda o splash ser removido do DOM (ele ganha .hide e depois é removido)
+    await page.waitForSelector('#splash', { state: 'detached', timeout: 15_000 });
   });
 
   // ── Estrutura da página ─────────────────────────────────────────
@@ -105,10 +105,12 @@ test.describe('Login — index.html', () => {
 
   test('splash screen aparece e desaparece', async ({ page }) => {
     await page.goto('/index.html');
-    // Splash deve ter a classe hide após carregar
-    await page.waitForSelector('#splash.hide', { timeout: 10_000 });
+    // Splash deve existir inicialmente
     const splash = page.locator('#splash');
-    await expect(splash).toHaveClass(/hide/);
+    // Aguarda o splash ser removido do DOM (após classe hide + timeout)
+    await page.waitForSelector('#splash', { state: 'detached', timeout: 15_000 });
+    // Após ser removido, não deve mais estar no DOM
+    await expect(splash).toHaveCount(0);
   });
 
 });

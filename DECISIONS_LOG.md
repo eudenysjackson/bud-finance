@@ -141,6 +141,16 @@
 
 ---
 
+### DEC-015 — Fluxo padrão de reset Firebase (sem URL customizada)
+
+- **Data**: 17/04/2026
+- **O que foi decidido**: Usar o fluxo padrão de reset de senha do Firebase Auth sem parâmetros de URL customizados (como `actionCodeSettings.url`).
+- **Por quê**: O uso de domínios customizados no `generatePasswordResetLink` causava falha silenciosa (ERR-011) quando o domínio não estava autorizado no Firebase Auth. O fluxo padrão garante estabilidade e compatibilidade.
+- **Consequências**: O link de reset aponta para o domínio padrão configurado no Firebase Console. Não há redirect customizado pós-reset — o usuário usa a página `acao-auth.html` configurada no Firebase.
+- **Quando revisar**: Apenas se for necessário redirect pós-reset para URL específica. Nesse caso, garantir que o domínio está nos Authorized Domains do Firebase Auth.
+
+---
+
 ### DEC-016 — Mensagens de erro genéricas no login
 
 - **Data**: 15/04/2026
