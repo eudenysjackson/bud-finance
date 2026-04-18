@@ -1,0 +1,4 @@
+# .gitattributes — Bud Finance
+# Garante que scripts shell usem LF (Unix) independente do SO do desenvolvedor
+
+*.sh text eol=lf
