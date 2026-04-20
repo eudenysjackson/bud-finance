@@ -66,11 +66,18 @@
 | `formatarValor(valor)` | Formata número como moeda BRL (R$) | `dashboard.js` | ✅ `dashboard.js` |
 | `getSaudacao()` | Retorna Bom dia/Boa tarde/Boa noite por horário | `dashboard.js` | ✅ `dashboard.js` |
 | `configurarBannerPlano(userData)` | Configura banner trial/free/pago | `dashboard.js` | ✅ `dashboard.js` |
-| `abrirModal(tipo)` | Abre TransactionModal pre-configurado para receita/despesa; bloqueia se trial expirado | `dashboard.js` | ✅ `dashboard.js` |
-| `fecharModal()` | Fecha TransactionModal | `dashboard.js` | ✅ `dashboard.js` |
-| `atualizarModalTipo(tipo)` | Alterna estilo/labels/categorias do modal | `dashboard.js` | ✅ `dashboard.js` |
+| `abrirModal(tipo)` | Abre TransactionModal para criação de receita/despesa; reseta transacaoEditandoId; bloqueia se trial expirado | `dashboard.js` | ✅ `dashboard.js` |
+| `abrirModalEditar(transacaoId)` | Abre TransactionModal em modo edição com pre-fill de campos; bloqueia se trial expirado | `dashboard.js` | ✅ `dashboard.js` |
+| `fecharModal()` | Fecha TransactionModal e reseta transacaoEditandoId | `dashboard.js` | ✅ `dashboard.js` |
+| `atualizarModalTipo(tipo)` | Alterna estilo/labels/categorias do modal; título "Editar" se transacaoEditandoId | `dashboard.js` | ✅ `dashboard.js` |
 | `aplicarMascaraValor(input)` | Máscara de moeda BRL no input de valor | `dashboard.js` | ✅ `dashboard.js` |
-| `handleSubmitLancamento(e)` | Valida, sanitiza e persiste transação no Firestore | `dashboard.js` | ✅ `dashboard.js` |
+| `handleSubmitLancamento(e)` | Valida, sanitiza e persiste transação — updateDoc se editando, addDoc se criando | `dashboard.js` | ✅ `dashboard.js` |
+| `pedirConfirmacaoExcluir()` | Abre mini-modal de confirmação de exclusão | `dashboard.js` | ✅ `dashboard.js` |
+| `fecharConfirmExcluir()` | Fecha mini-modal de confirmação | `dashboard.js` | ✅ `dashboard.js` |
+| `confirmarExclusao()` | Executa deleteDoc e fecha modais | `dashboard.js` | ✅ `dashboard.js` |
+| `abrirHistorico()` | Abre modal de histórico completo do mês | `dashboard.js` | ✅ `dashboard.js` |
+| `fecharHistorico()` | Fecha modal de histórico | `dashboard.js` | ✅ `dashboard.js` |
+| `renderizarHistorico()` | Renderiza todas as transações do mês selecionado no modal de histórico | `dashboard.js` | ✅ `dashboard.js` |
 | `renderizarDashboard()` | Recalcula saldo/entradas/saídas para o mês selecionado e atualiza cards + label de navegação | `dashboard.js` | ✅ `dashboard.js` |
 | `renderizarGraficos(transacoes)` | Agrega despesas por categoria e renderiza doughnut Chart.js; destrói instância anterior antes de criar nova | `dashboard.js` | ✅ `dashboard.js` |
 | `setupListeners(uid)` | Inicia onSnapshot de transações (orderBy+limit) | `dashboard.js` | ✅ `dashboard.js` |
@@ -94,6 +101,7 @@
 | `click → btnToggleValues` | Alterna visibilidade de valores (persiste localStorage) | DOM (`dashboard.html`) ✅ |
 | `click → btnSync` | Re-cria listeners para forçar re-fetch real do Firestore | Firestore ✅ |
 | `click → btnHamburger` | Abre/fecha sidebar mobile com overlay | DOM (`dashboard.html`) ✅ |
+| `click → btnSidebarCollapse` | Colapsa/expande sidebar no desktop (64px ↔ 260px); persiste `localStorage.bud_sidebar_collapsed`; ignora no mobile | DOM (`dashboard.html`) ✅ |
 | `onSnapshot → transacoes` | Atualiza transacoesGlobais[] e re-renderiza dashboard | Firestore ✅ |
 | `click → btnMesAnterior` | Decrementa mesVisualizado (com wraparound jan→dez) e re-renderiza | DOM ✅ |
 | `click → btnProximoMes` | Incrementa mesVisualizado (com wraparound dez→jan) e re-renderiza | DOM ✅ |
@@ -259,4 +267,5 @@
 | `js/trocar-senha.js` | ✅ | onAuthStateChanged guard, updatePassword + updateDoc(primeiroLogin:false) |
 | `politica-privacidade.html` | ✅ | Página LGPD completa — glassmorphism, conteúdo estático |
 | `preview-temas.html` | ✅ | Preview dos 8 temas com CSS custom properties |
+| `js/theme-manager.js` | ✅ | Motor de temas — 8 temas, CSS vars em `:root`, `localStorage.bud_theme`, bubbles em `#themeBubbles`, evento `bud:themechange`, `window.budThemeManager`. Expõe `--theme-accent` e `getChartCores()` para uso pelo Chart.js. |
 | `css/tailwind.css` | ⏳ | Pendente — build estático do Tailwind |

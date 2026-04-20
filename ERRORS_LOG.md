@@ -163,3 +163,43 @@
 - **Solução aplicada**: Adicionado `cleanupListeners()` antes de `setupListeners()` no auth guard do dashboard.
 - **Regra de prevenção**: Sempre chamar cleanup de listeners antes de configurar novos. Em `onAuthStateChanged`, nunca assumir que será chamado apenas uma vez.
 - **Status**: ✅ Resolvido em 18/04/2026.
+
+---
+
+### ERR-016 — Botão collapse da sidebar clipado por `overflow: hidden`
+- **Data**: 19/04/2026
+- **Descrição**: O botão `#btnSidebarCollapse` estava posicionado `right: -0.875rem` (fora dos bounds da sidebar), mas `.sidebar { overflow: hidden }` clipava o botão, tornando-o invisível.
+- **Causa raiz**: `overflow: hidden` foi adicionado para animar o colapso da sidebar, sem considerar o botão externamente posicionado.
+- **Solução aplicada**: Alterado `.sidebar` para `overflow: visible`. Adicionado `overflow: hidden; white-space: nowrap` às bases de `.sidebar-logo span` e `.sidebar-link-text` para que o conteúdo interno não vaze durante a animação.
+- **Regra de prevenção**: Ao usar `overflow: hidden` para animações, verificar se há elementos absolutamente posicionados que precisam "vazar" para fora dos bounds.
+- **Status**: ✅ Resolvido em 19/04/2026.
+
+---
+
+### ERR-017 — Seção de temas (bubbles) visível no collapsed state com overflow
+- **Data**: 19/04/2026
+- **Descrição**: Em desktop com sidebar colapsada (64px), os 8 theme bubbles continuavam visíveis e quebravam em múltiplas linhas (1 por linha), tomando grande espaço vertical.
+- **Causa raiz**: `.sidebar.collapsed .sidebar-theme-label` ocultava apenas o label (🎨 Tema), não os bubbles `#themeBubbles` nem o wrapper da seção.
+- **Solução aplicada**: Adicionado `class="sidebar-theme-section"` ao wrapper da seção de temas. CSS: `.sidebar.collapsed .sidebar-theme-section { display: none; }`.
+- **Regra de prevenção**: Ao ocultar seções da sidebar no collapsed state, ocultar o wrapper inteiro, não apenas o label.
+- **Status**: ✅ Resolvido em 19/04/2026.
+
+---
+
+### ERR-018 — Transições da sidebar só animam em uma direção (colapso mas não expansão)
+- **Data**: 19/04/2026
+- **Descrição**: As transições de `opacity` e `width` dos textos da sidebar (`.sidebar-logo-text`, `.sidebar-link-text`, `.sidebar-user-info`) estavam definidas APENAS nos seletores `.sidebar.collapsed`. Ao remover a classe `.collapsed` (expansão), os elementos voltavam ao estado padrão SEM animação.
+- **Causa raiz**: CSS: as propriedades `transition` precisam estar no estado BASE do elemento para funcionar em ambas as direções. Quando definidas apenas no estado modificado (`.collapsed`), funcionam somente na entrada desse estado.
+- **Solução aplicada**: Movidas as transições para os seletores base (`.sidebar-logo span`, `.sidebar-link-text`, `.sidebar-user-info`).
+- **Regra de prevenção**: Propriedades `transition` devem sempre estar no seletor base, nunca apenas no estado modificado (hover, .collapsed, .active, etc.).
+- **Status**: ✅ Resolvido em 19/04/2026.
+
+---
+
+### ERR-019 — Cores hardcoded no JS do dashboard quebram legibilidade no tema Dark
+- **Data**: 19/04/2026
+- **Descrição**: Itens de transação criados dinamicamente por JS usavam cores hardcoded (`color:#1e293b`, `border-bottom:1px solid #f1f5f9`, `background:#f8fafc` no hover). No tema HBO Dark (background `rgba(15,20,25,0.95)`), o texto `#1e293b` ficava invisível.
+- **Causa raiz**: Elementos criados via JS usavam cores literais em vez de CSS custom properties.
+- **Solução aplicada**: Substituídas todas as cores por CSS vars: `var(--card-text)`, `var(--card-text-sec)`, `var(--card-border)`, `var(--sidebar-link-hover-bg)`, `var(--theme-accent)`. CSS vars funcionam em inline styles de JS (`element.style.color = 'var(--card-text)'`).
+- **Regra de prevenção**: Nunca usar cores hexadecimais hardcoded em elementos criados por JS. Sempre usar `var(--nome-da-var)` para garantir compatibilidade com todos os temas.
+- **Status**: ✅ Resolvido em 19/04/2026.

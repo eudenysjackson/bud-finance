@@ -19,21 +19,44 @@
   <!-- Tailwind CSS (build estático) -->
   <link rel="stylesheet" href="css/tailwind.css">
 
+  <!-- Theme Manager (deve vir antes do body para evitar flash de cor) -->
+  <script src="js/theme-manager.js"></script>
+
   <!-- Inline critical styles -->
   <style>
+    :root {
+      --bg-page: #f4f7fb;
+      --text-main: #1e293b;
+      --text-sec: #475569;
+      --card-bg: rgba(255,255,255,0.85);
+      --card-border: rgba(255,255,255,0.9);
+      --card-text: #1e293b;
+      --card-text-sec: #64748b;
+      --btn-bg: #2563eb;
+      --btn-text: #ffffff;
+      --input-bg: #f8fafc;
+      --input-border: #f1f5f9;
+      --input-focus: #3b82f6;
+      --balance-from: #4f75ff;
+      --balance-to: #375ee3;
+      --balance-text: #ffffff;
+      --balance-mini-bg: rgba(255,255,255,0.15);
+      --blob-opacity: 1;
+    }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Inter', system-ui, sans-serif;
-      background-color: #f0f4f8;
+      background-color: var(--bg-page);
       min-height: 100vh;
       min-height: 100dvh;
       overflow-x: hidden;
+      transition: background-color 0.35s ease;
     }
 
     /* ── Splash screen ────────────────────────────────────────────── */
     #splash {
       position: fixed; inset: 0;
-      background: #f0f4f8;
+      background: var(--bg-page);
       display: flex; align-items: center; justify-content: center;
       flex-direction: column; gap: 1rem;
       z-index: 99999;
@@ -64,6 +87,8 @@
       border-radius: 9999px;
       pointer-events: none;
       z-index: 0;
+      opacity: var(--blob-opacity, 1);
+      transition: opacity 0.35s ease;
     }
     .blob-blue {
       top: -5%; left: -5%;
@@ -88,46 +113,95 @@
     /* ── Sidebar ──────────────────────────────────────────────────── */
     .sidebar {
       width: 260px;
-      background: rgba(255,255,255,0.85);
+      background: var(--sidebar-bg);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
-      border-right: 1px solid rgba(255,255,255,0.8);
+      border-right: 1px solid var(--card-border);
       display: flex;
       flex-direction: column;
       padding: 1.5rem 1rem;
       position: fixed;
       top: 0; left: 0; bottom: 0;
       z-index: 50;
-      transition: transform .3s ease;
+      transition: transform .3s ease, width .3s ease, background 0.35s ease, border-color 0.35s ease;
+      overflow: visible;
     }
+    /* Botão de toggle desktop — tab lateral */
+    .sidebar-collapse-btn {
+      display: none;
+      position: absolute;
+      top: 50%;
+      right: -1rem;
+      transform: translateY(-50%);
+      width: 1rem;
+      height: 3.5rem;
+      border-radius: 0 0.5rem 0.5rem 0;
+      background: var(--btn-bg);
+      border: none;
+      color: var(--btn-text);
+      font-size: 0.6rem;
+      font-weight: 700;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      z-index: 51;
+      box-shadow: 3px 0 12px rgba(0,0,0,0.22);
+      transition: background 0.35s ease, color 0.35s ease, box-shadow 0.2s;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .sidebar-collapse-btn:hover { box-shadow: 4px 0 18px rgba(0,0,0,0.32); opacity: 0.92; }
+    /* Estado colapsado (desktop only) */
+    .sidebar.collapsed {
+      width: 64px;
+      padding-left: 0.75rem;
+      padding-right: 0.75rem;
+      align-items: center;
+    }
+    .sidebar.collapsed .sidebar-logo { justify-content: center; padding: 0 0 0.625rem; gap: 0; }
+    .sidebar.collapsed .sidebar-logo-text { opacity: 0; width: 0; overflow: hidden; white-space: nowrap; transition: opacity .25s, width .25s; }
+    .sidebar.collapsed .sidebar-link { justify-content: center; padding: 0; height: 2.5rem; width: 2.5rem; gap: 0; }
+    .sidebar.collapsed .sidebar-link-text { opacity: 0; width: 0; overflow: hidden; white-space: nowrap; transition: opacity .25s, width .25s; }
+    .sidebar.collapsed .sidebar-theme-label { opacity: 0; height: 0; overflow: hidden; margin: 0; }
+    .sidebar.collapsed .sidebar-theme-section { display: none; }
+    .sidebar.collapsed .sidebar-user-info { opacity: 0; width: 0; overflow: hidden; white-space: nowrap; }
+    .sidebar.collapsed .sidebar-user { justify-content: center; padding: 0; height: 2.5rem; width: 2.5rem; gap: 0; background: transparent; }
     .sidebar-logo {
       display: flex; align-items: center; gap: 0.75rem;
       padding: 0 0.5rem 1.25rem; margin-bottom: 0.5rem;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid var(--card-border);
+      transition: border-color 0.35s ease;
     }
     .sidebar-logo img {
       width: 2.25rem; height: 2.25rem; object-fit: contain;
+      background: rgba(255,255,255,0.92);
+      border-radius: 0.5rem;
+      padding: 0.15rem;
+      flex-shrink: 0;
     }
     .sidebar-logo span {
-      font-size: 1.125rem; font-weight: 800; color: #1e293b;
-      letter-spacing: -0.025em;
+      font-size: 1.125rem; font-weight: 800; color: var(--text-main);
+      letter-spacing: -0.025em; overflow: hidden; white-space: nowrap;
+      transition: color 0.35s ease, opacity .25s, width .25s;
     }
+    .sidebar-link-text { overflow: hidden; white-space: nowrap; transition: opacity .25s, width .25s; }
     .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.75rem; }
     .sidebar-link {
       display: flex; align-items: center; gap: 0.75rem;
-      padding: 0.625rem 0.75rem; border-radius: 0.75rem;
-      font-size: 0.875rem; font-weight: 600; color: #64748b;
-      text-decoration: none; transition: all .2s;
+      padding: 0.75rem; border-radius: 0.75rem;
+      font-size: 0.875rem; font-weight: 600; color: var(--text-sec);
+      text-decoration: none; transition: all .2s, color 0.35s ease;
       cursor: pointer; border: none; background: none; width: 100%;
       font-family: inherit;
     }
-    .sidebar-link:hover { background: rgba(59,130,246,0.08); color: #2563eb; }
-    .sidebar-link.active { background: rgba(59,130,246,0.12); color: #2563eb; }
+    .sidebar-link:hover { background: var(--sidebar-link-hover-bg); color: var(--sidebar-link-hover-color); }
+    .sidebar-link.active { background: var(--sidebar-link-active-bg); color: var(--sidebar-link-active-color); }
     .sidebar-link-icon { font-size: 1.125rem; width: 1.5rem; text-align: center; }
     .sidebar-user {
       display: flex; align-items: center; gap: 0.75rem;
       padding: 0.75rem; border-radius: 0.75rem;
-      background: #f8fafc; margin-top: auto;
+      background: var(--sidebar-user-bg);
+      transition: background 0.35s ease;
     }
     .sidebar-avatar {
       width: 2.25rem; height: 2.25rem; border-radius: 50%;
@@ -136,14 +210,16 @@
       color: #fff; font-weight: 800; font-size: 0.8rem;
       flex-shrink: 0;
     }
-    .sidebar-user-info { overflow: hidden; }
+    .sidebar-user-info { overflow: hidden; transition: opacity .25s, width .25s; }
     .sidebar-user-name {
-      font-size: 0.8125rem; font-weight: 700; color: #1e293b;
+      font-size: 0.8125rem; font-weight: 700; color: var(--text-main);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      transition: color 0.35s ease;
     }
     .sidebar-user-id {
-      font-size: 0.6875rem; font-weight: 500; color: #94a3b8;
+      font-size: 0.6875rem; font-weight: 500; color: var(--text-sec);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      transition: color 0.35s ease;
     }
 
     /* ── Main ─────────────────────────────────────────────────────── */
@@ -153,7 +229,9 @@
       padding: 1.5rem;
       position: relative;
       z-index: 1;
+      transition: margin-left .3s ease;
     }
+    .dash-main.sidebar-collapsed { margin-left: 64px; }
 
     /* ── Header ───────────────────────────────────────────────────── */
     .dash-header {
@@ -161,37 +239,40 @@
       margin-bottom: 1.5rem;
     }
     .dash-welcome h1 {
-      font-size: 1.5rem; font-weight: 800; color: #1e293b;
+      font-size: 1.5rem; font-weight: 800; color: var(--text-main);
       letter-spacing: -0.025em;
+      transition: color 0.35s ease;
     }
     .dash-welcome p {
-      font-size: 0.8125rem; font-weight: 500; color: #64748b;
+      font-size: 0.8125rem; font-weight: 500; color: var(--text-sec);
       margin-top: 0.125rem;
+      transition: color 0.35s ease;
     }
     .dash-header-actions {
       display: flex; align-items: center; gap: 0.5rem;
     }
     .dash-icon-btn {
       width: 2.25rem; height: 2.25rem; border-radius: 0.625rem;
-      background: rgba(255,255,255,0.85);
+      background: var(--card-bg);
       backdrop-filter: blur(12px);
-      border: 1px solid rgba(226,232,240,0.8);
+      border: 1px solid var(--card-border);
       display: flex; align-items: center; justify-content: center;
-      font-size: 1rem; cursor: pointer; color: #64748b;
-      transition: all .2s;
+      font-size: 1rem; cursor: pointer; color: var(--text-sec);
+      transition: all .2s, background 0.35s ease, border-color 0.35s ease, color 0.35s ease;
     }
-    .dash-icon-btn:hover { background: #fff; color: #2563eb; border-color: #bfdbfe; }
+    .dash-icon-btn:hover { background: rgba(255,255,255,0.97); color: #2563eb; border-color: #bfdbfe; }
 
     /* ── Hamburger (mobile only) ──────────────────────────────────── */
     .hamburger-btn {
       display: none;
       width: 2.5rem; height: 2.5rem; border-radius: 0.75rem;
-      background: rgba(255,255,255,0.85);
+      background: var(--card-bg);
       backdrop-filter: blur(12px);
-      border: 1px solid rgba(226,232,240,0.8);
+      border: 1px solid var(--card-border);
       align-items: center; justify-content: center;
-      font-size: 1.25rem; cursor: pointer; color: #1e293b;
+      font-size: 1.25rem; cursor: pointer; color: var(--text-main);
       z-index: 60;
+      transition: background 0.35s ease, border-color 0.35s ease, color 0.35s ease;
     }
     .sidebar-overlay {
       display: none; position: fixed; inset: 0;
@@ -219,26 +300,28 @@
     .mes-nav {
       display: flex; align-items: center; justify-content: center;
       gap: 1rem; margin-bottom: 1.25rem;
-      background: rgba(255,255,255,0.85);
+      background: var(--card-bg);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255,255,255,0.9);
+      border: 1px solid var(--card-border);
       border-radius: 1rem; padding: 0.625rem 1.25rem;
       box-shadow: 0 4px 20px -5px rgba(0,0,0,0.06);
+      transition: background 0.35s ease, border-color 0.35s ease;
     }
     .mes-nav-btn {
       width: 2rem; height: 2rem; border-radius: 0.5rem;
       background: transparent; border: none; cursor: pointer;
-      font-size: 1.375rem; line-height: 1; color: #64748b;
+      font-size: 1.375rem; line-height: 1; color: var(--card-text-sec);
       display: flex; align-items: center; justify-content: center;
       transition: background .15s, color .15s;
       font-family: inherit; padding: 0;
     }
-    .mes-nav-btn:hover { background: #f1f5f9; color: #1e293b; }
+    .mes-nav-btn:hover { background: rgba(0,0,0,0.06); color: var(--card-text); }
     .mes-nav-label {
-      font-size: 0.9375rem; font-weight: 700; color: #1e293b;
+      font-size: 0.9375rem; font-weight: 700; color: var(--card-text);
       text-align: center;
       min-width: 10rem;
+      transition: color 0.35s ease;
     }
     /* ── Cards grid ───────────────────────────────────────────────── */
     .cards-grid {
@@ -248,14 +331,14 @@
       margin-bottom: 1.5rem;
     }
     .summary-card {
-      background: rgba(255,255,255,0.85);
+      background: var(--card-bg);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255,255,255,0.9);
+      border: 1px solid var(--card-border);
       border-radius: 1.25rem;
       padding: 1.25rem;
       box-shadow: 0 4px 20px -5px rgba(0,0,0,0.06);
-      transition: transform .2s, box-shadow .2s;
+      transition: background 0.35s ease, border-color 0.35s ease, transform .2s, box-shadow .2s;
     }
     .summary-card:hover {
       transform: translateY(-2px);
@@ -266,8 +349,9 @@
       margin-bottom: 0.75rem;
     }
     .card-label {
-      font-size: 0.6875rem; font-weight: 800; color: #94a3b8;
+      font-size: 0.6875rem; font-weight: 800; color: var(--card-text-sec);
       text-transform: uppercase; letter-spacing: 0.08em;
+      transition: color 0.35s ease;
     }
     .card-icon {
       width: 2rem; height: 2rem; border-radius: 0.5rem;
@@ -278,32 +362,37 @@
     .card-icon-green  { background: #f0fdf4; color: #16a34a; }
     .card-icon-red    { background: #fef2f2; color: #dc2626; }
     .card-value {
-      font-size: 1.5rem; font-weight: 800; color: #1e293b;
+      font-size: 1.5rem; font-weight: 800; color: var(--card-text);
       letter-spacing: -0.025em;
+      transition: color 0.35s ease;
     }
     .card-sub {
-      font-size: 0.75rem; font-weight: 500; color: #94a3b8;
+      font-size: 0.75rem; font-weight: 500; color: var(--card-text-sec);
       margin-top: 0.25rem;
+      transition: color 0.35s ease;
     }
 
     /* ── Placeholder sections ─────────────────────────────────────── */
     .dash-section {
-      background: rgba(255,255,255,0.85);
+      background: var(--card-bg);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255,255,255,0.9);
+      border: 1px solid var(--card-border);
       border-radius: 1.25rem;
       padding: 1.5rem;
       box-shadow: 0 4px 20px -5px rgba(0,0,0,0.06);
       margin-bottom: 1rem;
+      transition: background 0.35s ease, border-color 0.35s ease;
     }
     .dash-section-title {
-      font-size: 0.875rem; font-weight: 800; color: #1e293b;
+      font-size: 0.875rem; font-weight: 800; color: var(--card-text);
       margin-bottom: 1rem;
+      transition: color 0.35s ease;
     }
     .dash-empty {
       text-align: center; padding: 2rem 1rem;
-      color: #94a3b8; font-size: 0.8125rem; font-weight: 500;
+      color: var(--card-text-sec); font-size: 0.8125rem; font-weight: 500;
+      transition: color 0.35s ease;
     }
     .dash-empty-icon {
       font-size: 2rem; margin-bottom: 0.5rem;
@@ -319,11 +408,11 @@
     .quick-btn {
       display: flex; align-items: center; gap: 0.75rem;
       padding: 1rem; border-radius: 1rem;
-      background: rgba(255,255,255,0.85);
+      background: var(--card-bg);
       backdrop-filter: blur(16px);
-      border: 1px solid rgba(255,255,255,0.9);
+      border: 1px solid var(--card-border);
       box-shadow: 0 4px 20px -5px rgba(0,0,0,0.06);
-      cursor: pointer; transition: all .2s;
+      cursor: pointer; transition: background 0.35s ease, border-color 0.35s ease, transform .2s, box-shadow .2s;
       font-family: inherit;
     }
     .quick-btn:hover {
@@ -338,10 +427,12 @@
     .quick-btn-icon-green { background: #dcfce7; color: #16a34a; }
     .quick-btn-icon-red   { background: #fee2e2; color: #dc2626; }
     .quick-btn-label {
-      font-size: 0.8125rem; font-weight: 700; color: #1e293b;
+      font-size: 0.8125rem; font-weight: 700; color: var(--card-text);
+      transition: color 0.35s ease;
     }
     .quick-btn-sub {
-      font-size: 0.6875rem; font-weight: 500; color: #94a3b8;
+      font-size: 0.6875rem; font-weight: 500; color: var(--card-text-sec);
+      transition: color 0.35s ease;
     }
 
     /* ── Responsive: Mobile ───────────────────────────────────────── */
@@ -352,16 +443,23 @@
       .sidebar.open {
         transform: translateX(0);
       }
+      .sidebar.collapsed {
+        width: 260px;
+        padding-left: 1rem;
+        padding-right: 1rem;
+        align-items: flex-start;
+      }
       .sidebar-overlay.open {
         display: block;
       }
       .dash-main {
-        margin-left: 0;
+        margin-left: 0 !important;
         padding: 1rem;
       }
       .hamburger-btn {
         display: flex;
       }
+      .sidebar-collapse-btn { display: none !important; }
       .cards-grid {
         grid-template-columns: 1fr;
       }
@@ -385,6 +483,9 @@
       .cards-grid {
         grid-template-columns: repeat(2, 1fr);
       }
+    }
+    @media (min-width: 769px) {
+      .sidebar-collapse-btn { display: flex; }
     }
 
     /* ── Modal Lançamento ─────────────────────────────────────────── */
@@ -584,16 +685,25 @@
 
     <!-- ─── Sidebar ──────────────────────────────────────────────── -->
     <aside class="sidebar" id="sidebar">
+      <!-- Botão toggle desktop -->
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar" title="Recolher sidebar">‹</button>
+
       <div class="sidebar-logo">
         <img src="logo.png" alt="Bud Finance">
-        <span>Bud Finance</span>
+        <span class="sidebar-logo-text">Bud Finance</span>
       </div>
 
       <nav class="sidebar-nav">
         <a href="dashboard.html" class="sidebar-link active">
-          <span class="sidebar-link-icon">📊</span> Dashboard
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
         </a>
       </nav>
+
+      <!-- Seletor de tema -->
+      <div class="sidebar-theme-section" style="padding:0.625rem 0.25rem 0.75rem;border-top:1px solid var(--card-border);margin-top:auto;transition:border-color 0.35s ease;">
+        <div class="sidebar-theme-label" style="font-size:0.6rem;font-weight:800;text-transform:uppercase;letter-spacing:0.12em;color:var(--text-sec);margin-bottom:0.5rem;transition:color 0.35s ease;">🎨 Tema</div>
+        <div id="themeBubbles" style="display:flex;gap:0.375rem;flex-wrap:wrap;"></div>
+      </div>
 
       <!-- User info -->
       <div class="sidebar-user">
@@ -606,7 +716,7 @@
 
       <!-- Logout -->
       <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
-        <span class="sidebar-link-icon">🚪</span> Sair
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
       </button>
     </aside>
 
@@ -646,7 +756,7 @@
         <!-- Saldo Total -->
         <div class="summary-card">
           <div class="card-header">
-            <span class="card-label">Saldo Total</span>
+            <span class="card-label">Resultado do Mês</span>
             <div class="card-icon card-icon-blue">💰</div>
           </div>
           <div class="card-value" id="cardSaldo">R$ 0,00</div>
@@ -694,7 +804,18 @@
 
       <!-- Atividades recentes -->
       <div class="dash-section">
-        <div class="dash-section-title">Atividades Recentes</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+          <div>
+            <div class="dash-section-title">Atividades Recentes</div>
+            <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.25rem;" id="atividadesContador">0</div>
+          </div>
+          <!-- Filtro rápido -->
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;">
+            <button class="filtro-atividades active" data-filtro="todos" style="padding:0.375rem 0.75rem;border:1px solid transparent;border-radius:0.5rem;background:var(--btn-bg);color:var(--btn-text);font-size:0.75rem;font-weight:600;cursor:pointer;transition:all .15s;">Todos</button>
+            <button class="filtro-atividades" data-filtro="receita" style="padding:0.375rem 0.75rem;border:1px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.75rem;font-weight:600;cursor:pointer;transition:all .15s;">↑ Receitas</button>
+            <button class="filtro-atividades" data-filtro="despesa" style="padding:0.375rem 0.75rem;border:1px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.75rem;font-weight:600;cursor:pointer;transition:all .15s;">↓ Despesas</button>
+          </div>
+        </div>
         <div class="dash-empty" id="atividadesLista">
           <div class="dash-empty-icon">📝</div>
           <p>Nenhuma transação este mês.<br>Comece adicionando uma receita ou despesa!</p>
@@ -797,7 +918,44 @@
         <button class="modal-submit modal-submit-receita" id="btnSubmitLancamento" type="submit">
           Salvar Receita
         </button>
+
+        <!-- Botão excluir (só visível no modo edição) -->
+        <button type="button" id="btnExcluirTransacao"
+          style="display:none;width:100%;margin-top:0.5rem;padding:0.75rem;background:none;border:1px solid #fca5a5;border-radius:0.75rem;color:#dc2626;font-size:0.875rem;font-weight:600;cursor:pointer;transition:background .15s;"
+          onmouseenter="this.style.background='#fef2f2'" onmouseleave="this.style.background=''">
+          🗑️ Excluir Transação
+        </button>
       </form>
+    </div>
+  </div>
+
+  <!-- ═══ Mini-modal Confirmação Exclusão ═══════════════════════════ -->
+  <div id="modalConfirmExcluir" class="modal-overlay" role="dialog" aria-modal="true" style="z-index:90;">
+    <div style="background:rgba(255,255,255,0.95);backdrop-filter:blur(20px);border-radius:1.25rem;padding:2rem;max-width:340px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.12);">
+      <div style="font-size:2rem;margin-bottom:0.75rem;">⚠️</div>
+      <div style="font-size:1rem;font-weight:700;color:#1e293b;margin-bottom:0.5rem;">Excluir transação?</div>
+      <p style="font-size:0.8125rem;color:#64748b;margin-bottom:1.5rem;">Essa ação não pode ser desfeita.</p>
+      <div style="display:flex;gap:0.75rem;">
+        <button id="btnCancelarExcluir" type="button"
+          style="flex:1;padding:0.625rem;border:1px solid #e2e8f0;border-radius:0.75rem;background:#fff;color:#64748b;font-size:0.875rem;font-weight:600;cursor:pointer;">
+          Cancelar
+        </button>
+        <button id="btnConfirmExcluir" type="button"
+          style="flex:1;padding:0.625rem;border:none;border-radius:0.75rem;background:#dc2626;color:#fff;font-size:0.875rem;font-weight:600;cursor:pointer;">
+          Excluir
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Modal Histórico Completo ══════════════════════════════════ -->
+  <div id="modalHistorico" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal-card" style="max-height:85vh;display:flex;flex-direction:column;">
+      <div class="modal-title">
+        <span>Histórico Completo</span>
+        <button class="modal-close" id="btnFecharHistorico" aria-label="Fechar">✕</button>
+      </div>
+      <div id="historicoLista" style="overflow-y:auto;flex:1;padding:0 0.25rem;"></div>
     </div>
   </div>
 

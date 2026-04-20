@@ -195,4 +195,48 @@ test.describe('Dashboard — Estrutura HTML', () => {
     await expect(script).toHaveCount(1);
   });
 
+  // ─── Editar / Excluir / Histórico ────────────────────────────────────
+  test('botão excluir transação existe no modal (oculto por padrão)', async ({ page }) => {
+    const btn = page.locator('#btnExcluirTransacao');
+    await expect(btn).toHaveCount(1);
+    await expect(btn).not.toBeVisible();
+  });
+
+  test('mini-modal de confirmação de exclusão existe no DOM', async ({ page }) => {
+    const modal = page.locator('#modalConfirmExcluir');
+    await expect(modal).toHaveCount(1);
+  });
+
+  test('mini-modal tem botões Cancelar e Excluir', async ({ page }) => {
+    const cancelar = page.locator('#btnCancelarExcluir');
+    const excluir = page.locator('#btnConfirmExcluir');
+    await expect(cancelar).toHaveCount(1);
+    await expect(excluir).toHaveCount(1);
+  });
+
+  test('modal de histórico existe no DOM', async ({ page }) => {
+    const modal = page.locator('#modalHistorico');
+    await expect(modal).toHaveCount(1);
+  });
+
+  test('modal de histórico tem botão fechar', async ({ page }) => {
+    const btn = page.locator('#btnFecharHistorico');
+    await expect(btn).toHaveCount(1);
+  });
+
+  test('modal de histórico tem container de lista', async ({ page }) => {
+    const lista = page.locator('#historicoLista');
+    await expect(lista).toHaveCount(1);
+  });
+
+  test('modal de histórico está oculto por padrão', async ({ page }) => {
+    const modal = page.locator('#modalHistorico');
+    await expect(modal).not.toHaveClass(/open/);
+  });
+
+  test('mini-modal de confirmação está oculto por padrão', async ({ page }) => {
+    const modal = page.locator('#modalConfirmExcluir');
+    await expect(modal).not.toHaveClass(/open/);
+  });
+
 });

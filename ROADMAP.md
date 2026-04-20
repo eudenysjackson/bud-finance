@@ -1,7 +1,7 @@
 # ROADMAP.md — Foco e Controle de Escopo
 
 **Projeto**: Bud Finance  
-**Última atualização**: 17/04/2026
+**Última atualização**: 19/04/2026
 
 > **REGRA**: NÃO implementar itens do Backlog sem pedido explícito do usuário.
 
@@ -51,13 +51,18 @@
 - [x] **Dashboard** (`dashboard.html` + `js/dashboard.js`)
   - Auth guard via `onAuthStateChanged` → redirect login se deslogado
   - Guard `primeiroLogin: true` → redirect `trocar-senha.html`
-  - Sidebar lateral (desktop) que vira hambúrguer (mobile)
-  - 3 cards glassmorphic: Saldo Total, Entradas do Mês, Saídas do Mês
+  - Sidebar lateral colapsável (desktop, persiste em localStorage) + hambúrguer (mobile)
+  - 3 cards glassmorphic: **Resultado do Mês** (balanço mensal), Entradas do Mês, Saídas do Mês
+    - _Card renomeado de "Saldo Total" → "Resultado do Mês" (DEC-019): query limitada ao mês evita leitura de todo o histórico_
   - Banner trial/free/expirado condicional
-  - Toggle ocultar valores (persiste em localStorage)
+  - Toggle ocultar valores (persiste em localStorage); gráfico também oculto quando ativo
   - Sync real (re-cria listeners Firestore)
-  - Quick actions: Nova Receita / Nova Despesa (placeholder)
-  - Atividades recentes (top 5 transações do mês)
+  - **CRUD completo de transações**: Nova Receita / Nova Despesa, Edição inline, Exclusão com confirmação
+  - Atividades recentes (top 5 do mês) + filtro rápido Todos/Receitas/Despesas
+  - **Histórico completo** (modal com todas as transações do mês, clicável para editar)
+  - **Gráfico de despesas por categoria** (Doughnut — Chart.js) com cores por tema
+  - **Navegação por mês** (← Abril 2026 →) com cálculo retroativo correto
+  - **8 temas imersivos** sincronizados com Firestore (`temaEscolhido`); seletor no sidebar
   - Nome + matrícula + iniciais do usuário com `budSanitize()`
   - Logout com cleanup de listeners
 
@@ -67,12 +72,17 @@
 
 > ⚠️ **NÃO implementar sem meu pedido.**
 
-1. **Painel Admin** (`admin.html`)
+1. **Tela de Configurações** (`configuracoes.html`)
+   - **Aba Personalização** — mover seletor de temas (atualmente no sidebar do dashboard) para cá; o `#themeBubbles` do sidebar deve ser removido quando esta tela existir
+   - Preferências de notificação
+   - Gerenciamento de conta
+
+2. **Painel Admin** (`admin.html`)
    - CRM com listagem de usuários
    - Block/Unblock de contas
    - Gestão de chamados
 
-3. **Cloud Functions** (Backend)
+4. **Cloud Functions** (Backend)
    - `/reset-senha` — envio de link de reset
    - `/chamado` — registro e envio de bug/sugestão
    - Rate limiting

@@ -5,7 +5,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
   getFirestore, doc, getDoc, collection, query, orderBy, limit, onSnapshot,
-  addDoc, serverTimestamp, Timestamp
+  addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
@@ -25,7 +25,9 @@ const _unsubs = [];
 let tipoAtual = 'receita';   // 'receita' | 'despesa'
 let planoAtual = 'free';
 let trialExpirado = false;
-
+let transacaoEditandoId = null; // null = criando, string = editando
+let filtroAtividadeAtual = 'todos'; // 'todos' | 'receita' | 'despesa'
+let _skipThemeSync = false; // evita escrita circular no Firestore ao aplicar tema vindo do Firestore
 // ─── Categorias ──────────────────────────────────────────────────────────
 var CATEGORIAS = {
   receita: ['Salário', 'Freelance', 'Investimentos', 'Transferência recebida', 'Bônus', 'Outros'],
@@ -123,9 +125,9 @@ function renderizarDashboard() {
   if (cardEntradasSub) cardEntradasSub.textContent = transacoesDoMes.filter(function (t) { return t.tipo === 'receita'; }).length + ' transações';
   if (cardSaidasSub) cardSaidasSub.textContent = transacoesDoMes.filter(function (t) { return t.tipo === 'despesa'; }).length + ' transações';
 
-  // Color saldo
+  // Color saldo (verde se positivo, vermelho se negativo)
   if (cardSaldo) {
-    cardSaldo.style.color = saldo >= 0 ? '#1e293b' : '#dc2626';
+    cardSaldo.style.color = saldo >= 0 ? '#16a34a' : '#dc2626';
   }
 
   // Atividades recentes (últimas 5)
@@ -145,6 +147,13 @@ var CHART_CORES = [
   '#1d4ed8', '#6366f1', '#8b5cf6', '#a78bfa', '#cbd5e1'
 ];
 
+function getChartCores() {
+  if (window.budThemeManager && window.budThemeManager.getChartCores) {
+    return window.budThemeManager.getChartCores();
+  }
+  return CHART_CORES;
+}
+
 function renderizarGraficos(transacoesDoMes) {
   var empty     = document.getElementById('graficoCategorias');
   var container = document.getElementById('graficoContainer');
@@ -158,6 +167,15 @@ function renderizarGraficos(transacoesDoMes) {
   if (_chartInstance) {
     _chartInstance.destroy();
     _chartInstance = null;
+  }
+
+  // BUG 6: Ocultar gráfico quando valores estão ocultos (privacidade)
+  if (valoresOcultos) {
+    empty.style.display = '';
+    container.style.display = 'none';
+    var emptyText = empty.querySelector('p');
+    if (emptyText) emptyText.textContent = 'Valores ocultos 🔒';
+    return;
   }
 
   if (despesas.length === 0) {
@@ -174,7 +192,8 @@ function renderizarGraficos(transacoesDoMes) {
   });
   var labels = Object.keys(agrupado);
   var valores = labels.map(function (k) { return agrupado[k]; });
-  var cores   = labels.map(function (_, i) { return CHART_CORES[i % CHART_CORES.length]; });
+  var cores   = labels.map(function (_, i) { var c = getChartCores(); return c[i % c.length]; });
+  var legendColor = getComputedStyle(document.documentElement).getPropertyValue('--card-text-sec').trim() || '#64748b';
 
   // Mostrar canvas, ocultar estado vazio
   empty.style.display = 'none';
@@ -200,7 +219,7 @@ function renderizarGraficos(transacoesDoMes) {
           position: 'bottom',
           labels: {
             font: { family: 'Inter, sans-serif', size: 11, weight: '600' },
-            color: '#64748b',
+            color: legendColor,
             padding: 16,
             usePointStyle: true,
             pointStyleWidth: 8
@@ -211,7 +230,9 @@ function renderizarGraficos(transacoesDoMes) {
             label: function (ctx) {
               var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
               var pct   = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : '0.0';
-              return ' ' + formatarValor(ctx.parsed) + ' (' + pct + '%)';
+              // BUG 6: Não expor valores reais no tooltip quando ocultos
+              var valor = valoresOcultos ? '•••' : formatarValor(ctx.parsed);
+              return ' ' + valor + ' (' + pct + '%)';
             }
           }
         }
@@ -226,7 +247,16 @@ function renderizarAtividades(transacoesDoMes) {
   var container = document.getElementById('atividadesLista');
   if (!container) return;
 
-  var ultimas = transacoesDoMes.sort(function (a, b) {
+  // Filtrar por tipo (Todos/Receitas/Despesas)
+  var filtradas = transacoesDoMes.filter(function (t) {
+    return filtroAtividadeAtual === 'todos' || t.tipo === filtroAtividadeAtual;
+  });
+
+  // Atualizar contador de transações
+  var contadorEl = document.getElementById('atividadesContador');
+  if (contadorEl) contadorEl.textContent = String(filtradas.length);
+
+  var ultimas = filtradas.sort(function (a, b) {
     var da = a.dataCriacao ? (a.dataCriacao.toDate ? a.dataCriacao.toDate() : new Date(a.dataCriacao)) : new Date(0);
     var db2 = b.dataCriacao ? (b.dataCriacao.toDate ? b.dataCriacao.toDate() : new Date(b.dataCriacao)) : new Date(0);
     return db2 - da;
@@ -244,7 +274,9 @@ function renderizarAtividades(transacoesDoMes) {
     emptyDiv.appendChild(iconDiv);
 
     var pEl = document.createElement('p');
-    pEl.textContent = 'Nenhuma transação este mês. Comece adicionando uma receita ou despesa!';
+    pEl.textContent = filtroAtividadeAtual === 'todos' ? 
+      'Nenhuma transação este mês. Comece adicionando uma receita ou despesa!' :
+      'Nenhuma ' + (filtroAtividadeAtual === 'receita' ? 'receita' : 'despesa') + ' neste mês.';
     emptyDiv.appendChild(pEl);
 
     container.appendChild(emptyDiv);
@@ -254,7 +286,12 @@ function renderizarAtividades(transacoesDoMes) {
   container.innerHTML = '';
   ultimas.forEach(function (t) {
     var row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.75rem 0;border-bottom:1px solid #f1f5f9;';
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.75rem 0;border-bottom:1px solid var(--card-border);cursor:pointer;transition:background .15s;border-radius:0.5rem;';
+    row.addEventListener('mouseenter', function () { row.style.background = 'var(--sidebar-link-hover-bg)'; });
+    row.addEventListener('mouseleave', function () { row.style.background = ''; });
+    (function (tid) {
+      row.addEventListener('click', function () { abrirModalEditar(tid); });
+    })(t.id);
 
     var left = document.createElement('div');
     left.style.cssText = 'display:flex;align-items:center;gap:0.75rem;';
@@ -273,11 +310,11 @@ function renderizarAtividades(transacoesDoMes) {
 
     var info = document.createElement('div');
     var nameEl = document.createElement('div');
-    nameEl.style.cssText = 'font-size:0.8125rem;font-weight:600;color:#1e293b;';
+    nameEl.style.cssText = 'font-size:0.8125rem;font-weight:600;color:var(--card-text);';
     nameEl.textContent = window.budSanitize ? window.budSanitize(t.descricao || t.categoria || 'Sem descrição') : (t.descricao || t.categoria || 'Sem descrição');
 
     var catEl = document.createElement('div');
-    catEl.style.cssText = 'font-size:0.6875rem;font-weight:500;color:#94a3b8;';
+    catEl.style.cssText = 'font-size:0.6875rem;font-weight:500;color:var(--card-text-sec);';
     catEl.textContent = t.categoria || '';
 
     info.appendChild(nameEl);
@@ -295,6 +332,17 @@ function renderizarAtividades(transacoesDoMes) {
     row.appendChild(valorEl);
     container.appendChild(row);
   });
+
+  // Botão "Ver Histórico Completo" se tiver mais de 5 transações no mês
+  if (filtradas.length > 5) {
+    var btnHist = document.createElement('button');
+    btnHist.style.cssText = 'display:block;width:100%;margin-top:0.75rem;padding:0.625rem;background:none;border:1px solid var(--card-border);border-radius:0.75rem;color:var(--theme-accent);font-size:0.8125rem;font-weight:600;cursor:pointer;transition:background .15s;';
+    btnHist.textContent = 'Ver Histórico Completo (' + filtradas.length + ')';
+    btnHist.addEventListener('mouseenter', function () { btnHist.style.background = 'var(--sidebar-link-hover-bg)'; });
+    btnHist.addEventListener('mouseleave', function () { btnHist.style.background = ''; });
+    btnHist.addEventListener('click', function () { abrirHistorico(); });
+    container.appendChild(btnHist);
+  }
 }
 
 // ─── Banner Trial ───────────────────────────────────────────────────────
@@ -456,12 +504,19 @@ function atualizarModalTipo(tipo) {
   var btnD = document.getElementById('tipoBtnDespesa');
   var titulo = document.getElementById('modalTitulo');
   var submit = document.getElementById('btnSubmitLancamento');
+  var isEdit = transacaoEditandoId !== null;
 
   if (btnR) { btnR.className = 'tipo-btn' + (tipo === 'receita' ? ' active-receita' : ''); }
   if (btnD) { btnD.className = 'tipo-btn' + (tipo === 'despesa' ? ' active-despesa' : ''); }
-  if (titulo) titulo.textContent = tipo === 'receita' ? 'Nova Receita' : 'Nova Despesa';
+  if (titulo) {
+    if (isEdit) {
+      titulo.textContent = tipo === 'receita' ? 'Editar Receita' : 'Editar Despesa';
+    } else {
+      titulo.textContent = tipo === 'receita' ? 'Nova Receita' : 'Nova Despesa';
+    }
+  }
   if (submit) {
-    submit.textContent = tipo === 'receita' ? 'Salvar Receita' : 'Salvar Despesa';
+    submit.textContent = isEdit ? 'Salvar Alterações' : (tipo === 'receita' ? 'Salvar Receita' : 'Salvar Despesa');
     submit.className = 'modal-submit modal-submit-' + tipo;
   }
   preencherCategorias(tipo);
@@ -479,6 +534,7 @@ function abrirModal(tipo) {
     if (window.budShowToast) window.budShowToast('Período de testes encerrado. Faça upgrade para lançar transações.', 'error');
     return;
   }
+  transacaoEditandoId = null;
   // Resetar form
   var form = document.getElementById('formLancamento');
   if (form) form.reset();
@@ -504,6 +560,69 @@ function abrirModal(tipo) {
   var hj = new Date();
   selecionarData(hj.getFullYear() + '-' + String(hj.getMonth()+1).padStart(2,'0') + '-' + String(hj.getDate()).padStart(2,'0'));
   atualizarModalTipo(tipo);
+  // Ocultar botão excluir no modo criação
+  var btnExcluir = document.getElementById('btnExcluirTransacao');
+  if (btnExcluir) btnExcluir.style.display = 'none';
+  document.getElementById('modalLancamento').classList.add('open');
+  setTimeout(function () {
+    var desc = document.getElementById('inputDescricao');
+    if (desc) desc.focus();
+  }, 100);
+}
+
+function abrirModalEditar(transacaoId) {
+  if (trialExpirado) {
+    if (window.budShowToast) window.budShowToast('Período de testes encerrado. Faça upgrade para editar transações.', 'error');
+    return;
+  }
+  var t = transacoesGlobais.find(function (tx) { return tx.id === transacaoId; });
+  if (!t) return;
+
+  transacaoEditandoId = transacaoId;
+  var form = document.getElementById('formLancamento');
+  if (form) form.reset();
+  document.querySelectorAll('.modal-input').forEach(function (el) { el.classList.remove('error'); });
+
+  // Preencher tipo
+  atualizarModalTipo(t.tipo || 'despesa');
+
+  // Preencher descrição
+  var inputDesc = document.getElementById('inputDescricao');
+  if (inputDesc) inputDesc.value = t.descricao || '';
+
+  // Preencher valor
+  var inputValor = document.getElementById('inputValor');
+  if (inputValor && t.valor) {
+    inputValor.value = t.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  // Preencher categoria no custom dropdown
+  var catHidden = document.getElementById('inputCategoria');
+  var catTexto = document.getElementById('categoriaTexto');
+  var catBtn = document.getElementById('categoriaBtn');
+  if (catHidden) catHidden.value = t.categoria || '';
+  if (catTexto) catTexto.textContent = t.categoria || 'Selecione...';
+  if (catBtn && t.categoria) catBtn.classList.add('has-value');
+
+  // Marcar opção selecionada no dropdown
+  var dropdown = document.getElementById('categoriaDropdown');
+  if (dropdown) {
+    dropdown.querySelectorAll('.custom-select-option').forEach(function (o) {
+      o.classList.toggle('selected', o.textContent === t.categoria);
+    });
+  }
+
+  // Preencher data
+  if (t.data) {
+    var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
+    var ds = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    selecionarData(ds);
+  }
+
+  // Mostrar botão excluir no modo edição
+  var btnExcluir = document.getElementById('btnExcluirTransacao');
+  if (btnExcluir) btnExcluir.style.display = '';
+
   document.getElementById('modalLancamento').classList.add('open');
   setTimeout(function () {
     var desc = document.getElementById('inputDescricao');
@@ -512,6 +631,7 @@ function abrirModal(tipo) {
 }
 
 function fecharModal() {
+  transacaoEditandoId = null;
   document.getElementById('modalLancamento').classList.remove('open');
   fecharDatepicker();
 }
@@ -574,33 +694,160 @@ async function handleSubmitLancamento(e) {
   btnSubmit.textContent = 'Salvando...';
 
   try {
-    await addDoc(collection(db, 'usuarios', usuarioAtualId, 'transacoes'), {
-      descricao: descricao,
-      valor: valor,           // float (ex: 1500.50) — DEC-016
-      categoria: categoria,
-      data: dataTimestamp,
-      tipo: tipoAtual,
-      dataCriacao: serverTimestamp()
-    });
-    fecharModal();
-    if (window.budShowToast) window.budShowToast(
-      tipoAtual === 'receita' ? 'Receita registrada!' : 'Despesa registrada!',
-      'success'
-    );
+    if (transacaoEditandoId) {
+      // Modo edição — updateDoc
+      await updateDoc(doc(db, 'usuarios', usuarioAtualId, 'transacoes', transacaoEditandoId), {
+        descricao: descricao,
+        valor: valor,
+        categoria: categoria,
+        data: dataTimestamp,
+        tipo: tipoAtual
+      });
+      fecharModal();
+      if (window.budShowToast) window.budShowToast('Transação atualizada!', 'success');
+    } else {
+      // Modo criação — addDoc
+      await addDoc(collection(db, 'usuarios', usuarioAtualId, 'transacoes'), {
+        descricao: descricao,
+        valor: valor,           // float (ex: 1500.50) — DEC-016
+        categoria: categoria,
+        data: dataTimestamp,
+        tipo: tipoAtual,
+        dataCriacao: serverTimestamp()
+      });
+      fecharModal();
+      if (window.budShowToast) window.budShowToast(
+        tipoAtual === 'receita' ? 'Receita registrada!' : 'Despesa registrada!',
+        'success'
+      );
+    }
   } catch (_err) {
     if (window.budShowToast) window.budShowToast('Erro ao salvar. Tente novamente.', 'error');
   } finally {
     btnSubmit.disabled = false;
-    btnSubmit.textContent = tipoAtual === 'receita' ? 'Salvar Receita' : 'Salvar Despesa';
+    var isEdit = transacaoEditandoId !== null;
+    btnSubmit.textContent = isEdit ? 'Salvar Alterações' : (tipoAtual === 'receita' ? 'Salvar Receita' : 'Salvar Despesa');
   }
 }
 
-// ─── Sidebar mobile ─────────────────────────────────────────────────────
+// ─── Excluir transação (mini-modal de confirmação) ──────────────────────
+function pedirConfirmacaoExcluir() {
+  var modal = document.getElementById('modalConfirmExcluir');
+  if (modal) modal.classList.add('open');
+}
+function fecharConfirmExcluir() {
+  var modal = document.getElementById('modalConfirmExcluir');
+  if (modal) modal.classList.remove('open');
+}
+async function confirmarExclusao() {
+  if (!transacaoEditandoId || !usuarioAtualId) return;
+  var btnConfirm = document.getElementById('btnConfirmExcluir');
+  if (btnConfirm) { btnConfirm.disabled = true; btnConfirm.textContent = 'Excluindo...'; }
+  try {
+    await deleteDoc(doc(db, 'usuarios', usuarioAtualId, 'transacoes', transacaoEditandoId));
+    fecharConfirmExcluir();
+    fecharModal();
+    if (window.budShowToast) window.budShowToast('Transação excluída.', 'success');
+  } catch (_err) {
+    if (window.budShowToast) window.budShowToast('Erro ao excluir. Tente novamente.', 'error');
+  } finally {
+    if (btnConfirm) { btnConfirm.disabled = false; btnConfirm.textContent = 'Excluir'; }
+  }
+}
+
+// ─── Histórico completo ─────────────────────────────────────────────────
+function abrirHistorico() {
+  var modal = document.getElementById('modalHistorico');
+  if (!modal) return;
+  renderizarHistorico();
+  modal.classList.add('open');
+}
+function fecharHistorico() {
+  var modal = document.getElementById('modalHistorico');
+  if (modal) modal.classList.remove('open');
+}
+function renderizarHistorico() {
+  var container = document.getElementById('historicoLista');
+  if (!container) return;
+
+  var filtradas = transacoesGlobais.filter(function (t) {
+    if (!t.data) return false;
+    var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
+    return d.getMonth() === mesVisualizado && d.getFullYear() === anoVisualizado;
+  });
+  filtradas.sort(function (a, b) {
+    var da = a.dataCriacao && a.dataCriacao.toDate ? a.dataCriacao.toDate() : new Date(0);
+    var db2 = b.dataCriacao && b.dataCriacao.toDate ? b.dataCriacao.toDate() : new Date(0);
+    return db2 - da;
+  });
+
+  if (filtradas.length === 0) {
+    container.innerHTML = '<p style="text-align:center;color:var(--card-text-sec);padding:2rem 0;">Nenhuma transação neste mês.</p>';
+    return;
+  }
+
+  container.innerHTML = '';
+  filtradas.forEach(function (t) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.75rem 0;border-bottom:1px solid var(--card-border);cursor:pointer;transition:background .15s;border-radius:0.5rem;';
+    row.addEventListener('mouseenter', function () { row.style.background = 'var(--sidebar-link-hover-bg)'; });
+    row.addEventListener('mouseleave', function () { row.style.background = ''; });
+    (function (tid) {
+      row.addEventListener('click', function () { fecharHistorico(); abrirModalEditar(tid); });
+    })(t.id);
+
+    var left = document.createElement('div');
+    left.style.cssText = 'display:flex;align-items:center;gap:0.75rem;min-width:0;';
+
+    var icon = document.createElement('div');
+    icon.style.cssText = 'width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;' +
+      (t.tipo === 'receita' ? 'background:#dcfce7;' : 'background:#fee2e2;');
+    icon.textContent = t.tipo === 'receita' ? '↑' : '↓';
+
+    var info = document.createElement('div');
+    info.style.cssText = 'min-width:0;';
+    var descEl = document.createElement('div');
+    descEl.style.cssText = 'font-weight:500;font-size:0.9rem;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;';
+    descEl.textContent = t.descricao || 'Sem descrição';
+    var catEl = document.createElement('div');
+    catEl.style.cssText = 'font-size:0.75rem;color:var(--card-text-sec);';
+    catEl.textContent = t.categoria || '';
+    info.appendChild(descEl);
+    info.appendChild(catEl);
+    left.appendChild(icon);
+    left.appendChild(info);
+
+    var right = document.createElement('div');
+    right.style.cssText = 'text-align:right;flex-shrink:0;';
+    var valorEl = document.createElement('div');
+    valorEl.style.cssText = 'font-weight:600;font-size:0.9rem;' +
+      (t.tipo === 'receita' ? 'color:#16a34a;' : 'color:#dc2626;');
+    valorEl.textContent = (t.tipo === 'receita' ? '+' : '-') +
+      'R$ ' + (t.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    var dataEl = document.createElement('div');
+    dataEl.style.cssText = 'font-size:0.75rem;color:var(--card-text-sec);';
+    if (t.data) {
+      var dt = t.data.toDate ? t.data.toDate() : new Date(t.data);
+      dataEl.textContent = String(dt.getDate()).padStart(2,'0') + '/' + String(dt.getMonth()+1).padStart(2,'0');
+    }
+    right.appendChild(valorEl);
+    right.appendChild(dataEl);
+
+    row.appendChild(left);
+    row.appendChild(right);
+    container.appendChild(row);
+  });
+}
+
+// ─── Sidebar mobile + desktop collapse ─────────────────────────────────
 function setupSidebar() {
   var sidebar = document.getElementById('sidebar');
   var overlay = document.getElementById('sidebarOverlay');
   var btnHamburger = document.getElementById('btnHamburger');
+  var btnCollapse = document.getElementById('btnSidebarCollapse');
+  var dashMain = document.getElementById('dashMain');
 
+  // ── Mobile: hamburger ──────────────────────────────────────────────
   if (btnHamburger) {
     btnHamburger.addEventListener('click', function () {
       sidebar.classList.toggle('open');
@@ -614,13 +861,32 @@ function setupSidebar() {
     });
   }
 
-  // "Em breve" links
-  document.querySelectorAll('[data-soon]').forEach(function (link) {
-    link.addEventListener('click', function (e) {
-      e.preventDefault();
-      if (window.budShowToast) window.budShowToast('Em breve!', 'info');
+  // ── Desktop: collapse ──────────────────────────────────────────────
+  function applyCollapsed(collapsed) {
+    if (collapsed) {
+      sidebar.classList.add('collapsed');
+      dashMain && dashMain.classList.add('sidebar-collapsed');
+      if (btnCollapse) btnCollapse.textContent = '›';
+    } else {
+      sidebar.classList.remove('collapsed');
+      dashMain && dashMain.classList.remove('sidebar-collapsed');
+      if (btnCollapse) btnCollapse.textContent = '‹';
+    }
+  }
+
+  // Restaurar estado salvo apenas no desktop
+  var savedCollapsed = localStorage.getItem('bud_sidebar_collapsed') === 'true';
+  if (window.innerWidth > 768) applyCollapsed(savedCollapsed);
+
+  if (btnCollapse) {
+    btnCollapse.addEventListener('click', function () {
+      if (window.innerWidth <= 768) return; // ignora no mobile
+      var isCollapsed = sidebar.classList.contains('collapsed');
+      localStorage.setItem('bud_sidebar_collapsed', !isCollapsed);
+      applyCollapsed(!isCollapsed);
     });
-  });
+  }
+
 }
 
 // ─── Setup listeners Firestore ──────────────────────────────────────────
@@ -699,6 +965,13 @@ onAuthStateChanged(auth, async function (user) {
 
     // ── Banner de plano/trial ───────────────────────────────────────
     configurarBannerPlano(userData);
+
+    // ── Aplicar tema salvo no perfil Firestore ──────────────────────
+    if (window.budThemeManager && userData.temaEscolhido) {
+      _skipThemeSync = true;
+      window.budThemeManager.apply(userData.temaEscolhido);
+      _skipThemeSync = false;
+    }
 
     // ── Guardar plano para bloqueio no modal ────────────────────────
     planoAtual = userData.plano || 'free';
@@ -779,7 +1052,14 @@ if (modalOverlay) {
   });
 }
 document.addEventListener('keydown', function (e) {
-  if (e.key === 'Escape') fecharModal();
+  if (e.key === 'Escape') {
+    // Fechar na ordem: confirmação > histórico > modal lançamento
+    var confirmModal = document.getElementById('modalConfirmExcluir');
+    if (confirmModal && confirmModal.classList.contains('open')) { fecharConfirmExcluir(); return; }
+    var histModal = document.getElementById('modalHistorico');
+    if (histModal && histModal.classList.contains('open')) { fecharHistorico(); return; }
+    fecharModal();
+  }
 });
 
 // ─── Custom dropdown: categoria ──────────────────────────────────────────
@@ -884,6 +1164,37 @@ if (formLancamento) {
   formLancamento.addEventListener('submit', handleSubmitLancamento);
 }
 
+// ─── Botão excluir transação ────────────────────────────────────────────
+var btnExcluirTransacao = document.getElementById('btnExcluirTransacao');
+if (btnExcluirTransacao) {
+  btnExcluirTransacao.addEventListener('click', function (e) {
+    e.preventDefault();
+    pedirConfirmacaoExcluir();
+  });
+}
+
+// ─── Mini-modal confirmação exclusão ────────────────────────────────────
+var btnConfirmExcluir = document.getElementById('btnConfirmExcluir');
+var btnCancelarExcluir = document.getElementById('btnCancelarExcluir');
+if (btnConfirmExcluir) btnConfirmExcluir.addEventListener('click', confirmarExclusao);
+if (btnCancelarExcluir) btnCancelarExcluir.addEventListener('click', fecharConfirmExcluir);
+var modalConfirmOverlay = document.getElementById('modalConfirmExcluir');
+if (modalConfirmOverlay) {
+  modalConfirmOverlay.addEventListener('click', function (e) {
+    if (e.target === modalConfirmOverlay) fecharConfirmExcluir();
+  });
+}
+
+// ─── Histórico modal ────────────────────────────────────────────────────
+var btnFecharHistorico = document.getElementById('btnFecharHistorico');
+if (btnFecharHistorico) btnFecharHistorico.addEventListener('click', fecharHistorico);
+var modalHistoricoOverlay = document.getElementById('modalHistorico');
+if (modalHistoricoOverlay) {
+  modalHistoricoOverlay.addEventListener('click', function (e) {
+    if (e.target === modalHistoricoOverlay) fecharHistorico();
+  });
+}
+
 // ─── Navegação de mês ──────────────────────────────────────────────────
 var btnMesAnterior = document.getElementById('btnMesAnterior');
 var btnProximoMes  = document.getElementById('btnProximoMes');
@@ -906,8 +1217,45 @@ if (btnProximoMes) {
 var navMesAnoEl = document.getElementById('navMesAno');
 if (navMesAnoEl) navMesAnoEl.textContent = getMesAnoLabel();
 
+// ─── Filtro rápido de atividades ────────────────────────────────────────
+document.querySelectorAll('.filtro-atividades').forEach(function (btn) {
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var novoFiltro = btn.getAttribute('data-filtro');
+    if (novoFiltro === filtroAtividadeAtual) return;
+    
+    // Atualizar estado do botão ativo
+    document.querySelectorAll('.filtro-atividades').forEach(function (b) {
+      b.classList.remove('active');
+      b.style.background = 'var(--card-bg)';
+      b.style.color = 'var(--card-text)';
+      b.style.borderColor = 'var(--card-border)';
+    });
+    btn.classList.add('active');
+    btn.style.background = 'var(--btn-bg)';
+    btn.style.color = 'var(--btn-text)';
+    btn.style.borderColor = 'transparent';
+    
+    filtroAtividadeAtual = novoFiltro;
+    renderizarDashboard();
+  });
+});
+
 // ─── Init sidebar ───────────────────────────────────────────────────────
 setupSidebar();
 
 // ─── Apply initial toggle state (oculta valores do HTML se necessário) ──
 atualizarVisibilidadeValores();
+
+// ─── Sync tema com Firestore quando usuário troca pelo seletor ───────────
+document.addEventListener('bud:themechange', function (e) {
+  if (!usuarioAtualId || _skipThemeSync) return;
+  var name = e.detail && typeof e.detail.name === 'string' ? e.detail.name : 'padrao';
+  updateDoc(doc(db, 'usuarios', usuarioAtualId), { temaEscolhido: name }).catch(function () {});
+  // Re-renderizar gráfico com as cores do novo tema
+  renderizarGraficos(transacoesGlobais.filter(function (t) {
+    if (!t.data) return false;
+    var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
+    return d.getMonth() === mesVisualizado && d.getFullYear() === anoVisualizado;
+  }));
+});

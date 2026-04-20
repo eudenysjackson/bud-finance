@@ -279,3 +279,50 @@
 - **Por quê**: Chart.js é madura, sem dependências externas, tree-shakeable e tem suporte nativo a doughnut com `cutout`. A alternativa (D3.js) teria complexidade desnecessária para um gráfico simples. A estratégia de `destroy()` é obrigatória no Chart.js para evitar sobreposição de instâncias e memory leak ao re-renderizar no mesmo `<canvas>`.
 - **Consequências**: O `<script>` do Chart.js deve ser carregado **antes** de `firebase-config.js` e `dashboard.js`. O canvas `#chartCategorias` e o container `#graficoContainer` devem existir no HTML. O estado vazio `#graficoCategorias` é mostrado/ocultado via `style.display` (inline, nunca Tailwind dinâmico — DEC-001).
 - **Quando revisar**: Se o número de categorias crescer muito (>9) ou se houver demanda por gráficos de linha (evolução mensal), avaliar biblioteca alternativa ou módulos Chart.js adicionais.
+
+### DEC-027 — CRUD de transações: editar, excluir e histórico completo
+
+- **Data**: 18/04/2026
+- **O que foi decidido**: (1) Atividades recentes são clicáveis — abrem o mesmo modal de lançamento em **modo edição** (pre-fill de campos). (2) Estado `transacaoEditandoId` controla se o modal está em criação (`null`) ou edição (string com o ID do doc). (3) `handleSubmitLancamento` faz branch: `updateDoc` se editando, `addDoc` se criando. `descricao.substring(0,100)` aplicado em ambos os modos. (4) Exclusão usa **mini-modal de confirmação** com glassmorphism (nunca `window.confirm` — DEC-018). (5) Botão "Ver Histórico Completo" aparece dinamicamente se o mês tem >5 transações, abre modal `#modalHistorico` com todas as transações do mês filtrado. Rows do histórico também são clicáveis para editar.
+- **Por quê**: `window.confirm` quebraria a estética glassmorphism. Reutilizar o modal existente para edição reduz HTML e complexidade. `onSnapshot` já sincroniza automaticamente após `updateDoc`/`deleteDoc`, então não é necessário refresh manual.
+- **Consequências**: Imports do Firestore expandidos (`updateDoc`, `deleteDoc`). Botão excluir (`#btnExcluirTransacao`) oculto por padrão, exibido apenas em modo edição. Mini-modal `#modalConfirmExcluir` com `z-index:90` (acima do modal principal z-index:80). Escape fecha modais na ordem: confirmação > histórico > lançamento.
+- **Quando revisar**: Se houver demanda por edição inline (sem modal) ou bulk delete.
+
+---
+
+### DEC-028 — Sistema de Temas Imersivos: 8 temas via CSS Custom Properties
+
+- **Data**: 19/04/2026
+- **O que foi decidido**: Implementar 8 temas (Gelo, Dark, Azul, Roxo, Rosa, Amarelo, Verde, Vermelho) via CSS variables no `:root`. Motor de temas em `js/theme-manager.js` (script regular, não módulo) carregado em `<head>` antes do body para evitar flash de cor. Seletor de bolinhas coloridas (`#themeBubbles`) no sidebar. Persistência dupla: `localStorage.bud_theme` (instantâneo, sem flash) + campo `temaEscolhido` no Firestore do usuário (cross-device). Evento `bud:themechange` desacopla `theme-manager.js` de `dashboard.js`. Flag `_skipThemeSync` em `dashboard.js` evita escrita circular no Firestore quando o tema é aplicado a partir dos dados do próprio Firestore.
+- **Por quê**: Personalização é um diferencial de produto. CSS vars permitem troca instantânea sem reload. `localStorage` garante ausência de flash na recarga. Firestore garante persistência cross-device. Separar o motor de temas do módulo `dashboard.js` permite usar o mesmo `theme-manager.js` em outras páginas no futuro.
+- **Consequências**: Todas as cores dinâmicas do dashboard usam `var(--nome)`. Cores de sentimento (verde receita, vermelho despesa) permanecem fixas (não trocam com o tema). Blobs decorativos ocultos (`--blob-opacity: 0`) nos temas sólidos. Campo `temaEscolhido` adicionado ao documento do usuário no Firestore.
+- **Quando revisar**: Quando o seletor de temas migrar para a tela de Configurações. Ou se outras páginas (login, cadastro) também precisarem de temas — criar script de aplicação early no `<head>` de cada página.
+
+---
+
+### DEC-029 — Sidebar colapsável: design, visibilidade cross-tema e padronização de elementos
+
+- **Data**: 19/04/2026
+- **O que foi decidido**: Implementar sidebar colapsável no desktop (260px ↔ 64px) com as seguintes decisões técnicas:
+
+  **1. Botão de colapso — tab lateral, não círculo flutuante**  
+  O botão usa `position: absolute; right: -1rem; top: 50%; transform: translateY(-50%)` formando uma aba (`border-radius: 0 0.5rem 0.5rem 0`) de `1rem × 3.5rem`. Background `var(--btn-bg)` e cor `var(--btn-text)` garantem contraste em todos os 8 temas sem depender de `box-shadow`. A sidebar tem `overflow: visible` para o tab transbordar os bounds.
+
+  **2. Logo com cápsula branca**  
+  A `<img src="logo.png">` recebe `background: rgba(255,255,255,0.92); border-radius: 0.5rem; padding: 0.15rem`. A logo é um PNG com transparência — sem a cápsula ela desaparece em sidebars coloridas (Azul, Roxo, Rosa, etc.).
+
+  **3. Elementos colapsados são quadrados 40×40px**  
+  `.sidebar-link`, `.sidebar-user` e `.sidebar-logo` no estado `.collapsed` recebem `padding: 0; height: 2.5rem; width: 2.5rem; gap: 0`. O `gap: 0` é obrigatório — com `gap: 0.75rem` o ícone ficava deslocado ~6px para a esquerda mesmo com `justify-content: center`.
+
+  **4. Cores de texto dos cards usam `--card-text`, não `--text-main`**  
+  `--text-main` é `#ffffff` nos temas coloridos (Azul, Roxo, etc.) e serve para o fundo da **página** e o interior da **sidebar colorida**. O interior dos **cards brancos** deve usar `--card-text` (sempre escuro, independente do tema). Afeta: `.mes-nav-label`, `.mes-nav-btn`, e qualquer texto dentro de um `var(--card-bg)`.
+
+  **5. Botão "Todos" usa `--btn-bg`/`--btn-text`, não `--sidebar-link-active-*`**  
+  As vars `--sidebar-link-active-bg/color` são semitransparentes e otimizadas para o fundo da sidebar. Dentro de um card branco (`var(--card-bg)`), essas vars ficam invisíveis em temas coloridos (ex: branco sobre branco no tema Azul). O par `--btn-bg`/`--btn-text` tem sempre contraste sólido garantido por design em todos os temas.
+
+  **6. Mobile: sidebar ignorada no collapse**  
+  O estado `localStorage.bud_sidebar_collapsed` só é restaurado se `window.innerWidth > 768`. No mobile, a sidebar usa o padrão hambúrguer + `translateX(-100%)`.
+
+- **Por quê**: Cada decisão foi motivada por bug visual confirmado em teste cross-tema. A regra central é: **variáveis de sidebar não devem vazar para o interior de cards de página**, e vice-versa.
+- **Consequências**: Sidebar totalmente funcional em todos os 8 temas, desktop e mobile. Handler JS de filtro de atividades também atualizado para usar `--btn-bg`/`--btn-text`.
+- **Quando revisar**: Quando adicionar mais links de navegação à sidebar (novas telas do app), verificar se os 64px acomodam os ícones ou se é necessário ajustar a largura colapsada.

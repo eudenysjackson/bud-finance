@@ -38,6 +38,7 @@
 
     const style = TOAST_STYLES[type] || TOAST_STYLES.info;
     const container = ensureContainer();
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--theme-accent').trim() || '#2563eb';
 
     const toast = document.createElement('div');
     toast.style.cssText =
@@ -46,6 +47,7 @@
       'font-weight:600;font-family:Inter,system-ui,sans-serif;' +
       'box-shadow:0 10px 25px -5px rgba(0,0,0,0.15);min-width:220px;max-width:380px;' +
       'opacity:0;transform:translateX(1rem);transition:opacity .3s,transform .3s;' +
+      'border-left:3px solid ' + accent + ';' +
       'background:' + style.bg + ';';
 
     // Icon badge
