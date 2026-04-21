@@ -1,7 +1,7 @@
 # ROADMAP.md — Foco e Controle de Escopo
 
 **Projeto**: Bud Finance  
-**Última atualização**: 19/04/2026
+**Última atualização**: 20/04/2026
 
 > **REGRA**: NÃO implementar itens do Backlog sem pedido explícito do usuário.
 
@@ -62,9 +62,15 @@
   - **Histórico completo** (modal com todas as transações do mês, clicável para editar)
   - **Gráfico de despesas por categoria** (Doughnut — Chart.js) com cores por tema
   - **Navegação por mês** (← Abril 2026 →) com cálculo retroativo correto
-  - **8 temas imersivos** sincronizados com Firestore (`temaEscolhido`); seletor no sidebar
+  - **8 temas imersivos** sincronizados com Firestore (`temaEscolhido`); seletor movido para Configurações
   - Nome + matrícula + iniciais do usuário com `budSanitize()`
   - Logout com cleanup de listeners
+  - Link `⚙️ Configurações` no sidebar em substituição ao bloco de temas (DEC-030)
+- [x] **Tela de Configurações** (`configuracoes.html` + `js/configuracoes.js`) — MVP com 3 abas
+  - **Aba Perfil**: exibe nome, email, matrícula e data de cadastro (leitura); card com plano ativo
+  - **Aba Personalização**: seletor de 8 temas com bubbles; sync automático com Firestore (`temaEscolhido`) via evento `bud:themechange`; indicador de tema ativo
+  - **Aba Segurança**: link de redefinição de senha por email + botão de logout
+  - Auth guard (`onAuthStateChanged` + `emailVerified`); mesmo layout e sidebar do dashboard
 
 ---
 
@@ -72,12 +78,7 @@
 
 > ⚠️ **NÃO implementar sem meu pedido.**
 
-1. **Tela de Configurações** (`configuracoes.html`)
-   - **Aba Personalização** — mover seletor de temas (atualmente no sidebar do dashboard) para cá; o `#themeBubbles` do sidebar deve ser removido quando esta tela existir
-   - Preferências de notificação
-   - Gerenciamento de conta
-
-2. **Painel Admin** (`admin.html`)
+1. **Painel Admin** (`admin.html`)
    - CRM com listagem de usuários
    - Block/Unblock de contas
    - Gestão de chamados

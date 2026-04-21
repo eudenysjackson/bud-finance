@@ -1,7 +1,7 @@
 # ARCHITECTURE_MAP.md — Inventário Vivo do Ecossistema
 
 **Projeto**: Bud Finance  
-**Última atualização**: 17/04/2026
+**Última atualização**: 20/04/2026
 
 > **REGRA**: Antes de criar algo novo, consulte este doc. Ao finalizar qualquer tarefa, atualize.  
 > Se algo novo quebrar uma conexão existente, **pare e avise o usuário**.
@@ -34,13 +34,19 @@
 | **StateError** | Pulse ring error + mensagem + link recuperar | `acao-auth.html` |
 | **UserBadge** | Iniciais + nome + matrícula do usuário logado | `trocar-senha.html` |
 | **StateUnauthorized** | Tela de acesso não autorizado + link login | `trocar-senha.html` |
-| **DashSidebar** | Sidebar fixa (desktop) / hambúrguer (mobile) com nav + user info | `dashboard.html` |
+| **DashSidebar** | Sidebar fixa (desktop) / hambúrguer (mobile) com nav + user info | `dashboard.html`, `configuracoes.html` |
 | **DashSummaryCards** | 3 cards glassmorphic: Saldo Total, Entradas, Saídas | `dashboard.html` |
 | **DashTrialBanner** | Banner condicional trial/free/expirado | `dashboard.html` |
 | **DashQuickActions** | Botões rápidos: Nova Receita, Nova Despesa | `dashboard.html` |
 | **DashAtividades** | Lista das últimas 5 transações do mês (style inline) | `dashboard.html` |
 | **DashGraficoCategorias** | Placeholder para donut chart de despesas | `dashboard.html` |
 | **TransactionModal** | Modal glassmorphic único para Nova Receita e Nova Despesa | `dashboard.html` |
+| **CfgTabs** | 3 abas: Perfil, Personalização, Segurança | `configuracoes.html` |
+| **CfgCardPerfil** | Card com campos editáveis (nome) e leitura (email, matrícula, criação) | `configuracoes.html` |
+| **CfgCardDados** | Card com botão de exportação CSV | `configuracoes.html` |
+| **CfgCardPlano** | Card com nome e descrição do plano ativo | `configuracoes.html` |
+| **CfgCardPersonalizacao** | Bubbles de tema + indicador de tema ativo | `configuracoes.html` |
+| **CfgCardSeguranca** | Botão Redefinir Senha + botão Sair | `configuracoes.html` |
 
 ---
 
@@ -82,6 +88,14 @@
 | `renderizarGraficos(transacoes)` | Agrega despesas por categoria e renderiza doughnut Chart.js; destrói instância anterior antes de criar nova | `dashboard.js` | ✅ `dashboard.js` |
 | `setupListeners(uid)` | Inicia onSnapshot de transações (orderBy+limit) | `dashboard.js` | ✅ `dashboard.js` |
 | `cleanupListeners()` | Desregistra todos os onSnapshot ativos | `dashboard.js` | ✅ `dashboard.js` |
+| `setupSidebar()` [cfg] | Sidebar colapsável + hambúrguer, mesmo padrão do dashboard | `configuracoes.js` | ✅ `configuracoes.js` |
+| `setupTabs()` | Alterna abas Perfil/Personalização/Segurança | `configuracoes.js` | ✅ `configuracoes.js` |
+| `carregarPerfil(user)` | Preenche campos de perfil (Auth + Firestore), aplica tema salvo | `configuracoes.js` | ✅ `configuracoes.js` |
+| `salvarNome()` | updateProfile (Auth) + updateDoc (Firestore) + atualiza sidebar imediatamente | `configuracoes.js` | ✅ `configuracoes.js` |
+| `exportarCSV()` | Busca todas as transações via getDocs, gera CSV UTF-8 BOM e dispara download | `configuracoes.js` | ✅ `configuracoes.js` |
+| `renderThemeBubbles()` | Renderiza bubbles de tema em #cfgThemeBubbles | `configuracoes.js` | ✅ `configuracoes.js` |
+| `atualizarIndicadorTema()` | Atualiza dot + label do tema ativo | `configuracoes.js` | ✅ `configuracoes.js` |
+| `setupSeguranca()` [cfg] | POST /reset-senha via backend (mesmo fluxo de recuperar-senha.js); logout handlers | `configuracoes.js` | ✅ `configuracoes.js` |
 | `showSection(section)` | Alterna visibilidade entre estados visuais | `acao-auth.js`, `trocar-senha.js` | ✅ |
 | `calcStrength(pw)` [acao-auth] | ~~Local~~ → Migrado para `window.budCalcStrength` | `bud-utils.js` | ✅ `bud-utils.js` |
 | `calcStrength(pw)` [trocar-senha] | ~~Local~~ → Migrado para `window.budCalcStrength` | `bud-utils.js` | ✅ `bud-utils.js` |
@@ -119,8 +133,13 @@
 | `input → novaSenha (cadastro)` | Atualiza indicador de força (4 barras) | DOM (`cadastro.html`) ✅ |
 | `input → telefone` | Máscara BR (XX) XXXXX-XXXX | DOM (`cadastro.html`) ✅ |
 | `click → toggleNovaSenha/Confirmar` | Alterna password/text | DOM (`cadastro.html`) ✅ |
-| `click → toggle senha` | Alterna password/text no input | DOM |
-| `input → novaSenha` | Atualiza indicador de força | DOM |
+| `click → btnSalvarNome` | salvarNome(): updateProfile + updateDoc + atualiza sidebar | DOM (`configuracoes.html`) ✅ |
+| `click → btnExportarCSV` | exportarCSV(): getDocs + gera Blob CSV + dispara download | DOM (`configuracoes.html`) ✅ |
+| `click → btnResetSenha` | POST BUD_FUNCTIONS_URL/reset-senha com email do usuário logado | DOM (`configuracoes.html`) ✅ |
+| `click → btnLogout / btnLogoutSeg` | signOut + redirect index.html | DOM (`configuracoes.html`) ✅ |
+| `bud:themechange` [cfg] | updateDoc temaEscolhido + atualizarIndicadorTema | CustomEvent (`configuracoes.js`) ✅ |
+| `onAuthStateChanged (configuracoes)` | Auth guard: !user \| !emailVerified → redirect login | Firebase Auth ✅ |
+| `click → .cfg-tab-btn` | Alterna visibilidade das tab panels + active state | DOM (`configuracoes.html`) ✅ |
 | `submit → formResetSenha` | Valida senha + confirmPasswordReset(oobCode) | DOM (`acao-auth.html`) ✅ |
 | `input → novaSenha (acao-auth)` | Atualiza indicador de força (4 barras) | DOM (`acao-auth.html`) ✅ |
 | `click → toggleNovaSenha/Confirmar (acao-auth)` | Alterna password/text | DOM (`acao-auth.html`) ✅ |
@@ -154,7 +173,7 @@
 | `lgpdConsentimento` | boolean | ✅ | Consentimento LGPD |
 | `lgpdConsentimentoData` | timestamp | ✅ | serverTimestamp() |
 | `lgpdVersaoPolitica` | string | ✅ | Versão da política aceita |
-| `status` | string | ✅ | `ativo`, `inativo` |
+| `temaEscolhido` | string | ❌ | Chave do tema ativo (`padrao`, `hbo`, `azul`, `roxo`, `rosa`, `amarelo`, `verde`, `vermelho`) |
 | `funcionalidades` | object | ✅ | Feature flags |
 | `role` | string | ❌ | `admin` para administradores |
 
@@ -189,6 +208,7 @@
 | `/acao-auth` | Processar reset | `acao-auth.html` | ✅ Recebe `?oobCode=` — 4 estados visuais |
 | `/trocar-senha` | Trocar senha | `trocar-senha.html` | ✅ Guard: Auth + `primeiroLogin: true` |
 | `/dashboard` | Dashboard | `dashboard.html` | ✅ Auth guard + primeiroLogin guard + sidebar + 3 cards + trial banner |
+| `/configuracoes` | Configurações | `configuracoes.html` | ✅ Auth guard + emailVerified guard + 3 abas (Perfil, Personalização, Segurança) |
 | `/admin` | Painel admin | `admin.html` | `role: admin` |
 | `/politica-privacidade` | LGPD | `politica-privacidade.html` | Termos |
 

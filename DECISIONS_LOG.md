@@ -300,6 +300,43 @@
 
 ---
 
+### DEC-032 — Itens pendentes da tela Configurações para sprint de pré-produção
+
+- **Data**: 20/04/2026
+- **O que foi decidido**: As funcionalidades abaixo foram intencionalmente **adiadas** — não são bugs, são features planejadas. Devem ser implementadas em sprint específica antes de ir a produção.
+- **Lista de pendências** (referência: `cérebro/configuracoes.md`):
+  1. **LGPD — Excluir conta permanentemente**: `user.delete()` + deletar 14 subcoleções em batches de 500 + `localStorage.clear()` + redirect `index.html`. Só faz sentido quando todas as subcoleções existirem.
+  2. **LGPD — Exportar dados completo (XLSX)**: Exportar 14 subcoleções via SheetJS em abas separadas (não apenas `transacoes` em CSV). Hoje só `transacoes` existe.
+  3. **Reset Total**: Apaga todas as subcoleções + volta ao onboarding. Mesma dependência: todas as subcoleções precisam existir antes.
+  4. **Push Notifications (FCM)**: Ativar/desativar token FCM em `usuarios/{uid}/tokens/fcm`, guia instalação PWA no iOS. Requer `BUD_VAPID_KEY` configurado.
+  5. **Assistente WhatsApp**: Vincular/desvincular número, feature gate plano Plus. Requer bot WhatsApp ativo no Render.
+  6. **Gestão de Assinatura**: Card premium, upgrade via Mercado Pago, cancelamento. Requer endpoints MP no backend.
+- **Por que adiado**: Todas as features dependem de infraestrutura (subcoleções, MP, WhatsApp, FCM) que ainda não existe. Implementar agora geraria código que precisaria ser reescrito.
+- **Quando retomar**: Sprint de "preparação para produção", depois que as telas principais (Metas, Cartões, Dívidas, Investimentos) estiverem construídas e o modelo de dados estiver completo.
+
+---
+
+### DEC-031 — Exportação de CSV gerada client-side
+
+- **Data**: 20/04/2026
+- **O que foi decidido**: A exportação do histórico de transações para CSV é feita inteiramente no frontend (client-side), sem passar pelo backend no Render.
+- **Por quê**: O usuário já está autenticado e o SDK do Firestore já tem as transações disponíveis — enviar os dados ao backend só adicionaria latência e custo de transferência sem nenhum benefício de segurança. O arquivo CSV é gerado via `Blob` + `URL.createObjectURL` e baixado com um elemento `<a>` temporário.
+- **Detalhes técnicos**: UTF-8 BOM (`\uFEFF`) adicionado para Excel reconhecer acentos. Separador `;` (padrão PT-BR). Campos texto entre aspas duplas com escape interno. Valores negativos para despesas. Ordenação `dataCriacao desc` (mesma do dashboard). Despesas salvas sem sinal negativo no Firestore — sinal invertido só na exportação.
+- **Consequências**: Sem carga no Render. Funciona offline se os dados já estiverem em cache do SDK. Exporta **todas** as transações (sem filtro de mês), ao contrário do dashboard que mostra por mês.
+- **Quando revisar**: Se futuramente houver necessidade de relatórios mais complexos (ex: PDF, multi-usuário admin) ou filtro por período, considerar endpoint no Render.
+
+---
+
+### DEC-030 — Centralização da personalização na tela de configurações
+
+- **Data**: 20/04/2026
+- **O que foi decidido**: O seletor de temas (`#themeBubbles`) foi removido do sidebar do dashboard e centralizado na tela **Configurações > aba Personalização**. O dashboard passou a ter o link `⚙️ Configurações` no sidebar em substituição ao bloco de temas.
+- **Por quê**: Melhor organização UX — ajustes de preferências ficam num local único e previsível. O roadmap já previa essa migração. O sidebar fica mais limpo e o espaço vertical é aproveitado para futuros itens de navegação.
+- **Consequências**: Usuários trocam tema acessando Configurações. O `configuracoes.js` agora é responsável por renderizar as bubbles em `#cfgThemeBubbles` e por sincronizar `bud:themechange` com o Firestore (`usuarios/{uid}.temaEscolhido`).
+- **Quando revisar**: Se houver demanda por troca rápida de tema sem sair do dashboard (ex: widget flutuante), avaliar re-introdução de acesso rápido.
+
+---
+
 ### DEC-029 — Sidebar colapsável: design, visibilidade cross-tema e padronização de elementos
 
 - **Data**: 19/04/2026

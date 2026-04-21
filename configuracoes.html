@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="description" content="Bud Finance — Configurações">
+  <title>Configurações - Bud Finance</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+
+  <!-- Google Fonts — Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS (build estático) -->
+  <link rel="stylesheet" href="css/tailwind.css">
+
+  <!-- Theme Manager (deve vir antes do body para evitar flash de cor) -->
+  <script src="js/theme-manager.js"></script>
+
+  <style>
+    :root {
+      --bg-page: #f4f7fb;
+      --text-main: #1e293b;
+      --text-sec: #475569;
+      --card-bg: rgba(255,255,255,0.85);
+      --card-border: rgba(255,255,255,0.9);
+      --card-text: #1e293b;
+      --card-text-sec: #64748b;
+      --btn-bg: #2563eb;
+      --btn-text: #ffffff;
+      --input-bg: #f8fafc;
+      --input-border: #f1f5f9;
+      --input-focus: #3b82f6;
+      --balance-from: #4f75ff;
+      --balance-to: #375ee3;
+      --balance-text: #ffffff;
+      --balance-mini-bg: rgba(255,255,255,0.15);
+      --blob-opacity: 1;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: var(--bg-page);
+      min-height: 100vh;
+      min-height: 100dvh;
+      transition: background-color 0.35s ease;
+    }
+
+    /* ── Blobs decorativos ─────────────────────────────────────────── */
+    .blob {
+      position: fixed; border-radius: 50%; filter: blur(80px);
+      pointer-events: none; z-index: 0;
+      opacity: var(--blob-opacity);
+      transition: opacity 0.35s ease;
+    }
+    .blob-blue {
+      top: -8%; left: -5%;
+      width: 32%; height: 32%;
+      background: rgba(99,102,241,0.18);
+    }
+    .blob-cyan {
+      bottom: -5%; right: -5%;
+      width: 25%; height: 25%;
+      background: rgba(103,232,249,0.20);
+      filter: blur(100px);
+    }
+
+    /* ── Layout ────────────────────────────────────────────────────── */
+    .dash-layout {
+      display: flex;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    /* ── Sidebar ───────────────────────────────────────────────────── */
+    .sidebar {
+      width: 260px;
+      background: var(--sidebar-bg);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-right: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem 1rem;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 50;
+      transition: transform .3s ease, width .3s ease, background 0.35s ease, border-color 0.35s ease;
+      overflow: visible;
+    }
+    .sidebar-collapse-btn {
+      display: none;
+      position: absolute;
+      top: 50%;
+      right: -1rem;
+      transform: translateY(-50%);
+      width: 1rem;
+      height: 3.5rem;
+      border-radius: 0 0.5rem 0.5rem 0;
+      background: var(--btn-bg);
+      border: none;
+      color: var(--btn-text);
+      font-size: 0.6rem;
+      font-weight: 700;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      z-index: 51;
+      box-shadow: 3px 0 12px rgba(0,0,0,0.22);
+      transition: background 0.35s ease, color 0.35s ease, box-shadow 0.2s;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .sidebar-collapse-btn:hover { box-shadow: 4px 0 18px rgba(0,0,0,0.32); opacity: 0.92; }
+    .sidebar.collapsed {
+      width: 64px;
+      padding-left: 0.75rem;
+      padding-right: 0.75rem;
+      align-items: center;
+    }
+    .sidebar.collapsed .sidebar-logo { justify-content: center; padding: 0 0 0.625rem; gap: 0; }
+    .sidebar.collapsed .sidebar-logo-text { opacity: 0; width: 0; overflow: hidden; white-space: nowrap; transition: opacity .25s, width .25s; }
+    .sidebar.collapsed .sidebar-link { justify-content: center; padding: 0; height: 2.5rem; width: 2.5rem; gap: 0; }
+    .sidebar.collapsed .sidebar-link-text { opacity: 0; width: 0; overflow: hidden; white-space: nowrap; transition: opacity .25s, width .25s; }
+    .sidebar.collapsed .sidebar-user-info { opacity: 0; width: 0; overflow: hidden; white-space: nowrap; }
+    .sidebar.collapsed .sidebar-user { justify-content: center; padding: 0; height: 2.5rem; width: 2.5rem; gap: 0; background: transparent; }
+    .sidebar-logo {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0 0.5rem 1.25rem; margin-bottom: 0.5rem;
+      border-bottom: 1px solid var(--card-border);
+      transition: border-color 0.35s ease;
+    }
+    .sidebar-logo img {
+      width: 2.25rem; height: 2.25rem; object-fit: contain;
+      background: rgba(255,255,255,0.92);
+      border-radius: 0.5rem;
+      padding: 0.15rem;
+      flex-shrink: 0;
+    }
+    .sidebar-logo span {
+      font-size: 1.125rem; font-weight: 800; color: var(--text-main);
+      letter-spacing: -0.025em; overflow: hidden; white-space: nowrap;
+      transition: color 0.35s ease, opacity .25s, width .25s;
+    }
+    .sidebar-link-text { overflow: hidden; white-space: nowrap; transition: opacity .25s, width .25s; }
+    .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.75rem; }
+    .sidebar-link {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.75rem; border-radius: 0.75rem;
+      font-size: 0.875rem; font-weight: 600; color: var(--text-sec);
+      text-decoration: none; transition: all .2s, color 0.35s ease;
+      cursor: pointer; border: none; background: none; width: 100%;
+      font-family: inherit;
+    }
+    .sidebar-link:hover { background: var(--sidebar-link-hover-bg); color: var(--sidebar-link-hover-color); }
+    .sidebar-link.active { background: var(--sidebar-link-active-bg); color: var(--sidebar-link-active-color); }
+    .sidebar-link-icon { font-size: 1.125rem; width: 1.5rem; text-align: center; }
+    .sidebar-user {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.75rem; border-radius: 0.75rem;
+      background: var(--sidebar-user-bg);
+      transition: background 0.35s ease;
+    }
+    .sidebar-avatar {
+      width: 2.25rem; height: 2.25rem; border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 800; font-size: 0.8rem;
+      flex-shrink: 0;
+    }
+    .sidebar-user-info { overflow: hidden; transition: opacity .25s, width .25s; }
+    .sidebar-user-name {
+      font-size: 0.8125rem; font-weight: 700; color: var(--text-main);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      transition: color 0.35s ease;
+    }
+    .sidebar-user-id {
+      font-size: 0.6875rem; font-weight: 500; color: var(--text-sec);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      transition: color 0.35s ease;
+    }
+
+    /* ── Main ──────────────────────────────────────────────────────── */
+    .dash-main {
+      flex: 1;
+      margin-left: 260px;
+      padding: 1.5rem;
+      position: relative;
+      z-index: 1;
+      transition: margin-left .3s ease;
+    }
+    .dash-main.sidebar-collapsed { margin-left: 64px; }
+
+    /* ── Header ────────────────────────────────────────────────────── */
+    .dash-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+    .dash-welcome h1 {
+      font-size: 1.5rem; font-weight: 800; color: var(--text-main);
+      letter-spacing: -0.025em;
+      transition: color 0.35s ease;
+    }
+    .dash-welcome p {
+      font-size: 0.8125rem; font-weight: 500; color: var(--text-sec);
+      margin-top: 0.125rem;
+      transition: color 0.35s ease;
+    }
+
+    /* ── Hamburger (mobile only) ───────────────────────────────────── */
+    .hamburger-btn {
+      display: none;
+      width: 2.5rem; height: 2.5rem; border-radius: 0.75rem;
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      align-items: center; justify-content: center;
+      font-size: 1.25rem; cursor: pointer; color: var(--card-text);
+      z-index: 60;
+      transition: background 0.35s ease, border-color 0.35s ease, color 0.35s ease;
+    }
+    .sidebar-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.3); z-index: 40;
+    }
+
+    /* ── Abas (Tabs) ───────────────────────────────────────────────── */
+    .cfg-tabs {
+      display: flex; gap: 0.25rem;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 1rem;
+      padding: 0.375rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 20px -5px rgba(0,0,0,0.06);
+      transition: background 0.35s ease, border-color 0.35s ease;
+    }
+    .cfg-tab-btn {
+      flex: 1; padding: 0.5rem 0.75rem;
+      border: none; border-radius: 0.625rem;
+      font-size: 0.8125rem; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+      transition: background .15s, color .15s;
+      background: transparent; color: var(--card-text-sec);
+    }
+    .cfg-tab-btn.active {
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+    .cfg-tab-btn:not(.active):hover {
+      background: rgba(0,0,0,0.04);
+      color: var(--card-text);
+    }
+
+    /* ── Cards de configuração ─────────────────────────────────────── */
+    .cfg-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 1.25rem;
+      padding: 1.5rem;
+      box-shadow: 0 4px 20px -5px rgba(0,0,0,0.06);
+      margin-bottom: 1rem;
+      transition: background 0.35s ease, border-color 0.35s ease;
+    }
+    .cfg-card-title {
+      font-size: 0.75rem; font-weight: 800; color: var(--card-text-sec);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 1rem;
+      transition: color 0.35s ease;
+    }
+
+    /* ── Campo de leitura ──────────────────────────────────────────── */
+    .cfg-field { margin-bottom: 1rem; }
+    .cfg-field:last-child { margin-bottom: 0; }
+    .cfg-label {
+      font-size: 0.6875rem; font-weight: 700; color: var(--card-text-sec);
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin-bottom: 0.375rem;
+      transition: color 0.35s ease;
+    }
+    .cfg-value {
+      width: 100%; padding: 0.625rem 0.875rem;
+      border: 1.5px solid var(--input-border); border-radius: 0.75rem;
+      font-size: 0.875rem; font-weight: 600; color: var(--card-text);
+      background: var(--input-bg); font-family: inherit;
+      box-sizing: border-box; cursor: default;
+      transition: border-color 0.35s ease, background 0.35s ease, color 0.35s ease;
+    }
+    .cfg-value.muted { color: var(--card-text-sec); }
+
+    /* ── Botão de ação ─────────────────────────────────────────────── */
+    .cfg-action-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.875rem 0;
+      border-bottom: 1px solid var(--input-border);
+      transition: border-color 0.35s ease;
+    }
+    .cfg-action-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .cfg-action-row:first-child { padding-top: 0; }
+    .cfg-action-info { flex: 1; min-width: 0; }
+    .cfg-action-label {
+      font-size: 0.875rem; font-weight: 700; color: var(--card-text);
+      transition: color 0.35s ease;
+    }
+    .cfg-action-desc {
+      font-size: 0.75rem; font-weight: 500; color: var(--card-text-sec);
+      margin-top: 0.125rem;
+      transition: color 0.35s ease;
+    }
+    .cfg-btn {
+      padding: 0.5rem 1rem;
+      border-radius: 0.625rem;
+      font-size: 0.8125rem; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      border: none;
+      transition: opacity .15s, transform .15s;
+      flex-shrink: 0; margin-left: 1rem;
+    }
+    .cfg-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+    .cfg-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .cfg-btn-primary { background: var(--btn-bg); color: var(--btn-text); }
+    .cfg-btn-danger  { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+
+    /* ── Personalização — tema bubbles ────────────────────────────── */
+    .cfg-theme-desc {
+      font-size: 0.8125rem; font-weight: 500; color: var(--card-text-sec);
+      margin-bottom: 1rem;
+      transition: color 0.35s ease;
+    }
+    #cfgThemeBubbles {
+      display: flex; gap: 0.625rem; flex-wrap: wrap;
+    }
+    .cfg-theme-bubble-wrap {
+      display: flex; flex-direction: column; align-items: center; gap: 0.375rem;
+    }
+    .cfg-theme-label-text {
+      font-size: 0.625rem; font-weight: 700;
+      color: var(--text-sec);
+      text-align: center;
+      white-space: nowrap;
+      transition: color 0.35s ease;
+    }
+
+    /* ── Seleção ativa — indicador de tema atual ───────────────────── */
+    .cfg-active-theme {
+      margin-top: 1rem; padding: 0.625rem 0.875rem;
+      background: var(--input-bg); border: 1.5px solid var(--input-border);
+      border-radius: 0.75rem;
+      font-size: 0.8125rem; font-weight: 600; color: var(--card-text);
+      display: flex; align-items: center; gap: 0.5rem;
+      transition: background 0.35s ease, border-color 0.35s ease, color 0.35s ease;
+    }
+    .cfg-active-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    /* ── Responsive ────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar.collapsed {
+        width: 260px;
+        padding-left: 1rem;
+        padding-right: 1rem;
+        align-items: flex-start;
+      }
+      .sidebar-overlay.open { display: block; }
+      .dash-main { margin-left: 0 !important; padding: 1rem; }
+      .hamburger-btn { display: flex; }
+      .sidebar-collapse-btn { display: none !important; }
+      .cfg-tabs { flex-wrap: wrap; }
+      .cfg-tab-btn { flex: 1 1 auto; }
+    }
+    @media (min-width: 769px) {
+      .sidebar-collapse-btn { display: flex; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ Blobs decorativos ════════════════════════════════════════ -->
+  <div class="blob blob-blue" aria-hidden="true"></div>
+  <div class="blob blob-cyan" aria-hidden="true"></div>
+
+  <!-- ═══ Overlay sidebar mobile ═══════════════════════════════════ -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- ═══ Layout ═══════════════════════════════════════════════════ -->
+  <div class="dash-layout">
+
+    <!-- ─── Sidebar ──────────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+      <!-- Botão toggle desktop -->
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar" title="Recolher sidebar">‹</button>
+
+      <div class="sidebar-logo">
+        <img src="logo.png" alt="Bud Finance">
+        <span class="sidebar-logo-text">Bud Finance</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="sidebar-link">
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
+        </a>
+        <a href="configuracoes.html" class="sidebar-link active">
+          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
+        </a>
+      </nav>
+
+      <!-- User info -->
+      <div class="sidebar-user" style="margin-top:auto;">
+        <div class="sidebar-avatar" id="sidebarAvatar">?</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebarUserName">Carregando...</div>
+          <div class="sidebar-user-id" id="sidebarUserId">---</div>
+        </div>
+      </div>
+
+      <!-- Logout -->
+      <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
+      </button>
+    </aside>
+
+    <!-- ─── Main Content ─────────────────────────────────────────── -->
+    <main class="dash-main" id="dashMain">
+
+      <!-- Header -->
+      <div class="dash-header">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
+          <div class="dash-welcome">
+            <h1>Configurações</h1>
+            <p id="welcomeDate">—</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Abas -->
+      <div class="cfg-tabs" role="tablist">
+        <button class="cfg-tab-btn active" id="tabBtnPerfil" role="tab" aria-selected="true"  aria-controls="tabPerfil"       data-tab="perfil">👤 Perfil</button>
+        <button class="cfg-tab-btn"        id="tabBtnPersonalizacao" role="tab" aria-selected="false" aria-controls="tabPersonalizacao" data-tab="personalizacao">🎨 Personalização</button>
+        <button class="cfg-tab-btn"        id="tabBtnSeguranca" role="tab" aria-selected="false" aria-controls="tabSeguranca"    data-tab="seguranca">🔒 Segurança</button>
+      </div>
+
+      <!-- ── Tab: Perfil ────────────────────────────────────────── -->
+      <div id="tabPerfil" role="tabpanel">
+
+        <div class="cfg-card">
+          <div class="cfg-card-title">Informações da Conta</div>
+
+          <div class="cfg-field">
+            <div class="cfg-label">Nome</div>
+            <input class="cfg-value" type="text" id="perfilNome" placeholder="Seu nome" maxlength="80" autocomplete="name">
+          </div>
+
+          <div class="cfg-field">
+            <div class="cfg-label">E-mail</div>
+            <div class="cfg-value muted" id="perfilEmail">—</div>
+          </div>
+
+          <div class="cfg-field">
+            <div class="cfg-label">Matrícula</div>
+            <div class="cfg-value muted" id="perfilMatricula">—</div>
+          </div>
+
+          <div class="cfg-field">
+            <div class="cfg-label">Membro desde</div>
+            <div class="cfg-value muted" id="perfilCriacao">—</div>
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;margin-top:0.25rem;">
+            <button class="cfg-btn cfg-btn-primary" id="btnSalvarNome">Salvar Alterações</button>
+          </div>
+        </div>
+
+        <div class="cfg-card">
+          <div class="cfg-card-title">Dados</div>
+          <div class="cfg-action-row">
+            <div class="cfg-action-info">
+              <div class="cfg-action-label">Exportar Histórico</div>
+              <div class="cfg-action-desc">Baixa todas as suas transações em formato CSV</div>
+            </div>
+            <button class="cfg-btn cfg-btn-primary" id="btnExportarCSV">Exportar CSV</button>
+          </div>
+        </div>
+
+        <div class="cfg-card">
+          <div class="cfg-card-title">Plano</div>
+          <div class="cfg-action-row">
+            <div class="cfg-action-info">
+              <div class="cfg-action-label" id="planoNome">Gratuito</div>
+              <div class="cfg-action-desc" id='planoDesc'>Plano atual da sua conta</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Tab: Personalização ───────────────────────────────── -->
+      <div id="tabPersonalizacao" role="tabpanel" style="display:none;">
+
+        <div class="cfg-card">
+          <div class="cfg-card-title">Tema do App</div>
+          <p class="cfg-theme-desc">Escolha a cor que mais combina com você. A preferência é salva automaticamente.</p>
+
+          <div id="cfgThemeBubbles"></div>
+
+          <div class="cfg-active-theme" id="cfgActiveTheme">
+            <span class="cfg-active-dot" id="cfgActiveDot"></span>
+            <span id="cfgActiveLabel">—</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── Tab: Segurança ────────────────────────────────────── -->
+      <div id="tabSeguranca" role="tabpanel" style="display:none;">
+
+        <div class="cfg-card">
+          <div class="cfg-card-title">Acesso à Conta</div>
+
+          <div class="cfg-action-row">
+            <div class="cfg-action-info">
+              <div class="cfg-action-label">Redefinir Senha</div>
+              <div class="cfg-action-desc">Enviaremos um link de redefinição para o seu e-mail</div>
+            </div>
+            <button class="cfg-btn cfg-btn-primary" id="btnResetSenha">Enviar link</button>
+          </div>
+
+          <div class="cfg-action-row">
+            <div class="cfg-action-info">
+              <div class="cfg-action-label">Sair da Conta</div>
+              <div class="cfg-action-desc">Encerra a sessão neste dispositivo</div>
+            </div>
+            <button class="cfg-btn cfg-btn-danger" id="btnLogoutSeg">Sair</button>
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ═══ Firebase + Config ════════════════════════════════════════ -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/bud-utils.js"></script>
+  <script type="module" src="js/configuracoes.js"></script>
+</body>
+</html>
