@@ -1338,7 +1338,7 @@ async function processarOFXLocal(file) {
 
 // ─── Envio para backend (PDF / Imagem) ───────────────────────────────────────
 
-const BUD_BACKEND_URL = 'https://nexo-backend-4kmu.onrender.com';
+const BUD_BACKEND_URL = 'https://bud-finance-backend.onrender.com';
 
 async function enviarParaIA() {
   const input = document.getElementById('inputArquivoIA');

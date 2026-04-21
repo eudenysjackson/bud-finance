@@ -367,7 +367,7 @@
 | **Firestore** | Banco de dados | `https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js` | Dados de usuário, chamados |
 | **EmailJS** | Envio de emails | `https://api.emailjs.com/api/v1.6/email/send` | Reset de senha (via backend), boas-vindas |
 | **Backend (Render)** | Express API | `BUD_FUNCTIONS_URL + /reset-senha` | Gera link + envia email de reset server-side |
-| **Backend (Render)** | Express API | `https://nexo-backend-4kmu.onrender.com/api/extrair-fatura` | POST multipart/form-data (campo `arquivo`). Extrai transações de PDF via pdf-parse+regex ou via Gemini 1.5 Flash (fallback). Retorna `[{desc, valor, data}]`. Deps: multer, pdf-parse. Requer `GEMINI_API_KEY` no Render para imagens. |
+| **Backend (Render)** | Express API | `https://bud-finance-backend.onrender.com/api/extrair-fatura` | POST multipart/form-data (campo `arquivo`). Extrai transações de PDF via pdf-parse+regex ou via Gemini 1.5 Flash (fallback). Retorna `[{desc, valor, data}]`. Deps: multer, pdf-parse. Requer `GEMINI_API_KEY` no Render para imagens. |
 | **Google Fonts** | Tipografia | `fonts.googleapis.com` (Inter) | Todas as páginas |
 
 ---
