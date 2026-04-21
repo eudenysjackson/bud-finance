@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="description" content="Bud Finance — Metas Financeiras">
+  <title>Metas - Bud Finance</title>
+
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/tailwind.css">
+
+  <!-- Theme Manager — deve vir antes do body para evitar flash -->
+  <script src="js/theme-manager.js"></script>
+
+  <style>
+    :root {
+      --bg-page: #f4f7fb;
+      --text-main: #1e293b;
+      --text-sec: #475569;
+      --card-bg: rgba(255,255,255,0.85);
+      --card-border: rgba(255,255,255,0.9);
+      --card-text: #1e293b;
+      --card-text-sec: #64748b;
+      --btn-bg: #2563eb;
+      --btn-text: #ffffff;
+      --input-bg: #f8fafc;
+      --input-border: #f1f5f9;
+      --input-focus: #3b82f6;
+      --blob-opacity: 1;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: var(--bg-page);
+      min-height: 100vh; min-height: 100dvh;
+      transition: background-color 0.35s ease;
+    }
+
+    /* ── Blobs ──────────────────────────────────────────────────── */
+    .blob {
+      position: fixed; border-radius: 50%; filter: blur(80px);
+      pointer-events: none; z-index: 0;
+      opacity: var(--blob-opacity); transition: opacity 0.35s ease;
+    }
+    .blob-blue  { top:-8%; left:-5%; width:32%; height:32%; background:rgba(99,102,241,0.18); }
+    .blob-cyan  { bottom:-5%; right:-5%; width:25%; height:25%; background:rgba(103,232,249,0.20); filter:blur(100px); }
+
+    /* ── Layout ─────────────────────────────────────────────────── */
+    .dash-layout { display:flex; min-height:100vh; min-height:100dvh; }
+
+    /* ── Sidebar ────────────────────────────────────────────────── */
+    .sidebar {
+      width:260px; background:var(--sidebar-bg);
+      backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+      border-right:1px solid var(--card-border);
+      display:flex; flex-direction:column; padding:1.5rem 1rem;
+      position:fixed; top:0; left:0; bottom:0; z-index:50;
+      transition:transform .3s ease,width .3s ease,background 0.35s ease,border-color 0.35s ease;
+      overflow:visible;
+    }
+    .sidebar-collapse-btn {
+      display:none; position:absolute; top:50%; right:-1rem; transform:translateY(-50%);
+      width:1rem; height:3.5rem; border-radius:0 0.5rem 0.5rem 0;
+      background:var(--btn-bg); border:none; color:var(--btn-text);
+      font-size:0.6rem; font-weight:700; cursor:pointer;
+      align-items:center; justify-content:center; z-index:51;
+      box-shadow:3px 0 12px rgba(0,0,0,0.22);
+      transition:background 0.35s ease,color 0.35s ease,box-shadow 0.2s;
+      flex-shrink:0; line-height:1;
+    }
+    .sidebar-collapse-btn:hover { box-shadow:4px 0 18px rgba(0,0,0,0.32); opacity:0.92; }
+    .sidebar.collapsed { width:64px; padding-left:0.75rem; padding-right:0.75rem; align-items:center; }
+    .sidebar.collapsed .sidebar-logo { justify-content:center; padding:0 0 0.625rem; gap:0; }
+    .sidebar.collapsed .sidebar-logo-text { opacity:0; width:0; overflow:hidden; white-space:nowrap; transition:opacity .25s,width .25s; }
+    .sidebar.collapsed .sidebar-link { justify-content:center; padding:0; height:2.5rem; width:2.5rem; gap:0; }
+    .sidebar.collapsed .sidebar-link-text { opacity:0; width:0; overflow:hidden; white-space:nowrap; transition:opacity .25s,width .25s; }
+    .sidebar.collapsed .sidebar-user-info { opacity:0; width:0; overflow:hidden; white-space:nowrap; }
+    .sidebar.collapsed .sidebar-user { justify-content:center; padding:0; height:2.5rem; width:2.5rem; gap:0; background:transparent; }
+    .sidebar-logo {
+      display:flex; align-items:center; gap:0.75rem;
+      padding:0 0.5rem 1.25rem; margin-bottom:0.5rem;
+      border-bottom:1px solid var(--card-border); transition:border-color 0.35s ease;
+    }
+    .sidebar-logo img {
+      width:2.25rem; height:2.25rem; object-fit:contain;
+      background:rgba(255,255,255,0.92); border-radius:0.5rem; padding:0.15rem; flex-shrink:0;
+    }
+    .sidebar-logo span {
+      font-size:1.125rem; font-weight:800; color:var(--text-main);
+      letter-spacing:-0.025em; overflow:hidden; white-space:nowrap;
+      transition:color 0.35s ease,opacity .25s,width .25s;
+    }
+    .sidebar-link-text { overflow:hidden; white-space:nowrap; transition:opacity .25s,width .25s; }
+    .sidebar-nav { flex:1; display:flex; flex-direction:column; gap:0.25rem; margin-top:0.75rem; }
+    .sidebar-link {
+      display:flex; align-items:center; gap:0.75rem;
+      padding:0.75rem; border-radius:0.75rem;
+      font-size:0.875rem; font-weight:600; color:var(--text-sec);
+      text-decoration:none; transition:all .2s,color 0.35s ease;
+      cursor:pointer; border:none; background:none; width:100%; font-family:inherit;
+    }
+    .sidebar-link:hover { background:var(--sidebar-link-hover-bg); color:var(--sidebar-link-hover-color); }
+    .sidebar-link.active { background:var(--sidebar-link-active-bg); color:var(--sidebar-link-active-color); }
+    .sidebar-link-icon { font-size:1.125rem; width:1.5rem; text-align:center; }
+    .sidebar-user {
+      display:flex; align-items:center; gap:0.75rem; padding:0.75rem; border-radius:0.75rem;
+      background:var(--sidebar-user-bg); transition:background 0.35s ease;
+    }
+    .sidebar-avatar {
+      width:2.25rem; height:2.25rem; border-radius:50%;
+      background:linear-gradient(135deg,#3b82f6,#2563eb);
+      display:flex; align-items:center; justify-content:center;
+      color:#fff; font-weight:800; font-size:0.8rem; flex-shrink:0;
+    }
+    .sidebar-user-info { overflow:hidden; transition:opacity .25s,width .25s; }
+    .sidebar-user-name {
+      font-size:0.8125rem; font-weight:700; color:var(--text-main);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color 0.35s ease;
+    }
+    .sidebar-user-id {
+      font-size:0.6875rem; font-weight:500; color:var(--text-sec);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color 0.35s ease;
+    }
+
+    /* ── Main ───────────────────────────────────────────────────── */
+    .dash-main { flex:1; margin-left:260px; padding:1.5rem; position:relative; z-index:1; transition:margin-left .3s ease; }
+    .dash-main.sidebar-collapsed { margin-left:64px; }
+    .dash-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; }
+    .dash-welcome h1 { font-size:1.5rem; font-weight:800; color:var(--text-main); letter-spacing:-0.025em; transition:color 0.35s ease; }
+    .dash-welcome p { font-size:0.8125rem; font-weight:500; color:var(--text-sec); margin-top:0.125rem; transition:color 0.35s ease; }
+
+    /* ── Hamburger ──────────────────────────────────────────────── */
+    .hamburger-btn {
+      display:none; width:2.5rem; height:2.5rem; border-radius:0.75rem;
+      background:var(--card-bg); backdrop-filter:blur(12px);
+      border:1px solid var(--card-border);
+      align-items:center; justify-content:center;
+      font-size:1.25rem; cursor:pointer; color:var(--card-text); z-index:60;
+      transition:background 0.35s ease,border-color 0.35s ease,color 0.35s ease;
+    }
+    .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:40; }
+
+    /* ── Cards de resumo ────────────────────────────────────────── */
+    .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
+    .summary-card {
+      background:var(--card-bg); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+      border:1px solid var(--card-border); border-radius:1.25rem; padding:1.25rem;
+      box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);
+      transition:background 0.35s ease,border-color 0.35s ease;
+    }
+    .summary-card-label {
+      font-size:0.6875rem; font-weight:700; color:var(--card-text-sec);
+      text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.375rem;
+      transition:color 0.35s ease;
+    }
+    .summary-card-value {
+      font-size:1.375rem; font-weight:800; color:var(--card-text);
+      letter-spacing:-0.025em; transition:color 0.35s ease;
+    }
+    .summary-card-sub {
+      font-size:0.6875rem; font-weight:500; color:var(--card-text-sec);
+      margin-top:0.25rem; transition:color 0.35s ease;
+    }
+
+    /* ── Grid de metas ──────────────────────────────────────────── */
+    .metas-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:1.25rem; }
+
+    /* ── Card de meta ───────────────────────────────────────────── */
+    .meta-card {
+      background:var(--card-bg); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+      border:1px solid var(--card-border); border-radius:1.5rem; padding:1.5rem;
+      box-shadow:0 4px 24px -6px rgba(0,0,0,0.08);
+      transition:background 0.35s ease,border-color 0.35s ease,transform .2s,box-shadow .2s;
+      display:flex; flex-direction:column; gap:1rem;
+    }
+    .meta-card:hover { transform:translateY(-2px); box-shadow:0 8px 32px -8px rgba(0,0,0,0.12); }
+    .meta-card-header { display:flex; align-items:flex-start; justify-content:space-between; gap:0.75rem; }
+    .meta-card-icon { font-size:2rem; line-height:1; flex-shrink:0; }
+    .meta-card-title { font-size:1rem; font-weight:700; color:var(--card-text); line-height:1.3; transition:color 0.35s ease; }
+    .meta-card-actions { display:flex; gap:0.375rem; flex-shrink:0; }
+    .meta-icon-btn {
+      width:2rem; height:2rem; border-radius:0.5rem; border:none; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; font-size:0.875rem;
+      background:rgba(0,0,0,0.04); color:var(--card-text-sec);
+      transition:background .15s,color .15s;
+    }
+    .meta-icon-btn:hover { background:rgba(0,0,0,0.08); }
+    .meta-icon-btn.danger:hover { background:#fef2f2; color:#dc2626; }
+
+    /* ── Barra de progresso ─────────────────────────────────────── */
+    .meta-progress-wrap { display:flex; flex-direction:column; gap:0.5rem; }
+    .meta-progress-bar-bg {
+      width:100%; height:0.625rem; border-radius:999px;
+      background:rgba(0,0,0,0.06); overflow:hidden;
+      transition:background 0.35s ease;
+    }
+    .meta-progress-bar {
+      height:100%; border-radius:999px;
+      background:linear-gradient(90deg,#3b82f6,#06b6d4);
+      transition:width .5s cubic-bezier(.4,0,.2,1),background .5s;
+    }
+    .meta-progress-bar.done { background:linear-gradient(90deg,#10b981,#059669); }
+    .meta-progress-labels { display:flex; justify-content:space-between; align-items:center; }
+    .meta-progress-pct { font-size:0.75rem; font-weight:800; color:var(--card-text); transition:color 0.35s ease; }
+    .meta-progress-vals { font-size:0.75rem; font-weight:500; color:var(--card-text-sec); transition:color 0.35s ease; }
+
+    /* ── Badge de gamificação ───────────────────────────────────── */
+    .meta-badge {
+      display:inline-flex; align-items:center; gap:0.25rem;
+      padding:0.25rem 0.625rem; border-radius:999px;
+      font-size:0.6875rem; font-weight:700;
+    }
+
+    /* ── Prazo e aporte sugerido ───────────────────────────────── */
+    .meta-deadline { font-size:0.75rem; font-weight:500; color:var(--card-text-sec); transition:color 0.35s ease; }
+    .meta-sugestao {
+      background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.25);
+      border-radius:0.75rem; padding:0.625rem 0.875rem;
+      font-size:0.75rem; font-weight:600; color:var(--card-text);
+    }
+
+    /* ── Botão aportar ──────────────────────────────────────────── */
+    .btn-aportar {
+      width:100%; padding:0.625rem; border-radius:0.75rem;
+      border:2px dashed var(--input-focus); background:transparent;
+      font-size:0.8125rem; font-weight:700; color:var(--input-focus);
+      cursor:pointer; font-family:inherit;
+      transition:background .15s,border-color .15s;
+    }
+    .btn-aportar:hover { background:var(--sidebar-link-hover-bg); border-color:var(--input-focus); }
+
+    /* ── Estado vazio ───────────────────────────────────────────── */
+    .metas-empty {
+      text-align:center; padding:4rem 2rem;
+      background:var(--card-bg); backdrop-filter:blur(16px);
+      border:1px solid var(--card-border); border-radius:1.5rem;
+      transition:background 0.35s ease,border-color 0.35s ease;
+    }
+    .metas-empty-icon { font-size:3rem; margin-bottom:1rem; }
+    .metas-empty-title { font-size:1.125rem; font-weight:700; color:var(--card-text); margin-bottom:0.5rem; transition:color 0.35s ease; }
+    .metas-empty-sub { font-size:0.875rem; font-weight:500; color:var(--card-text-sec); transition:color 0.35s ease; }
+
+    /* ── Modal base ─────────────────────────────────────────────── */
+    .modal-overlay {
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,0.45); backdrop-filter:blur(4px);
+      z-index:70; align-items:center; justify-content:center; padding:1rem;
+    }
+    .modal-overlay.open { display:flex; }
+    .modal-box {
+      background:var(--card-bg); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+      border:1px solid var(--card-border); border-radius:1.5rem; padding:1.75rem;
+      width:100%; max-width:480px; max-height:90vh; overflow-y:auto;
+      box-shadow:0 20px 60px -10px rgba(0,0,0,0.2);
+      transition:background 0.35s ease,border-color 0.35s ease;
+    }
+    .modal-box::-webkit-scrollbar { width:5px; }
+    .modal-box::-webkit-scrollbar-track { background:transparent; margin-top:1.5rem; margin-bottom:1.5rem; }
+    .modal-box::-webkit-scrollbar-thumb { background:var(--input-border); border-radius:999px; }
+    .modal-box::-webkit-scrollbar-thumb:hover { background:var(--card-text-sec); }
+    .emoji-grid::-webkit-scrollbar { width:4px; }
+    .emoji-grid::-webkit-scrollbar-track { background:transparent; }
+    .emoji-grid::-webkit-scrollbar-thumb { background:var(--input-border); border-radius:999px; }
+    .modal-title {
+      font-size:1.125rem; font-weight:800; color:var(--card-text);
+      letter-spacing:-0.02em; margin-bottom:1.25rem; transition:color 0.35s ease;
+    }
+    .modal-close {
+      float:right; border:none; background:none; cursor:pointer;
+      font-size:1.25rem; color:var(--card-text-sec); padding:0; margin-top:-0.125rem;
+      transition:color 0.35s ease;
+    }
+
+    /* ── Campos do modal ───────────────────────────────────────── */
+    .modal-field { margin-bottom:1rem; }
+    .modal-field:last-child { margin-bottom:0; }
+    .modal-label {
+      display:block; font-size:0.6875rem; font-weight:700; color:var(--card-text-sec);
+      text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.375rem;
+      transition:color 0.35s ease;
+    }
+    .modal-input {
+      width:100%; padding:0.625rem 0.875rem;
+      border:1.5px solid var(--input-border); border-radius:0.75rem;
+      font-size:0.875rem; font-weight:600; color:var(--card-text);
+      background:var(--input-bg); font-family:inherit; outline:none;
+      transition:border-color .15s,background 0.35s ease,color 0.35s ease;
+    }
+    .modal-input:focus { border-color:var(--input-focus); }
+    .modal-input:disabled { opacity:0.55; cursor:not-allowed; }
+
+    /* ── Sugestões populares ────────────────────────────────────── */
+    .sugestoes-grid { display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem; }
+    .sugestao-chip {
+      padding:0.375rem 0.75rem; border-radius:999px;
+      border:1.5px solid var(--input-border);
+      font-size:0.75rem; font-weight:600; color:var(--card-text-sec);
+      background:var(--input-bg); cursor:pointer; font-family:inherit;
+      transition:all .15s;
+    }
+    .sugestao-chip:hover,.sugestao-chip.selected { border-color:var(--btn-bg); color:var(--btn-bg); background:rgba(37,99,235,0.06); }
+
+    /* ── Emoji picker ───────────────────────────────────────────── */
+    .emoji-grid {
+      display:grid; grid-template-columns:repeat(8,1fr); gap:0.375rem;
+      max-height:160px; overflow-y:auto; padding:0.5rem;
+      background:var(--input-bg); border:1.5px solid var(--input-border);
+      border-radius:0.75rem;
+    }
+    .emoji-btn {
+      width:100%; aspect-ratio:1; border:none; background:none;
+      font-size:1.25rem; cursor:pointer; border-radius:0.375rem;
+      display:flex; align-items:center; justify-content:center;
+      transition:background .1s;
+    }
+    .emoji-btn:hover { background:rgba(0,0,0,0.06); }
+    .emoji-btn.selected { background:rgba(37,99,235,0.15); outline:2px solid var(--input-focus); outline-offset:1px; }
+
+    /* ── Custom select ──────────────────────────────────────────── */
+    .custom-select-wrap { position:relative; }
+    .custom-select-trigger {
+      width:100%; padding:0.625rem 2.5rem 0.625rem 0.875rem;
+      border:1.5px solid var(--input-border); border-radius:0.75rem;
+      font-size:0.875rem; font-weight:600; color:var(--card-text);
+      background:var(--input-bg); cursor:pointer; font-family:inherit;
+      text-align:left; display:flex; align-items:center; justify-content:space-between;
+      transition:border-color .15s,background 0.35s ease,color 0.35s ease;
+      outline:none;
+    }
+    .custom-select-trigger:focus,.custom-select-trigger.open { border-color:var(--input-focus); }
+    .custom-select-arrow { font-size:0.625rem; color:var(--card-text-sec); pointer-events:none; transition:transform .15s; }
+    .custom-select-trigger.open .custom-select-arrow { transform:rotate(180deg); }
+    .custom-select-dropdown {
+      display:none; position:absolute; left:0; right:0;
+      top:calc(100% + 4px); z-index:80;
+      background:var(--card-bg); backdrop-filter:blur(20px);
+      border:1.5px solid var(--card-border); border-radius:0.75rem;
+      box-shadow:0 8px 32px -4px rgba(0,0,0,0.14);
+      max-height:220px; overflow-y:auto;
+      transition:background 0.35s ease,border-color 0.35s ease;
+    }
+    .custom-select-dropdown.open { display:block; }
+    .custom-select-option {
+      padding:0.625rem 0.875rem; cursor:pointer;
+      font-size:0.875rem; font-weight:600; color:var(--card-text);
+      transition:background .1s;
+    }
+    .custom-select-option:hover,.custom-select-option.selected { background:var(--sidebar-link-hover-bg); color:var(--btn-bg); }
+    .custom-select-option:first-child { border-radius:0.625rem 0.625rem 0 0; }
+    .custom-select-option:last-child  { border-radius:0 0 0.625rem 0.625rem; }
+    .custom-select-sep { padding:0.25rem 0.875rem; font-size:0.6875rem; font-weight:700; color:var(--card-text-sec); opacity:0.6; }
+
+    /* ── Custom datepicker ──────────────────────────────────────── */
+    .dp-trigger {
+      width:100%; padding:0.625rem 0.875rem;
+      border:1.5px solid var(--input-border); border-radius:0.75rem;
+      font-size:0.875rem; font-weight:600; color:var(--card-text);
+      background:var(--input-bg); cursor:pointer; font-family:inherit;
+      text-align:left; display:flex; align-items:center; justify-content:space-between;
+      transition:border-color .15s,background 0.35s ease,color 0.35s ease;
+      outline:none;
+    }
+    .dp-trigger:focus,.dp-trigger.open { border-color:var(--input-focus); }
+    .dp-calendar {
+      display:none; position:absolute; z-index:80;
+      background:var(--card-bg); backdrop-filter:blur(20px);
+      border:1.5px solid var(--card-border); border-radius:0.875rem;
+      padding:0.875rem; box-shadow:0 8px 32px -4px rgba(0,0,0,0.14);
+      width:280px;
+      transition:background 0.35s ease,border-color 0.35s ease;
+    }
+    .dp-calendar.open { display:block; }
+    .dp-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:0.75rem; }
+    .dp-nav-btn { border:none; background:none; cursor:pointer; font-size:1.125rem; padding:0.25rem 0.5rem; border-radius:0.375rem; color:var(--card-text); transition:background .1s; }
+    .dp-nav-btn:hover { background:rgba(0,0,0,0.06); }
+    .dp-month-label { font-size:0.875rem; font-weight:700; color:var(--card-text); }
+    .dp-weekdays { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:4px; }
+    .dp-weekday { text-align:center; font-size:0.625rem; font-weight:700; color:var(--card-text-sec); padding:0.25rem; }
+    .dp-days { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+    .dp-day {
+      aspect-ratio:1; border:none; background:none; cursor:pointer; border-radius:0.375rem;
+      font-size:0.75rem; font-weight:600; color:var(--card-text);
+      display:flex; align-items:center; justify-content:center;
+      transition:background .1s,color .1s;
+    }
+    .dp-day:hover:not(.empty):not(:disabled) { background:rgba(37,99,235,0.10); color:var(--btn-bg); }
+    .dp-day.selected { background:var(--btn-bg); color:var(--btn-text); }
+    .dp-day.today:not(.selected) { font-weight:800; color:var(--btn-bg); }
+    .dp-day.empty,.dp-day:disabled { opacity:0.3; cursor:default; }
+    .dp-clear { width:100%; margin-top:0.5rem; padding:0.375rem; border:none; background:rgba(0,0,0,0.04); border-radius:0.5rem; font-size:0.75rem; font-weight:600; color:var(--card-text-sec); cursor:pointer; font-family:inherit; transition:background .1s; }
+    .dp-clear:hover { background:rgba(0,0,0,0.08); }
+
+    /* ── Histórico de aportes ───────────────────────────────────── */
+    .historico-item {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:0.75rem 0; border-bottom:1px solid var(--input-border);
+      transition:border-color 0.35s ease;
+    }
+    .historico-item:last-child { border-bottom:none; }
+    .historico-valor { font-size:0.9375rem; font-weight:700; color:#10b981; }
+    .historico-meta { font-size:0.75rem; font-weight:500; color:var(--card-text-sec); transition:color 0.35s ease; }
+
+    /* ── Confetti ───────────────────────────────────────────────── */
+    @keyframes confettiDrop {
+      0%   { transform:translateY(-20px) rotate(0deg); opacity:1; }
+      100% { transform:translateY(100vh) rotate(720deg); opacity:0; }
+    }
+    .confetti-piece { position:fixed; pointer-events:none; z-index:9999; border-radius:2px; animation:confettiDrop 3s ease-in forwards; }
+
+    /* ── Botão principal ────────────────────────────────────────── */
+    .btn-primary {
+      padding:0.625rem 1.25rem; border-radius:0.75rem;
+      background:var(--btn-bg); color:var(--btn-text);
+      border:none; font-size:0.875rem; font-weight:700;
+      cursor:pointer; font-family:inherit;
+      transition:opacity .15s,transform .15s;
+    }
+    .btn-primary:hover:not(:disabled) { opacity:0.88; transform:translateY(-1px); }
+    .btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
+    .btn-secondary {
+      padding:0.625rem 1.25rem; border-radius:0.75rem;
+      background:rgba(0,0,0,0.05); color:var(--card-text);
+      border:none; font-size:0.875rem; font-weight:700;
+      cursor:pointer; font-family:inherit;
+      transition:background .15s;
+    }
+    .btn-secondary:hover { background:rgba(0,0,0,0.09); }
+
+    /* ── Responsivo ─────────────────────────────────────────────── */
+    @media (max-width: 767px) {
+      .sidebar { transform:translateX(-100%); width:260px; }
+      .sidebar.open { transform:translateX(0); }
+      .dash-main { margin-left:0; padding:1rem; }
+      .hamburger-btn { display:flex; }
+      .sidebar-collapse-btn { display:none !important; }
+      .summary-grid { grid-template-columns:repeat(2,1fr); }
+    }
+    @media (min-width: 768px) {
+      .sidebar-collapse-btn { display:flex; }
+    }
+  </style>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/bud-utils.js"></script>
+</head>
+<body>
+
+  <div class="blob blob-blue" aria-hidden="true"></div>
+  <div class="blob blob-cyan"  aria-hidden="true"></div>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="dash-layout">
+
+    <!-- ─── Sidebar ──────────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar" title="Recolher sidebar">‹</button>
+      <div class="sidebar-logo">
+        <img src="logo.png" alt="Bud Finance">
+        <span class="sidebar-logo-text">Bud Finance</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="sidebar-link">
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
+        </a>
+        <a href="metas.html" class="sidebar-link active">
+          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
+        </a>
+        <a href="cartoes.html" class="sidebar-link">
+          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
+        </a>
+        <a href="configuracoes.html" class="sidebar-link">
+          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
+        </a>
+      </nav>
+      <div class="sidebar-user" style="margin-top:auto;">
+        <div class="sidebar-avatar" id="sidebarAvatar">?</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebarUserName">Carregando...</div>
+          <div class="sidebar-user-id"   id="sidebarUserId">---</div>
+        </div>
+      </div>
+      <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
+      </button>
+    </aside>
+
+    <!-- ─── Main ─────────────────────────────────────────────────── -->
+    <main class="dash-main" id="dashMain">
+
+      <!-- Header -->
+      <div class="dash-header">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
+          <div class="dash-welcome">
+            <h1>🏆 Metas</h1>
+            <p id="dataHoje">—</p>
+          </div>
+        </div>
+        <button class="btn-primary" id="btnNovaMeta">+ Nova Meta</button>
+      </div>
+
+      <!-- Cards de resumo -->
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-card-label">Metas Ativas</div>
+          <div class="summary-card-value" id="summaryAtivas">0</div>
+          <div class="summary-card-sub">em andamento</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-card-label">Total Guardado</div>
+          <div class="summary-card-value" id="summaryGuardado">R$ 0</div>
+          <div class="summary-card-sub">em todas as metas</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-card-label">Falta Guardar</div>
+          <div class="summary-card-value" id="summaryFalta">R$ 0</div>
+          <div class="summary-card-sub">para atingir os alvos</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-card-label">Progresso Médio</div>
+          <div class="summary-card-value" id="summaryProgresso">0%</div>
+          <div class="summary-card-sub">de progresso geral</div>
+        </div>
+      </div>
+
+      <!-- Grid de metas -->
+      <div id="metasContainer">
+        <div class="metas-empty" id="metasEmpty" style="display:none;">
+          <div class="metas-empty-icon">🏆</div>
+          <div class="metas-empty-title">Nenhuma meta criada ainda</div>
+          <div class="metas-empty-sub">Crie sua primeira meta financeira e acompanhe seu progresso!</div>
+        </div>
+        <div class="metas-grid" id="metasGrid"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ═══════════ MODAL: CRIAR / EDITAR META ═════════════════════ -->
+  <div class="modal-overlay" id="modalMeta" role="dialog" aria-modal="true" aria-labelledby="modalMetaTitle">
+    <div class="modal-box">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;">
+        <span class="modal-title" id="modalMetaTitle" style="margin-bottom:0;">Nova Meta</span>
+        <button class="modal-close" id="btnFecharModalMeta" aria-label="Fechar">✕</button>
+      </div>
+
+      <!-- Sugestões populares -->
+      <div class="sugestoes-grid" id="sugestoesGrid"></div>
+
+      <form id="formMeta" novalidate>
+        <input type="hidden" id="metaId">
+
+        <div class="modal-field">
+          <label class="modal-label" for="metaNome">Nome do objetivo</label>
+          <input class="modal-input" type="text" id="metaNome" placeholder="Ex: Viagem para o Japão" maxlength="60" required>
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-label">Ícone</label>
+          <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;">
+            <div id="emojiSelecionado" style="font-size:2rem;line-height:1;min-width:2.5rem;text-align:center;">🎯</div>
+            <span style="font-size:0.75rem;font-weight:500;color:var(--card-text-sec);">Clique para escolher</span>
+          </div>
+          <div class="emoji-grid" id="emojiGrid"></div>
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-label" for="metaValorAlvo">Valor da meta (R$)</label>
+          <input class="modal-input" type="text" id="metaValorAlvo" placeholder="R$ 0,00" inputmode="decimal" required>
+        </div>
+
+        <div class="modal-field">
+          <label class="modal-label" for="metaValorAtual">Já guardado (R$)</label>
+          <input class="modal-input" type="text" id="metaValorAtual" placeholder="R$ 0,00" inputmode="decimal">
+        </div>
+
+        <!-- Datepicker customizado — prazo (opcional) -->
+        <div class="modal-field">
+          <label class="modal-label">Prazo (opcional)</label>
+          <div style="position:relative;">
+            <button type="button" class="dp-trigger" id="dpMetaTrigger">
+              <span id="dpMetaLabel">Sem prazo</span>
+              <span style="font-size:0.875rem;">📅</span>
+            </button>
+            <div class="dp-calendar" id="dpMetaCalendar">
+              <div class="dp-header">
+                <button type="button" class="dp-nav-btn" id="dpMetaPrev">‹</button>
+                <span class="dp-month-label" id="dpMetaMonthLabel">—</span>
+                <button type="button" class="dp-nav-btn" id="dpMetaNext">›</button>
+              </div>
+              <div class="dp-weekdays">
+                <div class="dp-weekday">D</div><div class="dp-weekday">S</div>
+                <div class="dp-weekday">T</div><div class="dp-weekday">Q</div>
+                <div class="dp-weekday">Q</div><div class="dp-weekday">S</div>
+                <div class="dp-weekday">S</div>
+              </div>
+              <div class="dp-days" id="dpMetaDays"></div>
+              <button type="button" class="dp-clear" id="dpMetaClear">Sem prazo</button>
+            </div>
+          </div>
+          <input type="hidden" id="metaPrazo">
+        </div>
+
+        <div style="display:flex;gap:0.75rem;margin-top:1.5rem;">
+          <button type="button" class="btn-secondary" id="btnCancelarMeta" style="flex:1;">Cancelar</button>
+          <button type="submit" class="btn-primary" id="btnSalvarMeta" style="flex:2;">Salvar Meta</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══════════ MODAL: APORTE ══════════════════════════════════ -->
+  <div class="modal-overlay" id="modalAporte" role="dialog" aria-modal="true" aria-labelledby="modalAporteTitle">
+    <div class="modal-box" style="max-width:400px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;">
+        <span class="modal-title" id="modalAporteTitle" style="margin-bottom:0;">💰 Depositar</span>
+        <button class="modal-close" id="btnFecharModalAporte" aria-label="Fechar">✕</button>
+      </div>
+
+      <form id="formAporte" novalidate>
+        <input type="hidden" id="aporteMetaId">
+
+        <div class="modal-field">
+          <label class="modal-label" for="aporteValor">Valor (R$)</label>
+          <input class="modal-input" type="text" id="aporteValor" placeholder="R$ 0,00" inputmode="decimal" required>
+        </div>
+
+        <!-- Datepicker customizado — data do aporte -->
+        <div class="modal-field">
+          <label class="modal-label">Data</label>
+          <div style="position:relative;">
+            <button type="button" class="dp-trigger" id="dpAporteTrigger">
+              <span id="dpAporteLabel">Hoje</span>
+              <span style="font-size:0.875rem;">📅</span>
+            </button>
+            <div class="dp-calendar" id="dpAporteCalendar">
+              <div class="dp-header">
+                <button type="button" class="dp-nav-btn" id="dpAportePrev">‹</button>
+                <span class="dp-month-label" id="dpAporteMonthLabel">—</span>
+                <button type="button" class="dp-nav-btn" id="dpAporteNext">›</button>
+              </div>
+              <div class="dp-weekdays">
+                <div class="dp-weekday">D</div><div class="dp-weekday">S</div>
+                <div class="dp-weekday">T</div><div class="dp-weekday">Q</div>
+                <div class="dp-weekday">Q</div><div class="dp-weekday">S</div>
+                <div class="dp-weekday">S</div>
+              </div>
+              <div class="dp-days" id="dpAporteDays"></div>
+            </div>
+          </div>
+          <input type="hidden" id="aporteData">
+        </div>
+
+        <!-- Custom select — carteira -->
+        <div class="modal-field">
+          <label class="modal-label">Pago com</label>
+          <div class="custom-select-wrap" id="carteiraSelectWrap">
+            <button type="button" class="custom-select-trigger" id="carteiraSelectTrigger" role="combobox" aria-haspopup="listbox">
+              <span id="carteiraSelectLabel">Selecione uma conta</span>
+              <span class="custom-select-arrow">▼</span>
+            </button>
+            <div class="custom-select-dropdown" id="carteiraSelectDropdown" role="listbox" style="top:auto;bottom:calc(100% + 4px);"></div>
+          </div>
+          <input type="hidden" id="aporteCarteiraId">
+        </div>
+
+        <div style="display:flex;gap:0.75rem;margin-top:1.5rem;">
+          <button type="button" class="btn-secondary" id="btnCancelarAporte" style="flex:1;">Cancelar</button>
+          <button type="submit" class="btn-primary" id="btnConfirmarAporte" style="flex:2;">Confirmar Aporte</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══════════ MODAL: HISTÓRICO ═══════════════════════════════ -->
+  <div class="modal-overlay" id="modalHistorico" role="dialog" aria-modal="true" aria-labelledby="modalHistoricoTitle">
+    <div class="modal-box" style="max-width:420px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;">
+        <span class="modal-title" id="modalHistoricoTitle" style="margin-bottom:0;">📋 Histórico</span>
+        <button class="modal-close" id="btnFecharHistorico" aria-label="Fechar">✕</button>
+      </div>
+      <div id="historicoList">
+        <p style="text-align:center;color:var(--card-text-sec);font-size:0.875rem;padding:2rem 0;">Carregando...</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/metas.js"></script>
+</body>
+</html>

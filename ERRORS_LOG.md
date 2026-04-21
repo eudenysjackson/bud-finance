@@ -1,7 +1,7 @@
 # ERRORS_LOG.md — Memória de Cura
 
 **Projeto**: Bud Finance  
-**Última atualização**: 18/04/2026
+**Última atualização**: 21/04/2026
 
 > **REGRA**: Antes de resolver um bug, verificar se já foi resolvido aqui.  
 > Todo erro encontrado deve ser registrado neste doc.
@@ -203,3 +203,61 @@
 - **Solução aplicada**: Substituídas todas as cores por CSS vars: `var(--card-text)`, `var(--card-text-sec)`, `var(--card-border)`, `var(--sidebar-link-hover-bg)`, `var(--theme-accent)`. CSS vars funcionam em inline styles de JS (`element.style.color = 'var(--card-text)'`).
 - **Regra de prevenção**: Nunca usar cores hexadecimais hardcoded em elementos criados por JS. Sempre usar `var(--nome-da-var)` para garantir compatibilidade com todos os temas.
 - **Status**: ✅ Resolvido em 19/04/2026.
+
+---
+
+### ERR-020 — Dropdown custom-select abre para baixo e cobre botões de ação do modal
+- **Data**: 21/04/2026
+- **Arquivo**: `metas.html` — modal Depositar (`#modalAporte`)
+- **Descrição**: O `#carteiraSelectDropdown` abria com `top: calc(100% + 4px)` (para baixo), sobrepondo os botões Cancelar e Confirmar Aporte localizados imediatamente abaixo. O dropdown interceptava pointer events, tornando os botões inacessíveis enquanto o dropdown estava aberto.
+- **Causa raiz**: CSS padrão do `.custom-select-dropdown` usa `top: calc(100% + 4px)`. Quando o trigger é o último campo antes dos botões de ação, o dropdown cobre os botões.
+- **Solução aplicada**: Adicionado `style="top:auto;bottom:calc(100% + 4px);"` inline no `#carteiraSelectDropdown` do modal Aporte, fazendo o dropdown abrir para CIMA.
+- **Regra de prevenção**: Quando um custom-select estiver posicionado na parte inferior de um container (modal, card, form), usar `bottom: calc(100% + 4px); top: auto;` para abrir para cima.
+- **Status**: ✅ Resolvido em 21/04/2026.
+
+
+
+---
+
+### ERR-021 — Endpoint /api/extrair-fatura inexistente no backend Bud Finance
+- **Data**: 21/04/2026
+- **Arquivo**: ackend/server.js
+- **Descrição**: Endpoint POST /api/extrair-fatura retornava 500 (ou 404) porque nunca foi criado no backend Bud Finance. Existia apenas no backend legado Nexo (antigo sistema), que foi migrado sem incluir o endpoint de extração de faturas.
+- **Causa raiz**: Durante a migração Nexo → Bud Finance, apenas os endpoints de reset de senha foram portados. O endpoint de IA ficou no repositório legado.
+- **Solução aplicada**: Criado o endpoint completo em ackend/server.js com: (1) multer para upload de arquivo, (2) pdf-parse para extração de texto de PDF, (3) parser de texto com dupla estratégia (horizontal + vertical/bloco) sem IA para PDFs legíveis, (4) fallback Gemini 1.5 Flash via REST para imagens e PDFs complexos.
+- **Regra de prevenção**: Ao migrar de sistema, verificar TODOS os endpoints do backend anterior. Documentar em ARCHITECTURE_MAP.md cada endpoint disponível.
+- **Status**: ✅ Resolvido em 21/04/2026.
+
+---
+
+### ERR-022 — Importação IA demorava 2+ minutos e retornava contagem incorreta
+- **Data**: 21/04/2026
+- **Arquivo**: js/cartoes.js — função enviarParaIA
+- **Descrição**: O frontend enviava o PDF para a IA com instrucoes extensas, sem timeout, e o backend legado usava OpenAI GPT-4 Vision (lento, caro) para PDFs que podiam ser lidos por texto simples. O total de transações extraídas diferia da fatura real.
+- **Causa raiz**: (1) Sem AbortController/timeout no fetch. (2) Backend legado usava somente IA, ignorando extração de texto nativa do PDF. (3) IA contava linhas de resumo/pagamento como transações.
+- **Solução aplicada**: (1) Adicionado timeout de 45s com AbortController. (2) Novo backend usa pdf-parse + regex (< 1s para PDFs digitais). (3) Parser ignora linhas de palavras-chave (total, saldo, pagamento, etc.). (4) Gemini só é acionado como fallback para PDFs ilegíveis ou imagens.
+- **Regra de prevenção**: Todo fetch para backend externo deve ter timeout. PDFs digitais nunca precisam de IA para extração de texto.
+- **Status**: ✅ Resolvido em 21/04/2026.
+
+
+---
+
+### ERR-021 — Endpoint /api/extrair-fatura inexistente no backend Bud Finance
+- **Data**: 21/04/2026
+- **Arquivo**: ackend/server.js
+- **Descrição**: Endpoint POST /api/extrair-fatura retornava 500 (ou 404) porque nunca foi criado no backend Bud Finance. Existia apenas no backend legado Nexo (antigo sistema), que foi migrado sem incluir o endpoint de extração de faturas.
+- **Causa raiz**: Durante a migração Nexo → Bud Finance, apenas os endpoints de reset de senha foram portados. O endpoint de IA ficou no repositório legado.
+- **Solução aplicada**: Criado o endpoint completo em ackend/server.js com: (1) multer para upload de arquivo, (2) pdf-parse para extração de texto de PDF, (3) parser de texto com dupla estratégia (horizontal + vertical/bloco) sem IA para PDFs legíveis, (4) fallback Gemini 1.5 Flash via REST para imagens e PDFs complexos.
+- **Regra de prevenção**: Ao migrar de sistema, verificar TODOS os endpoints do backend anterior. Documentar em ARCHITECTURE_MAP.md cada endpoint disponível.
+- **Status**: ✅ Resolvido em 21/04/2026.
+
+---
+
+### ERR-022 — Importação IA demorava 2+ minutos e retornava contagem incorreta
+- **Data**: 21/04/2026
+- **Arquivo**: js/cartoes.js — função enviarParaIA
+- **Descrição**: O frontend enviava o PDF para a IA com instrucoes extensas, sem timeout, e o backend legado usava OpenAI GPT-4 Vision (lento, caro) para PDFs que podiam ser lidos por texto simples. O total de transações extraídas diferia da fatura real.
+- **Causa raiz**: (1) Sem AbortController/timeout no fetch. (2) Backend legado usava somente IA, ignorando extração de texto nativa do PDF. (3) IA contava linhas de resumo/pagamento como transações.
+- **Solução aplicada**: (1) Adicionado timeout de 45s com AbortController. (2) Novo backend usa pdf-parse + regex (< 1s para PDFs digitais). (3) Parser ignora linhas de palavras-chave (total, saldo, pagamento, etc.). (4) Gemini só é acionado como fallback para PDFs ilegíveis ou imagens.
+- **Regra de prevenção**: Todo fetch para backend externo deve ter timeout. PDFs digitais nunca precisam de IA para extração de texto.
+- **Status**: ✅ Resolvido em 21/04/2026.

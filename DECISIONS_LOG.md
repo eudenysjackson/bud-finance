@@ -1,7 +1,7 @@
 # DECISIONS_LOG.md — Registro de Decisões Arquiteturais
 
 **Projeto**: Bud Finance  
-**Última atualização**: 18/04/2026
+**Última atualização**: 21/04/2026
 
 > **REGRA**: Antes de refatorar qualquer padrão, ler este doc primeiro.  
 > Toda decisão não-óbvia deve ser registrada aqui.
@@ -300,6 +300,19 @@
 
 ---
 
+### DEC-033 — Sub-subcoleção `depositos` para histórico de aportes de Metas
+
+- **Data**: 21/04/2026
+- **O que foi decidido**: O histórico de aportes de cada meta é armazenado na sub-subcoleção `usuarios/{uid}/metas/{metaId}/depositos/{depId}`. O campo `valorAtual` da meta é atualizado via `writeBatch` de forma atômica junto com a transação vinculada e o débito na carteira. O doc individual de depósito é inserido em `addDoc` separado após o `batch.commit()` (a subcoleção não precisa de atomicidade com o saldo).
+- **Por quê**: Firestore não suporta consultas cross-collection eficientemente para histórico por meta. A sub-subcoleção mantém os dados localizados e facilita paginação futura. A separação entre `writeBatch` (saldo+transação) e `addDoc` (depósito) é intencional — a integridade financeira (saldo da carteira e valorAtual da meta) é crítica e deve ser atômica; o log de depósito é auditoria e pode ser eventual.
+- **Campos do depósito**: `valor` (number), `data` (string ISO YYYY-MM-DD escolhida pelo usuário), `carteiraId` (string), `dataCriacao` (serverTimestamp — auditoria).
+- **Transação vinculada**: Campo `origem: 'meta'` + `metaId` na coleção `transacoes` para permitir exclusão em cascata ao deletar a meta.
+- **Exclusão em cascata**: `excluirMeta()` usa `writeBatch` para deletar todos os depositos + transações vinculadas + o doc da meta em uma única operação atômica.
+- **Consequências**: Estabelece o padrão para outras subcoleções de histórico (futuros: parcelas de dívida, extratos de investimento). Limite de 500 ops por batch — metas com >500 depósitos precisarão de batches múltiplos (improvável no uso real).
+- **Quando revisar**: Quando o número de subcoleções históricas crescer ao ponto de justificar uma coleção global `aportes` para relatórios cross-meta.
+
+---
+
 ### DEC-032 — Itens pendentes da tela Configurações para sprint de pré-produção
 
 - **Data**: 20/04/2026
@@ -363,3 +376,61 @@
 - **Por quê**: Cada decisão foi motivada por bug visual confirmado em teste cross-tema. A regra central é: **variáveis de sidebar não devem vazar para o interior de cards de página**, e vice-versa.
 - **Consequências**: Sidebar totalmente funcional em todos os 8 temas, desktop e mobile. Handler JS de filtro de atividades também atualizado para usar `--btn-bg`/`--btn-text`.
 - **Quando revisar**: Quando adicionar mais links de navegação à sidebar (novas telas do app), verificar se os 64px acomodam os ícones ou se é necessário ajustar a largura colapsada.
+
+---
+
+### DEC-034 — Cartões de crédito: coleção unificada, fatura dinâmica e lógica de status
+
+- **Data**: 21/04/2026
+- **O que foi decidido**:
+  1. **Coleção unificada**: Cartões de crédito são persistidos em `usuarios/{uid}/carteira/{id}` com `tipo: 'credito'` — **NÃO** em uma coleção separada `cartoes`. Campos extras (`bandeira`, `cor`, `fechamento`, `vencimento`, `faturasPagas: {}`, `faturasMetodo: {}`) são adicionados ao mesmo documento da carteira.
+  2. **Fatura calculada dinamicamente**: Os campos denormalizados `faturaAtual` e `limiteDisponivel` **NÃO são armazenados** no Firestore. A fatura é sempre calculada em runtime via `calcularFatura(cartaoId, mesKey, transacoes)` somando as `transacoes` com `cartaoId` correspondente, `dataReferencia.startsWith(mesKey)` e `status !== 'estornado' && status !== 'cancelado'`.
+  3. **Status da fatura baseado em `mesVisualizado`**: A função `calcularStatusFatura(cartao, mesKey, temGastos)` determina Aberta/Fechada/Vencida/Paga levando em conta o mês que está sendo visualizado, não apenas a data de hoje. Meses passados sem pagamento = Vencida. Mês atual: hoje ≥ vencimento → Vencida; hoje ≥ fechamento → Fechada; else → Aberta. Meses futuros = Aberta.
+  4. **MVP sem parcelamento e sem importação IA**: Parcelamento e importação por IA são adiados para sprint futura. O cartoes.js v1 cobre: CRUD de cartão, gastos manuais simples (sem parcelas), toggle de fatura paga/pendente, exclusão com cascade de transações.
+- **Por quê**:
+  - Coleção unificada elimina o Problema #16 do spec (divergência entre `carteira` e `cartoes`) sem custo adicional. Dashboard e metas.js já operam corretamente na coleção `carteira`.
+  - Fatura dinâmica elimina os Problemas #1, #2, #9 (campos denormalizados desatualizados). O custo computacional de recalcular client-side é desprezível (filtro em array em memória).
+  - Status baseado em `mesVisualizado` corrige o Problema #12 (status incorreto ao visualizar meses passados/futuros).
+- **Consequências**:
+  - `dashboard.js` mostra cartões automaticamente (já lê `carteira` com `tipo === 'credito'`).
+  - `metas.js` exclui cartões do dropdown de carteiras automaticamente (já filtra `tipo !== 'credito'`).
+  - Sem `increment()` em nenhuma operação de gasto/exclusão — operações são apenas `addDoc`/`deleteDoc` na coleção `transacoes`.
+  - O campo `faturasPagas: { [mesKey]: true }` marca se a fatura foi paga (apenas como flag UI; não cria transação de pagamento — isso é sprint futura).
+  - Exclusão de cartão faz cascade delete de todas as transações com `cartaoId === id` (até 500 por batch).
+- **Quando revisar**: Ao implementar parcelamento (sprint 2) e importação IA (sprint 3). Ao implementar pagamento de fatura com débito real na carteira (adicionará `writeBatch` com transação `pagamentoFatura: true`).
+
+
+---
+
+### DEC-035 — Extração de faturas: pdf-parse + regex local + Gemini fallback; OFX processado client-side
+- **Data**: 21/04/2026
+- **Contexto**: Implementação do endpoint /api/extrair-fatura e da importação de faturas com IA no frontend.
+- **Decisão**:
+  1. **PDFs**: Backend usa pdf-parse para extrair texto nativo (< 1s). Parser regex com dupla estratégia (horizontal para PDFs padrão; vertical/bloco para layout Nubank). Gemini 1.5 Flash é acionado via REST apenas como fallback se regex retornar < 2 transações.
+  2. **Imagens**: Direto para Gemini 1.5 Flash (JPEG/PNG/WEBP não têm texto extraível).
+  3. **OFX/QFX**: Processado inteiramente no cliente (parseOFXLocal). Nunca enviado ao backend. O backend fica livre de dependência de parsing de SGML.
+  4. **Sem OpenAI**: A implementação legada usava GPT-4 Vision (lento, caro). Substituído por Gemini Flash (mais rápido, menor custo).
+  5. **Timeout**: AbortController de 45s no frontend (vs sem timeout na versão anterior).
+- **Alternativas descartadas**:
+  - OpenAI GPT-4 Vision: lento (2+ min), caro, sem resposta estruturada garantida.
+  - LangChain: overhead desnecessário para uma tarefa de extração pontual.
+- **Impacto**: ackend/package.json ganhou multer ^1.4.5-lts.1 e pdf-parse ^1.1.1. Requer GEMINI_API_KEY no Render apenas para imagens e PDFs ilegíveis.
+- **Quando revisar**: Se Gemini deprecar a API REST v1beta. Se surgir necessidade de suporte a CNAB ou MT940.
+
+
+---
+
+### DEC-035 — Extração de faturas: pdf-parse + regex local + Gemini fallback; OFX processado client-side
+- **Data**: 21/04/2026
+- **Contexto**: Implementação do endpoint /api/extrair-fatura e da importação de faturas com IA no frontend.
+- **Decisão**:
+  1. **PDFs**: Backend usa pdf-parse para extrair texto nativo (< 1s). Parser regex com dupla estratégia (horizontal para PDFs padrão; vertical/bloco para layout Nubank). Gemini 1.5 Flash é acionado via REST apenas como fallback se regex retornar < 2 transações.
+  2. **Imagens**: Direto para Gemini 1.5 Flash (JPEG/PNG/WEBP não têm texto extraível).
+  3. **OFX/QFX**: Processado inteiramente no cliente (parseOFXLocal). Nunca enviado ao backend. O backend fica livre de dependência de parsing de SGML.
+  4. **Sem OpenAI**: A implementação legada usava GPT-4 Vision (lento, caro). Substituído por Gemini Flash (mais rápido, menor custo).
+  5. **Timeout**: AbortController de 45s no frontend (vs sem timeout na versão anterior).
+- **Alternativas descartadas**:
+  - OpenAI GPT-4 Vision: lento (2+ min), caro, sem resposta estruturada garantida.
+  - LangChain: overhead desnecessário para uma tarefa de extração pontual.
+- **Impacto**: ackend/package.json ganhou multer ^1.4.5-lts.1 e pdf-parse ^1.1.1. Requer GEMINI_API_KEY no Render apenas para imagens e PDFs ilegíveis.
+- **Quando revisar**: Se Gemini deprecar a API REST v1beta. Se surgir necessidade de suporte a CNAB ou MT940.
