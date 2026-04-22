@@ -331,13 +331,24 @@ function parseBankStatementText(rawText) {
     var RE_DATE3 = /^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)$/i;
     var RE_DV    = /^(.+?)R\$\s*([\d\.]+,\d{2})$/;
     var RE_NEG3  = /\u2212R\$/;   // sinal menos Unicode (estorno/crédito Nubank)
-    var SKIP3    = /^(pagamento|estorno|saldo restante|parcelamento|outros lan)/i;
+    var SKIP3    = /^(pagamento|saldo restante|parcelamento|outros lan)/i;
+    // Coletar estornos para deduzir depois: "Estorno de X −R$ Y"
+    var RE_ESTORNO = /^Estorno de (.+?)\u2212R\$\s*([\d\.]+,\d{2})$/;
+    var estornos = []; // [{desc, valor}]
 
     for (var k = 0; k < lines.length - 1; k++) {
       var dm3 = lines[k].match(RE_DATE3);
       if (!dm3) continue;
       var nxt = lines[k + 1];
-      // Pula créditos, pagamentos e linhas de cabeçalho
+      // Captura estornos para dedução posterior
+      var estM = nxt.match(RE_ESTORNO);
+      if (estM) {
+        var estDesc = estM[1].trim();
+        var estVal  = parseValorBRL(estM[2]);
+        estornos.push({ desc: estDesc, valor: estVal });
+        k++; continue;
+      }
+      // Pula pagamentos e cabeçalhos (mas não estornos — já tratados acima)
       if (RE_NEG3.test(nxt) || SKIP3.test(nxt) || isNonTransactionLine(nxt)) { k++; continue; }
       var dv = nxt.match(RE_DV);
       if (!dv) { k++; continue; }
@@ -350,6 +361,59 @@ function parseBankStatementText(rawText) {
       var data3  = ano + '-' + String(mes3).padStart(2,'0') + '-' + String(dm3[1]).padStart(2,'0');
       addTx(rawDesc3, valor3, data3);
       k++; // já consumiu a linha de desc+valor
+    }
+
+    // Deduzir estornos: remover UMA ocorrência da compra correspondente
+    estornos.forEach(function(est) {
+      var idx = results.findIndex(function(t) {
+        return t.desc === est.desc && Math.abs(t.valor - est.valor) < 0.01;
+      });
+      if (idx !== -1) results.splice(idx, 1);
+    });
+  }
+
+  // ─── Estratégia 4: Nubank — parcelamentos/financiamentos com juros ──────────
+  // Padrão:  "DD MMM"
+  //          "NOME DO CREDOR EM MAIÚSCULAS"
+  //          "Total a pagar: R$ X,XX (valor da transação...)"  ← linha longa descritiva
+  //          "R$ X,XX"  ← valor isolado na própria linha
+  // O valor que importa é o da última linha ("R$ X,XX") = total com juros/IOF
+  {
+    var RE_DATE4  = /^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)$/i;
+    var RE_VAL4   = /^R\$\s*([\d\.]+,\d{2})$/;
+    var RE_TOTAL4 = /^Total a pagar:/i;
+    var SKIP4     = /^(pagamento|estorno|saldo restante)/i;
+
+    for (var p = 0; p < lines.length - 3; p++) {
+      var dm4 = lines[p].match(RE_DATE4);
+      if (!dm4) continue;
+      var credorLine = lines[p + 1] || '';
+      // Credor deve ser texto puro sem "R$" e razoavelmente longo
+      if (!credorLine || /R\$/.test(credorLine) || SKIP4.test(credorLine)) continue;
+      if (credorLine.length < 4 || credorLine.length > 120) continue;
+      // Próximas linhas: procurar "Total a pagar:" seguido de "R$ X,XX"
+      var found = false;
+      for (var q = p + 2; q < Math.min(p + 6, lines.length - 1); q++) {
+        if (RE_TOTAL4.test(lines[q])) {
+          // Procurar linha de valor isolado logo após
+          for (var r = q + 1; r < Math.min(q + 4, lines.length); r++) {
+            var valM4 = lines[r].match(RE_VAL4);
+            if (valM4) {
+              var mes4 = MESES_PT[dm4[2].toLowerCase()];
+              if (mes4) {
+                var desc4  = credorLine.trim();
+                var valor4 = parseValorBRL(valM4[1]);
+                var data4  = ano + '-' + String(mes4).padStart(2,'0') + '-' + String(dm4[1]).padStart(2,'0');
+                addTx(desc4, valor4, data4);
+              }
+              found = true;
+              p = r; // avança o índice externo
+              break;
+            }
+          }
+          break;
+        }
+      }
     }
   }
 
