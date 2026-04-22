@@ -298,8 +298,10 @@ async function carregarPerfil(user) {
   // Sidebar
   const avatar = document.getElementById('sidebarAvatar');
   const sName  = document.getElementById('sidebarUserName');
+  const sId    = document.getElementById('sidebarUserId');
   if (avatar) avatar.textContent = getIniciais(nome);
   if (sName)  sName.textContent  = nome || '—';
+  if (sId)    sId.textContent    = email || '—'; // exibe email até matrícula carregar do Firestore
 
   // Data de criação
   const criacao = user.metadata && user.metadata.creationTime

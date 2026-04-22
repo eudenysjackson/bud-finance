@@ -58,8 +58,8 @@ test.describe('Dashboard — Estrutura HTML', () => {
     await expect(cards).toHaveCount(3);
   });
 
-  test('card Saldo Total existe', async ({ page }) => {
-    const label = page.locator('.card-label').filter({ hasText: 'Saldo Total' });
+  test('card Resultado do Mês existe', async ({ page }) => {
+    const label = page.locator('.card-label').filter({ hasText: 'Resultado do Mês' });
     await expect(label).toHaveCount(1);
   });
 
@@ -128,9 +128,9 @@ test.describe('Dashboard — Estrutura HTML', () => {
     await expect(script).toHaveCount(1);
   });
 
-  test('sidebar tem 1 link de navegação (Dashboard)', async ({ page }) => {
+  test('sidebar tem links de navegação', async ({ page }) => {
     const navLinks = page.locator('.sidebar-nav .sidebar-link');
-    await expect(navLinks).toHaveCount(1);
+    await expect(navLinks).toHaveCount(4);
   });
 
   test('overlay sidebar existe para mobile', async ({ page }) => {

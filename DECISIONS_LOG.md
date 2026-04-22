@@ -290,6 +290,16 @@
 
 ---
 
+### DEC-028 — Testes visuais ao vivo via browser embutido do VS Code (Live Test)
+
+- **Data**: 20/04/2026
+- **O que foi decidido**: (1) Instalar Playwright e a extensão **Playwright Test for VS Code** (`ms-playwright.playwright`) para testes automatizados e browser embutido no editor. (2) Para inspeção visual ao vivo, usar o **Simple Browser** integrado do VS Code (acessível via ferramentas do agente Copilot), servindo o projeto com `http-server` local. (3) O agente Copilot pode abrir, navegar e inspecionar páginas diretamente ao lado do chat, verificando UI, erros de console e status visual sem sair do editor.
+- **Por quê**: Permite validação visual imediata de cada página durante o desenvolvimento, sem alternar janelas. O agente pode capturar screenshots, ler o DOM, detectar erros de console (404, Firebase, JS) e reportar problemas em tempo real.
+- **Consequências**: Requer `npm install` + `npx playwright install` na máquina local. O `http-server` sobe na porta 3002 (ou outra livre). O `firebase-config.js` precisa existir localmente para funcionalidade completa (está no `.gitignore`, não sobe ao repo). Testes automatizados Playwright rodam via `npm test` (headless) ou extensão VS Code (com browser visível).
+- **Quando revisar**: Se migrar para outro framework de testes ou se o VS Code descontinuar o Simple Browser.
+
+---
+
 ### DEC-028 — Sistema de Temas Imersivos: 8 temas via CSS Custom Properties
 
 - **Data**: 19/04/2026

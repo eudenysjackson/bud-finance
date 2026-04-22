@@ -324,6 +324,35 @@ function parseBankStatementText(rawText) {
     }
   }
 
+  // ─── Estratégia 3: Nubank — data na linha, desc+valor concatenados ─────────
+  // Padrão:  "DD MMM"           → linha de data
+  //          "DescriçãoR$ X,XX" → descrição + valor na mesma linha (sem espaço)
+  if (results.length < 2) {
+    var RE_DATE3 = /^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)$/i;
+    var RE_DV    = /^(.+?)R\$\s*([\d\.]+,\d{2})$/;
+    var RE_NEG3  = /\u2212R\$/;   // sinal menos Unicode (estorno/crédito Nubank)
+    var SKIP3    = /^(pagamento|estorno|saldo restante|parcelamento|outros lan)/i;
+
+    for (var k = 0; k < lines.length - 1; k++) {
+      var dm3 = lines[k].match(RE_DATE3);
+      if (!dm3) continue;
+      var nxt = lines[k + 1];
+      // Pula créditos, pagamentos e linhas de cabeçalho
+      if (RE_NEG3.test(nxt) || SKIP3.test(nxt) || isNonTransactionLine(nxt)) { k++; continue; }
+      var dv = nxt.match(RE_DV);
+      if (!dv) { k++; continue; }
+      var mes3 = MESES_PT[dm3[2].toLowerCase()];
+      if (!mes3) { k++; continue; }
+      // Remove prefixo de cartão mascarado: "•••• 4567Loja" → "Loja"
+      var rawDesc3 = dv[1].trim().replace(/^•+\s*\d{4}/, '').trim();
+      if (!rawDesc3) { k++; continue; }
+      var valor3 = parseValorBRL(dv[2]);
+      var data3  = ano + '-' + String(mes3).padStart(2,'0') + '-' + String(dm3[1]).padStart(2,'0');
+      addTx(rawDesc3, valor3, data3);
+      k++; // já consumiu a linha de desc+valor
+    }
+  }
+
   return results;
 }
 
