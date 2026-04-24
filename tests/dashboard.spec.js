@@ -130,7 +130,7 @@ test.describe('Dashboard — Estrutura HTML', () => {
 
   test('sidebar tem links de navegação', async ({ page }) => {
     const navLinks = page.locator('.sidebar-nav .sidebar-link');
-    await expect(navLinks).toHaveCount(4);
+    await expect(navLinks).toHaveCount(6); // Dashboard, Extrato, Metas, Cartões, Categorias, Configurações
   });
 
   test('overlay sidebar existe para mobile', async ({ page }) => {

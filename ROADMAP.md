@@ -1,7 +1,7 @@
 # ROADMAP.md — Foco e Controle de Escopo
 
 **Projeto**: Bud Finance  
-**Última atualização**: 22/04/2026 — Cartões de Crédito concluído
+**Última atualização**: 23/04/2026 — Auditoria de paridade Cérebro→Bud (Cartões / Metas / Configurações)
 
 > **REGRA**: NÃO implementar itens do Backlog sem pedido explícito do usuário.
 
@@ -139,6 +139,27 @@
    - `/chamado` — registro e envio de bug/sugestão
    - `processarRecorrentes` — cron às 6h Brasília
    - Rate limiting
+
+### Expansões da Tela de Configurações (cérebro descreve, MVP atual NÃO inclui)
+
+> Auditoria 23/04/2026 — `cérebro/configuracoes.md` documenta uma versão muito mais ampla da tela do que o MVP atual. Os itens abaixo NÃO existem no código e ficam explicitamente fora do escopo até pedido.
+
+21. **Gestão de Assinatura (Mercado Pago)** — card premium glassmorphism, exibição de plano/trial/expiração, botões de upgrade/downgrade, integração com `/mercadopago/create-subscription`, banner de status `pending`, cancelamento de assinatura
+22. **Notificações Push (FCM)** — `verificarEstadoPush()`, registro/revogação de token em `usuarios/{uid}/tokens/fcm`, modal de instalação iOS Safari → PWA
+23. **Reset do Tutorial** — botão integrado a `NexoTutorial.resetAll()` (depende da tela de Onboarding)
+24. **Assistente WhatsApp (vincular número)** — `vincularWhatsApp()` / `desvincularWhatsApp()`, gravação de `whatsappVinculado` em `usuarios/{uid}`, feature-gate por plano Plus, badge de status (decorativa enquanto webhook só loga)
+25. **LGPD: Exportar Dados Completo (XLSX)** — `exportarMeusDados()` cobrindo as 14 subcoleções (`transacoes`, `metas`, `metas/{id}/depositos`, `cartoes`/`carteira` tipo `credito`, `categorias`, `dividas`, `investimentos`, `limites`, `recorrentes`, `compras`, `listas-compras`, `tokens`, `notificacoes_eventos_enviadas`, `perfil/config`) via SheetJS. _MVP atual exporta só `transacoes` em CSV — ver DT-003._
+26. **LGPD: Revogar Consentimento de Notificações** — desativa FCM e marca `revogadoEm` em `tokens/fcm`
+27. **LGPD: Excluir Conta Permanentemente** — `executarExclusaoConta()` com modal de confirmação por digitação ("EXCLUIR"), batch chunks de 400 deletando todas as subcoleções + `usuarios/{uid}` + `auth.currentUser.delete()`
+28. **Reset Total da Conta** — `executarReset()` apaga todas as subcoleções financeiras (mantém doc do usuário) e redireciona para `onboarding.html`
+
+### Débitos Técnicos Mapeados (não-bloqueantes)
+
+> Anotados em memória do repo. Atacar quando a tela for tocada por outro motivo.
+
+- **DT-001** — `js/cartoes.js#salvarTransacoesIA` usa loop sequencial de `addDoc`. Converter para `writeBatch` em chunks de 400-500 para garantir atomicidade da importação IA. _Atacar na próxima alteração em Cartões._
+- **DT-002** — `js/cartoes.js#L824` `perfilPlano = null` hardcoded. Buscar `userData.plano` do Firestore quando feature de planos pagos for ativada.
+- **DT-003** — `js/configuracoes.js#exportarCSV` cobre apenas `transacoes`. Expandir para 14 subcoleções quando a feature LGPD completa (item 25) entrar no escopo.
 
 ---
 

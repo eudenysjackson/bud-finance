@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="description" content="Bud Finance — Categorias">
+  <title>Categorias - Bud Finance</title>
+
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/tailwind.css">
+
+  <!-- Theme Manager — deve vir antes do body para evitar flash -->
+  <script src="js/theme-manager.js"></script>
+
+  <style>
+    :root {
+      --bg-page: #f4f7fb;
+      --text-main: #1e293b;
+      --text-sec: #475569;
+      --card-bg: rgba(255,255,255,0.85);
+      --card-border: rgba(255,255,255,0.9);
+      --card-text: #1e293b;
+      --card-text-sec: #64748b;
+      --btn-bg: #2563eb;
+      --btn-text: #ffffff;
+      --input-bg: #f8fafc;
+      --input-border: #f1f5f9;
+      --input-focus: #3b82f6;
+      --blob-opacity: 1;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: var(--bg-page);
+      min-height: 100vh; min-height: 100dvh;
+      transition: background-color 0.35s ease;
+    }
+
+    /* ── Blobs ─────────────────────────────────────────────────── */
+    .blob {
+      position: fixed; border-radius: 50%; filter: blur(80px);
+      pointer-events: none; z-index: 0;
+      opacity: var(--blob-opacity); transition: opacity 0.35s ease;
+    }
+    .blob-blue  { top:-8%; left:-5%; width:32%; height:32%; background:rgba(99,102,241,0.18); }
+    .blob-cyan  { bottom:-5%; right:-5%; width:25%; height:25%; background:rgba(103,232,249,0.20); filter:blur(100px); }
+
+    /* ── Layout ────────────────────────────────────────────────── */
+    .dash-layout { display:flex; min-height:100vh; min-height:100dvh; }
+
+    /* ── Sidebar ───────────────────────────────────────────────── */
+    .sidebar {
+      width:260px; background:var(--sidebar-bg);
+      backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+      border-right:1px solid var(--card-border);
+      display:flex; flex-direction:column; padding:1.5rem 1rem;
+      position:fixed; top:0; left:0; bottom:0; z-index:50;
+      transition:transform .3s ease,width .3s ease,background 0.35s ease,border-color 0.35s ease;
+      overflow:visible;
+    }
+    .sidebar-collapse-btn {
+      display:none; position:absolute; top:50%; right:-1rem; transform:translateY(-50%);
+      width:1rem; height:3.5rem; border-radius:0 0.5rem 0.5rem 0;
+      background:var(--btn-bg); border:none; color:var(--btn-text);
+      font-size:0.6rem; font-weight:700; cursor:pointer;
+      align-items:center; justify-content:center; z-index:51;
+      box-shadow:3px 0 12px rgba(0,0,0,0.22);
+      transition:background 0.35s ease,color 0.35s ease,box-shadow 0.2s;
+      flex-shrink:0; line-height:1;
+    }
+    .sidebar-collapse-btn:hover { box-shadow:4px 0 18px rgba(0,0,0,0.32); opacity:0.92; }
+    .sidebar.collapsed { width:64px; padding-left:0.75rem; padding-right:0.75rem; align-items:center; }
+    .sidebar.collapsed .sidebar-logo { justify-content:center; padding:0 0 0.625rem; gap:0; }
+    .sidebar.collapsed .sidebar-logo-text { opacity:0; width:0; overflow:hidden; white-space:nowrap; transition:opacity .25s,width .25s; }
+    .sidebar.collapsed .sidebar-link { justify-content:center; padding:0; height:2.5rem; width:2.5rem; gap:0; }
+    .sidebar.collapsed .sidebar-link-text { opacity:0; width:0; overflow:hidden; white-space:nowrap; transition:opacity .25s,width .25s; }
+    .sidebar.collapsed .sidebar-user-info { opacity:0; width:0; overflow:hidden; white-space:nowrap; }
+    .sidebar.collapsed .sidebar-user { justify-content:center; padding:0; height:2.5rem; width:2.5rem; gap:0; background:transparent; }
+    .sidebar-logo {
+      display:flex; align-items:center; gap:0.75rem;
+      padding:0 0 1rem; border-bottom:1px solid var(--card-border);
+      transition:border-color 0.35s ease;
+    }
+    .sidebar-logo img { width:2rem; height:2rem; border-radius:0.5rem; object-fit:cover; }
+    .sidebar-logo span { font-size:1rem; font-weight:800; color:var(--text-main); transition:color 0.35s ease; }
+    .sidebar-link-text { overflow:hidden; white-space:nowrap; transition:opacity .25s,width .25s; }
+    .sidebar-nav { flex:1; display:flex; flex-direction:column; gap:0.25rem; margin-top:0.75rem; }
+    .sidebar-link {
+      display:flex; align-items:center; gap:0.75rem;
+      padding:0.75rem; border-radius:0.75rem;
+      font-size:0.875rem; font-weight:600; color:var(--text-sec);
+      text-decoration:none; transition:all .2s,color 0.35s ease;
+      cursor:pointer; border:none; background:none; width:100%; font-family:inherit;
+    }
+    .sidebar-link:hover { background:var(--sidebar-link-hover-bg); color:var(--sidebar-link-hover-color); }
+    .sidebar-link.active { background:var(--sidebar-link-active-bg); color:var(--sidebar-link-active-color); }
+    .sidebar-link-icon { font-size:1.125rem; width:1.5rem; text-align:center; }
+    .sidebar-user {
+      display:flex; align-items:center; gap:0.75rem; padding:0.75rem; border-radius:0.75rem;
+      background:var(--sidebar-user-bg); transition:background 0.35s ease;
+    }
+    .sidebar-avatar {
+      width:2.25rem; height:2.25rem; border-radius:50%;
+      background:linear-gradient(135deg,#3b82f6,#2563eb);
+      display:flex; align-items:center; justify-content:center;
+      color:#fff; font-weight:800; font-size:0.8rem; flex-shrink:0;
+    }
+    .sidebar-user-info { overflow:hidden; transition:opacity .25s,width .25s; }
+    .sidebar-user-name {
+      font-size:0.8125rem; font-weight:700; color:var(--text-main);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color 0.35s ease;
+    }
+    .sidebar-user-id {
+      font-size:0.6875rem; font-weight:500; color:var(--text-sec);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color 0.35s ease;
+    }
+
+    /* ── Main ──────────────────────────────────────────────────── */
+    .dash-main { flex:1; margin-left:260px; padding:1.5rem; position:relative; z-index:1; transition:margin-left .3s ease; }
+    .dash-main.sidebar-collapsed { margin-left:64px; }
+    .dash-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; }
+    .dash-welcome h1 { font-size:1.5rem; font-weight:800; color:var(--text-main); letter-spacing:-0.025em; transition:color 0.35s ease; }
+    .dash-welcome p { font-size:0.8125rem; font-weight:500; color:var(--text-sec); margin-top:0.125rem; transition:color 0.35s ease; }
+
+    /* ── Hamburger ─────────────────────────────────────────────── */
+    .hamburger-btn {
+      display:none; width:2.5rem; height:2.5rem; border-radius:0.75rem;
+      background:var(--card-bg); backdrop-filter:blur(12px);
+      border:1px solid var(--card-border);
+      align-items:center; justify-content:center;
+      font-size:1.25rem; cursor:pointer; color:var(--card-text); z-index:60;
+      transition:background 0.35s ease,border-color 0.35s ease,color 0.35s ease;
+    }
+    .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:40; }
+
+    /* ── Botões ────────────────────────────────────────────────── */
+    .btn-primary {
+      padding:0.625rem 1.25rem; border-radius:0.75rem;
+      background:var(--btn-bg); color:var(--btn-text);
+      border:none; font-size:0.875rem; font-weight:700;
+      cursor:pointer; font-family:inherit;
+      transition:opacity .15s,transform .15s;
+    }
+    .btn-primary:hover:not(:disabled) { opacity:0.88; transform:translateY(-1px); }
+    .btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
+    .btn-secondary {
+      padding:0.625rem 1.25rem; border-radius:0.75rem;
+      background:rgba(0,0,0,0.05); color:var(--card-text);
+      border:none; font-size:0.875rem; font-weight:700;
+      cursor:pointer; font-family:inherit;
+      transition:background .15s;
+    }
+    .btn-secondary:hover { background:rgba(0,0,0,0.09); }
+
+    /* ── Tabs ──────────────────────────────────────────────────── */
+    .tabs-wrap {
+      display:flex; gap:0.375rem; padding:0.375rem;
+      background:rgba(0,0,0,0.05); border-radius:1rem;
+      width:fit-content;
+    }
+    .tab-btn {
+      padding:0.5rem 1.25rem; border-radius:0.625rem;
+      border:none; font-size:0.875rem; font-weight:700;
+      cursor:pointer; font-family:inherit;
+      background:transparent; color:var(--text-sec);
+      transition:all .2s;
+    }
+    .tab-btn.tab-active {
+      background:var(--card-bg); color:#16a34a;
+      box-shadow:0 2px 8px -2px rgba(0,0,0,0.12);
+    }
+
+    /* ── Card de categoria ─────────────────────────────────────── */
+    .cat-card {
+      background:var(--card-bg); backdrop-filter:blur(12px);
+      border:1px solid var(--card-border); border-radius:1rem;
+      padding:0.875rem 1rem;
+      display:flex; align-items:center; gap:0.75rem;
+      transition:all .2s,background 0.35s ease,border-color 0.35s ease;
+      cursor:default; position:relative;
+    }
+    .cat-card.personalizada { cursor:pointer; }
+    .cat-card.personalizada:hover {
+      border-color:#6ee7b7; background:rgba(209,250,229,0.5);
+      transform:translateY(-1px);
+      box-shadow:0 4px 16px -4px rgba(16,185,129,0.18);
+    }
+    .cat-card-emoji { font-size:1.375rem; line-height:1; flex-shrink:0; }
+    .cat-card-nome {
+      font-size:0.875rem; font-weight:700; color:var(--card-text);
+      flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+      transition:color 0.35s ease;
+    }
+    .cat-badge {
+      font-size:0.625rem; font-weight:700; padding:0.2rem 0.5rem;
+      border-radius:999px; flex-shrink:0;
+    }
+    .cat-badge-padrao {
+      background:rgba(100,116,139,0.1); color:#64748b;
+    }
+    .cat-badge-custom {
+      background:rgba(16,185,129,0.12); color:#059669;
+    }
+    .cat-delete-btn {
+      flex-shrink:0; width:1.75rem; height:1.75rem;
+      border-radius:0.5rem; border:none; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      background:transparent; color:#f87171;
+      font-size:0.875rem;
+      transition:background .15s,color .15s;
+      /* Sempre visível no mobile; no desktop aparece com hover do card */
+    }
+    .cat-delete-btn:hover { background:#fef2f2; color:#dc2626; }
+    @media (min-width:768px) {
+      .cat-delete-btn { opacity:0; }
+      .cat-card.personalizada:hover .cat-delete-btn { opacity:1; }
+    }
+
+    /* ── Grid de categorias ────────────────────────────────────── */
+    .cat-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
+      gap:0.75rem;
+    }
+
+    /* ── Seção ─────────────────────────────────────────────────── */
+    .section-card {
+      background:var(--card-bg); backdrop-filter:blur(16px);
+      border:1px solid var(--card-border); border-radius:1.5rem;
+      padding:1.5rem;
+      transition:background 0.35s ease,border-color 0.35s ease;
+    }
+    .section-header {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:1rem; gap:1rem;
+    }
+    .section-title { font-size:1rem; font-weight:800; color:var(--card-text); transition:color 0.35s ease; }
+    .section-sub { font-size:0.8125rem; font-weight:500; color:var(--card-text-sec); margin-top:0.125rem; transition:color 0.35s ease; }
+
+    /* ── Empty state ───────────────────────────────────────────── */
+    .empty-state {
+      text-align:center; padding:2.5rem 1rem;
+      border:2px dashed var(--input-border); border-radius:1rem;
+      transition:border-color 0.35s ease;
+    }
+    .empty-state-icon { font-size:2.5rem; margin-bottom:0.75rem; }
+    .empty-state-title { font-size:0.9375rem; font-weight:700; color:var(--card-text); transition:color 0.35s ease; }
+    .empty-state-sub { font-size:0.8125rem; font-weight:500; color:var(--card-text-sec); margin-top:0.25rem; transition:color 0.35s ease; }
+
+    /* ── Modal ─────────────────────────────────────────────────── */
+    .modal-backdrop {
+      position:fixed; inset:0; z-index:70;
+      display:flex; align-items:center; justify-content:center;
+      padding:1rem;
+    }
+    .modal-backdrop.hidden { display:none; }
+    .modal-overlay {
+      position:absolute; inset:0;
+      background:rgba(15,23,42,0.55);
+      backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    }
+    .modal-box {
+      position:relative; z-index:1;
+      background:var(--card-bg); backdrop-filter:blur(24px);
+      border:1px solid var(--card-border);
+      border-radius:1.75rem; padding:1.75rem;
+      width:100%; max-width:420px;
+      box-shadow:0 24px 64px -12px rgba(0,0,0,0.22);
+      transition:background 0.35s ease,border-color 0.35s ease;
+      max-height:90vh; overflow-y:auto;
+    }
+    .modal-title {
+      font-size:1.125rem; font-weight:800; color:var(--card-text);
+      margin-bottom:1.25rem; transition:color 0.35s ease;
+    }
+    .modal-close-btn {
+      position:absolute; top:1.25rem; right:1.25rem;
+      width:2rem; height:2rem; border-radius:0.625rem;
+      border:none; background:rgba(0,0,0,0.06); cursor:pointer;
+      font-size:1rem; display:flex; align-items:center; justify-content:center;
+      color:var(--text-sec); transition:background .15s;
+    }
+    .modal-close-btn:hover { background:rgba(0,0,0,0.12); }
+
+    /* ── Emoji picker ──────────────────────────────────────────── */
+    .emoji-trigger {
+      width:3.5rem; height:3.5rem; border-radius:1rem;
+      border:2px solid var(--input-border); background:var(--input-bg);
+      font-size:1.75rem; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      transition:border-color .2s,background 0.35s ease;
+    }
+    .emoji-trigger:hover { border-color:var(--input-focus); }
+    .emoji-picker-wrap {
+      margin-top:0.5rem;
+      border:1px solid var(--input-border); border-radius:1rem;
+      background:var(--card-bg); padding:0.75rem;
+      transition:background 0.35s ease,border-color 0.35s ease;
+    }
+    .emoji-picker-wrap.hidden { display:none; }
+    .emoji-themes {
+      display:flex; gap:0.375rem; flex-wrap:wrap; margin-bottom:0.625rem;
+    }
+    .emoji-theme-btn {
+      padding:0.25rem 0.625rem; border-radius:0.5rem; border:none;
+      font-size:0.75rem; font-weight:700; cursor:pointer; font-family:inherit;
+      background:rgba(0,0,0,0.05); color:var(--text-sec);
+      transition:all .15s;
+    }
+    .emoji-theme-btn.active {
+      background:rgba(16,185,129,0.15); color:#059669;
+    }
+    .emoji-grid {
+      display:grid; grid-template-columns:repeat(8,1fr); gap:0.25rem;
+      max-height:9rem; overflow-y:auto;
+    }
+    .emoji-grid::-webkit-scrollbar { width:4px; }
+    .emoji-grid::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.15); border-radius:2px; }
+    .emoji-btn {
+      aspect-ratio:1; border-radius:0.5rem; border:none;
+      background:transparent; font-size:1.25rem; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      transition:background .1s;
+    }
+    .emoji-btn:hover { background:rgba(0,0,0,0.07); }
+    .emoji-btn.selected { background:rgba(16,185,129,0.2); }
+
+    /* ── Form input ────────────────────────────────────────────── */
+    .form-label {
+      display:block; font-size:0.8125rem; font-weight:700;
+      color:var(--card-text-sec); margin-bottom:0.375rem;
+      transition:color 0.35s ease;
+    }
+    .form-input {
+      width:100%; padding:0.75rem 1rem; border-radius:0.75rem;
+      border:1.5px solid var(--input-border); background:var(--input-bg);
+      font-size:0.9375rem; font-weight:600; color:var(--card-text);
+      font-family:inherit; outline:none;
+      transition:border-color .2s,background 0.35s ease,color 0.35s ease;
+    }
+    .form-input:focus { border-color:var(--input-focus); }
+
+    /* ── Preview ───────────────────────────────────────────────── */
+    .preview-card {
+      background:rgba(0,0,0,0.03); border-radius:1rem; padding:0.875rem 1rem;
+      display:flex; align-items:center; gap:0.75rem;
+      transition:background 0.35s ease;
+    }
+
+    /* ── Footer modal ──────────────────────────────────────────── */
+    .modal-footer {
+      display:flex; gap:0.75rem; margin-top:1.5rem;
+    }
+
+    /* ── Responsivo ────────────────────────────────────────────── */
+    @media (max-width: 767px) {
+      .sidebar { transform:translateX(-100%); width:260px; }
+      .sidebar.open { transform:translateX(0); }
+      .dash-main { margin-left:0; padding:1rem; }
+      .hamburger-btn { display:flex; }
+      .sidebar-collapse-btn { display:none !important; }
+      .cat-grid { grid-template-columns:1fr; }
+    }
+    @media (min-width: 768px) {
+      .sidebar-collapse-btn { display:flex; }
+    }
+  </style>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/bud-utils.js"></script>
+  <script src="js/categorias-padrao.js"></script>
+</head>
+<body>
+
+  <div class="blob blob-blue" aria-hidden="true"></div>
+  <div class="blob blob-cyan"  aria-hidden="true"></div>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="dash-layout">
+
+    <!-- ─── Sidebar ─────────────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar" title="Recolher sidebar">‹</button>
+      <div class="sidebar-logo">
+        <img src="logo.png" alt="Bud Finance">
+        <span class="sidebar-logo-text">Bud Finance</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="sidebar-link">
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
+        </a>
+        <a href="extrato.html" class="sidebar-link">
+          <span class="sidebar-link-icon">📋</span><span class="sidebar-link-text"> Extrato</span>
+        </a>
+        <a href="metas.html" class="sidebar-link">
+          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
+        </a>
+        <a href="cartoes.html" class="sidebar-link">
+          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
+        </a>
+        <a href="categorias.html" class="sidebar-link active">
+          <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
+        </a>
+        <a href="configuracoes.html" class="sidebar-link">
+          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
+        </a>
+      </nav>
+      <div class="sidebar-user" style="margin-top:auto;">
+        <div class="sidebar-avatar" id="sidebarAvatar">?</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebarUserName">Carregando...</div>
+          <div class="sidebar-user-id"   id="sidebarUserId">---</div>
+        </div>
+      </div>
+      <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
+      </button>
+    </aside>
+
+    <!-- ─── Main ────────────────────────────────────────────────── -->
+    <main class="dash-main" id="dashMain">
+
+      <!-- Header -->
+      <div class="dash-header">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
+          <div class="dash-welcome">
+            <h1>🏷️ Categorias</h1>
+            <p id="dataHoje">—</p>
+          </div>
+        </div>
+        <button class="btn-primary" id="btnNova">+ Nova Categoria</button>
+      </div>
+
+      <!-- Tabs Despesas / Receitas -->
+      <div class="tabs-wrap" style="margin-bottom:1.5rem;">
+        <button class="tab-btn tab-active" id="tabDespesa" onclick="switchTab('despesa')">📉 Despesas</button>
+        <button class="tab-btn" id="tabReceita" onclick="switchTab('receita')">📈 Receitas</button>
+      </div>
+
+      <!-- Seção: Personalizadas -->
+      <div class="section-card" style="margin-bottom:1.25rem;">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Suas categorias</div>
+            <div class="section-sub">Crie categorias personalizadas para organizar seus gastos do seu jeito</div>
+          </div>
+        </div>
+        <!-- Empty state -->
+        <div class="empty-state" id="emptyState">
+          <div class="empty-state-icon">🏷️</div>
+          <div class="empty-state-title">Nenhuma categoria personalizada ainda</div>
+          <div class="empty-state-sub">Clique em "+ Nova Categoria" para criar a primeira</div>
+        </div>
+        <!-- Grid personalizadas -->
+        <div class="cat-grid" id="listaPersonalizadas"></div>
+      </div>
+
+      <!-- Seção: Padrão -->
+      <div class="section-card">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Categorias padrão</div>
+            <div class="section-sub">Categorias pré-definidas usadas em todo o app — somente leitura</div>
+          </div>
+        </div>
+        <div class="cat-grid" id="listaPadrao"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ─── Modal: Criar / Editar Categoria ──────────────────────────── -->
+  <div class="modal-backdrop hidden" id="modalCategoria">
+    <div class="modal-overlay" id="modalOverlay"></div>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="tituloModal">
+      <button class="modal-close-btn" id="btnFecharModal" aria-label="Fechar">✕</button>
+      <div class="modal-title" id="tituloModal">Nova Categoria de Despesa</div>
+
+      <!-- Emoji picker -->
+      <div style="margin-bottom:1rem;">
+        <label class="form-label">Ícone</label>
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <button type="button" class="emoji-trigger" id="emojiTrigger" aria-label="Escolher emoji">📦</button>
+          <span style="font-size:0.8125rem;font-weight:500;color:var(--card-text-sec);">Clique para escolher</span>
+        </div>
+        <div class="emoji-picker-wrap hidden" id="emojiPicker">
+          <div class="emoji-themes" id="emojiTemas"></div>
+          <div class="emoji-grid" id="emojiGrid"></div>
+        </div>
+      </div>
+
+      <!-- Nome -->
+      <div style="margin-bottom:1rem;">
+        <label class="form-label" for="catNome">Nome da categoria</label>
+        <input type="text" id="catNome" class="form-input"
+               placeholder="Ex: Academia, Apostas, Costura..."
+               maxlength="40" autocomplete="off">
+      </div>
+
+      <!-- Prévia -->
+      <div style="margin-bottom:0.25rem;">
+        <label class="form-label">Prévia</label>
+        <div class="preview-card">
+          <span id="previewEmoji" style="font-size:1.375rem;">📦</span>
+          <span id="previewNome" style="font-size:0.875rem;font-weight:700;color:var(--card-text-sec);transition:color 0.35s ease;">Nome da categoria</span>
+          <span class="cat-badge cat-badge-custom" style="margin-left:auto;">personalizada</span>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="modal-footer">
+        <button class="btn-secondary" id="btnCancelarModal" style="flex:1;">Cancelar</button>
+        <button class="btn-primary"   id="btnSalvarCat"     style="flex:2;">Criar Categoria</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/firebase-config.js" type="module"></script>
+  <script type="module" src="js/categorias.js"></script>
+
+</body>
+</html>

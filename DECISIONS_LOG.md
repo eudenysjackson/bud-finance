@@ -444,3 +444,21 @@
   - LangChain: overhead desnecessÃ¡rio para uma tarefa de extraÃ§Ã£o pontual.
 - **Impacto**: ackend/package.json ganhou multer ^1.4.5-lts.1 e pdf-parse ^1.1.1. Requer GEMINI_API_KEY no Render apenas para imagens e PDFs ilegÃ­veis.
 - **Quando revisar**: Se Gemini deprecar a API REST v1beta. Se surgir necessidade de suporte a CNAB ou MT940.
+
+---
+
+### DEC-036 — Categorias: fonte única de verdade via `window.BUD_CATEGORIAS_PADRAO`
+- **Data**: 23/04/2026
+- **Contexto**: BUG 3 do cérebro — lista de categorias padrão estava duplicada em múltiplos arquivos JS podendo divergir entre telas.
+- **Decisão**: Criar `js/categorias-padrao.js` como script não-módulo que expõe `window.BUD_CATEGORIAS_PADRAO`. Todas as telas que precisam da lista carregam este script.
+- **Alternativas descartadas**: ES module export — exigiria reescrever todos os módulos consumidores.
+- **Impacto**: `categorias.html` já carrega o script. Demais telas devem adicioná-lo quando forem construídas.
+- **Quando revisar**: Se o app migrar para bundler (Vite/esbuild), substituir pelo import estático.
+
+---
+
+### DEC-037 — Categorias personalizadas: liberadas para todos no MVP (sem gate de plano)
+- **Data**: 23/04/2026
+- **Contexto**: Cérebro especifica custom categories como exclusivas de planos pagos. MVP não tem sistema de planos (PEND-001 pendente).
+- **Decisão**: Todos os usuários podem criar categorias personalizadas no MVP. Código tem comentário indicando onde inserir o gate quando PEND-001 for implementado.
+- **Quando revisar**: Ao implementar PEND-001 — adicionar verificação em `salvarCategoria()` em `js/categorias.js`.

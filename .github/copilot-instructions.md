@@ -2,7 +2,7 @@
 
 ## Seção 0 — Documentos Obrigatórios
 
-Os 5 documentos abaixo governam este projeto. **Consulte-os antes de agir.**
+Os 6 documentos abaixo governam este projeto. **Consulte-os antes de agir.**
 
 | Documento | Quando consultar |
 |---|---|
@@ -11,6 +11,7 @@ Os 5 documentos abaixo governam este projeto. **Consulte-os antes de agir.**
 | **DECISIONS_LOG.md** | Antes de refatorar qualquer padrão ou tomar decisão arquitetural não-óbvia. Registre decisões novas. |
 | **ERRORS_LOG.md** | Antes de resolver qualquer bug. Verifique se já foi resolvido. Registre erros novos. |
 | **ROADMAP.md** | Antes de implementar qualquer feature. NÃO implementar itens do backlog sem pedido explícito. |
+| **PENDENCIAS.md** | Antes de tocar em qualquer tela, verifique pendências/débitos técnicos da tela. Registre novas pendências aqui. |
 
 ## Seção 1 — Regras Gerais
 
@@ -24,3 +25,4 @@ Os 5 documentos abaixo governam este projeto. **Consulte-os antes de agir.**
 - Toda tarefa finalizada deve atualizar o `ARCHITECTURE_MAP.md`
 - Todo erro encontrado deve ser registrado no `ERRORS_LOG.md`
 - Toda decisão não-óbvia deve ser registrada no `DECISIONS_LOG.md`
+- Toda pendência identificada (feature ausente, débito técnico, melhoria futura) deve ser registrada no `PENDENCIAS.md`

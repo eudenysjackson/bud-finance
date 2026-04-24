@@ -442,3 +442,10 @@
 | `metas.html` | ✅ | Metas financeiras — 4 summary cards, grid de metas, 3 modais, emoji picker, datepicker customizado, custom select carteiras |
 | `js/metas.js` | ✅ | onSnapshot metas+carteiras, writeBatch aporte, excluirMeta (depositos+transacoes), confetti, datepicker factory, sugestão de aporte mensal |
 | `css/tailwind.css` | ⏳ | Pendente — build estático do Tailwind |
+| `cartoes.html` | ? | Cart�es de cr�dito � sidebar com Categorias link adicionado |
+| `js/cartoes.js` | ? | onSnapshot carteira+transacoes, writeBatch importa��o IA (DT-001 fixed), CRUD cart�o+gasto |
+| `categorias.html` | ? | Gest�o de categorias � sidebar Categorias (active), tabs Despesas/Receitas, se��o personalizadas + padr�o, modal criar/editar com emoji picker |
+| `js/categorias.js` | ? | ES module. switchTab, renderizarPadrao, carregarPersonalizadas (onSnapshot), salvarCategoria (addDoc/updateDoc + propaga��o rename), deletarCategoria (usage check + deleteDoc), editarCategoria. 9 bugs do c�rebro resolvidos. |
+| `js/categorias-padrao.js` | ? | Script não-módulo. Expõe `window.BUD_CATEGORIAS_PADRAO = { despesa:[...49], receita:[...15] }`. Fonte única de verdade de categorias padrão (DEC-036). Deve ser carregado ANTES do módulo JS em qualquer tela que precise da lista. |
+| `extrato.html` | ✅ | Extrato completo — nav mês, 3 cards resumo (Receitas/Despesas/Saldo), pills tipo, filtro busca+categoria+export, lista agrupada por dia, modal editar (tipo toggle+datepicker custom+cat dropdown), modal excluir estático |
+| `js/extrato.js` | ✅ | ES module. subscribeTransacoes (query por-mês via Timestamps, BUG 2 fix), subscribeAll (flag _dadosCarregados anti-duplo-render BUG 10), renderizarExtrato (grupos por dia, DEC-006 style inline), abrirModalEditar, salvarEdicao, confirmarExclusao, exportarCSV (BOM UTF-8), exportarPDF (iframe BUG 13), datepicker factory no modal, 14 bugs do cérebro resolvidos |

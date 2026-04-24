@@ -36,18 +36,7 @@ const BANDEIRA_LABELS = {
   outro:      '••••',
 };
 
-const CATEGORIAS_PADRAO = [
-  'Alimentação','Mercado','Restaurante','Delivery','Padaria/Café',
-  'Transporte','Combustível','Uber/Táxi',
-  'Saúde','Farmácia',
-  'Lazer','Entretenimento',
-  'Educação',
-  'Compras','Roupas','Eletrônicos',
-  'Assinaturas',
-  'Moradia','Serviços',
-  'Pet','Viagem','Beleza',
-  'Cartão de Crédito','Outros',
-];
+// CATEGORIAS_PADRAO removido — usa window.BUD_CATEGORIAS_PADRAO (categorias-padrao.js)
 
 const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -762,7 +751,16 @@ function abrirModalGasto(cartaoId, gastoObj = null) {
     document.getElementById('dpGastoHidden').value = dpGastoData;
     document.getElementById('dpGastoLabel').textContent = formatDataLabel(dpGastoData);
     renderCalendarioGasto();
-    setSelectValue('triggerCatGastoText', 'hiddenCatGasto', gastoObj.categoria || '', gastoObj.categoria || 'Selecione...');
+    // Buscar emoji da categoria para exibir no trigger (padrão + personalizadas)
+    const catNome = gastoObj.categoria || '';
+    let catObj = (window.BUD_CATEGORIAS_PADRAO && window.BUD_CATEGORIAS_PADRAO.despesa || [])
+      .find(c => (typeof c === 'object' ? c.nome : c) === catNome);
+    if (!catObj) {
+      catObj = categoriasGlobal.find(c => c.tipo === 'despesa' && (c.nome || c.id) === catNome);
+    }
+    const catEmoji = catObj && (typeof catObj === 'object') ? catObj.emoji : '';
+    const catLabel = catEmoji ? catEmoji + ' ' + catNome : (catNome || 'Selecione...');
+    setSelectValue('triggerCatGastoText', 'hiddenCatGasto', catNome, catLabel);
     document.querySelectorAll('#dropdownCatGasto .custom-select-option').forEach(o => {
       o.classList.toggle('selected', o.dataset.value === (gastoObj.categoria || ''));
     });
@@ -1172,20 +1170,30 @@ function atualizarDropdownCategorias() {
   const dropdown = document.getElementById('dropdownCatGasto');
   if (!dropdown) return;
 
-  // Categorias personalizadas do Firestore
-  const personalizadas = categoriasGlobal.map(c => c.nome || c.id).filter(Boolean);
+  // Padrão de despesa (fonte única de verdade) com emojis
+  const padraoBruto = (window.BUD_CATEGORIAS_PADRAO && window.BUD_CATEGORIAS_PADRAO.despesa)
+    ? window.BUD_CATEGORIAS_PADRAO.despesa
+    : [];
+  const padraoItens = padraoBruto.map(c => typeof c === 'object' ? c : { nome: c, emoji: '' });
+  const padraoNomes = padraoItens.map(c => c.nome);
 
-  // União sem duplicatas
-  const todas = [...new Set([...CATEGORIAS_PADRAO, ...personalizadas])];
+  // Personalizadas filtradas por tipo despesa (preserva emoji do usuário)
+  const personalizadas = categoriasGlobal
+    .filter(c => c.tipo === 'despesa')
+    .map(c => ({ nome: c.nome || c.id, emoji: c.emoji || '🏷️' }))
+    .filter(c => c.nome && !padraoNomes.includes(c.nome));
+
+  const todas = [...padraoItens, ...personalizadas];
 
   dropdown.innerHTML = todas.map(cat => `
-    <div class="custom-select-option" role="option" data-value="${escHtml(cat)}">${escHtml(cat)}</div>
+    <div class="custom-select-option" role="option" data-value="${escHtml(cat.nome)}">${cat.emoji ? escHtml(cat.emoji) + ' ' : ''}${escHtml(cat.nome)}</div>
   `).join('');
 
   dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
     opt.addEventListener('click', () => {
       const val = opt.dataset.value;
-      setSelectValue('triggerCatGastoText', 'hiddenCatGasto', val, val);
+      const label = opt.textContent.trim();
+      setSelectValue('triggerCatGastoText', 'hiddenCatGasto', val, label);
       dropdown.querySelectorAll('.custom-select-option').forEach(o => o.classList.toggle('selected', o === opt));
       dropdown.classList.remove('open');
       const trigger = document.getElementById('triggerCatGasto');
@@ -1649,57 +1657,67 @@ async function salvarTransacoesIA() {
   btn.disabled = true;
   btn.textContent = 'Salvando...';
 
-  let salvos = 0;
   try {
-    for (const item of itensSelecionados) {
-      // Derivar data: usar dataRaw se disponível, senão dia 15
-      let dataReferencia = `${anoMes}-15`;
-      if (item.dataRaw) {
-        // Tentar extrair dia de formatos como "15/03", "2026-03-15", "15 MAR", "15"
-        const m = item.dataRaw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        const m2 = item.dataRaw.match(/^(\d{1,2})[\/\-](\d{1,2})/);
-        const m3 = item.dataRaw.match(/^(\d{1,2})$/);
-        if (m) {
-          dataReferencia = item.dataRaw; // já está em YYYY-MM-DD
-        } else if (m2) {
-          const dia = m2[1].padStart(2, '0');
-          dataReferencia = `${anoMes}-${dia}`;
-        } else if (m3) {
-          dataReferencia = `${anoMes}-${m3[1].padStart(2, '0')}`;
+    // writeBatch atômico em chunks de 400 (limite Firestore: 500 ops/batch)
+    // Garante que a importação é tudo-ou-nada: sem risco de fatura parcialmente salva
+    const CHUNK = 400;
+    const colRef = collection(db, 'usuarios', uid, 'transacoes');
+
+    for (let ci = 0; ci < itensSelecionados.length; ci += CHUNK) {
+      const chunk = itensSelecionados.slice(ci, ci + CHUNK);
+      const batch = writeBatch(db);
+
+      for (const item of chunk) {
+        // Derivar data: usar dataRaw se disponível, senão dia 15
+        let dataReferencia = `${anoMes}-15`;
+        if (item.dataRaw) {
+          // Tentar extrair dia de formatos como "15/03", "2026-03-15", "15 MAR", "15"
+          const m  = item.dataRaw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+          const m2 = item.dataRaw.match(/^(\d{1,2})[\/\-](\d{1,2})/);
+          const m3 = item.dataRaw.match(/^(\d{1,2})$/);
+          if (m) {
+            dataReferencia = item.dataRaw; // já está em YYYY-MM-DD
+          } else if (m2) {
+            dataReferencia = `${anoMes}-${m2[1].padStart(2, '0')}`;
+          } else if (m3) {
+            dataReferencia = `${anoMes}-${m3[1].padStart(2, '0')}`;
+          }
         }
+
+        const docData = {
+          tipo: 'despesa',
+          descricao: budSanitize(item.desc).substring(0, 100),
+          valor: item.valor,
+          categoria: item.categoria.replace(/\p{Emoji}/gu, '').trim() || 'Outros',
+          cartaoId: cartaoImportIA,
+          dataReferencia,
+          formaPagamento: 'Crédito',
+          pagamentoFatura: false,
+          origem: 'importacao_ia',
+          status: item.status || 'ativa',
+          dataCriacao: serverTimestamp(),
+        };
+
+        if (item.parcelado && item.parcelaAtual && item.totalParcelas) {
+          docData.parcelado = true;
+          docData.parcelaAtual = item.parcelaAtual;
+          docData.totalParcelas = item.totalParcelas;
+        }
+
+        batch.set(doc(colRef), docData);
       }
 
-      const docData = {
-        tipo: 'despesa',
-        descricao: budSanitize(item.desc).substring(0, 100),
-        valor: item.valor,
-        categoria: item.categoria.replace(/\p{Emoji}/gu, '').trim() || 'Outros',
-        cartaoId: cartaoImportIA,
-        dataReferencia,
-        formaPagamento: 'Crédito',
-        pagamentoFatura: false,
-        origem: 'importacao_ia',
-        status: item.status || 'ativa',
-        dataCriacao: serverTimestamp(),
-      };
-
-      if (item.parcelado && item.parcelaAtual && item.totalParcelas) {
-        docData.parcelado = true;
-        docData.parcelaAtual = item.parcelaAtual;
-        docData.totalParcelas = item.totalParcelas;
-      }
-
-      await addDoc(collection(db, 'usuarios', uid, 'transacoes'), docData);
-      salvos++;
+      await batch.commit();
     }
 
+    const salvos = itensSelecionados.length;
     showToast(`${salvos} transaç${salvos !== 1 ? 'ões importadas' : 'ão importada'} com sucesso!`, 'ok');
     fecharModalReviewIA();
     itensIAExtraidos = [];
     cartaoImportIA = null;
 
   } catch {
-    showToast(`Erro ao salvar. ${salvos} de ${itensSelecionados.length} foram salvas.`, 'erro');
+    showToast('Erro ao salvar. Nenhuma transação foi importada. Tente novamente.', 'erro');
   } finally {
     btn.disabled = false;
     btn.textContent = '💾 Salvar Selecionados';

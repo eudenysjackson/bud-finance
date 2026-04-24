@@ -4,7 +4,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
-  getFirestore, doc, getDoc, collection, query, orderBy, limit, onSnapshot,
+  getFirestore, doc, getDoc, collection, query, where, orderBy, limit, onSnapshot,
   addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
@@ -29,10 +29,9 @@ let transacaoEditandoId = null; // null = criando, string = editando
 let filtroAtividadeAtual = 'todos'; // 'todos' | 'receita' | 'despesa'
 let _skipThemeSync = false; // evita escrita circular no Firestore ao aplicar tema vindo do Firestore
 // ─── Categorias ──────────────────────────────────────────────────────────
-var CATEGORIAS = {
-  receita: ['Salário', 'Freelance', 'Investimentos', 'Transferência recebida', 'Bônus', 'Outros'],
-  despesa: ['Alimentação', 'Transporte', 'Saúde', 'Moradia', 'Lazer', 'Educação', 'Vestuário', 'Contas e serviços', 'Outros']
-};
+// Padrão vem de window.BUD_CATEGORIAS_PADRAO (categorias-padrao.js)
+// Personalizadas são carregadas via onSnapshot em setupListeners()
+let categoriasPersonalizadas = { receita: [], despesa: [] };
 
 // ─── Formatação ─────────────────────────────────────────────────────────
 function formatarValor(valor) {
@@ -476,17 +475,33 @@ function preencherCategorias(tipo) {
   }
   dropdown.innerHTML = '';
   dropdown.classList.remove('open');
-  CATEGORIAS[tipo].forEach(function (cat) {
+
+  // Padrão (window.BUD_CATEGORIAS_PADRAO) + personalizadas do usuário
+  var padraoBruto = (window.BUD_CATEGORIAS_PADRAO && window.BUD_CATEGORIAS_PADRAO[tipo])
+    ? window.BUD_CATEGORIAS_PADRAO[tipo]
+    : [];
+  var padraoNomes = padraoBruto.map(function (c) { return typeof c === 'object' ? c.nome : c; });
+  var padraoItens = padraoBruto.map(function (c) {
+    return typeof c === 'object' ? c : { nome: c, emoji: '' };
+  });
+  var personalizadas = (categoriasPersonalizadas[tipo] || []).map(function (c) {
+    if (typeof c === 'object' && c) return { nome: c.nome, emoji: c.emoji || '🏷️' };
+    return { nome: c, emoji: '🏷️' };
+  }).filter(function (c) { return !padraoNomes.includes(c.nome); });
+  var todas = padraoItens.concat(personalizadas);
+
+  todas.forEach(function (cat) {
     var div = document.createElement('div');
     div.className = 'custom-select-option';
-    div.textContent = cat;
+    div.textContent = (cat.emoji ? cat.emoji + ' ' : '') + cat.nome;
     div.setAttribute('role', 'option');
+    div.setAttribute('data-value', cat.nome);
     div.addEventListener('click', function (e) {
       e.stopPropagation();
       dropdown.querySelectorAll('.custom-select-option').forEach(function (o) { o.classList.remove('selected'); });
       div.classList.add('selected');
-      if (hidden) hidden.value = cat;
-      if (texto) texto.textContent = cat;
+      if (hidden) hidden.value = cat.nome;
+      if (texto) texto.textContent = (cat.emoji ? cat.emoji + ' ' : '') + cat.nome;
       if (trigger) {
         trigger.classList.add('has-value');
         trigger.classList.remove('open', 'error');
@@ -506,6 +521,7 @@ function atualizarModalTipo(tipo) {
   var submit = document.getElementById('btnSubmitLancamento');
   var isEdit = transacaoEditandoId !== null;
 
+  // Atualizar visual dos botões PRIMEIRO (antes de qualquer chamada que possa falhar)
   if (btnR) { btnR.className = 'tipo-btn' + (tipo === 'receita' ? ' active-receita' : ''); }
   if (btnD) { btnD.className = 'tipo-btn' + (tipo === 'despesa' ? ' active-despesa' : ''); }
   if (titulo) {
@@ -519,7 +535,7 @@ function atualizarModalTipo(tipo) {
     submit.textContent = isEdit ? 'Salvar Alterações' : (tipo === 'receita' ? 'Salvar Receita' : 'Salvar Despesa');
     submit.className = 'modal-submit modal-submit-' + tipo;
   }
-  preencherCategorias(tipo);
+  try { preencherCategorias(tipo); } catch (_e) {}
 }
 
 function aplicarMascaraValor(input) {
@@ -600,15 +616,26 @@ function abrirModalEditar(transacaoId) {
   var catHidden = document.getElementById('inputCategoria');
   var catTexto = document.getElementById('categoriaTexto');
   var catBtn = document.getElementById('categoriaBtn');
-  if (catHidden) catHidden.value = t.categoria || '';
-  if (catTexto) catTexto.textContent = t.categoria || 'Selecione...';
-  if (catBtn && t.categoria) catBtn.classList.add('has-value');
+  var catNomeEdit = t.categoria || '';
+  // Buscar emoji da categoria (padrão + personalizadas)
+  var tipoEdit = t.tipo || 'despesa';
+  var catObjEdit = ((window.BUD_CATEGORIAS_PADRAO && window.BUD_CATEGORIAS_PADRAO[tipoEdit]) || [])
+    .find(function (c) { return (typeof c === 'object' ? c.nome : c) === catNomeEdit; });
+  if (!catObjEdit) {
+    catObjEdit = (categoriasPersonalizadas[tipoEdit] || [])
+      .find(function (c) { return (typeof c === 'object' ? c.nome : c) === catNomeEdit; });
+  }
+  var emojiEdit = catObjEdit && (typeof catObjEdit === 'object') ? catObjEdit.emoji : '';
+  var catLabelEdit = emojiEdit ? emojiEdit + ' ' + catNomeEdit : (catNomeEdit || 'Selecione...');
+  if (catHidden) catHidden.value = catNomeEdit;
+  if (catTexto) catTexto.textContent = catLabelEdit;
+  if (catBtn && catNomeEdit) catBtn.classList.add('has-value');
 
   // Marcar opção selecionada no dropdown
   var dropdown = document.getElementById('categoriaDropdown');
   if (dropdown) {
     dropdown.querySelectorAll('.custom-select-option').forEach(function (o) {
-      o.classList.toggle('selected', o.textContent === t.categoria);
+      o.classList.toggle('selected', o.getAttribute('data-value') === catNomeEdit);
     });
   }
 
@@ -891,6 +918,20 @@ function setupSidebar() {
 
 // ─── Setup listeners Firestore ──────────────────────────────────────────
 function setupListeners(uid) {
+  // Categorias personalizadas — onSnapshot sem where+orderBy (evita índice composto)
+  var catRef = collection(db, 'usuarios', uid, 'categorias');
+  _unsubs.push(onSnapshot(catRef, function (snap) {
+    var r = [], d = [];
+    snap.forEach(function (doc) {
+      var data = doc.data();
+      var item = { nome: data.nome, emoji: data.emoji || '🏷️' };
+      if (data.tipo === 'receita') r.push(item);
+      else if (data.tipo === 'despesa') d.push(item);
+    });
+    categoriasPersonalizadas.receita  = r;
+    categoriasPersonalizadas.despesa  = d;
+  }, function () {}));
+
   // Transações — onSnapshot com orderBy (fix BUG 1 do cérebro)
   var transRef = query(
     collection(db, 'usuarios', uid, 'transacoes'),
