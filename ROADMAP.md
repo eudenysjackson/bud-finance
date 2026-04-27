@@ -145,6 +145,25 @@
   - BUG 10: dropdown marca categorias que já têm limite
   - 15 bugs corrigidos desde o início (ver cérebro/limites.md)
   - Link Limites adicionado a todos os sidebars (8 páginas)
+- [x] **Tela de Investimentos** (`investimentos.html` + `js/investimentos.js`)
+  - Auth guard (`onAuthStateChanged` + `emailVerified`)
+  - 3 KPIs: Total Investido, Valor Atual, Rendimento Total (R$ e %)
+  - Alerta de diversificação: banner âmbar quando tipo >60% do portfólio (style.cssText)
+  - Gráfico doughnut Chart.js — instância reutilizável com `chart.update()` (BUG 17)
+  - Legenda inline com cor, emoji, tipo, %, valor
+  - Painel de cotações: AwesomeAPI (USD, EUR, BTC) com TTL 5 min + AbortSignal 8s
+  - Indicadores de referência: Selic/CDI/IPCA/Poupança (BENCHMARKS centralizado — BUG 5)
+  - CRUD completo: criar, editar, excluir (overlay style.cssText — DEC-006)
+  - 8 tipos com emoji: Renda Fixa, Ações, FIIs, Cripto, Poupança, CDB, Tesouro Direto, Outro
+  - Custom dropdown tipo + liquidez; Datepicker DEC-018 (aporte + vencimento)
+  - Preview rendimento em tempo real no modal
+  - Filtro rápido: Todos / Renda Fixa / Ações / Cripto
+  - Badges CDI/IPCA (rendimento anualizado — só para ativos com >30 dias — BUG 12)
+  - `orderBy('criadoEm','desc') + limit(500)` no onSnapshot (BUG 7)
+  - escapeHTML em todos os dados da AwesomeAPI (BUG 14)
+  - fmt() com `Number(v)||0` — sem crash em null/undefined (BUG 2)
+  - try/catch completo no submit + btn disabled (BUG 3)
+  - Link Investimentos adicionado a todos os sidebars (9 páginas)
 
 ---
 
@@ -156,9 +175,9 @@
 1. ~~**Extrato** (`extrato.html` + `js/extrato.js`) — Filtros, lista por dia, toggle pago, editar, excluir, exportar CSV/PDF~~ ✅ Já implementado
 3. ~~**Categorias** (`categorias.html` + `js/categorias.js`) — 48 despesas + 15 receitas padrão; personalizadas via Firestore (planos pagos)~~ ✅ Já implementado
 5. ~~**Dívidas** (`dividas.html` + `js/dividas.js`)~~ ✅ Já implementado
-6. **Investimentos** (`investimentos.html` + `js/investimentos.js`) — 8 tipos, AwesomeAPI, Chart.js doughnut
+6. ~~**Investimentos** (`investimentos.html` + `js/investimentos.js`)~~ ✅ Implementado em 27/04/2026
 7. ~~**Limites** (`limites.html` + `js/limites.js`) — Barra de progresso por categoria, "Copiar do Mês Anterior" (plano Plus)~~ ✅ Implementado
-8. **Mercado** (`mercado.html` + `js/mercado.js`) — Lista de compras + IA para nota fiscal
+8. ~~**Mercado** (`mercado.html` + `js/mercado.js`) — Compras + Listas + Histórico de preços + Modo Compras~~ ✅ Implementado (sem IA — ver pendência abaixo)
 
 ### Telas Analíticas (planos Plus/Pro)
 9. **Balanço Mensal** (`balanco-mensal.html` + `js/balanco-mensal.js`) — Read-only: 3 cards + detalhamento por categoria (plano Plus)

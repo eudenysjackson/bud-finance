@@ -1,7 +1,7 @@
 # ARCHITECTURE_MAP.md — Inventário Vivo do Ecossistema
 
 **Projeto**: Bud Finance  
-**Última atualização**: 26/04/2026
+**Última atualização**: 27/04/2026
 
 > **REGRA**: Antes de criar algo novo, consulte este doc. Ao finalizar qualquer tarefa, atualize.  
 > Se algo novo quebrar uma conexão existente, **pare e avise o usuário**.
@@ -75,6 +75,17 @@
 | **ModalImportIA** | Modal importar fatura via IA. Aceita PDF, JPG, PNG, WEBP e OFX/QFX. OFX processado client-side sem backend. PDF/imagem enviados para `/api/extrair-fatura`. Timeout 45s. Barra de progresso animada. | `cartoes.html` |
 | **ModalReviewIA** | Modal de revisão das transações extraídas. Lista editável de transações com desc/data/valor/categoria/status. Checkboxes individuais. Resumo com total selecionado. Salvar faz addDoc por transação selecionada. | `cartoes.html` |
 | **CorPicker** | 10 pills de cores (roxo/azul/teal/verde/laranja/vermelho/rosa/amarelo/cyan/preto) para seleção do gradiente do cartão | `cartoes.html` |
+| **InvestSummaryCards** | 3 KPIs: Total Investido, Valor Atual, Rendimento Total (R$ e %) | `investimentos.html` |
+| **AlertaDiversificacao** | Banner âmbar quando um tipo >60% do portfólio | `investimentos.html` (style.cssText) |
+| **ChartAlocacao** | Doughnut Chart.js de alocação por tipo — instância reutilizável (BUG 17) | `investimentos.html` |
+| **LegendaAlocacao** | Legenda inline com cor, emoji, tipo, %, valor | `investimentos.html` (criado via JS) |
+| **CotacoesGrid** | 3 cards de cotação (USD, EUR, BTC) via AwesomeAPI com variação % | `investimentos.html` (criado via JS) |
+| **IndicadoresReferencia** | 4 cards Selic/CDI/IPCA/Poupança — valores de referência (BENCHMARKS centralizado) | `investimentos.html` (criado via JS) |
+| **InvItem** | Card de investimento: emoji+tipo, nome, corretora+liquidez, badges CDI/IPCA, valor atual, rendimento % | `investimentos.html` (criado via JS) |
+| **ModalInvestimento** | Modal criar/editar: tipo (dropdown emoji), nome, corretora, valor+valorAtual, preview rendimento, liquidez, datepicker aporte+vencimento | `investimentos.html` |
+| **DropdownTipoInvest** | Custom dropdown emoji para 8 tipos de investimento | `investimentos.html` |
+| **DropdownLiquidez** | Custom dropdown para 6 opções de liquidez | `investimentos.html` |
+| **DatepickerInvest** | Datepicker customizado DEC-018 — instâncias: data aporte + vencimento | `investimentos.html` |
 
 ---
 
@@ -84,6 +95,13 @@
 |---|---|---|---|
 | `budShowToast(msg, tipo)` | Exibe notificação toast (success, error, warning, info) | Todas as páginas | ✅ `bud-utils.js` |
 | `budSanitize(str)` | Strip HTML tags + trim — anti-XSS | Todas as páginas | ✅ `bud-utils.js` |
+| `budEscapeHTML(str)` | Escape COMPLETO (incl. aspas, backtick) — uso em onclick/atributos | `dividas.js`, `investimentos.js`, `limites.js` (fallback) | ✅ `bud-utils.js` (27/04/2026) |
+| `budFormatarValor(v, opts)` | Formata número como moeda BRL (consolidação de duplicatas) | helpers global | ✅ `bud-utils.js` (27/04/2026) |
+| `budPluralize(n, sing, plur)` | Pluralização PT-BR ("1 transação" / "2 transações") | helpers global | ✅ `bud-utils.js` (27/04/2026) |
+| `budLog/budWarn/budError` | Console wrappers que silenciam em produção | `extrato.js`, `dividas.js`, `investimentos.js`, `recorrentes.js`, `limites.js`, `categorias.js` | ✅ `bud-utils.js` (27/04/2026) |
+| `budStorage.{get,set,remove}` | localStorage wrapper try/catch (Safari private mode) | helpers global | ✅ `bud-utils.js` (27/04/2026) |
+| `budGetUrlParam(name)` | URLSearchParams seguro (try/catch) | helpers global | ✅ `bud-utils.js` (27/04/2026) |
+| `BUD_IS_DEV` | Flag boolean: hostname é localhost/127.0.0.1/.local | helpers global | ✅ `bud-utils.js` (27/04/2026) |
 | `budCalcStrength(pw)` | Calcula força da senha (0-4) | `cadastro.js`, `acao-auth.js`, `trocar-senha.js` | ✅ `bud-utils.js` |
 | `BUD_SENHAS_COMUNS` | Blocklist de senhas fracas comuns | `cadastro.js`, `acao-auth.js`, `trocar-senha.js` | ✅ `bud-utils.js` |
 | `buscarEmailPorMatricula(matricula)` | Consulta Firestore → retorna email ou null | `index.js` | ✅ `index.js` |
@@ -330,6 +348,22 @@
 | `carteiraId` | string | ✅ | ID da carteira debitada |
 | `dataCriacao` | timestamp | ✅ | serverTimestamp() — timestamp de auditoria |
 
+### Subcollection: `usuarios/{uid}/investimentos/{id}`
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `nome` | string | ✅ | Nome ou ticker do investimento |
+| `tipo` | string | ✅ | `Renda Fixa` / `Ações` / `FIIs` / `Cripto` / `Poupança` / `CDB` / `Tesouro Direto` / `Outro` |
+| `corretora` | string | ❌ | Corretora ou banco |
+| `valor` | number | ✅ | Valor aportado (R$) |
+| `valorAtual` | number | ✅ | Valor atual estimado (R$) |
+| `rendimento` | number | ✅ | Rendimento calculado (%) = (valorAtual - valor) / valor |
+| `liquidez` | string | ❌ | `Diária` / `No vencimento` / `30 dias` / `60 dias` / `90 dias` / `Sem liquidez` |
+| `vencimento` | string | ❌ | Data de vencimento `YYYY-MM-DD` |
+| `data` | string | ❌ | Data do aporte `YYYY-MM-DD` |
+| `criadoEm` | timestamp | ✅ | serverTimestamp() |
+| `atualizadoEm` | timestamp | ✅ | serverTimestamp() |
+
 ### Collection: `chamados`
 
 | Campo | Tipo | Obrigatório | Descrição |
@@ -354,6 +388,8 @@
 | `/dashboard` | Dashboard | `dashboard.html` | ✅ Auth guard + primeiroLogin guard + sidebar + 3 cards + trial banner |
 | `/configuracoes` | Configurações | `configuracoes.html` | ✅ Auth guard + emailVerified guard + 3 abas (Perfil, Personalização, Segurança) |
 | `/metas` | Metas Financeiras | `metas.html` | ✅ Auth guard + emailVerified guard + sidebar + 4 summary cards + grid metas + 3 modais |
+| `/investimentos` | Investimentos | `investimentos.html` | ✅ Auth guard + emailVerified guard + sidebar + 3 KPIs + doughnut chart + cotações AwesomeAPI + CRUD |
+| `/mercado` | Compras de Mercado | `mercado.html` | ✅ Auth guard + sidebar + 2 abas (Compras / Listas) + 4 KPIs do mês + lista paginada + histórico de variação de preços + Modo Compras (rascunho auto-salvo) + **Importação por IA (Foto/PDF/Texto, multi-foto, review editável, aprendizado por CNPJ e por item, quota mensal por plano)** — sem feature gate |
 | `/admin` | Painel admin | `admin.html` | `role: admin` |
 | `/politica-privacidade` | LGPD | `politica-privacidade.html` | Termos |
 
@@ -367,7 +403,9 @@
 | **Firestore** | Banco de dados | `https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js` | Dados de usuário, chamados |
 | **EmailJS** | Envio de emails | `https://api.emailjs.com/api/v1.6/email/send` | Reset de senha (via backend), boas-vindas |
 | **Backend (Render)** | Express API | `BUD_FUNCTIONS_URL + /reset-senha` | Gera link + envia email de reset server-side |
+| **AwesomeAPI** | Câmbio/Cripto | `https://economia.awesomeapi.com.br/last/USD-BRL,EUR-BRL,BTC-BRL` | Cache 5 min no cliente; AbortSignal 8s; escapeHTML em todos os valores retornados |
 | **Backend (Render)** | Express API | `https://bud-finance-backend.onrender.com/api/extrair-fatura` | POST multipart/form-data (campo `arquivo`). Extrai transações de PDF via pdf-parse+regex ou via Gemini 1.5 Flash (fallback). Retorna `[{desc, valor, data}]`. Deps: multer, pdf-parse. Requer `GEMINI_API_KEY` no Render para imagens. |
+| **Backend (Render)** | Express API | `https://bud-finance-backend.onrender.com/api/extrair-cupom` | POST multipart `arquivos[]` (1-3 imagens/PDF, 8MB) **OU** JSON `{texto}`. Extrai cupom fiscal via Gemini 1.5 Flash. Retorna `{mercado, cnpj, data, itens:[{nome,qtd,valor,cat}]}`. Cache server-side 24h por SHA-256 (Map TTL, MAX 200). Categorias permitidas: `[Mercado, Padaria/Café, Bares/Baladas, Farmácia, Pets, Material Escolar, Outros]`. Timeouts 30s/25s. |
 | **Google Fonts** | Tipografia | `fonts.googleapis.com` (Inter) | Todas as páginas |
 
 ---
@@ -453,3 +491,5 @@
 | `js/recorrentes.js` | ✅ | ES module. calcPrimeiraData (client, BUG 3 fix — nome distinto do server), salvarRecorrente (BUG 1 fix: só recalcula proximaData se periodicidade/dia mudaram), toggleAtivo, excluirRec (overlay via style.cssText), renderizar (cards animados, estimativa mensal diária×30/semanal×4.3/mensal×1). Feature gate por plano (PLANOS_PERMITIDOS). Usa window.BUD_CATEGORIAS_PADRAO. |
 | `dividas.html` | ✅ | Controle de dívidas — Wizard 2 passos (Tipo: 6 tipos; Formato: IA/Juros/Fixas/Livre), 4 KPIs (Ativas/Saldo Devedor/Total Pago/Juros Pagos), barra progresso geral, alertas de vencimento, cards de dívida com barra de progresso individual. 6 modais: modalTipo, modalFormato, modalImportIA (3 abas: Arquivo/Texto/Câmera), modalDivida (form com máscara BRL + data DD/MM/AAAA DEC-018), modalDetalhes (2 abas: Resumo/Parcelas), modalSimulador (2 abas: Extra/Quitar). CDN: PDF.js 3.11.174 + Tesseract.js 5. 25 bugs do cérebro resolvidos de início. |
 | `js/dividas.js` | ✅ | ES module. Todos os 25 bugs do cérebro/dividas.md corrigidos de início. calcularSaldoDevedor (Tabela Price real — Bug#15), addMonthsSafe (Bug#10), confirmarAcao helper Promise<bool> style.cssText (Bug#25/DEC-006), classificarContrato (keywords scoring), extrairDadosDoTexto (15 regexes), renderizarParcelas (Bug#18 inline bg), marcarParcelaPaga (Bug#8 out-of-order confirm), desmarcarParcela, simularExtra/calcularResultadoQuitar (Bug#5 saldo real), fmtIA (Bug#20 always visible), _tabAtualDetalhes state (Bug#24), escapeHTML fallback (Bug#23), onSnapshot error callback (Bug#2), orderBy criadoEm desc (Bug#22), _unsubs.forEach antes de redirect (Bug#7). Firestore: usuarios/{uid}/dividas/{dividaId}. |
+| `mercado.html` | ✅ | Compras de Mercado — 2 abas (Compras / Listas), 4 KPIs do mês (Total/Qtd/Ticket Médio/Maior Compra), seção Últimas Compras (cards com mercado+data+pagamento+parcelas+itens+ações), seção Variação de Preços (variação % entre primeira e última compra do item, top 15), seções Listas Ativas/Concluídas com barra de progresso. 3 modais: modalCompra (mercado+data+forma+parcelas+cartão+itens), modalLista (nome+itens), modalModoCompras (rascunho com auto-save debounce 800ms). Confirmações via style.cssText (DEC-006). Sem feature gate. |
+| `js/mercado.js` | ✅ | ES module. Todos os 18 bugs do cérebro/mercado.md corrigidos de início. salvarCompra usa writeBatch atômico (Bug#2) com compra + N transações vinculadas via campo `compraId` (Bug#5/9). Categoria majoritária por valor (Bug#3) via inferirCategoriaItem (heurística keyword→cat). Distribuição de centavos: primeira parcela absorve resto (Bug#7). onSnapshot tempo real (Bug#6) em compras+listas-compras. extrairDataRef normaliza string|Timestamp (Bug#8). resetState no onAuthStateChanged (Bug#10). Paginação "Ver mais" PAGE_SIZE=20 (Bug#15). Inputs inline para add itens (Bug#12, sem prompt). Fallback de chips se cartões falharem (Bug#13). **IA: setupImportIA() + abrirModalImportIA/Review + enviarParaIA (FormData multi-foto OU JSON texto, AbortController 60s) + posProcessarIA (aplica `mercados-conhecidos` por CNPJ + `aprendizado-itens` por nome) + carregarPlanoUsuario/UsoIA/Aprendizado/MercadosConhecidos + incrementarUsoIA com `increment(1)`. Quotas client-side: free=5, starter=30, plus/pro=∞. confirmarReviewIA grava `mercados-conhecidos/{cnpj}` e `aprendizado-itens/{itemKey}` em background, depois pré-popula modalCompra.** Firestore: usuarios/{uid}/compras + usuarios/{uid}/listas-compras + transacoes (despesa com origem:'compras', compraId) + usuarios/{uid}/uso-ia/{anoMes} + usuarios/{uid}/mercados-conhecidos/{cnpj} + usuarios/{uid}/aprendizado-itens/{itemKey}. |

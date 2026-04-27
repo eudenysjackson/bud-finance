@@ -480,7 +480,7 @@ async function salvarRecorrente() {
     fecharModal();
     window.budShowToast(id ? 'Recorrente atualizada!' : 'Recorrente criada!', 'success');
   } catch (err) {
-    console.error('recorrentes/salvar:', err);
+    (window.budError||console.error)('recorrentes/salvar:', err);
     window.budShowToast('Erro ao salvar. Tente novamente.', 'error');
   } finally {
     btn.disabled = false;
@@ -497,7 +497,7 @@ async function toggleAtivo(id, novoValor) {
       atualizadoEm: serverTimestamp(),
     });
   } catch (err) {
-    console.error('recorrentes/toggleAtivo:', err);
+    (window.budError||console.error)('recorrentes/toggleAtivo:', err);
     window.budShowToast('Erro ao atualizar status.', 'error');
   }
 }
@@ -530,7 +530,7 @@ function excluirRec(id) {
       await deleteDoc(doc(db, 'usuarios', currentUser.uid, 'recorrentes', id));
       window.budShowToast('Recorrente excluída.', 'success');
     } catch (err) {
-      console.error('recorrentes/excluir:', err);
+      (window.budError||console.error)('recorrentes/excluir:', err);
       window.budShowToast('Erro ao excluir.', 'error');
     } finally {
       overlay.remove();
@@ -688,7 +688,7 @@ onAuthStateChanged(auth, async (user) => {
     const snap = await getDoc(doc(db, 'usuarios', user.uid));
     userData = snap.exists() ? snap.data() : {};
   } catch (err) {
-    console.error('recorrentes/userData:', err);
+    (window.budError||console.error)('recorrentes/userData:', err);
   }
 
   // avatar / nome
@@ -730,7 +730,7 @@ onAuthStateChanged(auth, async (user) => {
   );
   const unsubCat = onSnapshot(qCat, snap => {
     categoriasCustom = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  }, err => console.error('recorrentes/categorias:', err));
+  }, err => (window.budError||console.error)('recorrentes/categorias:', err));
   _unsubs.push(unsubCat);
 
   // listener carteira (#8): cartões de crédito do usuário
@@ -743,7 +743,7 @@ onAuthStateChanged(auth, async (user) => {
     carteiraItems = snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
-  }, err => console.error('recorrentes/carteira:', err));
+  }, err => (window.budError||console.error)('recorrentes/carteira:', err));
   _unsubs.push(unsubCarteira);
 
   // listener recorrentes
@@ -762,7 +762,7 @@ onAuthStateChanged(auth, async (user) => {
       setTimeout(() => splash.style.display = 'none', 500);
     }
   }, err => {
-    console.error('recorrentes/snapshot:', err);
+    (window.budError||console.error)('recorrentes/snapshot:', err);
     window.budShowToast('Erro ao carregar recorrentes.', 'error');
   });
   _unsubs.push(unsubRec);

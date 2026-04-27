@@ -157,9 +157,36 @@ _Sem pendências ativas._
 
 ---
 
+## 🛒 Compras / Mercado
+
+| ID | Item | Prioridade | Origem | Notas |
+|----|------|------------|--------|-------|
+| PEND-MER-01 | ~~**Importação por IA / Nota Fiscal**~~ ✅ **IMPLEMENTADO 27/04/2026** — botão "📷 Importar nota" abre modal 3 abas (Foto/PDF/Texto), endpoint próprio `/api/extrair-cupom` (Gemini 1.5 Flash, cache 24h SHA-256, multi-foto até 3, multer 8MB), tela de revisão editável com checkbox/qtd/valor/categoria/exclusão, aprendizado por CNPJ (`mercados-conhecidos`) e por item (`aprendizado-itens`), quota mensal por plano (`uso-ia/{anoMes}`). | ✅ Concluído | Implementação 27/04/2026 | — |
+| PEND-MER-06 | **Métricas admin de uso da IA** — agregar `uso-ia/{anoMes}` por usuário no painel admin, custo estimado por extração. | 🟢 Baixa | Spin-off PEND-MER-01 | Útil para monitorar custos do Gemini. |
+| PEND-MER-07 | **Quota IA enforcement no servidor** — hoje a checagem de limite é client-side; mover para `/api/extrair-cupom` (rate-limit por uid). | 🟡 Média | Spin-off PEND-MER-01 | Hardening contra cliente modificado. |
+| PEND-MER-08 | **OCR fallback offline (Tesseract.js)** — quando GEMINI_API_KEY indisponível ou usuário sem quota, oferecer extração local com qualidade reduzida. | 🟢 Baixa | Spin-off PEND-MER-01 | — |
+| PEND-MER-09 | **Tela de Carteira** — CRUD de `usuarios/{uid}/carteira/{id}` (conta corrente + cartões + vales + dinheiro). Mercado.js já consome essa collection no dropdown "Conta / Cartão" com fallback. | 🟡 Média | Solicitação 27/04/2026 | Ver `cérebro/carteira-importar.md` para schema completo. |
+| PEND-MER-10 | **Backend `/api/extrair-cupom` deploy no Render** — endpoint criado localmente em `backend/server.js`; Render ainda retorna 404 (provoca CORS error no front). Fazer push para acionar auto-deploy + configurar GEMINI_API_KEY no painel. | 🔴 Alta | Smoke test 27/04/2026 | Bloqueia uso real da feature de IA em mercado. |
+| PEND-MER-02 | **Filtros e busca na lista de compras** — busca por mercado, filtro por mês/forma de pagamento. Hoje só pagina. | 🟢 Baixa | Implementação inicial 27/04/2026 | — |
+| PEND-MER-03 | **Gráfico de gastos por mercado / por categoria** — donut ou barras na aba Compras (top 5 mercados, distribuição de categorias). | 🟢 Baixa | Implementação inicial 27/04/2026 | Reutilizar Chart.js já carregado em outras telas. |
+| PEND-MER-04 | **Comparar listas vs realizado** — ao concluir uma lista, mostrar diff (estimado vs gasto) por item. | 🟢 Baixa | Implementação inicial 27/04/2026 | Como a lista hoje não tem estimativa por item, depende de PEND-MER-05. |
+| PEND-MER-05 | **Estimativa de preço por item na lista** — sugerir preço médio com base no histórico ao montar a lista. | 🟢 Baixa | Implementação inicial 27/04/2026 | Helper `categoriaMajoritaria` + `historicoPrecos` pode evoluir para isso. |
+
+---
+
 ## 🌐 Débitos Técnicos Globais
 
-_(Itens que afetam mais de uma tela ou o projeto como um todo. Vazio por enquanto.)_
+| ID | Item | Prioridade | Origem | Notas |
+|----|------|------------|--------|-------|
+| DT-004 | **Testes para parser de PDF do extrato (cartoes/dividas IA)** — adicionar suíte unitária com fixtures de PDFs reais (Itaú, Nubank, BB) para o parser do backend. | 🟢 Baixa | Auditoria 27/04/2026 (M7) | Sem testes, alterações no parser podem regredir silenciosamente. |
+| DT-005 | **B9 — Gradiente vermelho/erro no tema Dark (HBO)** — tons como `#dc2626`/`#ef4444` ficam contrastantes mas saturados sobre fundo `#0f1419`. Avaliar versão mais "soft" para Dark (ex: `#f87171`). | 🟢 Baixa | Auditoria 27/04/2026 | Não bloqueia uso; revisão visual manual recomendada com usuário. |
+| DT-006 | **M5 — Cores hardcoded inline em alguns elementos** — pontos de gradiente/bordas usando hex literal em vez de var(--…). Inventariar e migrar para tokens. | 🟢 Baixa | Auditoria 27/04/2026 | Refatorar sem revisão visual em todos os 8 temas é arriscado (ver DEC abaixo). |
+| DT-007 | **B3 — Helper único `formatMoeda` / `parseMoeda`** — hoje cada tela reimplementa parsing/formatação BRL com ligeiras diferenças. Centralizar em `bud-utils.js`. | 🟢 Baixa | Auditoria 27/04/2026 | `budFormatarValor` já existe (formatação); falta o parser. |
+| DT-008 | **B4 — Extrair objeto `THEMES` de `theme-manager.js` para JSON** — facilitar adição/edição de temas sem tocar JS. | 🟢 Baixa | Auditoria 27/04/2026 | 8 temas hoje; arquivo cresce a cada novo tema. |
+| DT-009 | **B6 — "Descrição do plano" hardcoded** — strings de descrição dos planos espalhadas em configuracoes.js/cartoes.js. Centralizar em constantes. | 🟢 Baixa | Auditoria 27/04/2026 | — |
+| DT-010 | **B8 — Comentários misturando PT-BR e EN** — padronizar para PT-BR em todo o codebase. | 🟢 Baixa | Auditoria 27/04/2026 | Cosmético. |
+| DT-011 | **B10 — Source maps de `tailwind.css`** — gerar `.map` em build dev para facilitar debug de classes. | 🟢 Baixa | Auditoria 27/04/2026 | Build atual não emite sourcemap. |
+| DT-012 | **M9 — Lógica duplicada de "categorias" em metas.js / extrato.js / dashboard.js** — extrair para `js/categorias-helpers.js` reaproveitando `categorias-padrao.js`. | 🟡 Média | Auditoria 27/04/2026 | Pode causar drift entre telas se um lado mudar. |
 
 ---
 
@@ -172,5 +199,6 @@ _(Itens que afetam mais de uma tela ou o projeto como um todo. Vazio por enquant
 - **26/04/2026** — Tela Dívidas implementada (`dividas.html` + `js/dividas.js`). 25 bugs do cérebro resolvidos na origem (Tabela Price, addMonthsSafe, confirmarAcao, simulador, IA import, etc.). PEND-035 a PEND-040 registradas. Link 💸 Dívidas adicionado ao sidebar de todas as 7 telas.
 - **28/04/2026** — Tela Limites implementada (`limites.html` + `js/limites.js`). 15 bugs do cérebro resolvidos na origem (BUG 1–15: query filtrada por mês, dedup normalizeCategoria, overlays style.cssText, budShowToast, copiar+10%/min R$10, percentual sem receita, etc.). PEND-041 a PEND-043 registradas. Link 🎯 Limites adicionado ao sidebar de todas as 8 telas.
 - **23/04/2026** — Auditoria geral do código. 5 bugs corrigidos: (1) teste sidebar `toHaveCount(4)→6` (2) `salvarEdicao` sem validação de categoria (3) valor R$ 0,00 passava validação (4) `renderBreakdown` não chamado quando filtradas = 0 (5) `formatarInputValor` sem máscara BRL. PEND-019 marcada resolvida.
+- **27/04/2026** — Auditoria full-stack (53 issues). 14 críticos/altos/médios resolvidos: C3 (escapeHTML hardening), C4 (rate-limit doc), C5 (reCAPTCHA prod warning), A1 (console.error→budError), A2 (text color tema Dark), A3 (CORS prod/dev), A4 (theme-manager localStorage try/catch), A5 (cartoes loop em vez de limit 500), M3+M4+M8 (helpers em bud-utils), M4 (pluralização dashboard), M10 (getUrlParam try/catch), M11 (preview-temas storage event), B1 (width/height nos `<img>` da sidebar), B2 (filter-pill min-height 44px em mobile). Backup `..\Budfinance-BACKUP-2026-04-27_1242\`. Itens não-bloqueadores movidos para esta tabela: DT-004 (M7), DT-005 (B9), DT-006 (M5), DT-007 (B3), DT-008 (B4), DT-009 (B6), DT-010 (B8), DT-011 (B10), DT-012 (M9). Decisões registradas: DEC-XXX (revisão visual obrigatória) e DEC-XXX (manter repo público).
 
 

@@ -261,3 +261,48 @@
 - **SoluÃ§Ã£o aplicada**: (1) Adicionado timeout de 45s com AbortController. (2) Novo backend usa pdf-parse + regex (< 1s para PDFs digitais). (3) Parser ignora linhas de palavras-chave (total, saldo, pagamento, etc.). (4) Gemini sÃ³ Ã© acionado como fallback para PDFs ilegÃ­veis ou imagens.
 - **Regra de prevenÃ§Ã£o**: Todo fetch para backend externo deve ter timeout. PDFs digitais nunca precisam de IA para extraÃ§Ã£o de texto.
 - **Status**: âœ… Resolvido em 21/04/2026.
+
+---
+
+### ERR-023 — Tema Dark deixava texto solto invisível (body color preto sobre fundo preto)
+- **Data**: 27/04/2026
+- **Sintoma**: Em `hbo` (Dark), `getComputedStyle(document.body).color` resolvia `rgb(0,0,0)` — qualquer texto sem classe específica ficava invisível.
+- **Causa**: `theme-manager.js` definia variáveis de tema mas não tocava em `--text-main`/`--text-sec` nem em `document.body.style.color`.
+- **Correção**: `_setVars()` agora também seta `--text-main`, `--text-sec` e `document.body.style.color = t.text`.
+- **Validado**: `rgb(255,255,255)` em Dark, `rgb(30,41,59)` em Gelo. (Auditoria 27/04/2026)
+
+### ERR-024 — Pluralização hardcoded "1 transações" no Dashboard
+- **Data**: 27/04/2026
+- **Sintoma**: Cards "Entradas/Saídas do Mês" mostravam `1 transações` quando `count === 1`.
+- **Correção**: Pattern `n === 1 ? '1 transação' : n + ' transações'` aplicado em `dashboard.js`. Helper `budPluralize()` adicionado em `bud-utils.js` para uso futuro.
+
+### ERR-025 — escapeHTML fallback usava budSanitize (NÃO escapa aspas)
+- **Data**: 27/04/2026
+- **Sintoma**: `dividas.js`, `investimentos.js`, `limites.js` declaravam `escapeHTML` apontando para `window.budSanitize`, que apenas remove tags. Strings com aspas em `onclick="..."` quebrariam o HTML (XSS-like).
+- **Correção**: Adicionado `window.budEscapeHTML` em `bud-utils.js` (escape completo). Os 3 arquivos passaram a usar `budEscapeHTML`.
+- **Risco real**: baixo (campos atingidos eram IDs alfanuméricos do Firestore), mas o pattern era frágil.
+
+### ERR-026 — cartoes.js excluía no máx 500 transações por cartão (truncamento silencioso)
+- **Data**: 27/04/2026
+- **Sintoma**: `confirmarExcluirCartao()` usava `query(...limit(500))` sem loop. Se um cartão tivesse >500 transações, o resto ficava órfão.
+- **Correção**: Loop `do/while` deletando em batches de 500 até esgotar.
+
+### ERR-027 — console.error/warn exibidos em produção
+- **Data**: 27/04/2026
+- **Sintoma**: Erros internos vazavam para o console em produção (telemetria não desejada, leak de mensagens).
+- **Correção**: Wrappers `budError/budWarn/budLog` em `bud-utils.js` que só logam quando `BUD_IS_DEV`. Substituições aplicadas em `extrato.js`, `dividas.js`, `investimentos.js`, `recorrentes.js`, `limites.js`, `categorias.js`.
+
+### ERR-028 — theme-manager.localStorage sem try/catch (Safari private mode)
+- **Data**: 27/04/2026
+- **Sintoma**: `localStorage.setItem` lançava `QuotaExceededError` em modo privativo, quebrando o switching de tema.
+- **Correção**: try/catch em todas as chamadas + helper `budStorage` para uso futuro.
+
+### ERR-029 — preview-temas não sincronizava com tela principal
+- **Data**: 27/04/2026
+- **Sintoma**: Trocar tema na aba Configurações não atualizava outras abas abertas do app.
+- **Correção**: `window.addEventListener('storage', ...)` no `theme-manager.js` reaplica tema se `bud_theme` mudar em outra aba.
+
+### ERR-030 — CORS backend permitia localhost em produção
+- **Data**: 27/04/2026
+- **Sintoma**: Allowlist única misturava `localhost:8080`, `localhost:3001` com domínio público — em prod ficava aceitando origens de dev.
+- **Correção**: Split por `NODE_ENV` em `backend/server.js` (`ALLOWED_ORIGINS_PROD` vs `_DEV`).

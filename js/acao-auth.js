@@ -88,7 +88,10 @@ novaSenhaInput.addEventListener('input', function () {
 
 // ─── Parse URL params ────────────────────────────────────────────────
 function getUrlParam(name) {
-  return new URLSearchParams(window.location.search).get(name) || '';
+  // M10 fix: URLSearchParams pode lançar para URLs malformadas.
+  try {
+    return new URLSearchParams(window.location.search).get(name) || '';
+  } catch (_) { return ''; }
 }
 
 var mode    = getUrlParam('mode');

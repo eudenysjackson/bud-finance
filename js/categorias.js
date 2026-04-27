@@ -155,7 +155,7 @@ function carregarPersonalizadas() {
       `;
     }).join('');
   }, (err) => {
-    console.error('Erro ao carregar categorias:', err);
+    (window.budError || console.error)('Erro ao carregar categorias:', err);
     showToast('Erro ao carregar categorias personalizadas.', 'error');
   });
 }
@@ -320,7 +320,7 @@ window.deletarCategoria = async function (id, nome) {
     await deleteDoc(doc(db, 'usuarios', uid, 'categorias', id));
     showToast('Categoria apagada.', 'success');
   } catch (e) {
-    console.error('Erro ao apagar categoria:', e);
+    (window.budError || console.error)('Erro ao apagar categoria:', e);
     showToast('Erro ao apagar. Verifique sua conexão.', 'error');
   }
 };
@@ -394,7 +394,7 @@ async function salvarCategoria() {
             if (count > 0) await batchAtual.commit();
           }
         } catch (e) {
-          console.warn('Aviso: não foi possível propagar renomeação para transações.', e);
+          (window.budWarn || console.warn)('Aviso: não foi possível propagar renomeação para transações.', e);
         }
       }
 
@@ -432,7 +432,7 @@ async function salvarCategoria() {
     fecharModal();
 
   } catch (e) {
-    console.error('Erro ao salvar categoria:', e);
+    (window.budError || console.error)('Erro ao salvar categoria:', e);
     showToast('Erro ao salvar. Tente novamente.', 'error');
   } finally {
     btn.disabled = false;

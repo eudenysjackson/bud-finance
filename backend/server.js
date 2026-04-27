@@ -32,14 +32,23 @@ const FRONTEND_URL        = process.env.FRONTEND_URL || 'https://bud-finance.onr
 const app = express();
 app.use(express.json({ limit: '10kb' }));
 
-// CORS — allow only the frontend origins
-const ALLOWED_ORIGINS = [
+// A3 fix: CORS allowlist split por NODE_ENV (dev permite localhost; prod só domínios públicos).
+const IS_PROD = process.env.NODE_ENV === 'production';
+const ALLOWED_ORIGINS_DEV = [
   'http://localhost:8080',
   'http://127.0.0.1:8080',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
   'http://localhost:3001',
-  'http://127.0.0.1:3001',
-  'https://bud-finance.onrender.com'
+  'http://127.0.0.1:3001'
 ];
+const ALLOWED_ORIGINS_PROD = [
+  'https://bud-finance.onrender.com'
+  // Adicione aqui o domínio customizado de produção quando for configurado.
+];
+const ALLOWED_ORIGINS = IS_PROD
+  ? ALLOWED_ORIGINS_PROD
+  : ALLOWED_ORIGINS_PROD.concat(ALLOWED_ORIGINS_DEV);
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -54,6 +63,10 @@ app.use(cors({
 }));
 
 // ─── Rate limiting (simple in-memory) ───────────────────────────────
+// LIMITAÇÃO CONHECIDA (C4): este mapa vive em memória do processo.
+// Em deploys que reiniciam (Render free tier dorme após inatividade),
+// o estado é perdido. Para hardening real, migrar p/ Redis ou
+// Firestore (`usuarios/{uid}/_ratelimit`). Documentado em ROADMAP.md.
 const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const RATE_LIMIT_MAX    = 3;         // max 3 requests per email per minute
@@ -550,6 +563,280 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
     var safeMsg = (err.message || '').replace(/(key=)[^\s&]+/, '$1***');
     console.error('[extrair-fatura]', safeMsg);
     return res.status(500).json({ error: 'Erro ao processar arquivo. Tente novamente.' });
+  }
+});
+
+// ─── Cache em memória de extração de cupom (24h) ────────────────────
+// Chave: SHA-256 do buffer de cada arquivo combinado.
+// Reduz custo Gemini quando o usuário re-envia o mesmo print.
+var crypto = require('crypto');
+var cupomCache = new Map();
+var CUPOM_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
+var CUPOM_CACHE_MAX = 200;
+
+function cupomCacheGet(key) {
+  var entry = cupomCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.t > CUPOM_CACHE_TTL) {
+    cupomCache.delete(key);
+    return null;
+  }
+  return entry.v;
+}
+function cupomCacheSet(key, value) {
+  if (cupomCache.size >= CUPOM_CACHE_MAX) {
+    // Remove a chave mais antiga (FIFO simples)
+    var firstKey = cupomCache.keys().next().value;
+    if (firstKey) cupomCache.delete(firstKey);
+  }
+  cupomCache.set(key, { t: Date.now(), v: value });
+}
+function hashBuffers(buffers) {
+  var h = crypto.createHash('sha256');
+  for (var i = 0; i < buffers.length; i++) h.update(buffers[i]);
+  return h.digest('hex');
+}
+
+/**
+ * Extrai itens de cupom fiscal / print de app de mercado usando Gemini 1.5 Flash.
+ * Aceita 1 a 3 arquivos (multi-foto para cupom longo).
+ * Retorna: { mercado, cnpj, data, itens: [{nome, qtd, valor, cat}] }
+ */
+async function extractCupomWithGemini(buffers, mimeTypes) {
+  var key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error('GEMINI_API_KEY não configurada no servidor.');
+
+  var prompt = [
+    'Você está analisando um CUPOM FISCAL de supermercado brasileiro OU um PRINT de app de mercado/delivery (Rappi, iFood Mercado, Zé Delivery, Cornershop, Mercado Livre).',
+    '',
+    'Extraia TODOS os itens comprados. Ignore: subtotais, taxas de entrega, descontos gerais, total a pagar, formas de pagamento, troco.',
+    '',
+    'Identifique também:',
+    '- Nome curto do mercado/loja (sem CNPJ, sem endereço — ex: "Prezunic", "Carrefour", "Rappi")',
+    '- CNPJ (apenas números, 14 dígitos), se visível',
+    '- Data da compra (formato YYYY-MM-DD), se visível',
+    '',
+    'Para cada ITEM, classifique em UMA das categorias:',
+    '- "Mercado" (alimentos crus, hortifrúti, carnes, laticínios)',
+    '- "Padaria/Café" (pães, bolos, café, biscoitos)',
+    '- "Bares/Baladas" (bebidas alcoólicas, refrigerantes, energéticos)',
+    '- "Farmácia" (higiene pessoal, medicamentos, limpeza, cosméticos)',
+    '- "Pets" (ração, petisco, areia, acessórios)',
+    '- "Material Escolar" (cadernos, canetas, material de escritório)',
+    '- "Outros" (qualquer outra coisa)',
+    '',
+    'Retorne SOMENTE um objeto JSON válido neste formato:',
+    '{"mercado":"Prezunic","cnpj":"12345678000199","data":"2026-04-25","itens":[{"nome":"Banana Prata kg","qtd":1.5,"valor":7.49,"cat":"Mercado"}]}',
+    '',
+    'Regras:',
+    '- "valor" é o VALOR TOTAL do item (qtd × unitário), em reais (float positivo).',
+    '- "qtd" é a quantidade. Use 1 se não souber.',
+    '- "nome" curto (até 50 caracteres), capitalizado.',
+    '- Se algum campo faltar, use string vazia ou null. NÃO invente.',
+    '- Se houver MÚLTIPLAS imagens (cupom em várias páginas), CONSOLIDE tudo num único array de itens.',
+    '',
+    'Responda APENAS com o JSON, sem explicações ou markdown.'
+  ].join('\n');
+
+  var parts = buffers.map(function (buf, i) {
+    return { inline_data: { mime_type: mimeTypes[i] || 'image/jpeg', data: buf.toString('base64') } };
+  });
+  parts.push({ text: prompt });
+
+  var body = JSON.stringify({
+    contents: [{ parts: parts }],
+    generationConfig: { temperature: 0.1, response_mime_type: 'application/json' }
+  });
+
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function(){ controller.abort(); }, 30000);
+
+  try {
+    var resp = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
+
+    if (!resp.ok) {
+      var errText = await resp.text().catch(function(){ return resp.status; });
+      throw new Error('Gemini API: ' + errText);
+    }
+
+    var data = await resp.json();
+    var content = (data.candidates || [])[0]?.content?.parts?.[0]?.text || '{}';
+
+    var parsed;
+    try {
+      parsed = JSON.parse(content);
+    } catch (_e) {
+      var objMatch = content.match(/\{[\s\S]*\}/);
+      parsed = objMatch ? JSON.parse(objMatch[0]) : {};
+    }
+
+    if (typeof parsed !== 'object' || !parsed) parsed = {};
+    parsed.itens = Array.isArray(parsed.itens) ? parsed.itens : [];
+    // Saneamento básico
+    parsed.itens = parsed.itens
+      .map(function (i) {
+        var nome = String(i.nome || i.name || i.descricao || '').trim().slice(0, 60);
+        var valor = parseFloat(String(i.valor || i.value || i.total || 0).toString().replace(',', '.')) || 0;
+        var qtd = parseFloat(String(i.qtd || i.quantidade || i.quantity || 1).toString().replace(',', '.')) || 1;
+        var cat = String(i.cat || i.categoria || 'Mercado').trim();
+        return { nome: nome, qtd: qtd, valor: Math.abs(valor), cat: cat };
+      })
+      .filter(function (i) { return i.nome && i.valor > 0; });
+
+    parsed.mercado = String(parsed.mercado || '').trim().slice(0, 60);
+    parsed.cnpj = String(parsed.cnpj || '').replace(/\D/g, '').slice(0, 14);
+    parsed.data = String(parsed.data || '').slice(0, 10);
+
+    return parsed;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+/**
+ * Extrai itens de TEXTO COLADO (cupom digitado/copiado) usando Gemini.
+ * Mais barato e rápido que enviar imagem.
+ */
+async function extractCupomFromText(texto) {
+  var key = process.env.GEMINI_API_KEY;
+  if (!key) throw new Error('GEMINI_API_KEY não configurada no servidor.');
+
+  var prompt = [
+    'Você está analisando o TEXTO de um cupom fiscal de supermercado OU print de app de mercado.',
+    '',
+    'Extraia TODOS os itens. Ignore: subtotais, taxas, descontos gerais, total, formas de pagamento.',
+    '',
+    'Identifique também: nome do mercado, CNPJ (14 dígitos), data (YYYY-MM-DD).',
+    '',
+    'Categorias permitidas: Mercado, Padaria/Café, Bares/Baladas, Farmácia, Pets, Material Escolar, Outros.',
+    '',
+    'Retorne SOMENTE JSON: {"mercado":"...","cnpj":"...","data":"...","itens":[{"nome":"...","qtd":1,"valor":0.00,"cat":"Mercado"}]}',
+    '',
+    'TEXTO DO CUPOM:',
+    '"""',
+    String(texto || '').slice(0, 8000), // proteção contra texto enorme
+    '"""'
+  ].join('\n');
+
+  var body = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.1, response_mime_type: 'application/json' }
+  });
+
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function(){ controller.abort(); }, 25000);
+
+  try {
+    var resp = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
+    if (!resp.ok) {
+      var errText = await resp.text().catch(function(){ return resp.status; });
+      throw new Error('Gemini API: ' + errText);
+    }
+    var data = await resp.json();
+    var content = (data.candidates || [])[0]?.content?.parts?.[0]?.text || '{}';
+    var parsed;
+    try { parsed = JSON.parse(content); }
+    catch (_e) {
+      var objMatch = content.match(/\{[\s\S]*\}/);
+      parsed = objMatch ? JSON.parse(objMatch[0]) : {};
+    }
+    if (typeof parsed !== 'object' || !parsed) parsed = {};
+    parsed.itens = Array.isArray(parsed.itens) ? parsed.itens : [];
+    parsed.itens = parsed.itens
+      .map(function (i) {
+        return {
+          nome: String(i.nome || '').trim().slice(0, 60),
+          qtd: parseFloat(String(i.qtd || 1).toString().replace(',', '.')) || 1,
+          valor: Math.abs(parseFloat(String(i.valor || 0).toString().replace(',', '.')) || 0),
+          cat: String(i.cat || 'Mercado').trim(),
+        };
+      })
+      .filter(function (i) { return i.nome && i.valor > 0; });
+    parsed.mercado = String(parsed.mercado || '').trim().slice(0, 60);
+    parsed.cnpj = String(parsed.cnpj || '').replace(/\D/g, '').slice(0, 14);
+    parsed.data = String(parsed.data || '').slice(0, 10);
+    return parsed;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+// ─── Multer pra cupom (até 3 arquivos) ──────────────────────────────
+var uploadCupom = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024, files: 3 }, // 8 MB cada, máx 3
+  fileFilter: function (_req, file, cb) {
+    var ok = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+    if (ok.includes(file.mimetype)) return cb(null, true);
+    cb(new Error('Formato não suportado. Use PDF, JPEG, PNG ou WEBP.'));
+  }
+});
+
+// ─── POST /api/extrair-cupom ─────────────────────────────────────────
+// Aceita:
+//   - multipart/form-data { arquivos: 1-3 files (image|pdf) }
+//   - application/json     { texto: "..." } para colar texto direto
+// Retorna: { mercado, cnpj, data, itens:[{nome,qtd,valor,cat}], cached?: true }
+app.post('/api/extrair-cupom', uploadCupom.array('arquivos', 3), async function (req, res) {
+  try {
+    // Modo TEXTO (sem arquivos)
+    if (req.is('application/json') || (req.body && req.body.texto && (!req.files || req.files.length === 0))) {
+      var texto = String(req.body.texto || '').trim();
+      if (!texto || texto.length < 20) {
+        return res.status(400).json({ error: 'Texto vazio ou muito curto.' });
+      }
+      var resultText = await extractCupomFromText(texto);
+      if (!resultText.itens.length) {
+        return res.status(422).json({ error: 'Nenhum item encontrado no texto.' });
+      }
+      return res.json(resultText);
+    }
+
+    // Modo ARQUIVOS
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+    }
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(503).json({
+        error: 'Extração por IA não está configurada no servidor. Use a entrada manual.'
+      });
+    }
+
+    var buffers = req.files.map(function (f) { return f.buffer; });
+    var mimeTypes = req.files.map(function (f) { return f.mimetype; });
+
+    // Cache 24h por hash dos buffers
+    var cacheKey = hashBuffers(buffers);
+    var cached = cupomCacheGet(cacheKey);
+    if (cached) {
+      return res.json(Object.assign({}, cached, { cached: true }));
+    }
+
+    var result = await extractCupomWithGemini(buffers, mimeTypes);
+    if (!result.itens.length) {
+      return res.status(422).json({
+        error: 'Nenhum item identificado. Tente uma foto mais nítida ou cole o texto manualmente.'
+      });
+    }
+
+    cupomCacheSet(cacheKey, result);
+    return res.json(result);
+
+  } catch (err) {
+    var safeMsg = (err.message || '').replace(/(key=)[^\s&]+/, '$1***');
+    console.error('[extrair-cupom]', safeMsg);
+    var status = /Gemini API/.test(safeMsg) ? 502 : 500;
+    return res.status(status).json({ error: 'Erro ao processar cupom. Tente novamente em alguns segundos.' });
   }
 });
 

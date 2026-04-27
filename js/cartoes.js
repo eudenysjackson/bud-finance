@@ -1001,16 +1001,23 @@ async function confirmarExcluirCartao() {
   btn.textContent = 'Excluindo...';
 
   try {
-    // Buscar todas as transações do cartão
+    // Buscar todas as transações do cartão (em lotes de 500 — limite do writeBatch).
+    // Loop para deletar mais de 500 sem trunc silenciosa (A5 fix).
     const txRef = collection(db, 'usuarios', uid, 'transacoes');
-    const qTx   = query(txRef, where('cartaoId', '==', cartaoParaExcluir), limit(500));
-    const snap  = await getDocs(qTx);
+    let totalDeletadas = 0;
+    let snap;
+    do {
+      const qTx = query(txRef, where('cartaoId', '==', cartaoParaExcluir), limit(500));
+      snap = await getDocs(qTx);
+      if (snap.empty) break;
+      const batch = writeBatch(db);
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      totalDeletadas += snap.size;
+    } while (snap.size === 500);
 
-    // Deletar em batch (max 500 ops por batch)
-    const batch = writeBatch(db);
-    snap.docs.forEach(d => batch.delete(d.ref));
-    batch.delete(doc(db, 'usuarios', uid, 'carteira', cartaoParaExcluir));
-    await batch.commit();
+    // Deletar o cartão em si
+    await deleteDoc(doc(db, 'usuarios', uid, 'carteira', cartaoParaExcluir));
 
     showToast('Cartão excluído.', 'ok');
     fecharModalExcluirCartao();

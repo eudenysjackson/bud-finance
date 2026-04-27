@@ -48,9 +48,10 @@ let _catSelecionada = '';   // nome da categoria selecionada no dropdown
 let _tipoLimite     = 'valor'; // 'valor' | 'percentual'
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
-const escapeHTML = (typeof window.budSanitize === 'function')
-  ? s => window.budSanitize(String(s ?? ''))
-  : s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+// escapeHTML: precisa escapar TODAS as aspas (budSanitize() apenas remove tags).
+const escapeHTML = (typeof window.budEscapeHTML === 'function')
+  ? window.budEscapeHTML
+  : s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 function normalizeCategoria(s) {
   return (s || '').trim().toLowerCase()
@@ -468,7 +469,7 @@ window.salvarLimite = async function() {
     }
     window.fecharModalLimite();
   } catch (err) {
-    console.error('Erro ao salvar limite:', err);
+    (window.budError||console.error)('Erro ao salvar limite:', err);
     window.budShowToast('Erro ao salvar. Verifique sua conexão.', 'error');
   } finally {
     _salvando = false;
@@ -508,7 +509,7 @@ window.excluirLimiteAtual = function() {
       await deleteDoc(doc(db, 'usuarios', currentUser.uid, 'limites', id));
       window.budShowToast('Limite removido.', 'success');
     } catch (err) {
-      console.error('Erro ao excluir limite:', err);
+      (window.budError||console.error)('Erro ao excluir limite:', err);
       window.budShowToast('Erro ao excluir. Tente novamente.', 'error');
     }
   });
@@ -579,14 +580,14 @@ window.copiarMesAnterior = async function() {
           await addDoc(collection(db, 'usuarios', currentUser.uid, 'limites'), dados);
         }
       } catch (e) {
-        console.error('Erro ao copiar limite para', nome, e);
+        (window.budError||console.error)('Erro ao copiar limite para', nome, e);
       }
     });
 
     await Promise.all(ops);
     window.budShowToast('Limites copiados do mês anterior! 📋', 'success');
   } catch (err) {
-    console.error('Erro ao copiar mês anterior:', err);
+    (window.budError||console.error)('Erro ao copiar mês anterior:', err);
     window.budShowToast('Erro ao copiar. Tente novamente.', 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '📋 Copiar mês anterior'; }
@@ -628,7 +629,7 @@ function setupTransacoesListener(uid) {
     transacoesMes = snap.docs.map(d => Object.assign({}, d.data(), { id: d.id }));
     renderizar();
   }, err => {
-    console.error('Erro listener transacoes limites:', err);
+    (window.budError||console.error)('Erro listener transacoes limites:', err);
   });
 }
 
@@ -728,7 +729,7 @@ onAuthStateChanged(auth, async user => {
       if (elId)   elId.textContent   = mat;
       if (elAv)   elAv.textContent   = iniciais;
     }
-  } catch (e) { console.warn('Erro ao carregar perfil:', e); }
+  } catch (e) { (window.budWarn||console.warn)('Erro ao carregar perfil:', e); }
 
   setupSidebar();
   setupBotoes();

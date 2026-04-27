@@ -32,9 +32,11 @@ let _filtroDivida      = 'todos';   // 'todos' | 'atraso' | 'ativas'
 //  HELPERS — texto e segurança
 // ─────────────────────────────────────────────────────────────────
 
-// Bug #23: fallback escapeHTML se bud-utils falhar
-const escapeHTML = (typeof window.budSanitize === 'function')
-  ? window.budSanitize
+// escapeHTML: escapa TODOS os caracteres significativos (incl. aspas)
+// Importante: budSanitize() apenas remove tags — NÃO escapa aspas.
+// Para uso em onclick="..." e atributos, precisamos escape completo.
+const escapeHTML = (typeof window.budEscapeHTML === 'function')
+  ? window.budEscapeHTML
   : (s) => {
       if (s == null) return '';
       return String(s)
@@ -382,7 +384,7 @@ window.processarArquivoIA = async function(inputEl) {
 
     await processarTextoExtraido(texto);
   } catch (err) {
-    console.error('[Dividas] processarArquivoIA:', err);
+    (window.budError||console.error)('[Dividas] processarArquivoIA:', err);
     mostrarErroIA(err.message || 'Erro ao processar o arquivo.');
     document.getElementById('iaProcessando').style.display = 'none';
   }
@@ -400,7 +402,7 @@ window.processarTextoIA = async function() {
   try {
     await processarTextoExtraido(texto);
   } catch (err) {
-    console.error('[Dividas] processarTextoIA:', err);
+    (window.budError||console.error)('[Dividas] processarTextoIA:', err);
     mostrarErroIA(err.message || 'Erro ao analisar o texto.');
     document.getElementById('iaProcessando').style.display = 'none';
   }
@@ -698,7 +700,7 @@ window.salvarDividaIA = async function() {
     fecharTodosModais();
     window.budShowToast?.('Dívida importada com sucesso!', 'success');
   } catch (err) {
-    console.error('[Dividas] salvarDividaIA:', err);
+    (window.budError||console.error)('[Dividas] salvarDividaIA:', err);
     window.budShowToast?.('Erro ao salvar. Tente novamente.', 'error');
     btn.disabled = false;
     btn.textContent = '💾 Salvar Dívida';
@@ -894,7 +896,7 @@ async function salvarDivida() {
     fecharTodosModais();
     window.budShowToast?.(id ? 'Dívida atualizada!' : 'Dívida criada!', 'success');
   } catch (err) {
-    console.error('[Dividas] salvarDivida:', err);
+    (window.budError||console.error)('[Dividas] salvarDivida:', err);
     window.budShowToast?.('Erro ao salvar. Tente novamente.', 'error');
   } finally {
     btn.disabled    = false;
@@ -1083,7 +1085,7 @@ window.marcarParcelaPaga = async function(id, indice) {
     // Bug #24: reabrir na aba parcelas
     setTimeout(() => window.abrirDetalhes(id, 'parcelas'), 300);
   } catch (err) {
-    console.error('[Dividas] marcarParcelaPaga:', err);
+    (window.budError||console.error)('[Dividas] marcarParcelaPaga:', err);
     window.budShowToast?.('Erro ao marcar parcela.', 'error');
   }
 };
@@ -1130,7 +1132,7 @@ window.desmarcarParcela = async function(id, indice) {
     });
     setTimeout(() => window.abrirDetalhes(id, 'parcelas'), 300);
   } catch (err) {
-    console.error('[Dividas] desmarcarParcela:', err);
+    (window.budError||console.error)('[Dividas] desmarcarParcela:', err);
     window.budShowToast?.('Erro ao desmarcar parcela.', 'error');
   }
 };
@@ -1154,7 +1156,7 @@ window.excluirDividaAtual = async function() {
     dividaAtual = null;
     window.budShowToast?.('Dívida excluída.', 'success');
   } catch (err) {
-    console.error('[Dividas] excluirDivida:', err);
+    (window.budError||console.error)('[Dividas] excluirDivida:', err);
     window.budShowToast?.('Erro ao excluir.', 'error');
   }
 };
@@ -1580,7 +1582,7 @@ onAuthStateChanged(auth, async (user) => {
     const snap = await getDoc(doc(db, 'usuarios', user.uid));
     userData = snap.exists() ? snap.data() : {};
   } catch (err) {
-    console.error('[Dividas] userData:', err);
+    (window.budError||console.error)('[Dividas] userData:', err);
   }
 
   // Atualizar sidebar
@@ -1613,7 +1615,7 @@ onAuthStateChanged(auth, async (user) => {
     }
   }, err => {
     // Bug #2: error callback implementado
-    console.error('[Dividas] snapshot:', err);
+    (window.budError||console.error)('[Dividas] snapshot:', err);
     window.budShowToast?.('Erro ao carregar dívidas.', 'error');
   });
 

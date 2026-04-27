@@ -953,7 +953,7 @@ function subscribeTransacoes(uid) {
     hideSplash();
     if (_dadosCarregados.categorias) renderizarExtrato();
   }, function(err) {
-    console.error('[extrato] onSnapshot transações:', err);
+    (window.budError||console.error)('[extrato] onSnapshot transações:', err);
     hideSplash();
     if (window.budShowToast) window.budShowToast('Erro ao carregar transações.', 'error');
   });

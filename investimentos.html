@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance — Limites por Categoria">
-  <title>Limites - Bud Finance</title>
+  <meta name="description" content="Bud Finance — Investimentos">
+  <title>Investimentos - Bud Finance</title>
 
   <link rel="icon" type="image/png" href="logo.png">
   <link rel="apple-touch-icon" href="logo.png">
@@ -18,6 +18,9 @@
   <script src="js/theme-manager.js"></script>
   <script src="js/bud-utils.js"></script>
   <script src="js/categorias-padrao.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 
   <style>
     :root {
@@ -88,14 +91,17 @@
     .hamburger-btn{display:none;width:2.5rem;height:2.5rem;border-radius:0.75rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);align-items:center;justify-content:center;font-size:1.25rem;cursor:pointer;color:var(--card-text);z-index:60;transition:background 0.35s ease,border-color 0.35s ease,color 0.35s ease;}
     .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:40;}
 
-    /* ── Cards resumo ───────────────────────────────────── */
+    /* ── KPI Cards ──────────────────────────────────────── */
     .cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;}
     .summary-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);transition:background 0.35s ease,border-color 0.35s ease,transform .2s,box-shadow .2s;}
     .summary-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px -5px rgba(0,0,0,0.1);}
     .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;}
     .card-label{font-size:0.6875rem;font-weight:800;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.08em;transition:color 0.35s ease;}
     .card-icon{width:2rem;height:2rem;border-radius:0.5rem;display:flex;align-items:center;justify-content:center;font-size:0.875rem;}
-    .card-icon-blue{background:#eff6ff;color:#2563eb;} .card-icon-green{background:#f0fdf4;color:#16a34a;} .card-icon-red{background:#fef2f2;color:#dc2626;} .card-icon-amber{background:#fffbeb;color:#d97706;}
+    .card-icon-blue{background:#eff6ff;color:#2563eb;}
+    .card-icon-green{background:#f0fdf4;color:#16a34a;}
+    .card-icon-emerald{background:#ecfdf5;color:#059669;}
+    .card-icon-amber{background:#fffbeb;color:#d97706;}
     .card-value{font-size:1.5rem;font-weight:800;color:var(--card-text);letter-spacing:-0.025em;transition:color 0.35s ease;}
     .card-sub{font-size:0.75rem;font-weight:500;color:var(--card-text-sec);margin-top:0.25rem;transition:color 0.35s ease;}
 
@@ -104,10 +110,13 @@
     .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.5rem;}
     .section-title{font-size:1rem;font-weight:800;color:var(--text-main);transition:color 0.35s ease;}
 
+    /* ── Grid 2 colunas ──────────────────────────────────── */
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
+
     /* ── Modal ──────────────────────────────────────────── */
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:80;align-items:center;justify-content:center;padding:1rem;}
     .modal-overlay.open{display:flex;}
-    .modal-card{background:var(--bg-page);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.75rem;width:100%;max-width:440px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.2);animation:modal-in .25s ease;max-height:90vh;overflow-y:auto;}
+    .modal-card{background:var(--bg-page);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.75rem;width:100%;max-width:460px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.2);animation:modal-in .25s ease;max-height:92vh;overflow-y:auto;}
     @keyframes modal-in{from{transform:translateY(12px) scale(.97);opacity:0;}to{transform:translateY(0) scale(1);opacity:1;}}
     .modal-title{font-size:1.125rem;font-weight:800;color:var(--text-main);margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;}
     .modal-close{width:2rem;height:2rem;border-radius:0.5rem;background:var(--sidebar-user-bg);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--text-sec);font-family:inherit;transition:background .2s;flex-shrink:0;}
@@ -121,25 +130,83 @@
     .modal-submit:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
     .modal-cancel{width:100%;padding:0.625rem;border:none;border-radius:0.75rem;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;background:rgba(0,0,0,0.05);color:var(--text-sec);margin-top:0.5rem;transition:background .15s;}
     .modal-cancel:hover{background:rgba(0,0,0,0.09);}
-
-    /* ── Tipo toggle ────────────────────────────────────── */
-    .tipo-toggle{display:flex;gap:0.375rem;background:var(--input-bg);border-radius:0.75rem;padding:0.25rem;}
-    .tipo-btn{flex:1;padding:0.5rem;border:none;border-radius:0.5rem;font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text-sec);background:transparent;transition:all .2s;}
-    .tipo-btn.active{background:var(--card-bg);color:var(--text-main);box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+    .modal-btn-danger{width:100%;padding:0.625rem;border:none;border-radius:0.75rem;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;background:#fef2f2;color:#dc2626;margin-top:0.5rem;transition:background .15s;}
+    .modal-btn-danger:hover{background:#fee2e2;}
+    .modal-row-2{display:grid;grid-template-columns:1fr 1fr;gap:0.875rem;}
 
     /* ── Custom dropdown ─────────────────────────────────── */
     .custom-select-wrap{position:relative;}
-    .custom-select-trigger{width:100%;padding:0.625rem 0.875rem;border:1.5px solid var(--input-border);border-radius:0.75rem;font-size:0.875rem;font-weight:600;color:var(--card-text);background:var(--input-bg);font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;}
-    .custom-select-trigger:focus-within,.custom-select-trigger.open{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.12);}
+    .custom-select-trigger{width:100%;padding:0.625rem 0.875rem;border:1.5px solid var(--input-border);border-radius:0.75rem;font-size:0.875rem;font-weight:600;color:var(--card-text);background:var(--input-bg);font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;transition:border-color .2s,box-shadow .2s;}
+    .custom-select-trigger.open{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.12);}
     .custom-select-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg-page);border:1.5px solid var(--card-border);border-radius:0.875rem;box-shadow:0 12px 32px -5px rgba(0,0,0,0.15);z-index:90;max-height:220px;overflow-y:auto;display:none;}
     .custom-select-dropdown.open{display:block;}
-    .custom-select-search{padding:0.5rem 0.75rem;border-bottom:1px solid var(--input-border);}
-    .custom-select-search input{width:100%;border:none;background:transparent;font-size:0.8125rem;font-weight:600;color:var(--card-text);font-family:inherit;outline:none;}
     .custom-select-item{padding:0.5rem 0.875rem;font-size:0.875rem;font-weight:600;color:var(--card-text);cursor:pointer;display:flex;align-items:center;gap:0.5rem;transition:background .12s;}
     .custom-select-item:hover{background:var(--sidebar-link-hover-bg);}
-    .custom-select-item .cat-tag{font-size:0.625rem;font-weight:700;color:#f59e0b;background:#fffbeb;padding:0.1rem 0.375rem;border-radius:9999px;white-space:nowrap;}
 
-    /* ── Animação items ──────────────────────────────────── */
+    /* ── Datepicker ──────────────────────────────────────── */
+    .dp-wrap{position:relative;}
+    .dp-panel{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg-page);border:1.5px solid var(--card-border);border-radius:0.875rem;box-shadow:0 12px 32px -5px rgba(0,0,0,0.15);z-index:91;padding:0.875rem;display:none;min-width:240px;}
+    .dp-panel.open{display:block;}
+    .dp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;}
+    .dp-nav{background:none;border:none;cursor:pointer;font-size:1rem;color:var(--text-sec);padding:0.25rem;border-radius:0.375rem;font-family:inherit;transition:background .15s;}
+    .dp-nav:hover{background:var(--sidebar-link-hover-bg);}
+    .dp-month-label{font-size:0.875rem;font-weight:700;color:var(--text-main);}
+    .dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;}
+    .dp-dow{font-size:0.6rem;font-weight:700;color:var(--text-sec);padding:0.125rem 0;text-transform:uppercase;}
+    .dp-day{font-size:0.75rem;font-weight:600;color:var(--card-text);padding:0.3rem;border-radius:0.375rem;cursor:pointer;transition:background .12s,color .12s;}
+    .dp-day:hover{background:var(--sidebar-link-hover-bg);}
+    .dp-day.selected{background:#2563eb;color:#fff;}
+    .dp-day.today{border:1.5px solid #3b82f6;color:#2563eb;}
+    .dp-day.empty{pointer-events:none;}
+    .dp-actions{display:flex;gap:0.5rem;margin-top:0.75rem;}
+    .dp-btn{flex:1;padding:0.375rem;font-size:0.75rem;font-weight:700;border-radius:0.5rem;border:none;cursor:pointer;font-family:inherit;transition:all .15s;}
+    .dp-btn-today{background:var(--input-bg);color:var(--text-sec);}
+    .dp-btn-clear{background:#fef2f2;color:#dc2626;}
+
+    /* ── Alerta diversificação ───────────────────────────── */
+    #alertaDiversificacao{border-radius:1rem;padding:0.875rem 1rem;font-size:0.875rem;font-weight:600;display:none;margin-bottom:1rem;}
+
+    /* ── Cotações ────────────────────────────────────────── */
+    .cotacoes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;}
+    .cotacao-card{background:var(--input-bg);border:1px solid var(--input-border);border-radius:1rem;padding:0.875rem;transition:background 0.35s ease,border-color 0.35s ease;}
+    .cotacao-label{font-size:0.6875rem;font-weight:800;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.25rem;}
+    .cotacao-valor{font-size:1.0625rem;font-weight:800;color:var(--card-text);margin-bottom:0.125rem;}
+    .cotacao-var{font-size:0.75rem;font-weight:700;}
+    .cotacao-var.pos{color:#16a34a;} .cotacao-var.neg{color:#dc2626;}
+
+    /* ── Indicadores ─────────────────────────────────────── */
+    .indicadores-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-top:1rem;}
+    .indicador-card{background:var(--input-bg);border:1px solid var(--input-border);border-radius:1rem;padding:0.875rem;transition:background 0.35s ease,border-color 0.35s ease;}
+    .indicador-emoji{font-size:1.25rem;margin-bottom:0.25rem;}
+    .indicador-nome{font-size:0.6875rem;font-weight:800;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.06em;}
+    .indicador-valor{font-size:0.9375rem;font-weight:800;color:var(--card-text);margin-top:0.125rem;}
+    .indicador-sub{font-size:0.6875rem;font-weight:500;color:var(--card-text-sec);}
+
+    /* ── Preview rendimento ──────────────────────────────── */
+    #rendCalcPreview{padding:0.5rem 0.75rem;background:var(--input-bg);border-radius:0.625rem;font-size:0.8125rem;font-weight:600;color:var(--text-sec);margin-top:0.375rem;}
+
+    /* ── Lista de investimentos ──────────────────────────── */
+    .inv-item{display:flex;align-items:center;gap:1rem;padding:0.875rem 1rem;border-radius:1rem;background:var(--input-bg);border:1px solid var(--input-border);margin-bottom:0.5rem;cursor:pointer;transition:background .15s,border-color .15s,transform .15s;}
+    .inv-item:hover{background:var(--sidebar-link-hover-bg);transform:translateX(2px);}
+    .inv-emoji{font-size:1.75rem;flex-shrink:0;width:2.5rem;text-align:center;}
+    .inv-info{flex:1;min-width:0;}
+    .inv-nome{font-size:0.875rem;font-weight:700;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .inv-meta{font-size:0.75rem;font-weight:500;color:var(--card-text-sec);margin-top:0.125rem;}
+    .inv-valores{text-align:right;flex-shrink:0;}
+    .inv-atual{font-size:0.9375rem;font-weight:800;color:var(--card-text);}
+    .inv-rend{font-size:0.75rem;font-weight:700;margin-top:0.125rem;}
+    .inv-rend.pos{color:#16a34a;} .inv-rend.neg{color:#dc2626;} .inv-rend.neu{color:var(--card-text-sec);}
+    .badge-benchmark{font-size:0.625rem;font-weight:700;padding:0.1rem 0.375rem;border-radius:9999px;margin-left:0.25rem;}
+    .badge-cdi{background:#eff6ff;color:#2563eb;}
+    .badge-ipca{background:#f0fdf4;color:#16a34a;}
+
+    /* ── Empty state ─────────────────────────────────────── */
+    .empty-state{text-align:center;padding:2.5rem 1rem;color:var(--text-sec);}
+    .empty-icon{font-size:2.5rem;margin-bottom:0.75rem;}
+    .empty-title{font-size:0.9375rem;font-weight:700;color:var(--text-main);margin-bottom:0.375rem;}
+    .empty-sub{font-size:0.8125rem;font-weight:500;}
+
+    /* ── Animação ────────────────────────────────────────── */
     @keyframes fadeInUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
 
     /* ── Responsive ─────────────────────────────────────── */
@@ -152,8 +219,12 @@
       .hamburger-btn{display:flex;}
       .sidebar-collapse-btn{display:none !important;}
       .cards-grid{grid-template-columns:repeat(2,1fr);}
+      .grid-2{grid-template-columns:1fr;}
+      .cotacoes-grid{grid-template-columns:1fr 1fr;}
+      .indicadores-grid{grid-template-columns:repeat(2,1fr);}
+      .modal-row-2{grid-template-columns:1fr;}
     }
-    @media(max-width:480px){.cards-grid{grid-template-columns:1fr;}}
+    @media(max-width:480px){.cards-grid{grid-template-columns:1fr;}.cotacoes-grid{grid-template-columns:1fr;}}
     @media(min-width:769px){.sidebar-collapse-btn{display:flex;}}
   </style>
 </head>
@@ -202,13 +273,13 @@
         <span class="sidebar-link sidebar-link-disabled">
           <span class="sidebar-link-icon">📥</span><span class="sidebar-link-text"> Importar</span><span class="sidebar-badge-soon">breve</span>
         </span>
-        <a href="limites.html" class="sidebar-link active">
+        <a href="limites.html" class="sidebar-link">
           <span class="sidebar-link-icon">🎯</span><span class="sidebar-link-text"> Limites</span>
         </a>
         <a href="metas.html" class="sidebar-link">
           <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
         </a>
-        <a href="investimentos.html" class="sidebar-link">
+        <a href="investimentos.html" class="sidebar-link active">
           <span class="sidebar-link-icon">📈</span><span class="sidebar-link-text"> Investimentos</span>
         </a>
         <a href="mercado.html" class="sidebar-link">
@@ -259,121 +330,189 @@
         <div style="display:flex;align-items:center;gap:0.75rem;">
           <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
           <div class="dash-welcome">
-            <h1>🎯 Limites</h1>
-            <p>Controle de orçamento por categoria</p>
+            <h1>📈 Investimentos</h1>
+            <p>Acompanhe sua carteira e o mercado</p>
           </div>
         </div>
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-          <button id="btnCopiar" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--text-sec);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Copiar limites do mês anterior">
-            📋 Copiar mês anterior
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+          <button id="btnOcultarValores" onclick="window.toggleOcultarValores()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--text-sec);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Ocultar/exibir valores">
+            👁 Valores
           </button>
-          <button id="btnNovoLimite" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:0.875rem;font-weight:700;border:none;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .2s;" title="Novo Limite">
-            + Novo Limite
+          <button onclick="window.abrirModal(null)" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:0.875rem;font-weight:700;border:none;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .2s;">
+            + Novo Investimento
           </button>
         </div>
       </div>
 
-      <!-- KPIs 3 cards -->
+      <!-- Alerta de diversificação -->
+      <div id="alertaDiversificacao"></div>
+
+      <!-- KPIs -->
       <div class="cards-grid">
         <div class="summary-card">
-          <div class="card-header"><span class="card-label">Total Limites</span><div class="card-icon card-icon-blue">🎯</div></div>
-          <div class="card-value" id="kpiTotal">R$ 0,00</div>
-          <div class="card-sub">orçamento do mês</div>
+          <div class="card-header"><span class="card-label">Total Investido</span><div class="card-icon card-icon-blue">💰</div></div>
+          <div class="card-value" id="kpiInvestido">R$ 0,00</div>
+          <div class="card-sub" id="kpiInvestidoSub">0 investimentos</div>
         </div>
         <div class="summary-card">
-          <div class="card-header"><span class="card-label">Gasto Atual</span><div class="card-icon card-icon-amber">📊</div></div>
-          <div class="card-value" id="kpiGasto">R$ 0,00</div>
-          <div class="card-sub" id="kpiGastoPct">0% utilizado</div>
+          <div class="card-header"><span class="card-label">Valor Atual</span><div class="card-icon card-icon-green">📊</div></div>
+          <div class="card-value" id="kpiAtual">R$ 0,00</div>
+          <div class="card-sub" id="kpiAtualSub">patrimônio atual</div>
         </div>
         <div class="summary-card">
-          <div class="card-header"><span class="card-label">Disponível</span><div class="card-icon card-icon-green">✅</div></div>
-          <div class="card-value" id="kpiDisponivel">R$ 0,00</div>
-          <div class="card-sub" id="kpiDisponivelSub">para gastar</div>
+          <div class="card-header"><span class="card-label">Rendimento Total</span><div class="card-icon card-icon-emerald">📈</div></div>
+          <div class="card-value" id="kpiRendimento">R$ 0,00</div>
+          <div class="card-sub" id="kpiRendimentoPct">0,00%</div>
         </div>
       </div>
 
-      <!-- Lista de limites -->
-      <div class="section-card">
-        <div class="section-header">
-          <span class="section-title">Controle por Categoria</span>
-          <!-- Navegação por mês -->
-          <div style="display:flex;align-items:center;gap:0.375rem;">
-            <button id="btnMesAnt" onclick="window.mudarMes(-1)" style="width:2rem;height:2rem;border-radius:0.5rem;border:1.5px solid var(--input-border);background:var(--input-bg);cursor:pointer;font-size:0.875rem;color:var(--text-sec);font-family:inherit;transition:all .15s;">‹</button>
-            <span id="navMesAno" style="font-size:0.875rem;font-weight:700;color:var(--text-main);min-width:130px;text-align:center;"></span>
-            <button id="btnMesProx" onclick="window.mudarMes(1)" style="width:2rem;height:2rem;border-radius:0.5rem;border:1.5px solid var(--input-border);background:var(--input-bg);cursor:pointer;font-size:0.875rem;color:var(--text-sec);font-family:inherit;transition:all .15s;">›</button>
+      <!-- Grid: Gráfico + Mercado -->
+      <div class="grid-2">
+
+        <!-- Gráfico de alocação -->
+        <div class="section-card">
+          <div class="section-header">
+            <span class="section-title">Alocação por Tipo</span>
+          </div>
+          <div style="position:relative;max-height:260px;display:flex;align-items:center;justify-content:center;">
+            <canvas id="chartAlocacao" style="max-width:260px;max-height:260px;"></canvas>
+          </div>
+          <div id="legendaAlocacao" style="margin-top:1rem;display:flex;flex-direction:column;gap:0.375rem;"></div>
+        </div>
+
+        <!-- Cotações de mercado -->
+        <div class="section-card">
+          <div class="section-header">
+            <span class="section-title">Cotações</span>
+            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+              <span id="cotacaoHora" style="font-size:0.6875rem;font-weight:600;color:var(--text-sec);"></span>
+              <button onclick="window.carregarMercado(true)" style="padding:0.375rem 0.75rem;border-radius:0.625rem;background:var(--input-bg);border:1.5px solid var(--input-border);color:var(--text-sec);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;">↻ Atualizar</button>
+            </div>
+          </div>
+          <div id="cotacoesContainer" class="cotacoes-grid">
+            <div style="text-align:center;color:var(--text-sec);font-size:0.8125rem;padding:1rem;grid-column:span 3;">Carregando cotações...</div>
+          </div>
+
+          <!-- Indicadores de referência -->
+          <div style="margin-top:1.25rem;">
+            <div style="font-size:0.6875rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sec);margin-bottom:0.625rem;">Indicadores de Referência</div>
+            <div class="indicadores-grid" id="indicadoresContainer"></div>
           </div>
         </div>
-        <div id="listaLimites"><!-- populado por JS --></div>
+
+      </div>
+
+      <!-- Lista de investimentos -->
+      <div class="section-card">
+        <div class="section-header">
+          <span class="section-title">Minha Carteira</span>
+          <div style="display:flex;gap:0.375rem;flex-wrap:wrap;">
+            <button id="filtroTodos" onclick="window.setFiltro('')" style="padding:0.375rem 0.75rem;border-radius:0.625rem;border:1.5px solid var(--input-border);background:var(--input-bg);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text-sec);transition:all .15s;">Todos</button>
+            <button id="filtroRendaFixa" onclick="window.setFiltro('Renda Fixa')" style="padding:0.375rem 0.75rem;border-radius:0.625rem;border:1.5px solid var(--input-border);background:var(--input-bg);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text-sec);transition:all .15s;">Renda Fixa</button>
+            <button id="filtroAcoes" onclick="window.setFiltro('Ações')" style="padding:0.375rem 0.75rem;border-radius:0.625rem;border:1.5px solid var(--input-border);background:var(--input-bg);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text-sec);transition:all .15s;">Ações</button>
+            <button id="filtroCripto" onclick="window.setFiltro('Cripto')" style="padding:0.375rem 0.75rem;border-radius:0.625rem;border:1.5px solid var(--input-border);background:var(--input-bg);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text-sec);transition:all .15s;">Cripto</button>
+          </div>
+        </div>
+        <div id="listaInvestimentos"><!-- populado por JS --></div>
       </div>
 
     </main>
   </div>
 
   <!-- ═════════════════════════════════════════════════════
-       MODAL — Criar / Editar Limite
+       MODAL — Criar / Editar Investimento
   ═════════════════════════════════════════════════════════ -->
-  <div class="modal-overlay" id="modalLimite">
+  <div class="modal-overlay" id="modalInvestimento">
     <div class="modal-card">
       <div class="modal-title">
-        <span id="modalLimiteTitulo">Novo Limite</span>
-        <button class="modal-close" onclick="window.fecharModalLimite()" aria-label="Fechar">✕</button>
+        <span id="modalInvestTitulo">Novo Investimento</span>
+        <button class="modal-close" onclick="window.fecharModal()" aria-label="Fechar">✕</button>
       </div>
 
-      <!-- Categoria -->
+      <!-- Tipo (dropdown) -->
       <div class="modal-field">
-        <label class="modal-label">Categoria</label>
-        <div class="custom-select-wrap" id="wrapCatSelect">
-          <div class="custom-select-trigger" id="catSelectTrigger" onclick="window._toggleCatDropdown()">
-            <span id="catSelectLabel" style="color:var(--card-text-sec);">Selecione uma categoria</span>
+        <label class="modal-label">Tipo de Investimento</label>
+        <div class="custom-select-wrap">
+          <div class="custom-select-trigger" id="tipoTrigger" onclick="window._toggleTipoDD()">
+            <span id="tipoLabel" style="color:var(--card-text-sec);">Selecione o tipo</span>
             <span>▾</span>
           </div>
-          <div class="custom-select-dropdown" id="catSelectDropdown">
-            <div class="custom-select-search">
-              <input type="text" id="catSearchInput" placeholder="Buscar categoria..." oninput="window._filtrarCatDropdown(this.value)">
-            </div>
-            <div id="catDropdownItems"></div>
+          <div class="custom-select-dropdown" id="tipoDropdown"></div>
+        </div>
+        <input type="hidden" id="investTipo">
+        <div id="errTipo" style="font-size:0.75rem;color:#dc2626;margin-top:0.25rem;display:none;"></div>
+      </div>
+
+      <!-- Nome -->
+      <div class="modal-field">
+        <label class="modal-label">Nome / Ticker</label>
+        <input type="text" class="modal-input" id="investNome" placeholder="Ex: Tesouro Selic 2029, PETR4..." maxlength="80">
+      </div>
+
+      <!-- Corretora -->
+      <div class="modal-field">
+        <label class="modal-label">Corretora / Banco</label>
+        <input type="text" class="modal-input" id="investCorretora" placeholder="Ex: Nubank, XP, BTG..." maxlength="60">
+      </div>
+
+      <!-- Valor aportado + Valor atual -->
+      <div class="modal-row-2">
+        <div class="modal-field">
+          <label class="modal-label">Valor Aportado (R$)</label>
+          <input type="text" class="modal-input" id="investValor" placeholder="R$ 0,00" oninput="window._maskBRL(this);window._atualizarRendCalc();">
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">Valor Atual (R$)</label>
+          <input type="text" class="modal-input" id="investValorAtual" placeholder="R$ 0,00" oninput="window._maskBRL(this);window._atualizarRendCalc();">
+        </div>
+      </div>
+
+      <!-- Preview rendimento -->
+      <div id="rendCalcPreview" style="display:none;"></div>
+
+      <!-- Liquidez (dropdown) -->
+      <div class="modal-field">
+        <label class="modal-label">Liquidez</label>
+        <div class="custom-select-wrap">
+          <div class="custom-select-trigger" id="liquidezTrigger" onclick="window._toggleLiquidezDD()">
+            <span id="liquidezLabel" style="color:var(--card-text-sec);">Selecione a liquidez</span>
+            <span>▾</span>
+          </div>
+          <div class="custom-select-dropdown" id="liquidezDropdown"></div>
+        </div>
+        <input type="hidden" id="investLiquidez">
+      </div>
+
+      <!-- Data aporte + Vencimento -->
+      <div class="modal-row-2">
+        <div class="modal-field">
+          <label class="modal-label">Data do Aporte</label>
+          <div class="dp-wrap">
+            <input type="text" class="modal-input" id="investDataLabel" placeholder="DD/MM/AAAA" readonly onclick="window._toggleDP('dpInvestData','investData')" style="cursor:pointer;">
+            <input type="hidden" id="investData">
+            <div class="dp-panel" id="dpInvestData"></div>
           </div>
         </div>
-        <div id="errCategoria" style="font-size:0.75rem;color:#dc2626;margin-top:0.25rem;display:none;"></div>
-      </div>
-
-      <!-- Tipo: Valor fixo | % da Receita -->
-      <div class="modal-field">
-        <label class="modal-label">Tipo de Limite</label>
-        <div class="tipo-toggle">
-          <button class="tipo-btn active" id="btnTipoValor" onclick="window._setTipoLimite('valor')">💰 Valor Fixo (R$)</button>
-          <button class="tipo-btn" id="btnTipoPerc" onclick="window._setTipoLimite('percentual')">📈 % da Receita</button>
+        <div class="modal-field">
+          <label class="modal-label">Vencimento (opcional)</label>
+          <div class="dp-wrap">
+            <input type="text" class="modal-input" id="investVencLabel" placeholder="DD/MM/AAAA" readonly onclick="window._toggleDP('dpInvestVenc','investVenc')" style="cursor:pointer;">
+            <input type="hidden" id="investVenc">
+            <div class="dp-panel" id="dpInvestVenc"></div>
+          </div>
         </div>
       </div>
 
-      <!-- Campo: valor fixo -->
-      <div class="modal-field" id="campoValorFixo">
-        <label class="modal-label">Valor Limite (R$)</label>
-        <input type="text" class="modal-input" id="inputValorLimite" placeholder="R$ 0,00" oninput="window._maskBRL(this)">
-      </div>
+      <input type="hidden" id="investId">
 
-      <!-- Campo: percentual -->
-      <div class="modal-field" id="campoPercentual" style="display:none;">
-        <label class="modal-label">Percentual da Receita (%)</label>
-        <input type="text" class="modal-input" id="inputPercentual" placeholder="Ex: 30" oninput="window._updateHintPerc()">
-        <div id="hintPercentual" style="font-size:0.75rem;font-weight:600;color:var(--text-sec);margin-top:0.375rem;padding:0.375rem 0.625rem;background:var(--input-bg);border-radius:0.5rem;"></div>
-      </div>
-
-      <input type="hidden" id="editandoLimiteId">
-
-      <button class="modal-submit" id="btnSalvarLimite" onclick="window.salvarLimite()">Salvar Limite</button>
-      <button class="modal-cancel" onclick="window.fecharModalLimite()">Cancelar</button>
-      <button class="modal-btn-danger" id="btnExcluirLimite" style="display:none;" onclick="window.excluirLimiteAtual()">🗑️ Excluir Limite</button>
+      <button class="modal-submit" id="btnSalvarInvest" onclick="window.salvarInvestimento()">Salvar Investimento</button>
+      <button class="modal-cancel" onclick="window.fecharModal()">Cancelar</button>
+      <button class="modal-btn-danger" id="btnExcluirInvest" style="display:none;" onclick="window.excluirInvestimento()">🗑️ Excluir Investimento</button>
     </div>
   </div>
 
-  <style>
-    .modal-btn-danger{width:100%;padding:0.625rem;border:none;border-radius:0.75rem;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;background:#fef2f2;color:#dc2626;margin-top:0.5rem;transition:background .15s;}
-    .modal-btn-danger:hover{background:#fee2e2;}
-  </style>
-
   <!-- Firebase config + módulo principal -->
   <script src="js/firebase-config.js"></script>
-  <script type="module" src="js/limites.js"></script>
+  <script type="module" src="js/investimentos.js"></script>
 </body>
 </html>

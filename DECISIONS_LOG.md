@@ -462,3 +462,27 @@
 - **Contexto**: Cérebro especifica custom categories como exclusivas de planos pagos. MVP não tem sistema de planos (PEND-001 pendente).
 - **Decisão**: Todos os usuários podem criar categorias personalizadas no MVP. Código tem comentário indicando onde inserir o gate quando PEND-001 for implementado.
 - **Quando revisar**: Ao implementar PEND-001 — adicionar verificação em `salvarCategoria()` em `js/categorias.js`.
+
+---
+
+### DEC-038 — Refatoração de cores hardcoded exige revisão visual nos 8 temas
+- **Data**: 27/04/2026
+- **Contexto**: Auditoria 27/04 detectou cores hex literais inline (B9/M5/DT-005/DT-006) em alguns elementos.
+- **Decisão**: NÃO refatorar em massa para `var(--…)` sem validação visual manual em cada um dos 8 temas (padrao, hbo, azul, roxo, rosa, amarelo, verde, vermelho).
+- **Por quê**: Risco de regressão visual silenciosa supera o ganho de consistência. Vários hex são intencionais (verde-receita / vermelho-despesa devem ficar iguais em todos os temas para acessibilidade semântica).
+- **Consequências**: DT-005 / DT-006 ficam em `PENDENCIAS.md` aguardando sessão dedicada de revisão visual com o usuário.
+- **Quando revisar**: Quando houver disponibilidade para revisão de UI tema a tema.
+
+---
+
+### DEC-039 — Repositório público é seguro: Firebase Web API keys são públicas por design
+- **Data**: 27/04/2026
+- **Contexto**: Auditoria questionou se manter o repo público no GitHub expõe credenciais Firebase.
+- **Decisão**: Manter `js/firebase-config.js` no `.gitignore` (apenas `firebase-config.example.js` é versionado). O repo pode permanecer público.
+- **Por quê**: As Web API keys do Firebase NÃO são segredos — elas identificam o projeto, não autorizam ações. Segurança real vem de:
+  1. **Firestore Security Rules** (controlam quem lê/escreve cada documento)
+  2. **Authorized Domains** no Firebase Console (somente domínios listados podem usar a key)
+  3. **reCAPTCHA Enterprise** (App Check) bloqueia bots
+  4. **Email/senha + verificação** controlada pelo Auth
+- **Consequências**: Não há ação a tomar para ocultar a key. Foco de segurança permanece nas Rules + Authorized Domains + reCAPTCHA.
+- **Quando revisar**: Se o Google mudar o modelo (improvável); ou se o app migrar para outro backend.

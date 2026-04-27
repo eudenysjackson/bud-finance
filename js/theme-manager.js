@@ -148,6 +148,11 @@
     r.setProperty('--sidebar-link-active-bg', t.sidebarLinkActiveBg);
     r.setProperty('--sidebar-link-active-color', t.sidebarLinkActiveColor);
     r.setProperty('--theme-accent', t.accent);
+    // A2 fix: garantir que o texto do <body> herde a variável correta do tema
+    // (sem isso, em Dark o texto solto fica preto sobre fundo preto).
+    r.setProperty('--text-main', t.text);
+    r.setProperty('--text-sec', t.sec);
+    document.body && (document.body.style.color = t.text);
   }
 
   function _updateBubbles(name) {
@@ -169,7 +174,8 @@
     if (!t) { name = 'padrao'; t = THEMES.padrao; }
     _current = name;
     _setVars(t);
-    localStorage.setItem('bud_theme', name);
+    // A4 fix: localStorage pode falhar (Safari private, cota cheia, etc).
+    try { localStorage.setItem('bud_theme', name); } catch (_) {}
     _updateBubbles(name);
     try {
       document.dispatchEvent(new CustomEvent('bud:themechange', { detail: { name: name } }));
@@ -211,8 +217,16 @@
   });
 
   // Apply saved theme immediately on script load (prevents flash)
-  var saved = localStorage.getItem('bud_theme') || 'padrao';
+  var saved = 'padrao';
+  try { saved = localStorage.getItem('bud_theme') || 'padrao'; } catch (_) {}
   applyTheme(saved);
+
+  // M11 fix: sincronizar tema entre abas (preview-temas + tela principal)
+  window.addEventListener('storage', function (ev) {
+    if (ev.key === 'bud_theme' && ev.newValue && ev.newValue !== _current) {
+      applyTheme(ev.newValue);
+    }
+  });
 
   window.budThemeManager = {
     apply: applyTheme,

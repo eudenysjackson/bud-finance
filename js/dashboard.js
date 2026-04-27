@@ -123,8 +123,11 @@ function renderizarDashboard() {
   var cardEntradasSub = document.getElementById('cardEntradasSub');
   var cardSaidasSub = document.getElementById('cardSaidasSub');
   if (cardSaldoSub) cardSaldoSub.textContent = getMesAnoLabel();
-  if (cardEntradasSub) cardEntradasSub.textContent = transacoesDoMes.filter(function (t) { return t.tipo === 'receita'; }).length + ' transações';
-  if (cardSaidasSub) cardSaidasSub.textContent = transacoesDoMes.filter(function (t) { return t.tipo === 'despesa'; }).length + ' transações';
+  // M4 fix: pluralização correta (era "1 transações").
+  var nReceitas = transacoesDoMes.filter(function (t) { return t.tipo === 'receita'; }).length;
+  var nDespesas = transacoesDoMes.filter(function (t) { return t.tipo === 'despesa'; }).length;
+  if (cardEntradasSub) cardEntradasSub.textContent = nReceitas === 1 ? '1 transação' : nReceitas + ' transações';
+  if (cardSaidasSub)   cardSaidasSub.textContent   = nDespesas === 1 ? '1 transação' : nDespesas + ' transações';
 
   // Color saldo (verde se positivo, vermelho se negativo)
   if (cardSaldo) {
