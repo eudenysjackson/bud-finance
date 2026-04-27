@@ -447,12 +447,12 @@ function parseBankStatementText(rawText) {
 }
 
 /**
- * Extrai transações de imagem ou PDF complexo usando Gemini 1.5 Flash.
- * Requer GEMINI_API_KEY no ambiente.
+ * Extrai transações de imagem ou PDF complexo usando Groq (llama-4-scout vision).
+ * Requer GROQ_API_KEY no ambiente.
  */
-async function extractWithGemini(buffer, mimeType) {
-  var key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error('GEMINI_API_KEY não configurada no servidor.');
+async function extractWithAI(buffer, mimeType) {
+  var key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error('GROQ_API_KEY não configurada no servidor.');
 
   var base64 = buffer.toString('base64');
   var prompt = [
@@ -465,31 +465,43 @@ async function extractWithGemini(buffer, mimeType) {
     'Responda APENAS com o array JSON, sem explicações ou markdown.'
   ].join(' ');
 
+  var messages = [
+    {
+      role: 'user',
+      content: [
+        {
+          type: 'image_url',
+          image_url: { url: 'data:' + mimeType + ';base64,' + base64 }
+        },
+        { type: 'text', text: prompt }
+      ]
+    }
+  ];
+
   var body = JSON.stringify({
-    contents: [{ parts: [
-      { inline_data: { mime_type: mimeType, data: base64 } },
-      { text: prompt }
-    ]}],
-    generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    messages: messages,
+    temperature: 0.1,
+    max_tokens: 2048
   });
 
   var controller = new AbortController();
-  var timeoutId = setTimeout(function(){ controller.abort(); }, 25000);
+  var timeoutId = setTimeout(function(){ controller.abort(); }, 30000);
 
   try {
     var resp = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + key,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, signal: controller.signal }
+      'https://api.groq.com/openai/v1/chat/completions',
+      { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: body, signal: controller.signal }
     );
     clearTimeout(timeoutId);
 
     if (!resp.ok) {
       var errText = await resp.text().catch(function(){ return resp.status; });
-      throw new Error('Gemini API: ' + errText);
+      throw new Error('Groq API: ' + errText);
     }
 
     var data = await resp.json();
-    var content = (data.candidates || [])[0]?.content?.parts?.[0]?.text || '[]';
+    var content = (data.choices || [])[0]?.message?.content || '[]';
 
     // Tenta extrair JSON válido da resposta
     var parsed;
@@ -528,9 +540,9 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
       try {
         pdfData = await pdfParse(buffer, { max: 0 });
       } catch (pdfErr) {
-        // PDF ilegível ou criptografado → tentar Gemini se disponível
-        if (process.env.GEMINI_API_KEY) {
-          transacoes = await extractWithGemini(buffer, mimeType);
+        // PDF ilegível ou criptografado → tentar IA se disponível
+        if (process.env.GROQ_API_KEY) {
+          transacoes = await extractWithAI(buffer, mimeType);
         } else {
           return res.status(422).json({
             error: 'Não foi possível ler o PDF. O arquivo pode estar protegido por senha. Tente exportar como imagem ou use um arquivo OFX.'
@@ -542,25 +554,25 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
         // ── 2) Tentar parser de texto (rápido, sem IA) ─────────────
         transacoes = parseBankStatementText(pdfData.text || '');
 
-        // ── 3) Fallback Gemini se parser encontrou poucos resultados
-        if (transacoes.length < 2 && process.env.GEMINI_API_KEY) {
+        // ── 3) Fallback IA se parser encontrou poucos resultados
+        if (transacoes.length < 2 && process.env.GROQ_API_KEY) {
           try {
-            var gemResult = await extractWithGemini(buffer, mimeType);
+            var gemResult = await extractWithAI(buffer, mimeType);
             if (gemResult.length > transacoes.length) transacoes = gemResult;
-          } catch (_gemErr) {
+          } catch (_aiErr) {
             // Ignora — mantém o resultado do parser de texto
           }
         }
       }
 
     } else {
-      // ── Imagem: requer Gemini ────────────────────────────────────
-      if (!process.env.GEMINI_API_KEY) {
+      // ── Imagem: requer IA ────────────────────────────────────────
+      if (!process.env.GROQ_API_KEY) {
         return res.status(503).json({
-          error: 'Extração de imagens requer configuração do servidor (GEMINI_API_KEY). Use PDF ou OFX.'
+          error: 'Extração de imagens requer configuração do servidor (GROQ_API_KEY). Use PDF ou OFX.'
         });
       }
-      transacoes = await extractWithGemini(buffer, mimeType);
+      transacoes = await extractWithAI(buffer, mimeType);
     }
 
     if (!transacoes || transacoes.length === 0) {
