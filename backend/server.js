@@ -457,7 +457,7 @@ async function extractWithGemini(buffer, mimeType) {
       { inline_data: { mime_type: mimeType, data: base64 } },
       { text: prompt }
     ]}],
-    generationConfig: { temperature: 0.1, response_mime_type: 'application/json' }
+    generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
   });
 
   var controller = new AbortController();
@@ -465,7 +465,7 @@ async function extractWithGemini(buffer, mimeType) {
 
   try {
     var resp = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=' + key,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, signal: controller.signal }
     );
     clearTimeout(timeoutId);
@@ -645,7 +645,7 @@ async function extractCupomWithGemini(buffers, mimeTypes) {
 
   var body = JSON.stringify({
     contents: [{ parts: parts }],
-    generationConfig: { temperature: 0.1, response_mime_type: 'application/json' }
+    generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
   });
 
   var controller = new AbortController();
@@ -653,7 +653,7 @@ async function extractCupomWithGemini(buffers, mimeTypes) {
 
   try {
     var resp = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=' + key,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, signal: controller.signal }
     );
     clearTimeout(timeoutId);
@@ -725,7 +725,7 @@ async function extractCupomFromText(texto) {
 
   var body = JSON.stringify({
     contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.1, response_mime_type: 'application/json' }
+    generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
   });
 
   var controller = new AbortController();
@@ -733,7 +733,7 @@ async function extractCupomFromText(texto) {
 
   try {
     var resp = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + key,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=' + key,
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, signal: controller.signal }
     );
     clearTimeout(timeoutId);
@@ -835,8 +835,14 @@ app.post('/api/extrair-cupom', uploadCupom.array('arquivos', 3), async function 
   } catch (err) {
     var safeMsg = (err.message || '').replace(/(key=)[^\s&]+/, '$1***');
     console.error('[extrair-cupom]', safeMsg);
-    var status = /Gemini API/.test(safeMsg) ? 502 : 500;
-    return res.status(status).json({ error: 'Erro ao processar cupom. Tente novamente em alguns segundos.' });
+    var isGeminiErr = /Gemini API/.test(safeMsg);
+    var status = isGeminiErr ? 502 : 500;
+    // Expõe motivo real (sem a key) para ajudar diagnóstico
+    var userMsg = isGeminiErr
+      ? 'Gemini recusou a requisição: ' + safeMsg.replace('Gemini API: ', '').slice(0, 200)
+      : (safeMsg.includes('aborted') ? 'Tempo limite excedido. Tente uma imagem menor ou use a aba Texto.'
+        : 'Erro ao processar cupom. Verifique a imagem e tente novamente.');
+    return res.status(status).json({ error: userMsg });
   }
 });
 
