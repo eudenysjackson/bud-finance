@@ -1,7 +1,7 @@
 # ROADMAP.md — Foco e Controle de Escopo
 
 **Projeto**: Bud Finance  
-**Última atualização**: 23/04/2026 — Auditoria de paridade Cérebro→Bud (Cartões / Metas / Configurações)
+**Última atualização**: 26/04/2026 — Tela de Dívidas implementada e movida para Concluído
 
 > **REGRA**: NÃO implementar itens do Backlog sem pedido explícito do usuário.
 
@@ -100,6 +100,39 @@
   - Custom datepicker (DEC-018), custom select bandeira e categoria
   - 10 cor pills com gradientes físicos de cartão
   - Link Cartões adicionado a todos os sidebars (dashboard, metas, configurações)
+- [x] **Tela de Recorrentes** (`recorrentes.html` + `js/recorrentes.js`)
+  - Feature gate: planos Pro/Plus/Trial (Free/Starter vê planGate com CTA de upgrade)
+  - CRUD completo: criar, editar, excluir (overlay style.cssText), toggle ativar/pausar
+  - 3 cards resumo: Ativas, Despesas/mês estimado (×30/×4.3/×1), Receitas/mês estimado
+  - calcPrimeiraData: calcula próximo vencimento com clamp dia/maxDia (dia 31 em meses curtos)
+  - BUG 1 fix: proximaData não recalculada ao editar se periodicidade/dia não mudaram
+  - BUG 3 fix: calcPrimeiraData (client) nomeado diferente de calcProximaData (server)
+  - Fix #7: guard `_salvando` anti-duplo-submit
+  - Fix #8: ao selecionar Crédito, dropdown exibe cartões reais do usuário (carteira); salva cartaoId/cartaoNome
+  - Fix #13: categoria preservada ao trocar tipo se ainda existir na nova lista
+  - Aviso Beta: "Lançamento automático via Cloud Functions"
+  - PEND-031: Cloud Function `processarRecorrentes` ainda não existe no backend
+- [x] **Tela de Dívidas** (`dividas.html` + `js/dividas.js`)
+  - Wizard 2 passos: Tipo (6 tipos: Empréstimo/Financiamento/Cartão/Consórcio/Informal/Outro) + Formato (IA/Com Juros/Parcelas Fixas/Livre)
+  - Leitor de contratos por IA: PDF.js 3.11.174 + Tesseract.js 5; abas Arquivo/Texto/Câmera (câmera ocultada em desktop — Bug#21)
+  - 15 regexes de extração + classificação por keywords; preview antes de salvar
+  - Formulário manual: BRL mask, campo de data DD/MM/AAAA (DEC-018), cálculo PMT botão
+  - 4 KPIs: Dívidas Ativas / Saldo Devedor / Total Pago / Juros Pagos
+  - Barra de progresso geral + alertas de vencimento
+  - Cards com barra de progresso individual, clicáveis para detalhes
+  - Modal Detalhes (2 abas: Resumo/Parcelas) + Simulador (Extra/Quitar Tudo)
+  - Bug#15 fix: calcularSaldoDevedor via Tabela Price (não valorTotal - valorPago)
+  - Bug#10 fix: addMonthsSafe para datas de parcelas (Jan31+1=Fev28, não Mar3)
+  - Bug#8 fix: marcar parcelas fora de ordem com confirmação (confirmarAcao)
+  - Bug#25 fix: confirmarAcao helper reutilizável, style.cssText (DEC-006)
+  - Bug#24 fix: _tabAtualDetalhes — aba ativa preservada ao reabrir detalhes
+  - Bug#20 fix: fmtIA() exibe valores reais no preview (independente do toggle)
+  - Bug#5 fix: simulador usa calcularSaldoDevedor() como base (não valorTotal)
+  - Bug#2 fix: error callback em onSnapshot; Bug#7: _unsubs antes de redirect
+  - Bug#22 fix: orderBy('criadoEm','desc'); Bug#23: fallback escapeHTML
+  - Link Dívidas adicionado a todos os sidebars (7 páginas)
+- [x] **Tela de Extrato** (`extrato.html` + `js/extrato.js`) — já implementado (não documentado no roadmap)
+- [x] **Tela de Categorias** (`categorias.html` + `js/categorias.js`) + `js/categorias-padrao.js` — já implementado (não documentado no roadmap)
 
 ---
 
@@ -108,10 +141,9 @@
 > ⚠️ **NÃO implementar sem meu pedido.**
 
 ### Telas de Finanças
-1. **Extrato** (`extrato.html` + `js/extrato.js`) — Filtros, lista por dia, toggle pago, editar, excluir, exportar CSV/PDF
-3. **Categorias** (`categorias.html` + `js/categorias.js`) — 48 despesas + 15 receitas padrão; personalizadas via Firestore (planos pagos)
-4. **Recorrentes** (`recorrentes.html` + `js/recorrentes.js`) — Cloud Function `processarRecorrentes` às 6h todo dia
-5. **Dívidas** (`dividas.html` + `js/dividas.js`) — Wizard, 6 tipos, Tabela Price, simulação, importação IA (PDF.js + Tesseract.js)
+1. ~~**Extrato** (`extrato.html` + `js/extrato.js`) — Filtros, lista por dia, toggle pago, editar, excluir, exportar CSV/PDF~~ ✅ Já implementado
+3. ~~**Categorias** (`categorias.html` + `js/categorias.js`) — 48 despesas + 15 receitas padrão; personalizadas via Firestore (planos pagos)~~ ✅ Já implementado
+5. ~~**Dívidas** (`dividas.html` + `js/dividas.js`)~~ ✅ Já implementado
 6. **Investimentos** (`investimentos.html` + `js/investimentos.js`) — 8 tipos, AwesomeAPI, Chart.js doughnut
 7. **Limites** (`limites.html` + `js/limites.js`) — Barra de progresso por categoria, "Copiar do Mês Anterior" (plano Plus)
 8. **Mercado** (`mercado.html` + `js/mercado.js`) — Lista de compras + IA para nota fiscal

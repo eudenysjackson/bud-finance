@@ -710,6 +710,12 @@
         <a href="categorias.html" class="sidebar-link">
           <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
         </a>
+        <a href="recorrentes.html" class="sidebar-link">
+          <span class="sidebar-link-icon">🔄</span><span class="sidebar-link-text"> Recorrentes</span>
+        </a>
+        <a href="dividas.html" class="sidebar-link">
+          <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
+        </a>
         <a href="configuracoes.html" class="sidebar-link">
           <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
         </a>
@@ -810,6 +816,18 @@
             <div class="quick-btn-sub">Registrar saída</div>
           </div>
         </button>
+      </div>
+
+      <!-- Dívidas em Atraso -->
+      <div class="dash-section" id="secDividasAtraso" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+          <div>
+            <div class="dash-section-title">💸 Dívidas em Atraso</div>
+            <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.25rem;" id="dividasAtrasoContador"></div>
+          </div>
+          <a href="dividas.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver todas →</a>
+        </div>
+        <div id="listaDividasAtraso"></div>
       </div>
 
       <!-- Atividades recentes -->

@@ -127,6 +127,33 @@ _Sem pendências ativas._
 
 ---
 
+## 🔄 Recorrentes
+
+> Tela implementada em 26/04/2026. Bugs 1–3 do cérebro resolvidos na implementação inicial.
+> Bug 4 (dashboard deduplica por nome) fica registrado como pendente para atacar ao tocar no dashboard.
+
+| ID | Descrição | Prioridade | Depende de | Observação |
+|---|---|---|---|---|
+| PEND-031 | **Cloud Function `processarRecorrentes`** — cron `0 6 * * *` (horario Brasilia) que cria transações automáticas quando `proximaData <= hoje`. Não existe ainda no backend. | 🔴 Alta | `backend/server.js` ou Firebase Cloud Functions | Front-end está completo; aviso Beta visível ao usuário |
+| PEND-032 | **Cloud Function `enviarLembretesFinanceiros`** — cron `0 7 * * *`, envia FCM quando conta vence hoje/amanha. | 🚀 FUT | PEND-031 + PEND-002 (Push FCM) | Depen de de PEND-031 estar pronto |
+| PEND-033 | **Integração dashboard** — seção “Contas Vencidas/Lembretes” do dashboard ainda usa match por nome em vez de `recorrenteId` (Bug 4 do cérebro). | 🟡 Média | — | Atacar na próxima alteração do dashboard |
+| PEND-034 | **Filtragem por plano na Cloud Function** — CF deve pular usuários Free/Starter para consistência (Bug 2 do cérebro). | 🟡 Média | PEND-031 | Já documentado em recorrentes.js com comentário |
+
+---
+
+## 💸 Dívidas
+
+| ID | Descrição | Prioridade | Depende de | Observação |
+|---|---|---|---|---|
+| PEND-035 | **Previsão de quitação automática** — calcular data estimada de quitação baseada em parcelas restantes + exibir no card e modal Detalhes. | 🟡 Média | — | — |
+| PEND-036 | **Notificações de vencimento de parcelas** — FCM push quando parcela vence hoje/amanhã. | 🚀 FUT | PEND-002 (Push FCM) | Depende de infra FCM |
+| PEND-037 | **Histórico de datas de pagamento** — registrar data real em que cada parcela foi marcada como paga (não apenas flag pago/não-pago). | 🟡 Média | — | Requer sub-array `parcelasDatas` no Firestore |
+| PEND-038 | **Exportar relatório de dívidas em PDF** — botão na tela principal para gerar PDF com resumo de todas as dívidas (saldo devedor, parcelas, projeção). | 🚀 FUT | PDF.js já importado | — |
+| PEND-039 | **Campos CET, IOF e seguro no formulário manual** — campos opcionais para registro preciso do custo total do contrato. | 🟢 Baixa | — | Campos `cet`, `iof`, `seguro` já existem no modelo Firestore |
+| PEND-040 | **MANUAL_USO.md** — criar documento com descrição de uso de todas as telas existentes: Dashboard, Extrato, Metas, Cartões, Categorias, Recorrentes, Dívidas, Configurações. | 🟡 Média | — | Útil para onboarding e suporte |
+
+---
+
 ## 🌐 Débitos Técnicos Globais
 
 _(Itens que afetam mais de uma tela ou o projeto como um todo. Vazio por enquanto.)_
@@ -138,6 +165,8 @@ _(Itens que afetam mais de uma tela ou o projeto como um todo. Vazio por enquant
 - **23/04/2026** — Documento criado. Consolida itens 21-28 do `ROADMAP.md` (expansões de Configurações) + DT-001/002/003 da memória do repo. Origem: auditoria de paridade Cérebro→Bud em Cartões / Metas / Configurações.
 - **23/04/2026** — DT-001 resolvido: `salvarTransacoesIA` convertida para `writeBatch` em chunks de 400. Sugestões de refinamento Cartões registradas como PEND-009 a PEND-018. Sugestão 1 (modal exclusão) já existia — marcada como já implementada.
 - **23/04/2026** — Tela Categorias implementada (9 bugs resolvidos). `js/categorias-padrao.js` criado como fonte única de verdade (DEC-036). Pendências PEND-019 a PEND-024 registradas.
+- **26/04/2026** — Tela Recorrentes implementada (`recorrentes.html` + `js/recorrentes.js`). 3 bugs do cérebro resolvidos na origem. PEND-031 a PEND-034 registradas. Link 🔄 Recorrentes adicionado ao sidebar de todas as telas.
+- **26/04/2026** — Tela Dívidas implementada (`dividas.html` + `js/dividas.js`). 25 bugs do cérebro resolvidos na origem (Tabela Price, addMonthsSafe, confirmarAcao, simulador, IA import, etc.). PEND-035 a PEND-040 registradas. Link 💸 Dívidas adicionado ao sidebar de todas as 7 telas.
 - **23/04/2026** — Auditoria geral do código. 5 bugs corrigidos: (1) teste sidebar `toHaveCount(4)→6` (2) `salvarEdicao` sem validação de categoria (3) valor R$ 0,00 passava validação (4) `renderBreakdown` não chamado quando filtradas = 0 (5) `formatarInputValor` sem máscara BRL. PEND-019 marcada resolvida.
 
 

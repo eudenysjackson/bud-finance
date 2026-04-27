@@ -1,7 +1,7 @@
 # ARCHITECTURE_MAP.md — Inventário Vivo do Ecossistema
 
 **Projeto**: Bud Finance  
-**Última atualização**: 22/04/2026
+**Última atualização**: 26/04/2026
 
 > **REGRA**: Antes de criar algo novo, consulte este doc. Ao finalizar qualquer tarefa, atualize.  
 > Se algo novo quebrar uma conexão existente, **pare e avise o usuário**.
@@ -449,3 +449,7 @@
 | `js/categorias-padrao.js` | ? | Script não-módulo. Expõe `window.BUD_CATEGORIAS_PADRAO = { despesa:[...49], receita:[...15] }`. Fonte única de verdade de categorias padrão (DEC-036). Deve ser carregado ANTES do módulo JS em qualquer tela que precise da lista. |
 | `extrato.html` | ✅ | Extrato completo — nav mês, 3 cards resumo (Receitas/Despesas/Saldo), pills tipo, filtro busca+categoria+export, lista agrupada por dia, modal editar (tipo toggle+datepicker custom+cat dropdown), modal excluir estático |
 | `js/extrato.js` | ✅ | ES module. subscribeTransacoes (query por-mês via Timestamps, BUG 2 fix), subscribeAll (flag _dadosCarregados anti-duplo-render BUG 10), renderizarExtrato (grupos por dia, DEC-006 style inline), abrirModalEditar, salvarEdicao, confirmarExclusao, exportarCSV (BOM UTF-8), exportarPDF (iframe BUG 13), datepicker factory no modal, 14 bugs do cérebro resolvidos |
+| `recorrentes.html` | ✅ | Transações recorrentes — feature gate (Pro/Plus/Trial), aviso Beta Cloud Functions, 3 cards resumo (Ativas/Despesas mês estimado/Receitas mês estimado), lista de rec-cards com toggle ativo, edit, delete. Modal criar/editar: tipo toggle, valor BRL, custom-select categoria+forma+periodicidade, campo dia (visível só mensal). Modal exclusão via style.cssText (DEC-006). |
+| `js/recorrentes.js` | ✅ | ES module. calcPrimeiraData (client, BUG 3 fix — nome distinto do server), salvarRecorrente (BUG 1 fix: só recalcula proximaData se periodicidade/dia mudaram), toggleAtivo, excluirRec (overlay via style.cssText), renderizar (cards animados, estimativa mensal diária×30/semanal×4.3/mensal×1). Feature gate por plano (PLANOS_PERMITIDOS). Usa window.BUD_CATEGORIAS_PADRAO. |
+| `dividas.html` | ✅ | Controle de dívidas — Wizard 2 passos (Tipo: 6 tipos; Formato: IA/Juros/Fixas/Livre), 4 KPIs (Ativas/Saldo Devedor/Total Pago/Juros Pagos), barra progresso geral, alertas de vencimento, cards de dívida com barra de progresso individual. 6 modais: modalTipo, modalFormato, modalImportIA (3 abas: Arquivo/Texto/Câmera), modalDivida (form com máscara BRL + data DD/MM/AAAA DEC-018), modalDetalhes (2 abas: Resumo/Parcelas), modalSimulador (2 abas: Extra/Quitar). CDN: PDF.js 3.11.174 + Tesseract.js 5. 25 bugs do cérebro resolvidos de início. |
+| `js/dividas.js` | ✅ | ES module. Todos os 25 bugs do cérebro/dividas.md corrigidos de início. calcularSaldoDevedor (Tabela Price real — Bug#15), addMonthsSafe (Bug#10), confirmarAcao helper Promise<bool> style.cssText (Bug#25/DEC-006), classificarContrato (keywords scoring), extrairDadosDoTexto (15 regexes), renderizarParcelas (Bug#18 inline bg), marcarParcelaPaga (Bug#8 out-of-order confirm), desmarcarParcela, simularExtra/calcularResultadoQuitar (Bug#5 saldo real), fmtIA (Bug#20 always visible), _tabAtualDetalhes state (Bug#24), escapeHTML fallback (Bug#23), onSnapshot error callback (Bug#2), orderBy criadoEm desc (Bug#22), _unsubs.forEach antes de redirect (Bug#7). Firestore: usuarios/{uid}/dividas/{dividaId}. |

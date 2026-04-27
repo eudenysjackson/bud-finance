@@ -28,6 +28,7 @@ let trialExpirado = false;
 let transacaoEditandoId = null; // null = criando, string = editando
 let filtroAtividadeAtual = 'todos'; // 'todos' | 'receita' | 'despesa'
 let _skipThemeSync = false; // evita escrita circular no Firestore ao aplicar tema vindo do Firestore
+var dividasGlobaisDash = [];  // dívidas do usuário para o widget do dashboard
 // ─── Categorias ──────────────────────────────────────────────────────────
 // Padrão vem de window.BUD_CATEGORIAS_PADRAO (categorias-padrao.js)
 // Personalizadas são carregadas via onSnapshot em setupListeners()
@@ -135,6 +136,9 @@ function renderizarDashboard() {
   // Gráfico de despesas por categoria
   renderizarGraficos(transacoesDoMes);
 
+  // Widget dívidas em atraso
+  atualizarDividasAtraso();
+
   // Apply visibility toggle (sempre — atualiza icon e oculta se necessário)
   atualizarVisibilidadeValores();
 }
@@ -239,6 +243,95 @@ function renderizarGraficos(transacoesDoMes) {
       animation: { animateRotate: true, animateScale: true }
     }
   });
+}
+
+// ─── Dívidas em Atraso (widget dashboard) ──────────────────────────────
+function addMonthsDash(date, months) {
+  var d = new Date(date);
+  var targetMonth = d.getMonth() + months;
+  d.setMonth(targetMonth);
+  // Se setMonth avançou o mês por causa de dias inexistentes, corrigir para último dia do mês-alvo
+  if (d.getMonth() !== ((targetMonth % 12 + 12) % 12)) {
+    d.setDate(0);
+  }
+  return d;
+}
+
+function atualizarDividasAtraso() {
+  var sec    = document.getElementById('secDividasAtraso');
+  var lista  = document.getElementById('listaDividasAtraso');
+  var ctador = document.getElementById('dividasAtrasoContador');
+  if (!sec || !lista) return;
+
+  var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+
+  // Calcular parcelas em atraso por dívida
+  var comAtraso = dividasGlobaisDash
+    .map(function(d) {
+      if (!d.vencimento || !d.parcelas) return null;
+      var base = new Date(d.vencimento + 'T12:00:00');
+      var pagas = d.parcelasPagas || 0;
+      var total = d.parcelas || 0;
+      var atrasadas = 0;
+      for (var i = pagas; i < total; i++) {
+        var dataParc = addMonthsDash(base, i);
+        dataParc.setHours(0, 0, 0, 0);
+        if (dataParc < hoje) atrasadas++;
+        else break;
+      }
+      if (atrasadas === 0) return null;
+      // Próxima venc (primeira não paga)
+      var proxVenc = addMonthsDash(base, pagas);
+      return { d: d, atrasadas: atrasadas, proxVenc: proxVenc };
+    })
+    .filter(Boolean);
+
+  if (comAtraso.length === 0) {
+    sec.style.display = 'none';
+    return;
+  }
+
+  sec.style.display = '';
+  if (ctador) ctador.textContent = comAtraso.length + ' dívida' + (comAtraso.length > 1 ? 's' : '') + ' em atraso';
+
+  lista.innerHTML = '';
+
+  // Mostrar no máximo 3 cards
+  var exibir = comAtraso.slice(0, 3);
+  exibir.forEach(function(item) {
+    var d = item.d;
+    var el = document.createElement('div');
+    el.style.cssText = 'background:rgba(254,242,242,0.7);border:1.5px solid rgba(252,165,165,0.5);border-radius:0.875rem;padding:0.75rem 1rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;';
+
+    var diasAtraso = Math.round((hoje - item.proxVenc) / 86400000);
+    var valorParc  = d.valorParcela ? d.valorParcela.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—';
+    var plural = item.atrasadas > 1 ? 's' : '';
+
+    var info = document.createElement('div');
+    info.style.cssText = 'display:flex;align-items:center;gap:0.625rem;min-width:0;flex:1;';
+    info.innerHTML = '<span style="font-size:1.25rem;flex-shrink:0;">🔴</span>'
+      + '<div style="min-width:0;">'
+      + '<div style="font-size:0.875rem;font-weight:700;color:#dc2626;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (d.nome || '—').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>'
+      + '<div style="font-size:0.75rem;font-weight:600;color:#9f1239;">' + item.atrasadas + ' parcela' + plural + ' em atraso · ' + valorParc + ' · ' + diasAtraso + 'd</div>'
+      + '</div>';
+
+    var btn = document.createElement('a');
+    btn.href = 'dividas.html';
+    btn.style.cssText = 'flex-shrink:0;padding:0.375rem 0.75rem;border:none;border-radius:0.625rem;background:#dc2626;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;white-space:nowrap;';
+    btn.textContent = 'Ver';
+
+    el.appendChild(info);
+    el.appendChild(btn);
+    lista.appendChild(el);
+  });
+
+  // Se há mais de 3, mostrar rodapé "e mais N..."
+  if (comAtraso.length > 3) {
+    var mais = document.createElement('div');
+    mais.style.cssText = 'text-align:center;font-size:0.75rem;font-weight:600;color:#dc2626;padding-top:0.25rem;';
+    mais.textContent = '+ mais ' + (comAtraso.length - 3) + ' dívida' + (comAtraso.length - 3 > 1 ? 's' : '') + ' em atraso';
+    lista.appendChild(mais);
+  }
 }
 
 // ─── Atividades recentes ────────────────────────────────────────────────
@@ -946,6 +1039,15 @@ function setupListeners(uid) {
   }, function (_err) {
     // Listener error handled silently — user sees stale data
   }));
+
+  // Dívidas — widget "Dívidas em Atraso"
+  var dividasRef = query(collection(db, 'usuarios', uid, 'dividas'), limit(500));
+  _unsubs.push(onSnapshot(dividasRef, function (snapshot) {
+    dividasGlobaisDash = snapshot.docs.map(function (d) {
+      return Object.assign({}, d.data(), { id: d.id });
+    });
+    atualizarDividasAtraso();
+  }, function () {}));
 }
 
 // ─── Cleanup listeners ─────────────────────────────────────────────────
