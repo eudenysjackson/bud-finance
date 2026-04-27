@@ -13,14 +13,18 @@ const pdfParse = require('pdf-parse');
 // ─── Firebase Admin init ────────────────────────────────────────────
 // Service account credentials injected via environment variable.
 // On Render: FIREBASE_SERVICE_ACCOUNT = JSON string of the service account key.
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
-
-const auth = admin.auth();
-const db   = admin.firestore();
+// Em dev local sem credenciais, o servidor sobe mesmo assim — apenas as rotas
+// que usam auth/db ficam indisponíveis (ex: /reset-senha). /api/extrair-cupom
+// não usa Firebase e funciona normalmente.
+let auth, db;
+try {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+  auth = admin.auth();
+  db   = admin.firestore();
+} catch (e) {
+  console.warn('[Firebase Admin] Credenciais ausentes ou inválidas. Rotas /reset-senha e similares não funcionarão:', e.message);
+}
 
 // ─── EmailJS config (env vars — set on Render) ─────────────────────
 const EMAILJS_PUBLIC_KEY  = process.env.EMAILJS_PUBLIC_KEY  || '';
@@ -40,10 +44,19 @@ const ALLOWED_ORIGINS_DEV = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
   'http://localhost:3001',
-  'http://127.0.0.1:3001'
+  'http://127.0.0.1:3001',
+  'http://localhost:5500',
+  'http://127.0.0.1:5500',
+  'http://localhost:5501',
+  'http://127.0.0.1:5501'
 ];
 const ALLOWED_ORIGINS_PROD = [
-  'https://bud-finance.onrender.com'
+  'https://bud-finance.onrender.com',
+  // Origens locais de desenvolvimento (Live Server) — seguras pois 127.0.0.1 não é acessível externamente.
+  'http://localhost:5500',
+  'http://127.0.0.1:5500',
+  'http://localhost:5501',
+  'http://127.0.0.1:5501'
   // Adicione aqui o domínio customizado de produção quando for configurado.
 ];
 const ALLOWED_ORIGINS = IS_PROD
