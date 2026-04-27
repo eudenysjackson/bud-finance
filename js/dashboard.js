@@ -29,6 +29,7 @@ let transacaoEditandoId = null; // null = criando, string = editando
 let filtroAtividadeAtual = 'todos'; // 'todos' | 'receita' | 'despesa'
 let _skipThemeSync = false; // evita escrita circular no Firestore ao aplicar tema vindo do Firestore
 var dividasGlobaisDash = [];  // dívidas do usuário para o widget do dashboard
+var limitesGlobaisDash = [];  // limites por categoria para o widget do dashboard
 // ─── Categorias ──────────────────────────────────────────────────────────
 // Padrão vem de window.BUD_CATEGORIAS_PADRAO (categorias-padrao.js)
 // Personalizadas são carregadas via onSnapshot em setupListeners()
@@ -138,6 +139,9 @@ function renderizarDashboard() {
 
   // Widget dívidas em atraso
   atualizarDividasAtraso();
+
+  // Widget limites do mês
+  atualizarLimitesWidget(transacoesDoMes, saidas);
 
   // Apply visibility toggle (sempre — atualiza icon e oculta se necessário)
   atualizarVisibilidadeValores();
@@ -255,6 +259,208 @@ function addMonthsDash(date, months) {
     d.setDate(0);
   }
   return d;
+}
+
+// ─── Helpers limites widget ────────────────────────────────────────────
+function normalizeCategoriaDash(s) {
+  return (s || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function getGastosPorCatDash(transacoesMes) {
+  var mapa = {};
+  transacoesMes
+    .filter(function(t) { return t.tipo === 'despesa' && !t.cartaoId; })
+    .forEach(function(t) {
+      var cat = normalizeCategoriaDash(t.categoria || 'Outros');
+      mapa[cat] = (mapa[cat] || 0) + (parseFloat(t.valor) || 0);
+    });
+  return mapa;
+}
+
+function atualizarLimitesWidget(transacoesMes, saidasMes) {
+  var sec   = document.getElementById('secLimitesWidget');
+  var lista = document.getElementById('listaLimitesWidget');
+  var sub   = document.getElementById('limitesWidgetSub');
+  if (!sec || !lista) return;
+
+  // Sem limites configurados → ocultar
+  if (limitesGlobaisDash.length === 0) {
+    sec.style.display = 'none';
+    return;
+  }
+
+  var gastos = getGastosPorCatDash(transacoesMes);
+
+  // Calcular receita do mês (para limites percentuais)
+  var receitaMes = transacoesMes
+    .filter(function(t) { return t.tipo === 'receita'; })
+    .reduce(function(s, t) { return s + (parseFloat(t.valor) || 0); }, 0);
+
+  // Calcular efetivo e % de cada limite
+  var itens = limitesGlobaisDash.map(function(l) {
+    var ef;
+    if (l.tipoLimite === 'percentual' && l.percentual > 0) {
+      ef = receitaMes > 0 ? Math.round(receitaMes * l.percentual / 100) : null;
+    } else {
+      ef = l.valorLimite || 0;
+    }
+    var gasto = gastos[normalizeCategoriaDash(l.categoria)] || 0;
+    var pct   = (ef !== null && ef > 0) ? Math.round((gasto / ef) * 100) : (ef === null ? null : 0);
+    return { l: l, ef: ef, gasto: gasto, pct: pct };
+  });
+
+  // Ordenar por % desc (null = aguardando receita vai para o fim)
+  itens.sort(function(a, b) {
+    var pa = a.pct === null ? -1 : a.pct;
+    var pb = b.pct === null ? -1 : b.pct;
+    return pb - pa;
+  });
+
+  var criticos = itens.filter(function(i) { return i.pct !== null && i.pct >= 80; });
+  var totalEf  = itens.reduce(function(s, i) { return s + (i.ef || 0); }, 0);
+  var pctTotal = totalEf > 0 ? Math.round((saidasMes / totalEf) * 100) : 0;
+
+  sec.style.display = '';
+
+  // Sub-texto
+  if (sub) {
+    if (criticos.length > 0) {
+      sub.textContent = criticos.length + ' categoria' + (criticos.length > 1 ? 's' : '') + ' com alerta';
+      sub.style.color = '#f59e0b';
+    } else {
+      sub.textContent = pctTotal + '% do orçamento utilizado';
+      sub.style.color = '#94a3b8';
+    }
+  }
+
+  // Indicador no card Saídas
+  var elOrc = document.getElementById('cardSaidasOrcamento');
+  if (elOrc && totalEf > 0) {
+    var cor = pctTotal >= 100 ? '#dc2626' : pctTotal >= 80 ? '#d97706' : '#16a34a';
+    elOrc.style.display = '';
+    elOrc.innerHTML = '<div style="display:flex;align-items:center;gap:0.375rem;">'
+      + '<div style="flex:1;height:5px;background:#e2e8f0;border-radius:999px;overflow:hidden;">'
+      + '<div style="height:100%;border-radius:999px;background:' + cor + ';width:' + Math.min(100, pctTotal) + '%;transition:width .4s ease;"></div>'
+      + '</div>'
+      + '<span style="font-size:0.6875rem;font-weight:800;color:' + cor + ';white-space:nowrap;">' + pctTotal + '% orç.</span>'
+      + '</div>';
+  } else if (elOrc) {
+    elOrc.style.display = 'none';
+  }
+
+  lista.innerHTML = '';
+
+  // Se nenhum crítico, mostrar card “Orçamento OK” compacto
+  if (criticos.length === 0) {
+    var ok = document.createElement('div');
+    ok.style.cssText = 'background:rgba(240,253,244,0.8);border:1.5px solid rgba(134,239,172,0.4);border-radius:0.875rem;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.625rem;';
+    ok.innerHTML = '<span style="font-size:1.25rem;">\u2705</span>'
+      + '<div>'
+      + '<div style="font-size:0.875rem;font-weight:700;color:#16a34a;">Orçamento sob controle</div>'
+      + '<div style="font-size:0.75rem;font-weight:600;color:#15803d;">' + limitesGlobaisDash.length + ' limite' + (limitesGlobaisDash.length > 1 ? 's' : '') + ' definido' + (limitesGlobaisDash.length > 1 ? 's' : '') + ' · ' + pctTotal + '% utilizado</div>'
+      + '</div>';
+    lista.appendChild(ok);
+    return;
+  }
+
+  // Mostrar até 3 críticos
+  criticos.slice(0, 3).forEach(function(item) {
+    var l      = item.l;
+    var estour = item.pct > 100;
+    var bgCol  = estour ? 'rgba(254,242,242,0.8)' : 'rgba(255,251,235,0.8)';
+    var brdCol = estour ? 'rgba(252,165,165,0.5)' : 'rgba(253,211,77,0.4)';
+    var textCol = estour ? '#dc2626' : '#d97706';
+
+    var el = document.createElement('div');
+    el.style.cssText = 'background:' + bgCol + ';border:1.5px solid ' + brdCol + ';border-radius:0.875rem;padding:0.625rem 0.875rem;margin-bottom:0.5rem;';
+
+    var nomeEsc = (l.categoria || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    var efFmt  = item.ef !== null ? formatarValor(item.ef) : '—';
+    var gastoFmt = formatarValor(item.gasto);
+    var badge  = estour
+      ? '<span style="font-size:0.625rem;font-weight:800;color:#fff;background:#dc2626;padding:0.1rem 0.375rem;border-radius:9999px;margin-left:0.25rem;">ESTOURADO</span>'
+      : '<span style="font-size:0.625rem;font-weight:800;color:#fff;background:#d97706;padding:0.1rem 0.375rem;border-radius:9999px;margin-left:0.25rem;">' + item.pct + '%</span>';
+
+    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.375rem;">'
+      + '<span style="font-size:0.875rem;font-weight:700;color:' + textCol + ';">' + nomeEsc + badge + '</span>'
+      + '<span style="font-size:0.8125rem;font-weight:800;color:' + textCol + ';">' + gastoFmt + ' / ' + efFmt + '</span>'
+      + '</div>'
+      + '<div style="height:6px;background:#e2e8f0;border-radius:999px;overflow:hidden;">'
+      + '<div style="height:100%;border-radius:999px;background:' + (estour ? '#dc2626' : '#f59e0b') + ';width:' + Math.min(100, item.pct) + '%;transition:width .5s ease;"></div>'
+      + '</div>';
+
+    lista.appendChild(el);
+  });
+
+  // Rodapé se há mais de 3 críticos
+  if (criticos.length > 3) {
+    var mais = document.createElement('div');
+    mais.style.cssText = 'text-align:center;padding:0.375rem;font-size:0.75rem;font-weight:600;color:#94a3b8;';
+    mais.textContent = '+ ' + (criticos.length - 3) + ' outras categorias em alerta';
+    lista.appendChild(mais);
+  }
+}
+
+// Verifica se ao adicionar uma despesa algum limite foi cruzado (80% ou 100%)
+function verificarAlerteLimite(categoria, valorNovo) {
+  var mesAtual = mesVisualizado;
+  var anoAtual = anoVisualizado;
+
+  // Só verifica para o mês vigente
+  var hojeM = new Date();
+  if (mesAtual !== hojeM.getMonth() || anoAtual !== hojeM.getFullYear()) return;
+
+  // Encontrar limite da categoria (normalizado)
+  var catNorm = normalizeCategoriaDash(categoria);
+  var limite = limitesGlobaisDash.find(function(l) {
+    return normalizeCategoriaDash(l.categoria) === catNorm;
+  });
+  if (!limite) return;
+
+  // Calcular gasto atual (incluindo a nova despesa que acabou de ser adicionada)
+  // O onSnapshot ainda não atualizou — usamos transacoesGlobais + valorNovo
+  var gastoAtual = transacoesGlobais
+    .filter(function(t) {
+      if (t.tipo !== 'despesa') return false;
+      if (!t.data) return false;
+      var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
+      return d.getMonth() === mesAtual && d.getFullYear() === anoAtual
+        && normalizeCategoriaDash(t.categoria) === catNorm
+        && !t.cartaoId;
+    })
+    .reduce(function(s, t) { return s + (parseFloat(t.valor) || 0); }, 0)
+    + valorNovo;
+
+  var receitaMes = transacoesGlobais
+    .filter(function(t) {
+      if (t.tipo !== 'receita') return false;
+      if (!t.data) return false;
+      var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
+      return d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
+    })
+    .reduce(function(s, t) { return s + (parseFloat(t.valor) || 0); }, 0);
+
+  var ef;
+  if (limite.tipoLimite === 'percentual' && limite.percentual > 0) {
+    ef = receitaMes > 0 ? Math.round(receitaMes * limite.percentual / 100) : null;
+  } else {
+    ef = limite.valorLimite || 0;
+  }
+  if (ef === null || ef === 0) return;
+
+  var pct = Math.round((gastoAtual / ef) * 100);
+
+  // Delay pequeno para não sobrepor o toast de "Despesa registrada!"
+  if (pct >= 100) {
+    setTimeout(function() {
+      if (window.budShowToast) window.budShowToast('🚨 Limite de ' + categoria + ' estourado! (' + pct + '% utilizado)', 'error');
+    }, 1500);
+  } else if (pct >= 80) {
+    setTimeout(function() {
+      if (window.budShowToast) window.budShowToast('⚠️ ' + categoria + ' atingiu ' + pct + '% do limite!', 'warning');
+    }, 1500);
+  }
 }
 
 function atualizarDividasAtraso() {
@@ -840,6 +1046,10 @@ async function handleSubmitLancamento(e) {
         tipoAtual === 'receita' ? 'Receita registrada!' : 'Despesa registrada!',
         'success'
       );
+      // Alerta de limite ao criar despesa
+      if (tipoAtual === 'despesa' && limitesGlobaisDash.length > 0) {
+        verificarAlerteLimite(categoria, valor);
+      }
     }
   } catch (_err) {
     if (window.budShowToast) window.budShowToast('Erro ao salvar. Tente novamente.', 'error');
@@ -1047,6 +1257,16 @@ function setupListeners(uid) {
       return Object.assign({}, d.data(), { id: d.id });
     });
     atualizarDividasAtraso();
+  }, function () {}));
+
+  // Limites — widget "Limites do Mês"
+  var limitesRef = query(collection(db, 'usuarios', uid, 'limites'), limit(500));
+  _unsubs.push(onSnapshot(limitesRef, function (snapshot) {
+    limitesGlobaisDash = snapshot.docs.map(function (d) {
+      return Object.assign({}, d.data(), { id: d.id });
+    });
+    // Re-renderiza para atualizar widget e indicador do card Saídas
+    renderizarDashboard();
   }, function () {}));
 }
 

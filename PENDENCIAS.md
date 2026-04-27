@@ -150,7 +150,10 @@ _Sem pendências ativas._
 | PEND-037 | **Histórico de datas de pagamento** — registrar data real em que cada parcela foi marcada como paga (não apenas flag pago/não-pago). | 🟡 Média | — | Requer sub-array `parcelasDatas` no Firestore |
 | PEND-038 | **Exportar relatório de dívidas em PDF** — botão na tela principal para gerar PDF com resumo de todas as dívidas (saldo devedor, parcelas, projeção). | 🚀 FUT | PDF.js já importado | — |
 | PEND-039 | **Campos CET, IOF e seguro no formulário manual** — campos opcionais para registro preciso do custo total do contrato. | 🟢 Baixa | — | Campos `cet`, `iof`, `seguro` já existem no modelo Firestore |
-| PEND-040 | **MANUAL_USO.md** — criar documento com descrição de uso de todas as telas existentes: Dashboard, Extrato, Metas, Cartões, Categorias, Recorrentes, Dívidas, Configurações. | 🟡 Média | — | Útil para onboarding e suporte |
+| PEND-040 | **MANUAL_USO.md** — criar documento com descrição de uso de todas as telas existentes: Dashboard, Extrato, Metas, Cartões, Categorias, Recorrentes, Dívidas, Limites, Configurações. | 🟡 Média | — | Útil para onboarding e suporte |
+| PEND-041 | **Limites — Notificação push ao atingir 80% do limite** — FCM push quando gasto atingir ≥80% de um limite de categoria no mês vigente. | 🚀 FUT | PEND-002 (Push FCM) | Depende de Cloud Function + FCM |
+| PEND-042 | **Limites — "Copiar do Mês Anterior" exclusivo para plano Plus** — Feature gate: bloquear o botão para planos Free/Starter com CTA de upgrade. | 🟡 Média | — | Padrão já existe em Recorrentes |
+| PEND-043 | **Limites — Índice composto Firestore** — `transacoes` com index `data ASC` + `data DESC` (já em uso em Extrato); confirmar que índice existe para evitar fallback. | 🟢 Baixa | — | Ver extrato.js como referência |
 
 ---
 
@@ -167,6 +170,7 @@ _(Itens que afetam mais de uma tela ou o projeto como um todo. Vazio por enquant
 - **23/04/2026** — Tela Categorias implementada (9 bugs resolvidos). `js/categorias-padrao.js` criado como fonte única de verdade (DEC-036). Pendências PEND-019 a PEND-024 registradas.
 - **26/04/2026** — Tela Recorrentes implementada (`recorrentes.html` + `js/recorrentes.js`). 3 bugs do cérebro resolvidos na origem. PEND-031 a PEND-034 registradas. Link 🔄 Recorrentes adicionado ao sidebar de todas as telas.
 - **26/04/2026** — Tela Dívidas implementada (`dividas.html` + `js/dividas.js`). 25 bugs do cérebro resolvidos na origem (Tabela Price, addMonthsSafe, confirmarAcao, simulador, IA import, etc.). PEND-035 a PEND-040 registradas. Link 💸 Dívidas adicionado ao sidebar de todas as 7 telas.
+- **28/04/2026** — Tela Limites implementada (`limites.html` + `js/limites.js`). 15 bugs do cérebro resolvidos na origem (BUG 1–15: query filtrada por mês, dedup normalizeCategoria, overlays style.cssText, budShowToast, copiar+10%/min R$10, percentual sem receita, etc.). PEND-041 a PEND-043 registradas. Link 🎯 Limites adicionado ao sidebar de todas as 8 telas.
 - **23/04/2026** — Auditoria geral do código. 5 bugs corrigidos: (1) teste sidebar `toHaveCount(4)→6` (2) `salvarEdicao` sem validação de categoria (3) valor R$ 0,00 passava validação (4) `renderBreakdown` não chamado quando filtradas = 0 (5) `formatarInputValor` sem máscara BRL. PEND-019 marcada resolvida.
 
 

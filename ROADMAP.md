@@ -133,6 +133,18 @@
   - Link Dívidas adicionado a todos os sidebars (7 páginas)
 - [x] **Tela de Extrato** (`extrato.html` + `js/extrato.js`) — já implementado (não documentado no roadmap)
 - [x] **Tela de Categorias** (`categorias.html` + `js/categorias.js`) + `js/categorias-padrao.js` — já implementado (não documentado no roadmap)
+- [x] **Tela de Limites** (`limites.html` + `js/limites.js`)
+  - 3 KPIs: Total Limites, Gasto Atual, Disponível
+  - Navegação por mês (±12 meses) com re-subscribe Firestore filtrado por mês
+  - CRUD completo: criar, editar, excluir (style.cssText — DEC-006)
+  - Tipo: Valor Fixo (R$) ou % da Receita; hint dinâmico de percentual
+  - Barra de progresso por categoria com cores (verde/âmbar/vermelho)
+  - Validação de duplicata por categoria (normalizeCategoria)
+  - Copiar Mês Anterior: +10% sobre gasto real, mínimo R$10
+  - BUG 7: limite percentual sem receita exibe “Aguardando receita”
+  - BUG 10: dropdown marca categorias que já têm limite
+  - 15 bugs corrigidos desde o início (ver cérebro/limites.md)
+  - Link Limites adicionado a todos os sidebars (8 páginas)
 
 ---
 
@@ -145,7 +157,7 @@
 3. ~~**Categorias** (`categorias.html` + `js/categorias.js`) — 48 despesas + 15 receitas padrão; personalizadas via Firestore (planos pagos)~~ ✅ Já implementado
 5. ~~**Dívidas** (`dividas.html` + `js/dividas.js`)~~ ✅ Já implementado
 6. **Investimentos** (`investimentos.html` + `js/investimentos.js`) — 8 tipos, AwesomeAPI, Chart.js doughnut
-7. **Limites** (`limites.html` + `js/limites.js`) — Barra de progresso por categoria, "Copiar do Mês Anterior" (plano Plus)
+7. ~~**Limites** (`limites.html` + `js/limites.js`) — Barra de progresso por categoria, "Copiar do Mês Anterior" (plano Plus)~~ ✅ Implementado
 8. **Mercado** (`mercado.html` + `js/mercado.js`) — Lista de compras + IA para nota fiscal
 
 ### Telas Analíticas (planos Plus/Pro)

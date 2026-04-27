@@ -716,6 +716,9 @@
         <a href="dividas.html" class="sidebar-link">
           <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
         </a>
+        <a href="limites.html" class="sidebar-link">
+          <span class="sidebar-link-icon">🎯</span><span class="sidebar-link-text"> Limites</span>
+        </a>
         <a href="configuracoes.html" class="sidebar-link">
           <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
         </a>
@@ -797,6 +800,7 @@
           </div>
           <div class="card-value" id="cardSaidas" style="color:#dc2626;">R$ 0,00</div>
           <div class="card-sub" id="cardSaidasSub">—</div>
+          <div id="cardSaidasOrcamento" style="display:none;margin-top:0.375rem;"></div>
         </div>
       </div>
 
@@ -816,6 +820,18 @@
             <div class="quick-btn-sub">Registrar saída</div>
           </div>
         </button>
+      </div>
+
+      <!-- Limites do Mês -->
+      <div class="dash-section" id="secLimitesWidget" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+          <div>
+            <div class="dash-section-title">🎯 Limites do Mês</div>
+            <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.25rem;" id="limitesWidgetSub"></div>
+          </div>
+          <a href="limites.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver todos →</a>
+        </div>
+        <div id="listaLimitesWidget"></div>
       </div>
 
       <!-- Dívidas em Atraso -->

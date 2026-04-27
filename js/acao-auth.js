@@ -1,10 +1,10 @@
 // js/acao-auth.js — Bud Finance Auth Action Handler (ES Module)
-// Processes Firebase oobCode from password reset emails.
+// Processes Firebase oobCode from password reset and email verification emails.
 // Firebase SDK Modular v10.8.1 — NO compat layer.
 
 import { initializeApp }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, verifyPasswordResetCode, confirmPasswordReset }
+import { getAuth, verifyPasswordResetCode, confirmPasswordReset, applyActionCode }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
 // ─── Firebase init ──────────────────────────────────────────────────
@@ -12,11 +12,12 @@ const app  = initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 
 // ─── DOM refs: sections ─────────────────────────────────────────────
-const stateValidating = document.getElementById('stateValidating');
-const stateForm       = document.getElementById('stateForm');
-const stateSuccess    = document.getElementById('stateSuccess');
-const stateError      = document.getElementById('stateError');
-const errorMessage    = document.getElementById('errorMessage');
+const stateValidating    = document.getElementById('stateValidating');
+const stateForm          = document.getElementById('stateForm');
+const stateSuccess       = document.getElementById('stateSuccess');
+const stateEmailVerified = document.getElementById('stateEmailVerified');
+const stateError         = document.getElementById('stateError');
+const errorMessage       = document.getElementById('errorMessage');
 
 // ─── DOM refs: form ─────────────────────────────────────────────────
 const form             = document.getElementById('formResetSenha');
@@ -41,6 +42,7 @@ function showSection(section) {
   stateValidating.classList.add('section-hidden');
   stateForm.classList.add('section-hidden');
   stateSuccess.classList.add('section-hidden');
+  stateEmailVerified.classList.add('section-hidden');
   stateError.classList.add('section-hidden');
   section.classList.remove('section-hidden');
 }
@@ -84,11 +86,13 @@ novaSenhaInput.addEventListener('input', function () {
   forcaTexto.style.color = STRENGTH_TEXT_COLORS[s - 1] || '#94a3b8';
 });
 
-// ─── Parse oobCode from URL ─────────────────────────────────────────
-function getOobCode() {
-  var params = new URLSearchParams(window.location.search);
-  return params.get('oobCode') || '';
+// ─── Parse URL params ────────────────────────────────────────────────
+function getUrlParam(name) {
+  return new URLSearchParams(window.location.search).get(name) || '';
 }
+
+var mode    = getUrlParam('mode');
+var oobCode = getUrlParam('oobCode');
 
 // ─── Reset button helper ────────────────────────────────────────────
 function resetBtn() {
@@ -96,25 +100,12 @@ function resetBtn() {
   btn.disabled = false;
 }
 
-// ─── Step 1: Validate the oobCode ───────────────────────────────────
-var oobCode = getOobCode();
-
-(async function validateCode() {
-  if (!oobCode) {
-    errorMessage.textContent = 'Link inválido. Nenhum código de recuperação encontrado na URL.';
-    showSection(stateError);
-    return;
-  }
-
+// ─── Handler: resetPassword ──────────────────────────────────────────
+async function handleResetPassword() {
   try {
-    // verifyPasswordResetCode confirms the code is valid and not expired.
-    // Returns the email associated with the code (not used, but validates).
     await verifyPasswordResetCode(auth, oobCode);
-
-    // Code is valid — show the form
     showSection(stateForm);
     novaSenhaInput.focus();
-
   } catch (err) {
     if (err.code === 'auth/expired-action-code') {
       errorMessage.textContent = 'Este link expirou. Solicite um novo link de recuperação de senha.';
@@ -123,7 +114,41 @@ var oobCode = getOobCode();
     } else {
       errorMessage.textContent = 'Não foi possível validar o link. Tente solicitar um novo.';
     }
+    showSection(stateError);
+  }
+}
 
+// ─── Handler: verifyEmail ────────────────────────────────────────────
+async function handleVerifyEmail() {
+  try {
+    await applyActionCode(auth, oobCode);
+    showSection(stateEmailVerified);
+  } catch (err) {
+    if (err.code === 'auth/expired-action-code') {
+      errorMessage.textContent = 'Este link de verificação expirou. Faça login e solicite um novo email de verificação.';
+    } else if (err.code === 'auth/invalid-action-code') {
+      errorMessage.textContent = 'Este link de verificação já foi usado ou é inválido.';
+    } else {
+      errorMessage.textContent = 'Não foi possível verificar seu email. Tente novamente.';
+    }
+    showSection(stateError);
+  }
+}
+
+// ─── Route by mode ───────────────────────────────────────────────────
+(async function init() {
+  if (!oobCode) {
+    errorMessage.textContent = 'Link inválido. Nenhum código de ação encontrado na URL.';
+    showSection(stateError);
+    return;
+  }
+
+  if (mode === 'resetPassword') {
+    await handleResetPassword();
+  } else if (mode === 'verifyEmail') {
+    await handleVerifyEmail();
+  } else {
+    errorMessage.textContent = 'Ação desconhecida ou link inválido. Tente novamente.';
     showSection(stateError);
   }
 })();
