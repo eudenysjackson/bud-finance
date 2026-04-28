@@ -486,3 +486,31 @@
   4. **Email/senha + verificação** controlada pelo Auth
 - **Consequências**: Não há ação a tomar para ocultar a key. Foco de segurança permanece nas Rules + Authorized Domains + reCAPTCHA.
 - **Quando revisar**: Se o Google mudar o modelo (improvável); ou se o app migrar para outro backend.
+---
+
+### DEC-040 - window.BUD_CATEGORIAS_PADRAO como SSOT (fonte unica de verdade)
+- **Data**: 27/04/2026
+- **Contexto**: Multiplas telas precisam da lista de categorias padrao (Extrato, Metas, Limites, Mercado, Cartoes, Balanco Mensal).
+- **Decisao**: js/categorias-padrao.js (script nao-modulo) expoe window.BUD_CATEGORIAS_PADRAO = { despesa:[...], receita:[...] }. Deve ser carregado *antes* do modulo JS de qualquer tela que precise da lista.
+- **Por que**: Evita divergencia entre telas; facilita adicao de categorias sem alterar multiplos arquivos.
+- **Consequencias**: Toda tela nova deve incluir <script src="js/categorias-padrao.js"></script> antes do modulo principal.
+
+---
+
+### DEC-041 - writeBatch para operacoes atomicas de multiplas colecoes
+- **Data**: 27/04/2026
+- **Contexto**: Operacoes como "salvar compra + criar N transacoes" ou "fazer aporte + decrementar carteira" precisam ser atomicas.
+- **Decisao**: Usar writeBatch em todos os casos onde multiplos documentos devem ser gravados em conjunto (max 500 ops por batch - usar chunks se necessario).
+- **Por que**: Firestore nao tem transacoes multi-doc automaticas fora do writeBatch/unTransaction. Sem atomicidade, falha parcial corromperia dados.
+- **Consequencias**: writeBatch + atch.commit() e o padrao para: salvarCompra, handleSubmitAporte, salvarTransacoesIA, copiarLimitesMesAnterior.
+- **Quando revisar**: Se alguma operacao ultrapassar 500 docs - usar loop de chunks de 400.
+
+---
+
+### DEC-042 - setDate(1) antes de setMonth() para evitar salto de meses curtos
+- **Data**: 27/04/2026
+- **Contexto**: Ao navegar de meses com 31 dias para Fevereiro (28 dias), new Date(2026,0,31) + setMonth(1) resulta em 3 de marco.
+- **Decisao**: Sempre chamar dataFiltro.setDate(1) ANTES de qualquer setMonth() ou setFullYear() quando o objetivo e trocar de mes/ano.
+- **Por que**: Date.setMonth aplica overflow de dias automaticamente; fixar dia=1 antes garante comportamento previsivel.
+- **Consequencias**: Padrao obrigatorio em qualquer funcao de navegacao de mes: mudarMes(), selecionarMes() e equivalentes em Extrato, Dashboard, Balanco Mensal.
+- **Registrado originalmente como**: BUG-2 em cerebro/balanco-mensal.md.

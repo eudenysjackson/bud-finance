@@ -2,7 +2,7 @@
 
 **Projeto**: Bud Finance
 **Criado em**: 23/04/2026
-**Última atualização**: 23/04/2026
+**Última atualização**: 27/04/2026 (Mercado IA concluído; Balanço Mensal criado — Fase 2 iniciada)
 
 > Documento único de consulta antes de qualquer sprint. Consolida:
 > - Features descritas no `cérebro/` que ainda não foram implementadas no Bud
@@ -164,7 +164,7 @@ _Sem pendências ativas._
 | ID | Item | Prioridade | Origem | Notas |
 |----|------|------------|--------|-------|
 | PEND-MER-01 | ~~**Importação por IA / Nota Fiscal**~~ ✅ **IMPLEMENTADO 27/04/2026** — botão "📷 Importar nota" abre modal 3 abas (Foto/PDF/Texto), endpoint próprio `/api/extrair-cupom` (Gemini 2.0 Flash, cache 24h SHA-256, multi-foto até 3, multer 8MB), tela de revisão editável com checkbox/qtd/valor/categoria/exclusão, aprendizado por CNPJ (`mercados-conhecidos`) e por item (`aprendizado-itens`), quota mensal por plano (`uso-ia/{anoMes}`). | ✅ Concluído | Implementação 27/04/2026 | — |
-| **PEND-MER-11** | **🔴 BLOQUEANTE — Trocar GEMINI_API_KEY no Render** — a chave atual (`AIzaSyBp5jt…`) tem `limit:0` para todos os modelos (projeto GCP sem billing/free tier). Gerar nova chave em [aistudio.google.com/apikey](https://aistudio.google.com/apikey) e atualizar no painel Render → Environment → GEMINI_API_KEY → Save. Após salvo, redeploy automático (≈2min). Testar aba Texto com texto simples primeiro. | 🔴 Alta (BLOQUEANTE) | Diagnóstico 27/04/2026 | **Bloqueia toda a funcionalidade de IA em mercado, cartoes e extrato.** |
+| **PEND-MER-11** | **🔴 BLOQUEANTE — Trocar GEMINI_API_KEY no Render** — a chave atual (`AIzaSyBp5jt…`) tem `limit:0` para todos os modelos (projeto GCP sem billing/free tier). Gerar nova chave em [aistudio.google.com/apikey](https://aistudio.google.com/apikey) e atualizar no painel Render → Environment → GEMINI_API_KEY → Save. Após salvo, redeploy automático (≈2min). Testar aba Texto com texto simples primeiro. | 🔴 Alta (BLOQUEANTE) | Diagnóstico 27/04/2026 | **⚠️ Verificar se ainda se aplica — backend foi migrado para Groq (PEND-MER-10 e cérebro/mercado.md). Se GROQ_API_KEY estiver ativa no Render, este item pode ser baixado para Baixa.** |
 | **PEND-MER-12** | **🟡 Smoke test completo pós-GEMINI_API_KEY** — após trocar a chave, testar: (1) aba Texto: colar texto simples e verificar Review; (2) aba Foto: enviar uma foto de cupom; (3) modal Review: editar item, desmarcar, confirmar → modal Nova Compra pré-preenchido; (4) segunda submissão da mesma foto → deve responder do cache (`cached:true`). | 🟡 Média | Diagnóstico 27/04/2026 | Depende de PEND-MER-11. |
 | PEND-MER-06 | **Métricas admin de uso da IA** — agregar `uso-ia/{anoMes}` por usuário no painel admin, custo estimado por extração. | 🟢 Baixa | Spin-off PEND-MER-01 | Útil para monitorar custos do Gemini. |
 | PEND-MER-07 | **Quota IA enforcement no servidor** — hoje a checagem de limite é client-side; mover para `/api/extrair-cupom` (rate-limit por uid). | 🟡 Média | Spin-off PEND-MER-01 | Hardening contra cliente modificado. |
@@ -191,6 +191,9 @@ _Sem pendências ativas._
 | DT-010 | **B8 — Comentários misturando PT-BR e EN** — padronizar para PT-BR em todo o codebase. | 🟢 Baixa | Auditoria 27/04/2026 | Cosmético. |
 | DT-011 | **B10 — Source maps de `tailwind.css`** — gerar `.map` em build dev para facilitar debug de classes. | 🟢 Baixa | Auditoria 27/04/2026 | Build atual não emite sourcemap. |
 | DT-012 | **M9 — Lógica duplicada de "categorias" em metas.js / extrato.js / dashboard.js** — extrair para `js/categorias-helpers.js` reaproveitando `categorias-padrao.js`. | 🟡 Média | Auditoria 27/04/2026 | Pode causar drift entre telas se um lado mudar. |
+| PEND-044 | **Cloud Function `processarRecorrentes`** — cron no Firebase Functions rodando às 6h Brasília, gerando `transacoes` a partir de `recorrentes` ativas com `proximaData <= hoje`. Tela Recorrentes já mostra aviso Beta. | 🟡 Média | ROADMAP Fase 2 | Depende de Firebase Functions quota no plano. |
+| PEND-045 | **Feature Flags no painel Admin** — tela admin já tem aba "Feature Flags" mas sem implementação. Criar collection `feature_flags/{flag}` no Firestore e botão toggle no admin. Consumir via `getDoc` no startup de cada tela que precise. | 🟡 Média | ROADMAP Fase 2 | Permite activar features para segmento de usuários sem deploy. |
+| PEND-046 | **FCM Push Notifications** — implementar `verificarEstadoPush()` em `configuracoes.js`, registrar token em `usuarios/{uid}/tokens/fcm`, enviar notificações de alertas de limites e metas do backend. Depende de Service Worker (PWA). | 🟢 Baixa | ROADMAP Fase 2 / tela Insights | Bloqueia Insights. |
 
 ---
 
@@ -204,5 +207,6 @@ _Sem pendências ativas._
 - **28/04/2026** — Tela Limites implementada (`limites.html` + `js/limites.js`). 15 bugs do cérebro resolvidos na origem (BUG 1–15: query filtrada por mês, dedup normalizeCategoria, overlays style.cssText, budShowToast, copiar+10%/min R$10, percentual sem receita, etc.). PEND-041 a PEND-043 registradas. Link 🎯 Limites adicionado ao sidebar de todas as 8 telas.
 - **23/04/2026** — Auditoria geral do código. 5 bugs corrigidos: (1) teste sidebar `toHaveCount(4)→6` (2) `salvarEdicao` sem validação de categoria (3) valor R$ 0,00 passava validação (4) `renderBreakdown` não chamado quando filtradas = 0 (5) `formatarInputValor` sem máscara BRL. PEND-019 marcada resolvida.
 - **27/04/2026** — Auditoria full-stack (53 issues). 14 críticos/altos/médios resolvidos: C3 (escapeHTML hardening), C4 (rate-limit doc), C5 (reCAPTCHA prod warning), A1 (console.error→budError), A2 (text color tema Dark), A3 (CORS prod/dev), A4 (theme-manager localStorage try/catch), A5 (cartoes loop em vez de limit 500), M3+M4+M8 (helpers em bud-utils), M4 (pluralização dashboard), M10 (getUrlParam try/catch), M11 (preview-temas storage event), B1 (width/height nos `<img>` da sidebar), B2 (filter-pill min-height 44px em mobile). Backup `..\Budfinance-BACKUP-2026-04-27_1242\`. Itens não-bloqueadores movidos para esta tabela: DT-004 (M7), DT-005 (B9), DT-006 (M5), DT-007 (B3), DT-008 (B4), DT-009 (B6), DT-010 (B8), DT-011 (B10), DT-012 (M9). Decisões registradas: DEC-XXX (revisão visual obrigatória) e DEC-XXX (manter repo público).
+- **27/04/2026** — Fase 1 concluída. Mercado IA implementado com Groq meta-llama/llama-4-scout. Balanço Mensal (`balanco-mensal.html` + `js/balanco-mensal.js`) criado — Fase 2 iniciada. Sidebars de 11 telas atualizadas com link "Balanço Mensal (Plus)". PEND-MER-11 reclassificada (verificar se backend ainda usa Gemini ou Groq). PEND-044/045/046 adicionadas (Cloud Function processarRecorrentes, Feature Flags, FCM Push).
 
 

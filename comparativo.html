@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="description" content="Bud Finance — Comparativo de Meses">
+  <title>Comparativo - Bud Finance</title>
+
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/tailwind.css">
+  <script src="js/theme-manager.js"></script>
+  <script src="js/bud-utils.js"></script>
+  <script src="js/categorias-padrao.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <style>
+    :root {
+      --bg-page:#f4f7fb; --text-main:#1e293b; --text-sec:#475569;
+      --card-bg:rgba(255,255,255,0.85); --card-border:rgba(255,255,255,0.9);
+      --card-text:#1e293b; --card-text-sec:#64748b;
+      --btn-bg:#2563eb; --btn-text:#ffffff;
+      --input-bg:#f8fafc; --input-border:#f1f5f9; --input-focus:#3b82f6;
+      --blob-opacity:1;
+      --sidebar-bg:rgba(255,255,255,0.82);
+      --sidebar-link-hover-bg:rgba(59,130,246,0.07);
+      --sidebar-link-hover-color:#1e40af;
+      --sidebar-link-active-bg:rgba(59,130,246,0.12);
+      --sidebar-link-active-color:#1d4ed8;
+      --sidebar-user-bg:rgba(241,245,249,0.8);
+    }
+    [data-theme="dark"],[data-theme="hbo"] {
+      --bg-page:#0f172a; --text-main:#f1f5f9; --text-sec:#94a3b8;
+      --card-bg:rgba(30,41,59,0.85); --card-border:rgba(51,65,85,0.8);
+      --card-text:#f1f5f9; --card-text-sec:#94a3b8;
+      --btn-bg:#3b82f6; --btn-text:#ffffff;
+      --input-bg:rgba(51,65,85,0.7); --input-border:rgba(71,85,105,0.6); --input-focus:#60a5fa;
+      --blob-opacity:0.4;
+      --sidebar-bg:rgba(15,23,42,0.92);
+      --sidebar-link-hover-bg:rgba(59,130,246,0.12);
+      --sidebar-link-hover-color:#93c5fd;
+      --sidebar-link-active-bg:rgba(59,130,246,0.2);
+      --sidebar-link-active-color:#60a5fa;
+      --sidebar-user-bg:rgba(30,41,59,0.6);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Inter',system-ui,sans-serif;background-color:var(--bg-page);min-height:100vh;min-height:100dvh;overflow-x:hidden;transition:background-color 0.35s ease;}
+
+    /* ── Splash ─────────────────────────────────────────── */
+    #splash{position:fixed;inset:0;background:var(--bg-page);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;z-index:99999;transition:opacity .5s ease;}
+    #splash.hide{opacity:0;pointer-events:none;}
+    .splash-bar{width:120px;height:4px;border-radius:2px;background:#e2e8f0;overflow:hidden;}
+    .splash-bar-inner{width:40%;height:100%;border-radius:2px;background:#3b82f6;animation:slide-bar 1.2s ease-in-out infinite;}
+    @keyframes pulse-logo{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
+    @keyframes slide-bar{0%{transform:translateX(-100%);}100%{transform:translateX(350%);}}
+
+    /* ── Blobs ──────────────────────────────────────────── */
+    .blob{position:fixed;border-radius:9999px;pointer-events:none;z-index:0;opacity:var(--blob-opacity,1);transition:opacity 0.35s ease;}
+    .blob-blue{top:-5%;left:-5%;width:35%;height:35%;background:rgba(147,197,253,0.30);filter:blur(100px);}
+    .blob-cyan{bottom:-5%;right:-5%;width:25%;height:25%;background:rgba(103,232,249,0.20);filter:blur(100px);}
+
+    /* ── Layout ─────────────────────────────────────────── */
+    .dash-layout{display:flex;min-height:100vh;min-height:100dvh;}
+
+    /* ── Sidebar ────────────────────────────────────────── */
+    .sidebar{width:260px;background:var(--sidebar-bg);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-right:1px solid var(--card-border);display:flex;flex-direction:column;padding:1.5rem 1rem;position:fixed;top:0;left:0;bottom:0;z-index:50;transition:transform .3s ease,width .3s ease,background 0.35s ease,border-color 0.35s ease;overflow:visible;}
+    .sidebar-collapse-btn{display:none;position:absolute;top:50%;right:-1rem;transform:translateY(-50%);width:1rem;height:3.5rem;border-radius:0 0.5rem 0.5rem 0;background:var(--btn-bg);border:none;color:var(--btn-text);font-size:0.6rem;font-weight:700;cursor:pointer;align-items:center;justify-content:center;z-index:51;box-shadow:3px 0 12px rgba(0,0,0,0.22);transition:background 0.35s ease;flex-shrink:0;line-height:1;}
+    .sidebar.collapsed{width:64px;padding-left:0.75rem;padding-right:0.75rem;align-items:center;}
+    .sidebar.collapsed .sidebar-logo{justify-content:center;padding:0 0 0.625rem;gap:0;}
+    .sidebar.collapsed .sidebar-logo-text,.sidebar.collapsed .sidebar-link-text,.sidebar.collapsed .sidebar-user-info{opacity:0;width:0;overflow:hidden;white-space:nowrap;transition:opacity .25s,width .25s;}
+    .sidebar.collapsed .sidebar-link{justify-content:center;padding:0;height:2.5rem;width:2.5rem;gap:0;}
+    .sidebar.collapsed .sidebar-user{justify-content:center;padding:0;height:2.5rem;width:2.5rem;gap:0;background:transparent;}
+    .sidebar-logo{display:flex;align-items:center;gap:0.75rem;padding:0 0.5rem 1.25rem;margin-bottom:0.5rem;border-bottom:1px solid var(--card-border);transition:border-color 0.35s ease;}
+    .sidebar-logo img{width:2.25rem;height:2.25rem;object-fit:contain;background:rgba(255,255,255,0.92);border-radius:0.5rem;padding:0.15rem;flex-shrink:0;}
+    .sidebar-logo span{font-size:1.125rem;font-weight:800;color:var(--text-main);letter-spacing:-0.025em;overflow:hidden;white-space:nowrap;transition:color 0.35s ease,opacity .25s,width .25s;}
+    .sidebar-link-text{overflow:hidden;white-space:nowrap;transition:opacity .25s,width .25s;}
+    .sidebar-nav{flex:1;display:flex;flex-direction:column;gap:0.25rem;margin-top:0.75rem;}
+    .sidebar-link{display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:0.75rem;font-size:0.875rem;font-weight:600;color:var(--text-sec);text-decoration:none;transition:all .2s,color 0.35s ease;cursor:pointer;border:none;background:none;width:100%;font-family:inherit;}
+    .sidebar-link:hover{background:var(--sidebar-link-hover-bg);color:var(--sidebar-link-hover-color);}
+    .sidebar-link.active{background:var(--sidebar-link-active-bg);color:var(--sidebar-link-active-color);}
+    .sidebar-link-icon{font-size:1.125rem;width:1.5rem;text-align:center;}
+    .sidebar-group-label{font-size:0.6rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-sec);opacity:0.45;padding:0.875rem 0.75rem 0.2rem;}
+    .sidebar.collapsed .sidebar-group-label{display:none;}
+    .sidebar-nav-divider{height:1px;background:var(--card-border);margin:0.375rem 0.75rem;opacity:0.4;}
+    .sidebar.collapsed .sidebar-nav-divider{margin:0.375rem 0.5rem;}
+    .sidebar-link-disabled{opacity:0.4;cursor:default;pointer-events:none;}
+    .sidebar-badge-soon,.sidebar-badge-plus{font-size:0.5rem;font-weight:800;border-radius:0.375rem;padding:0.1rem 0.3rem;letter-spacing:0.04em;text-transform:uppercase;margin-left:auto;flex-shrink:0;}
+    .sidebar-badge-soon{background:rgba(0,0,0,0.07);color:var(--text-sec);}
+    .sidebar-badge-plus{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;}
+    .sidebar.collapsed .sidebar-badge-soon,.sidebar.collapsed .sidebar-badge-plus{display:none;}
+    .sidebar-user{display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:0.75rem;background:var(--sidebar-user-bg);transition:background 0.35s ease;}
+    .sidebar-avatar{width:2.25rem;height:2.25rem;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#2563eb);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:0.8rem;flex-shrink:0;}
+    .sidebar-user-info{overflow:hidden;transition:opacity .25s,width .25s;}
+    .sidebar-user-name{font-size:0.8125rem;font-weight:700;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
+    .sidebar-user-id{font-size:0.6875rem;font-weight:500;color:var(--text-sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
+
+    /* ── Main ───────────────────────────────────────────── */
+    .dash-main{flex:1;margin-left:260px;padding:1.5rem;position:relative;z-index:1;transition:margin-left .3s ease;}
+    .dash-main.sidebar-collapsed{margin-left:64px;}
+    .hamburger-btn{display:none;width:2.5rem;height:2.5rem;border-radius:0.75rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);align-items:center;justify-content:center;font-size:1.25rem;cursor:pointer;color:var(--card-text);z-index:60;transition:background 0.35s ease,border-color 0.35s ease,color 0.35s ease;}
+    .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:40;}
+
+    /* ── Select de mês ──────────────────────────────────── */
+    .select-mes{padding:0.5rem 2rem 0.5rem 0.75rem;border-radius:0.75rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1.5px solid var(--card-border);color:var(--text-main);font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%2364748b' d='M5 7L0 2h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 0.625rem center;min-width:148px;transition:border-color .2s;}
+    .select-mes:focus{outline:none;border-color:var(--input-focus);box-shadow:0 0 0 3px rgba(59,130,246,0.1);}
+    .vs-label{font-size:0.8125rem;font-weight:800;color:var(--text-sec);padding:0 0.25rem;}
+
+    /* ── Custom Select IDV ──────────────────────────────── */
+    .custom-select{position:relative;display:inline-block;}
+    .custom-select-btn{display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1.5px solid var(--card-border);color:var(--text-main);font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:inherit;min-width:148px;transition:border-color .2s,background 0.35s,color 0.35s;}
+    .custom-select-btn:focus{outline:none;border-color:var(--input-focus);box-shadow:0 0 0 3px rgba(59,130,246,0.1);}
+    .custom-select.open .custom-select-btn{border-color:var(--input-focus);box-shadow:0 0 0 3px rgba(59,130,246,0.1);}
+    .custom-select-arrow{font-size:0.6875rem;color:var(--text-sec);transition:transform .2s;line-height:1;flex-shrink:0;}
+    .custom-select.open .custom-select-arrow{transform:rotate(180deg);}
+    .custom-select-dropdown{display:none;position:absolute;top:calc(100% + 0.375rem);left:0;min-width:100%;background:var(--card-bg);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1.5px solid var(--card-border);border-radius:1rem;box-shadow:0 8px 32px -4px rgba(0,0,0,0.18);z-index:200;overflow:hidden;max-height:220px;overflow-y:auto;}
+    .custom-select-dropdown::-webkit-scrollbar{width:4px;}
+    .custom-select-dropdown::-webkit-scrollbar-track{background:transparent;margin:0.5rem 0;}
+    .custom-select-dropdown::-webkit-scrollbar-thumb{background:var(--input-border);border-radius:4px;}
+    .custom-select.open .custom-select-dropdown{display:block;}
+    .custom-select-option{padding:0.625rem 0.875rem;font-size:0.8125rem;font-weight:600;color:var(--text-main);cursor:pointer;transition:background .15s;white-space:nowrap;}
+    .custom-select-option:hover{background:var(--sidebar-link-hover-bg);color:var(--sidebar-link-hover-color);}
+    .custom-select-option.selected{background:var(--sidebar-link-active-bg);color:var(--sidebar-link-active-color);font-weight:700;}
+    #mesMobileRow .custom-select{flex:1;}
+    #mesMobileRow .custom-select-btn{min-width:0;width:100%;}
+
+    /* ── KPI cards ──────────────────────────────────────── */
+    .comp-cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
+    .comp-kpi-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);transition:background 0.35s ease,border-color 0.35s ease;}
+    .comp-kpi-card.mes1{border-top:3px solid #3b82f6;}
+    .comp-kpi-card.mes2{border-top:3px solid #8b5cf6;}
+    .comp-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.625rem 1.25rem;margin-top:0.875rem;}
+    .comp-kpi-label{font-size:0.625rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--card-text-sec);margin-bottom:0.125rem;}
+    .comp-kpi-value{font-size:1rem;font-weight:800;}
+
+    /* ── Section card ───────────────────────────────────── */
+    .section-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.5rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);margin-bottom:1rem;transition:background 0.35s ease,border-color 0.35s ease;}
+    .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.5rem;}
+    .section-title{font-size:1rem;font-weight:800;color:var(--text-main);transition:color 0.35s ease;}
+
+    /* ── Comparativo por categoria ──────────────────────── */
+    .cat-comp-row{padding:0.75rem 0;border-bottom:1px solid var(--input-border);}
+    .cat-comp-row:last-child{border-bottom:none;}
+    .cat-comp-head{display:flex;align-items:center;gap:0.625rem;margin-bottom:0.5rem;}
+    .cat-comp-emoji{font-size:1.125rem;width:1.5rem;text-align:center;flex-shrink:0;}
+    .cat-comp-name{font-size:0.8125rem;font-weight:700;color:var(--card-text);flex:1;}
+    .var-badge{font-size:0.625rem;font-weight:800;padding:0.15rem 0.375rem;border-radius:0.375rem;white-space:nowrap;}
+    .var-badge.positivo{background:#dcfce7;color:#16a34a;}
+    .var-badge.negativo{background:#fef2f2;color:#dc2626;}
+    .var-badge.neutro{background:var(--input-bg);color:var(--text-sec);}
+    .var-badge.novo{background:#fef3c7;color:#d97706;}
+    .chip-filtro{padding:0.25rem 0.625rem;border-radius:9999px;font-size:0.6875rem;font-weight:700;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--text-sec);cursor:pointer;font-family:inherit;transition:all .2s;}
+    .chip-filtro.active{background:#3b82f6;border-color:#3b82f6;color:#fff;}
+    .cat-bar-pair{display:flex;flex-direction:column;gap:0.3rem;}
+    .cat-bar-line{display:flex;align-items:center;gap:0.5rem;}
+    .cat-bar-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+    .cat-bar-wrap{flex:1;height:5px;background:var(--input-border);border-radius:9999px;overflow:hidden;}
+    .cat-bar-fill{height:100%;border-radius:9999px;transition:width .5s ease;}
+    .cat-bar-val{font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);width:80px;text-align:right;flex-shrink:0;}
+
+    /* ── Gráfico container ───────────────────────────────── */
+    .chart-wrap{position:relative;height:260px;}
+    .chart-placeholder{display:flex;align-items:center;justify-content:center;height:260px;font-size:0.875rem;font-weight:600;color:var(--card-text-sec);}
+
+    /* ── Empty state ────────────────────────────────────── */
+    .empty-state{text-align:center;padding:2rem 1rem;color:var(--text-sec);}
+    .empty-icon{font-size:2.5rem;margin-bottom:0.75rem;}
+
+    /* ── Paywall ────────────────────────────────────────── */
+    #paywallContainer{display:none;}
+
+    /* ── @media print ───────────────────────────────────── */
+    @media print{
+      .sidebar,.sidebar-overlay,#btnHamburger,#mesMobileRow,#btnOcultarValores,.btn-refresh,#paywallContainer,.blob,#splash,#btnInverter,#btnAnoPassado,.chip-filtro{display:none !important;}
+      body{background:#fff !important;}
+      .dash-main{margin-left:0 !important;padding:1rem !important;}
+      .dash-layout{display:block !important;}
+      .section-card,.comp-kpi-card{break-inside:avoid;box-shadow:none !important;border:1px solid #e2e8f0 !important;background:#fff !important;}
+      .comp-cards-grid{grid-template-columns:1fr 1fr !important;}
+    }
+
+    /* ── Responsive ─────────────────────────────────────── */
+    @media(max-width:768px){
+      .sidebar{transform:translateX(-100%);}
+      .sidebar.open{transform:translateX(0);}
+      .sidebar.collapsed{width:260px;padding-left:1rem;padding-right:1rem;align-items:flex-start;}
+      .sidebar-overlay.open{display:block;}
+      .dash-main{margin-left:0 !important;padding:1rem;}
+      .hamburger-btn{display:flex;}
+      .sidebar-collapse-btn{display:none !important;}
+      .comp-cards-grid{grid-template-columns:1fr;}
+      .selects-desktop{display:none !important;}
+    }
+    @media(max-width:480px){
+      .comp-kpi-grid{grid-template-columns:1fr 1fr;}
+      .cat-bar-val{width:60px;}
+    }
+    @media(min-width:769px){
+      .sidebar-collapse-btn{display:flex;}
+      #mesMobileRow{display:none !important;}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═ Splash ════════════════════════════════════════════ -->
+  <div id="splash">
+    <img src="logo.png" alt="Bud Finance" style="width:56px;height:56px;object-fit:contain;animation:pulse-logo 1.8s ease-in-out infinite;">
+    <div class="splash-bar"><div class="splash-bar-inner"></div></div>
+  </div>
+
+  <!-- ═ Blobs ═════════════════════════════════════════════ -->
+  <div class="blob blob-blue" aria-hidden="true"></div>
+  <div class="blob blob-cyan" aria-hidden="true"></div>
+
+  <!-- ═ Overlay sidebar mobile ════════════════════════════ -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- ═ Layout ════════════════════════════════════════════ -->
+  <div class="dash-layout">
+
+    <!-- ─ Sidebar ──────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">‹</button>
+      <div class="sidebar-logo">
+        <img src="logo.png" alt="Bud Finance" width="32" height="32">
+        <span class="sidebar-logo-text">Bud Finance</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="sidebar-link">
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
+        </a>
+        <div class="sidebar-group-label">Finanças</div>
+        <span class="sidebar-link sidebar-link-disabled">
+          <span class="sidebar-link-icon">💰</span><span class="sidebar-link-text"> Minha Carteira</span><span class="sidebar-badge-soon">breve</span>
+        </span>
+        <a href="cartoes.html" class="sidebar-link">
+          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
+        </a>
+        <a href="recorrentes.html" class="sidebar-link">
+          <span class="sidebar-link-icon">🔄</span><span class="sidebar-link-text"> Recorrentes</span>
+        </a>
+        <a href="dividas.html" class="sidebar-link">
+          <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
+        </a>
+        <span class="sidebar-link sidebar-link-disabled">
+          <span class="sidebar-link-icon">📥</span><span class="sidebar-link-text"> Importar</span><span class="sidebar-badge-soon">breve</span>
+        </span>
+        <a href="limites.html" class="sidebar-link">
+          <span class="sidebar-link-icon">🎯</span><span class="sidebar-link-text"> Limites</span>
+        </a>
+        <a href="metas.html" class="sidebar-link">
+          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
+        </a>
+        <a href="investimentos.html" class="sidebar-link">
+          <span class="sidebar-link-icon">📈</span><span class="sidebar-link-text"> Investimentos</span>
+        </a>
+        <a href="mercado.html" class="sidebar-link">
+          <span class="sidebar-link-icon">🛒</span><span class="sidebar-link-text"> Compras</span>
+        </a>
+        <a href="categorias.html" class="sidebar-link">
+          <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
+        </a>
+        <div class="sidebar-group-label">Panorama Geral</div>
+        <a href="extrato.html" class="sidebar-link">
+          <span class="sidebar-link-icon">📋</span><span class="sidebar-link-text"> Extrato</span>
+        </a>
+        <a href="balanco-mensal.html" class="sidebar-link">
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Balanço Mensal</span>
+        </a>
+        <a href="comparativo.html" class="sidebar-link active">
+          <span class="sidebar-link-icon">⚖️</span><span class="sidebar-link-text"> Comparativo</span>
+        </a>
+        <a href="graficos.html" class="sidebar-link">
+          <span class="sidebar-link-icon">📉</span><span class="sidebar-link-text"> Gráficos</span>
+        </a>
+        <span class="sidebar-link sidebar-link-disabled">
+          <span class="sidebar-link-icon">💡</span><span class="sidebar-link-text"> Insights</span><span class="sidebar-badge-soon">breve</span>
+        </span>
+        <div class="sidebar-group-label">Bud Plus</div>
+        <span class="sidebar-link sidebar-link-disabled">
+          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span><span class="sidebar-badge-plus">Plus</span>
+        </span>
+        <span class="sidebar-link sidebar-link-disabled">
+          <span class="sidebar-link-icon">💬</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
+        </span>
+        <div class="sidebar-nav-divider"></div>
+        <a href="configuracoes.html" class="sidebar-link">
+          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
+        </a>
+      </nav>
+      <div class="sidebar-user" style="margin-top:auto;">
+        <div class="sidebar-avatar" id="sidebarAvatar">?</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebarUserName">Carregando...</div>
+          <div class="sidebar-user-id" id="sidebarUserId">---</div>
+        </div>
+      </div>
+      <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
+      </button>
+    </aside>
+
+    <!-- ─ Main ─────────────────────────────────────────── -->
+    <main class="dash-main" id="dashMain">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
+          <div>
+            <h1 style="font-size:1.5rem;font-weight:800;color:var(--text-main);letter-spacing:-0.025em;">⚖️ Comparativo</h1>
+            <p style="font-size:0.8125rem;font-weight:500;color:var(--text-sec);margin-top:0.125rem;">Dois meses lado a lado — só transações efetivadas</p>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+          <!-- Seletores de mês (desktop) -->
+          <div class="selects-desktop" style="display:flex;align-items:center;gap:0.375rem;">
+            <div class="custom-select" id="cs-mes1">
+              <button type="button" class="custom-select-btn" aria-haspopup="listbox" aria-label="Mês 1">
+                <span class="custom-select-label">—</span>
+                <span class="custom-select-arrow">▾</span>
+              </button>
+              <div class="custom-select-dropdown" role="listbox"></div>
+            </div>
+            <select id="mes1" aria-label="Mês 1" style="display:none;"></select>
+            <span class="vs-label">vs</span>
+            <div class="custom-select" id="cs-mes2">
+              <button type="button" class="custom-select-btn" aria-haspopup="listbox" aria-label="Mês 2">
+                <span class="custom-select-label">—</span>
+                <span class="custom-select-arrow">▾</span>
+              </button>
+              <div class="custom-select-dropdown" role="listbox"></div>
+            </div>
+            <select id="mes2" aria-label="Mês 2" style="display:none;"></select>
+          </div>
+          <!-- Inverter meses -->
+          <button id="btnInverter" onclick="window.inverterMeses()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--text-sec);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Inverter Mês 1 e Mês 2">
+            ⇄ Inverter
+          </button>
+          <!-- Vs ano passado -->
+          <button id="btnAnoPassado" onclick="window.vsAnoPassado()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--text-sec);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Comparar com mesmo mês do ano passado">
+            🕐 Ano passado
+          </button>
+          <!-- Ocultar valores -->
+          <button id="btnOcultarValores" onclick="window.toggleOcultarValores()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--text-sec);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Ocultar/exibir valores">
+            👁 Valores
+          </button>
+          <!-- Refresh -->
+          <button class="btn-refresh" onclick="window.sincronizarDados()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--text-sec);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Atualizar dados">
+            🔄
+          </button>
+          <!-- Exportar PDF -->
+          <button class="btn-refresh" onclick="window.print()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--text-sec);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Exportar PDF">
+            🖶️
+          </button>
+        </div>
+      </div>
+
+      <!-- Seletores mobile (linha separada) -->
+      <div id="mesMobileRow" style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+        <div class="custom-select" id="cs-mes1Mobile">
+          <button type="button" class="custom-select-btn" aria-haspopup="listbox" aria-label="Mês 1">
+            <span class="custom-select-label">—</span>
+            <span class="custom-select-arrow">▾</span>
+          </button>
+          <div class="custom-select-dropdown" role="listbox"></div>
+        </div>
+        <select id="mes1Mobile" aria-label="Mês 1 mobile" style="display:none;"></select>
+        <span class="vs-label">vs</span>
+        <div class="custom-select" id="cs-mes2Mobile">
+          <button type="button" class="custom-select-btn" aria-haspopup="listbox" aria-label="Mês 2">
+            <span class="custom-select-label">—</span>
+            <span class="custom-select-arrow">▾</span>
+          </button>
+          <div class="custom-select-dropdown" role="listbox"></div>
+        </div>
+        <select id="mes2Mobile" aria-label="Mês 2 mobile" style="display:none;"></select>
+      </div>
+
+      <!-- Paywall -->
+      <div id="paywallContainer">
+        <div style="max-width:480px;margin:4rem auto;text-align:center;padding:2.5rem 1.5rem;background:var(--card-bg);border:1px solid var(--card-border);border-radius:1.5rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.08);">
+          <div style="font-size:3rem;margin-bottom:1rem;">🔒</div>
+          <div style="font-size:1.25rem;font-weight:800;color:var(--text-main);margin-bottom:0.5rem;">Recurso Bud Plus</div>
+          <div style="font-size:0.875rem;color:var(--text-sec);line-height:1.6;margin-bottom:1.5rem;">O Comparativo de Meses é exclusivo para assinantes <strong>Plus</strong>. Faça upgrade para comparar períodos e entender a evolução dos seus hábitos financeiros.</div>
+          <a href="configuracoes.html" style="display:inline-block;padding:0.75rem 1.75rem;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:0.9375rem;font-weight:800;border-radius:0.875rem;text-decoration:none;">Ver Planos</a>
+        </div>
+      </div>
+
+      <!-- Conteúdo principal -->
+      <div id="conteudoPrincipal">
+
+        <!-- KPI cards: Mês 1 (azul) e Mês 2 (violeta) -->
+        <div class="comp-cards-grid">
+          <!-- Mês 1 -->
+          <div class="comp-kpi-card mes1">
+            <div style="font-size:0.6875rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#3b82f6;">
+              Mês 1 — <span id="nomeM1">—</span>
+            </div>
+            <div class="comp-kpi-grid">
+              <div>
+                <div class="comp-kpi-label">Receitas</div>
+                <div class="comp-kpi-value" style="color:#16a34a;" id="m1Rec">R$ 0,00</div>
+              </div>
+              <div>
+                <div class="comp-kpi-label">Despesas</div>
+                <div class="comp-kpi-value" style="color:#dc2626;" id="m1Dep">R$ 0,00</div>
+              </div>
+              <div>
+                <div class="comp-kpi-label">Saldo</div>
+                <div class="comp-kpi-value" id="m1Saldo">R$ 0,00</div>
+              </div>
+              <div>
+                <div class="comp-kpi-label">Transações</div>
+                <div class="comp-kpi-value" style="color:var(--card-text);" id="m1Trans">0</div>
+              </div>
+            </div>
+            <div id="avisoVazioM1" style="display:none;align-items:center;gap:0.5rem;margin-top:0.875rem;padding:0.625rem 0.75rem;background:rgba(148,163,184,0.1);border-radius:0.625rem;">
+              <span style="font-size:1rem;">&#x1F4ED;</span>
+              <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">Sem transações neste mês</span>
+            </div>
+          </div>
+          <!-- Mês 2 -->
+          <div class="comp-kpi-card mes2">
+            <div style="font-size:0.6875rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#8b5cf6;">
+              Mês 2 — <span id="nomeM2">—</span>
+            </div>
+            <div class="comp-kpi-grid">
+              <div>
+                <div class="comp-kpi-label">Receitas</div>
+                <div style="display:flex;align-items:baseline;gap:0.375rem;flex-wrap:wrap;">
+                  <div class="comp-kpi-value" style="color:#16a34a;" id="m2Rec">R$ 0,00</div>
+                  <span id="m2RecBadge" class="var-badge neutro" style="display:none;"></span>
+                </div>
+              </div>
+              <div>
+                <div class="comp-kpi-label">Despesas</div>
+                <div style="display:flex;align-items:baseline;gap:0.375rem;flex-wrap:wrap;">
+                  <div class="comp-kpi-value" style="color:#dc2626;" id="m2Dep">R$ 0,00</div>
+                  <span id="m2DepBadge" class="var-badge neutro" style="display:none;"></span>
+                </div>
+              </div>
+              <div>
+                <div class="comp-kpi-label">Saldo</div>
+                <div style="display:flex;align-items:baseline;gap:0.375rem;flex-wrap:wrap;">
+                  <div class="comp-kpi-value" id="m2Saldo">R$ 0,00</div>
+                  <span id="m2SaldoBadge" class="var-badge neutro" style="display:none;"></span>
+                </div>
+              </div>
+              <div>
+                <div class="comp-kpi-label">Transações</div>
+                <div class="comp-kpi-value" style="color:var(--card-text);" id="m2Trans">0</div>
+              </div>
+            </div>
+            <div id="avisoVazioM2" style="display:none;align-items:center;gap:0.5rem;margin-top:0.875rem;padding:0.625rem 0.75rem;background:rgba(148,163,184,0.1);border-radius:0.625rem;">
+              <span style="font-size:1rem;">&#x1F4ED;</span>
+              <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">Sem transações neste mês</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Insight textual -->
+        <div id="insightDestaque" style="display:none;background:rgba(251,191,36,0.10);border:1.5px solid rgba(251,191,36,0.25);border-radius:1rem;padding:0.875rem 1.25rem;margin-bottom:1rem;align-items:flex-start;gap:0.75rem;">
+          <span style="font-size:1.25rem;flex-shrink:0;">&#x1F4A1;</span>
+          <div>
+            <div style="font-size:0.8125rem;font-weight:800;color:var(--text-main);" id="insightTitulo">—</div>
+            <div style="font-size:0.75rem;color:var(--text-sec);margin-top:0.2rem;" id="insightDesc">—</div>
+          </div>
+        </div>
+
+        <!-- Gráfico — Receitas, Despesas e Saldo -->
+        <div class="section-card">
+          <div class="section-header">
+            <span class="section-title">📊 Receitas, Despesas e Saldo</span>
+            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+              <span id="legendaGrafico" style="font-size:0.75rem;color:var(--card-text-sec);"></span>
+              <div style="display:flex;gap:0.25rem;">
+                <button id="chipGraficoTudo" class="chip-filtro active" onclick="window.filtrarGrafico('tudo')">Tudo</button>
+                <button id="chipGraficoReceitas" class="chip-filtro" onclick="window.filtrarGrafico('receitas')">Receitas</button>
+                <button id="chipGraficoDespesas" class="chip-filtro" onclick="window.filtrarGrafico('despesas')">Despesas</button>
+              </div>
+            </div>
+          </div>
+          <div id="chartComparativoWrap">
+            <div class="chart-wrap"><canvas id="chartComparativo"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Comparativo de despesas por categoria -->
+        <div class="section-card">
+          <div class="section-header">
+            <span class="section-title">📉 Despesas por Categoria</span>
+            <span style="font-size:0.75rem;color:var(--card-text-sec);">Top 10</span>
+          </div>
+          <div id="catDepContainer">
+            <div class="empty-state"><div class="empty-icon">💸</div><div style="font-size:0.875rem;color:var(--text-sec);">Nenhuma despesa para comparar</div></div>
+          </div>
+        </div>
+
+        <!-- Comparativo de receitas por categoria (BUG 7 fix) -->
+        <div class="section-card">
+          <div class="section-header">
+            <span class="section-title">📈 Receitas por Categoria</span>
+            <span style="font-size:0.75rem;color:var(--card-text-sec);">Top 10</span>
+          </div>
+          <div id="catRecContainer">
+            <div class="empty-state"><div class="empty-icon">💰</div><div style="font-size:0.875rem;color:var(--text-sec);">Nenhuma receita para comparar</div></div>
+          </div>
+        </div>
+
+        <!-- Gráfico — Top despesas por categoria -->
+        <div class="section-card">
+          <div class="section-header">
+            <span class="section-title">📋 Variação por Categoria (Despesas)</span>
+          </div>
+          <div id="chartCategoriasWrap">
+            <div class="chart-wrap"><canvas id="chartCategorias"></canvas></div>
+          </div>
+        </div>
+
+      </div><!-- /conteudoPrincipal -->
+    </main>
+  </div><!-- /dash-layout -->
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script type="module" src="js/comparativo.js"></script>
+</body>
+</html>

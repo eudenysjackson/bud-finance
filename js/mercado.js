@@ -344,6 +344,13 @@ function abrirModalCompra(compra) {
     cat:   i.cat   || inferirCategoriaItem(i.desc || i.nome),
   }));
 
+  // Sugestões de mercados usados anteriormente
+  const dlMercados = document.getElementById('mercadosSugestoes');
+  if (dlMercados) {
+    const nomes = [...new Set(comprasCache.map(c => c.mercado).filter(Boolean))].slice(0, 25);
+    dlMercados.innerHTML = nomes.map(m => `<option value="${escapeHTML(m)}">`).join('');
+  }
+
   popularSelectsCompra();
   renderItensCompra();
   document.getElementById('modalCompra').classList.add('open');
@@ -1429,6 +1436,12 @@ function renderThumbsIA() {
   if (_iaTabAtual === 'foto') {
     if (!_iaArquivos.length) { contFoto.innerHTML = ''; dropFoto.classList.remove('has-files'); return; }
     dropFoto.classList.add('has-files');
+    const addMaisBtn = _iaArquivos.length < IA_MAX_FILES
+      ? `<div class="ia-thumb" id="iaBtnAddMais" style="border:2px dashed #3b82f6;background:#eff6ff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;" title="Adicionar mais fotos">
+          <span style="font-size:1.25rem;line-height:1;">+</span>
+          <span style="font-size:0.55rem;color:#3b82f6;font-weight:700;">${_iaArquivos.length}/${IA_MAX_FILES}</span>
+        </div>`
+      : '';
     contFoto.innerHTML = _iaArquivos.map((a, idx) => {
       const isImg = a.file.type.startsWith('image/');
       return `
@@ -1436,7 +1449,7 @@ function renderThumbsIA() {
           ${isImg ? `<img src="${a.url}" alt="">` : `<div style="font-size:1.5rem;display:flex;align-items:center;justify-content:center;width:100%;height:100%;background:#f1f5f9;">📄</div>`}
           <button type="button" class="ia-thumb-rm" data-idx="${idx}" aria-label="Remover">✕</button>
         </div>`;
-    }).join('');
+    }).join('') + addMaisBtn;
     contFoto.querySelectorAll('.ia-thumb-rm').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -1446,6 +1459,10 @@ function renderThumbsIA() {
         renderThumbsIA();
         validarBotaoEnviarIA();
       });
+    });
+    contFoto.querySelector('#iaBtnAddMais')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('inputFotoIA').click();
     });
   } else if (_iaTabAtual === 'pdf') {
     if (!_iaArquivos.length) { contPdf.innerHTML = ''; dropPdf.classList.remove('has-files'); return; }
@@ -1529,6 +1546,8 @@ async function enviarParaIA() {
     // Conta uso (apenas se não foi cache)
     if (!data.cached) {
       await incrementarUsoIA();
+    } else {
+      showToast('Nota importada do cache (já analisada anteriormente)', 'info');
     }
 
     // Abre tela de revisão

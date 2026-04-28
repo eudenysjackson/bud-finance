@@ -1,7 +1,8 @@
 # ROADMAP.md — Foco e Controle de Escopo
 
 **Projeto**: Bud Finance  
-**Última atualização**: 26/04/2026 — Tela de Dívidas implementada e movida para Concluído
+**Última atualização**: 27/04/2026 — Fase 1 concluída (16 telas operacionais). Iniciando **Fase 2: Inteligência e Análise Financeira**.  
+**Item atual**: Gráficos (`graficos.html`) — Fase 2 · Item 3
 
 > **REGRA**: NÃO implementar itens do Backlog sem pedido explícito do usuário.
 
@@ -177,12 +178,12 @@
 5. ~~**Dívidas** (`dividas.html` + `js/dividas.js`)~~ ✅ Já implementado
 6. ~~**Investimentos** (`investimentos.html` + `js/investimentos.js`)~~ ✅ Implementado em 27/04/2026
 7. ~~**Limites** (`limites.html` + `js/limites.js`) — Barra de progresso por categoria, "Copiar do Mês Anterior" (plano Plus)~~ ✅ Implementado
-8. ~~**Mercado** (`mercado.html` + `js/mercado.js`) — Compras + Listas + Histórico de preços + Modo Compras~~ ✅ Implementado (sem IA — ver pendência abaixo)
+8. ~~**Mercado** (`mercado.html` + `js/mercado.js`) — Compras + Listas + Histórico de preços + Modo Compras + IA de importação de cupom fiscal~~ ✅ Implementado (com IA — Groq meta-llama/llama-4-scout via `/api/extrair-cupom`)
 
 ### Telas Analíticas (planos Plus/Pro)
-9. **Balanço Mensal** (`balanco-mensal.html` + `js/balanco-mensal.js`) — Read-only: 3 cards + detalhamento por categoria (plano Plus)
-10. **Comparativo** (`comparativo.html` + `js/comparativo.js`) — 2 meses lado a lado + Chart.js (plano Plus)
-11. **Gráficos** (`graficos.html` + `js/graficos.js`) — 4 charts Chart.js (plano Pro)
+9. **Balanço Mensal** (`balanco-mensal.html` + `js/balanco-mensal.js`) — ✅ **CONCLUÍDO** — 3 KPIs + comparativo + ranking categorias + dia-a-dia (plano Plus)
+10. **Comparativo** (`comparativo.html` + `js/comparativo.js`) — ✅ **CONCÍUDO** — 2 meses lado a lado + Chart.js (plano Plus)
+11. **Gráficos** (`graficos.html` + `js/graficos.js`) — 🔄 **EM DESENVOLVIMENTO** — 4 charts Chart.js (plano Pro)
 12. **Relatórios** (`relatorios.html` + `js/relatorios.js`) — Consolida Balanço + Gráficos + Detalhamento ⚠️ usar style inline para categorias
 13. **Insights** (`insights.html` + `js/insights.js`) — Score saúde, alertas IA, simulador, FCM push (plano Plus)
 

@@ -338,9 +338,18 @@
         <a href="extrato.html" class="sidebar-link">
           <span class="sidebar-link-icon">📋</span><span class="sidebar-link-text"> Extrato</span>
         </a>
+        <a href="balanco-mensal.html" class="sidebar-link">
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Balanço Mensal</span><span class="sidebar-badge-plus">Plus</span>
+        </a>
+        <a href="comparativo.html" class="sidebar-link">
+          <span class="sidebar-link-icon">⚖️</span><span class="sidebar-link-text"> Comparativo</span><span class="sidebar-badge-plus">Plus</span>
+        </a>
         <span class="sidebar-link sidebar-link-disabled">
-          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Relatório</span><span class="sidebar-badge-soon">breve</span>
+          <span class="sidebar-link-icon">📋</span><span class="sidebar-link-text"> Relatório</span><span class="sidebar-badge-soon">breve</span>
         </span>
+        <a href="graficos.html" class="sidebar-link">
+          <span class="sidebar-link-icon">📉</span><span class="sidebar-link-text"> Gráficos</span>
+        </a>
         <span class="sidebar-link sidebar-link-disabled">
           <span class="sidebar-link-icon">💡</span><span class="sidebar-link-text"> Insights</span><span class="sidebar-badge-soon">breve</span>
         </span>
@@ -489,7 +498,8 @@
       <div class="modal-grid2">
         <div class="modal-field">
           <label class="modal-label" for="compraMercado">Mercado / Loja</label>
-          <input class="modal-input" type="text" id="compraMercado" placeholder="Ex: Prezunic" autocomplete="off" maxlength="60">
+          <input class="modal-input" type="text" id="compraMercado" list="mercadosSugestoes" placeholder="Ex: Prezunic" autocomplete="off" maxlength="60">
+          <datalist id="mercadosSugestoes"></datalist>
         </div>
         <div class="modal-field">
           <label class="modal-label" for="compraData">Data</label>
@@ -676,6 +686,7 @@
         <div>
           <label class="modal-label" for="reviewMercado">Mercado</label>
           <input class="modal-input" type="text" id="reviewMercado" placeholder="Nome do mercado" maxlength="60">
+          <small style="color:var(--card-text-sec);font-size:0.7rem;">Edite para um nome curto — será lembrado para futuros cupons deste mercado</small>
         </div>
         <div>
           <label class="modal-label" for="reviewData">Data</label>
