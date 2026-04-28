@@ -634,7 +634,7 @@ async function extractCupomWithGroq(buffers, mimeTypes) {
   var prompt = [
     'Você está analisando um CUPOM FISCAL de supermercado brasileiro OU um PRINT de app de mercado/delivery (Rappi, iFood Mercado, Zé Delivery, Cornershop, Mercado Livre).',
     '',
-    'Extraia TODOS os itens comprados. Ignore: subtotais, taxas de entrega, descontos gerais, total a pagar, formas de pagamento, troco.',
+    'Extraia TODOS os itens e cobranças: produtos comprados, taxa de entrega, embalagem, serviço — qualquer linha com valor cobrado ao consumidor. Ignore APENAS: subtotais, total a pagar, formas de pagamento, troco e descontos.',
     '',
     'Identifique também:',
     '- Nome curto do mercado/loja (sem CNPJ, sem endereço — ex: "Prezunic", "Carrefour", "Rappi")',
@@ -737,7 +737,7 @@ async function extractCupomFromText(texto) {
   var prompt = [
     'Você está analisando o TEXTO de um cupom fiscal de supermercado OU print de app de mercado.',
     '',
-    'Extraia TODOS os itens. Ignore: subtotais, taxas, descontos gerais, total, formas de pagamento.',
+    'Extraia TODOS os itens e cobranças: produtos, taxa de entrega, embalagem, serviço — qualquer linha com valor cobrado. Ignore APENAS: subtotais, total a pagar, formas de pagamento, troco e descontos.',
     '',
     'Identifique também: nome do mercado, CNPJ (14 dígitos), data (YYYY-MM-DD).',
     '',
