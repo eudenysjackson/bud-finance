@@ -183,8 +183,8 @@
 ### Telas Analíticas (planos Plus/Pro)
 9. **Balanço Mensal** (`balanco-mensal.html` + `js/balanco-mensal.js`) — ✅ **CONCLUÍDO** — 3 KPIs + comparativo + ranking categorias + dia-a-dia (plano Plus)
 10. **Comparativo** (`comparativo.html` + `js/comparativo.js`) — ✅ **CONCÍUDO** — 2 meses lado a lado + Chart.js (plano Plus)
-11. **Gráficos** (`graficos.html` + `js/graficos.js`) — 🔄 **EM DESENVOLVIMENTO** — 4 charts Chart.js (plano Pro)
-12. **Relatórios** (`relatorios.html` + `js/relatorios.js`) — Consolida Balanço + Gráficos + Detalhamento ⚠️ usar style inline para categorias
+11. **Gráficos** (`graficos.html` + `js/graficos.js`) — ✅ **CONCLUÍDO** — 4 charts Chart.js (plano Pro)
+12. **Relatórios** (`relatorios.html` + `js/relatorios.js`) — ✅ **CONCLUÍDO** — interface 3 abas (Resumo / Gráficos / Detalhamento), 15 bugs do cérebro corrigidos preventivamente
 13. **Insights** (`insights.html` + `js/insights.js`) — Score saúde, alertas IA, simulador, FCM push (plano Plus)
 
 ### Telas de IA / Assistentes

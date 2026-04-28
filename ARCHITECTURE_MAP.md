@@ -395,6 +395,7 @@
 | `/balanco-mensal` | Balanço Mensal | `balanco-mensal.html` | ✅ Auth guard + emailVerified guard + paywall Plus + 3 KPIs + comparativo + ranking categorias + dia-a-dia |
 | `/comparativo` | Comparativo de Meses | `comparativo.html` | ✅ Auth guard + emailVerified guard + paywall Plus + 2 meses lado a lado + KPI cards + Chart.js barras agrupadas + top-10 categorias |
 | `/graficos` | Gráficos | `graficos.html` | ✅ Auth guard + emailVerified guard + paywall Pro + 4 charts Chart.js (Doughnut, Bar, Line, Bar diário) + 4 KPIs + nav meses |
+| `/relatorios` | Central de Relatórios | `relatorios.html` | ✅ Auth guard + emailVerified guard + paywall advancedDashboard + interface 3 abas (Resumo / Gráficos / Detalhamento) + 3 KPIs + 4 charts Chart.js + insight automático + tendência 6 meses single-pass + detalhamento com barras hex |
 | `/admin` | Painel admin | `admin.html` | `role: admin` |
 | `/politica-privacidade` | LGPD | `politica-privacidade.html` | Termos |
 
@@ -459,6 +460,7 @@
 | 27/04/2026 | Tela de Mercado concluída com IA: `mercado.html` + `js/mercado.js`. Importação de cupom fiscal por IA (Groq meta-llama/llama-4-scout via `/api/extrair-cupom`). Multi-foto (máx 3), toast de cache, datalist sugestões de mercados, 5 melhorias UX. Backend migrado de Gemini para Groq. | Copilot |
 | 27/04/2026 | Tela de Balanço Mensal criada: `balanco-mensal.html` + `js/balanco-mensal.js`. 10 bugs do cérebro/balanco-mensal.md corrigidos preventivamente. Sidebar atualizada em 11 páginas com link "Balanço Mensal (Plus)". Novo endpoint `/api/extrair-cupom` atualizado (Groq). Novas collections: `mercados-conhecidos/{cnpj}` + `aprendizado-itens/{itemKey}` (scope: usuario). DEC-021 (setDate(1) antes setMonth) registrado. | Copilot |
 | 28/04/2026 | Tela de Comparativo criada: `comparativo.html` + `js/comparativo.js`. 11 bugs do cérebro/comparativo.md corrigidos preventivamente. Chart.js 4.4.1 CDN. Sidebar atualizada em 12 páginas com link "Comparativo (Plus)". ROADMAP: Balanço Mensal → CONCLUÍDO; Comparativo → EM DESENVOLVIMENTO. | Copilot || 27/04/2026 | Tela de Gráficos criada: `graficos.html` + `js/graficos.js`. Fase 2 · Item 3. Plano Pro (evolutionChart). 4 charts: Doughnut categorias, Bar receitas vs despesas, Line tendência 6 meses, Bar diário. 10 bugs do cérebro/graficos.md corrigidos. Sidebar atualizada em 13 páginas com link "Gráficos". ROADMAP: Comparativo → CONCÍUDO; Gráficos → EM DESENVOLVIMENTO. | Copilot |
+| 28/04/2026 | Tela de Relatórios criada: `relatorios.html` + `js/relatorios.js`. Fase 2 · Item 4. Interface 3 abas: Resumo (comparativo + categorias + dia-a-dia), Gráficos (4 Chart.js), Detalhamento (barras hex por categoria). 15 bugs do cérebro/relatorios.md corrigidos preventivamente (BUG 1–15). Feature gate: `advancedDashboard`. Firestore query: 6-month range em `transacoes`. Sidebar atualizada em 14 páginas com link 📑 Relatórios. ROADMAP: Gráficos → CONCLUÍDO; Relatórios → CONCLUÍDO. | Copilot |
 ---
 
 ## 📂 Arquivos Implementados
@@ -473,6 +475,8 @@
 | `js/cadastro.js` | ✅ | Criação de conta — Firebase Auth modular, matrícula, reCAPTCHA placeholder, subcoleção indicações |
 | `recuperar-senha.html` | ✅ | Tela de recuperação — glassmorphism consistente com login, blobs |
 | `js/recuperar-senha.js` | ✅ | POST /reset-senha — res.ok check, delayed redirect 3s, safety timeout 30s |
+| `relatorios.html` | ✅ | Central de Relatórios — interface 3 abas (Resumo/Gráficos/Detalhamento), paywall advancedDashboard, 3 KPI cards, pill bar navegação, bottom-sheet mobile, Chart.js 4.4.1. |
+| `js/relatorios.js` | ✅ | ES module. 15 bugs do cérebro/relatorios.md corrigidos: BUG 1 (query 6 meses), BUG 2 (setDate(1) antes setMonth), BUG 3 (filtra pendente+pago), BUG 4 (getDocs), BUG 5 (sincronizarDados re-busca), BUG 6 (downgrade updateDoc), BUG 7 (NaN-safe), BUG 8 (normalizarData Timestamp), BUG 9 (porCatDep separado), BUG 10 (getCatInfo + CORES12 hex), BUG 11 (saldoEl.style.color), BUG 12 (todos os dias do mês preenchidos), BUG 13 (tendência single-pass), BUG 14 (_dadosDirty), BUG 15 (tooltips respeitam valoresOcultos). Feature gate: NexoPlanos.canUseFeature(userData, 'advancedDashboard'). |
 | `acao-auth.html` | ✅ | Tela processar reset — glassmorphism, 4 estados (validando/form/sucesso/erro) |
 | `js/acao-auth.js` | ✅ | verifyPasswordResetCode + confirmPasswordReset, indicador força, blocklist senhas |
 | `trocar-senha.html` | ✅ | Tela troca obrigatória — glassmorphism, user badge (nome+matrícula), 3 estados |
