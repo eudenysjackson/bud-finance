@@ -623,13 +623,13 @@ function hashBuffers(buffers) {
 }
 
 /**
- * Extrai itens de cupom fiscal / print de app de mercado usando Gemini 1.5 Flash.
+ * Extrai itens de cupom fiscal / print de app de mercado usando Groq (llama-4-scout vision).
  * Aceita 1 a 3 arquivos (multi-foto para cupom longo).
  * Retorna: { mercado, cnpj, data, itens: [{nome, qtd, valor, cat}] }
  */
-async function extractCupomWithGemini(buffers, mimeTypes) {
-  var key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error('GEMINI_API_KEY não configurada no servidor.');
+async function extractCupomWithGroq(buffers, mimeTypes) {
+  var key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error('GROQ_API_KEY não configurada no servidor.');
 
   var prompt = [
     'Você está analisando um CUPOM FISCAL de supermercado brasileiro OU um PRINT de app de mercado/delivery (Rappi, iFood Mercado, Zé Delivery, Cornershop, Mercado Livre).',
@@ -663,14 +663,17 @@ async function extractCupomWithGemini(buffers, mimeTypes) {
     'Responda APENAS com o JSON, sem explicações ou markdown.'
   ].join('\n');
 
-  var parts = buffers.map(function (buf, i) {
-    return { inline_data: { mime_type: mimeTypes[i] || 'image/jpeg', data: buf.toString('base64') } };
+  // Groq suporta apenas 1 imagem por chamada — usa a primeira; demais são ignoradas por ora
+  var imgContent = buffers.map(function (buf, i) {
+    return { type: 'image_url', image_url: { url: 'data:' + (mimeTypes[i] || 'image/jpeg') + ';base64,' + buf.toString('base64') } };
   });
-  parts.push({ text: prompt });
+  imgContent.push({ type: 'text', text: prompt });
 
   var body = JSON.stringify({
-    contents: [{ parts: parts }],
-    generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    messages: [{ role: 'user', content: imgContent }],
+    temperature: 0.1,
+    max_tokens: 2048
   });
 
   var controller = new AbortController();
@@ -678,18 +681,18 @@ async function extractCupomWithGemini(buffers, mimeTypes) {
 
   try {
     var resp = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + key,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, signal: controller.signal }
+      'https://api.groq.com/openai/v1/chat/completions',
+      { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: body, signal: controller.signal }
     );
     clearTimeout(timeoutId);
 
     if (!resp.ok) {
       var errText = await resp.text().catch(function(){ return resp.status; });
-      throw new Error('Gemini API: ' + errText);
+      throw new Error('Groq API: ' + errText);
     }
 
     var data = await resp.json();
-    var content = (data.candidates || [])[0]?.content?.parts?.[0]?.text || '{}';
+    var content = (data.choices || [])[0]?.message?.content || '{}';
 
     var parsed;
     try {
@@ -724,12 +727,12 @@ async function extractCupomWithGemini(buffers, mimeTypes) {
 }
 
 /**
- * Extrai itens de TEXTO COLADO (cupom digitado/copiado) usando Gemini.
+ * Extrai itens de TEXTO COLADO (cupom digitado/copiado) usando Groq.
  * Mais barato e rápido que enviar imagem.
  */
 async function extractCupomFromText(texto) {
-  var key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error('GEMINI_API_KEY não configurada no servidor.');
+  var key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error('GROQ_API_KEY não configurada no servidor.');
 
   var prompt = [
     'Você está analisando o TEXTO de um cupom fiscal de supermercado OU print de app de mercado.',
@@ -749,8 +752,10 @@ async function extractCupomFromText(texto) {
   ].join('\n');
 
   var body = JSON.stringify({
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.1,
+    max_tokens: 1024
   });
 
   var controller = new AbortController();
@@ -758,16 +763,16 @@ async function extractCupomFromText(texto) {
 
   try {
     var resp = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + key,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body, signal: controller.signal }
+      'https://api.groq.com/openai/v1/chat/completions',
+      { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: body, signal: controller.signal }
     );
     clearTimeout(timeoutId);
     if (!resp.ok) {
       var errText = await resp.text().catch(function(){ return resp.status; });
-      throw new Error('Gemini API: ' + errText);
+      throw new Error('Groq API: ' + errText);
     }
     var data = await resp.json();
-    var content = (data.candidates || [])[0]?.content?.parts?.[0]?.text || '{}';
+    var content = (data.choices || [])[0]?.message?.content || '{}';
     var parsed;
     try { parsed = JSON.parse(content); }
     catch (_e) {
@@ -831,7 +836,7 @@ app.post('/api/extrair-cupom', uploadCupom.array('arquivos', 3), async function 
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
     }
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.GROQ_API_KEY) {
       return res.status(503).json({
         error: 'Extração por IA não está configurada no servidor. Use a entrada manual.'
       });
@@ -847,7 +852,7 @@ app.post('/api/extrair-cupom', uploadCupom.array('arquivos', 3), async function 
       return res.json(Object.assign({}, cached, { cached: true }));
     }
 
-    var result = await extractCupomWithGemini(buffers, mimeTypes);
+    var result = await extractCupomWithGroq(buffers, mimeTypes);
     if (!result.itens.length) {
       return res.status(422).json({
         error: 'Nenhum item identificado. Tente uma foto mais nítida ou cole o texto manualmente.'
@@ -860,13 +865,11 @@ app.post('/api/extrair-cupom', uploadCupom.array('arquivos', 3), async function 
   } catch (err) {
     var safeMsg = (err.message || '').replace(/(key=)[^\s&]+/, '$1***');
     console.error('[extrair-cupom]', safeMsg);
-    var isGeminiErr = /Gemini API/.test(safeMsg);
-    var status = isGeminiErr ? 502 : 500;
-    // Expõe motivo real (sem a key) para ajudar diagnóstico
-    var userMsg = isGeminiErr
-      ? 'Gemini recusou a requisição: ' + safeMsg.replace('Gemini API: ', '').slice(0, 200)
-      : (safeMsg.includes('aborted') ? 'Tempo limite excedido. Tente uma imagem menor ou use a aba Texto.'
-        : 'Erro ao processar cupom. Verifique a imagem e tente novamente.');
+    var isGroqErr = /Groq API/.test(safeMsg);
+    var status = isGroqErr ? 502 : 500;
+    var userMsg = safeMsg.includes('aborted')
+      ? 'Tempo limite excedido. Tente uma imagem menor ou use a aba Texto.'
+      : 'Erro ao processar cupom. Verifique a imagem e tente novamente.';
     return res.status(status).json({ error: userMsg });
   }
 });
