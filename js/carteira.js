@@ -34,6 +34,24 @@ let globalTipo = 'auto';
 let globalCat = '';
 let dedupIds = new Set();
 let excluirContaId = null;
+let contaCorSelecionada = 'sem_cor';
+let _rowCatDdTargetIdx = null;
+let _rowCatDdBtn = null;
+
+// ── Cores map ─────────────────────────────────────────────
+const CORES_MAP = {
+  sem_cor:  null,
+  roxo:     '#7c3aed',
+  azul:     '#2563eb',
+  teal:     '#0d9488',
+  verde:    '#16a34a',
+  laranja:  '#f97316',
+  vermelho: '#ef4444',
+  rosa:     '#ec4899',
+  amarelo:  '#d97706',
+  cyan:     '#0891b2',
+  preto:    '#374151',
+};
 
 // ── Tipo config ───────────────────────────────────────────
 const TIPO_CONFIG = {
@@ -247,10 +265,14 @@ function buildContaCard(conta) {
     ? `Última confirmação: ${fmtDataBR(conta.ultimaConfirmacao.data)}`
     : 'Sem confirmação — saldo inicial';
 
+  const corHex = CORES_MAP[conta.cor] || null;
+  const faixaStyle = corHex ? `border-left:4px solid ${corHex};` : '';
+  const iconBg = corHex ? `background:${corHex}18;` : `background:${cfg.bg};`;
+
   return `
-    <div class="conta-card">
+    <div class="conta-card" style="${faixaStyle}">
       <div class="conta-card-header">
-        <div class="conta-tipo-icon" style="background:${cfg.bg};">${cfg.icon}</div>
+        <div class="conta-tipo-icon" style="${iconBg}">${cfg.icon}</div>
         <div style="flex:1;padding-left:0.625rem;">
           <div class="conta-tipo-nome">${escapeHtml(conta.nome)}</div>
           <span class="conta-tipo-badge" style="background:${cfg.bg};color:${cfg.color};">${cfg.label}</span>
@@ -288,6 +310,12 @@ function abrirModalConta(id) {
   document.getElementById('contaSaldoInicial').classList.remove('error');
   document.getElementById('contaTipoBtn').classList.remove('error');
 
+  // Reset cor
+  contaCorSelecionada = 'sem_cor';
+  document.querySelectorAll('.conta-cor-pill').forEach(p => p.classList.remove('selected'));
+  const pillSemCor = document.querySelector('.conta-cor-pill[data-cor="sem_cor"]');
+  if (pillSemCor) pillSemCor.classList.add('selected');
+
   if (id) {
     const conta = contasGlobal.find(c => c.id === id);
     if (!conta) return;
@@ -296,10 +324,23 @@ function abrirModalConta(id) {
     document.getElementById('contaNome').value = conta.nome || '';
     document.getElementById('contaSaldoInicial').value = fmtBRLInput(getSaldoExibido(conta));
     setContaTipoSelect(conta.tipo);
+    // Restore cor
+    const corSalva = conta.cor || 'sem_cor';
+    contaCorSelecionada = corSalva;
+    document.querySelectorAll('.conta-cor-pill').forEach(p => p.classList.toggle('selected', p.dataset.cor === corSalva));
   } else {
     titulo.textContent = '➕ Nova Conta';
     editId.value = '';
   }
+
+  // Init cor-picker
+  document.querySelectorAll('.conta-cor-pill').forEach(pill => {
+    pill.onclick = () => {
+      document.querySelectorAll('.conta-cor-pill').forEach(p => p.classList.remove('selected'));
+      pill.classList.add('selected');
+      contaCorSelecionada = pill.dataset.cor;
+    };
+  });
 
   modal.classList.add('open');
 
@@ -374,22 +415,22 @@ async function salvarConta() {
 
   try {
     const ref = collection(db, 'usuarios', currentUser.uid, 'carteira');
+    const corValue = contaCorSelecionada === 'sem_cor' ? null : contaCorSelecionada;
     if (editId) {
       // Atualizar conta existente — saldo digitado vira ultimaConfirmacao manual
       const hojeISO = new Date().toISOString().slice(0, 10);
-      await updateDoc(doc(db, 'usuarios', currentUser.uid, 'carteira', editId), {
+      const updateData = {
         nome, tipo,
-        ultimaConfirmacao: {
-          data: hojeISO,
-          saldo,
-          origem: 'manual',
-        },
+        ultimaConfirmacao: { data: hojeISO, saldo, origem: 'manual' },
         atualizadaEm: serverTimestamp(),
-      });
+      };
+      if (corValue !== undefined) updateData.cor = corValue;
+      await updateDoc(doc(db, 'usuarios', currentUser.uid, 'carteira', editId), updateData);
     } else {
       await addDoc(ref, {
         nome, tipo,
         saldoInicial: saldo,
+        cor: corValue,
         criadaEm: serverTimestamp(),
         atualizadaEm: serverTimestamp(),
       });
@@ -451,6 +492,22 @@ function abrirModalImport(contaId) {
   globalTipo = 'auto';
   globalCat = '';
   dedupIds.clear();
+
+  // Pré-carregar fitIds existentes para detectar duplicatas
+  (async () => {
+    try {
+      const txSnap = await getDocs(
+        query(collection(db, 'usuarios', currentUser.uid, 'transacoes'),
+          where('carteiraId', '==', contaId),
+          where('origem', '==', 'importacao')
+        )
+      );
+      txSnap.forEach(d => {
+        const fitId = d.data().fitId;
+        if (fitId) dedupIds.add(fitId);
+      });
+    } catch (_) { /* sem índice, dedupIds fica vazio — tudo bem */ }
+  })();
 
   // Reset UI
   resetImportModal();
@@ -944,17 +1001,64 @@ function normDesc(desc) {
   return desc.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().substring(0, 30);
 }
 
-// ── buildCatOptions ───────────────────────────────────────
-function buildCatOptions(selected) {
+// ── Custom row-category dropdown ──────────────────────────
+function buildCatOptions(selected) { return ''; } // compat stub
+
+function getCatDisplay(catNome) {
+  if (!catNome) return '＋ Categoria';
   const p = window.BUD_CATEGORIAS_PADRAO || { despesa: [], receita: [] };
   const all = [...(p.despesa || []), ...(p.receita || [])];
-  let html = '<option value="">-- Categoria --</option>';
-  all.forEach(function(c) {
-    const sel = c.nome === selected ? ' selected' : '';
-    html += '<option value="' + escapeHtml(c.nome) + '"' + sel + '>' + (c.emoji || '') + ' ' + escapeHtml(c.nome) + '</option>';
-  });
-  return html;
+  const found = all.find(c => c.nome === catNome);
+  return found ? (found.emoji ? found.emoji + ' ' + escapeHtml(catNome) : escapeHtml(catNome)) : escapeHtml(catNome);
 }
+
+function closeRowCatDd() {
+  const dd = document.getElementById('rowCatSharedDd');
+  if (dd) { dd.innerHTML = ''; dd.style.display = 'none'; }
+  if (_rowCatDdBtn) { _rowCatDdBtn.classList.remove('open'); _rowCatDdBtn = null; }
+  _rowCatDdTargetIdx = null;
+}
+
+window.toggleRowCatDd = function(idx, btn) {
+  if (_rowCatDdTargetIdx === idx) { closeRowCatDd(); return; }
+  closeRowCatDd();
+  _rowCatDdTargetIdx = idx;
+  _rowCatDdBtn = btn;
+  btn.classList.add('open');
+
+  const p = window.BUD_CATEGORIAS_PADRAO || { despesa: [], receita: [] };
+  const all = [...(p.despesa || []), ...(p.receita || [])];
+  const currentCat = parsedRows[idx] ? parsedRows[idx].categoria : '';
+
+  let html = '<div class="row-cat-option" onclick="selectRowCat(' + idx + ', \'\')">＋ Categoria</div>';
+  all.forEach(function(c) {
+    const active = c.nome === currentCat ? ' active' : '';
+    html += '<div class="row-cat-option' + active + '" onclick="selectRowCat(' + idx + ', \'' + escapeHtml(c.nome).replace(/'/g, '\\\'') + '\')">' + (c.emoji ? c.emoji + ' ' : '') + escapeHtml(c.nome) + '</div>';
+  });
+
+  const dd = document.getElementById('rowCatSharedDd');
+  dd.innerHTML = html;
+  dd.style.display = 'block';
+  const rect = btn.getBoundingClientRect();
+  dd.style.top = (rect.bottom + 4) + 'px';
+  dd.style.left = rect.left + 'px';
+};
+
+window.selectRowCat = function(idx, val) {
+  if (parsedRows[idx]) parsedRows[idx].categoria = val || null;
+  const btn = document.getElementById('rowcatbtn-' + idx);
+  if (btn) btn.innerHTML = getCatDisplay(val || null);
+  closeRowCatDd();
+};
+
+document.addEventListener('click', function(e) {
+  if (_rowCatDdTargetIdx === null) return;
+  const dd = document.getElementById('rowCatSharedDd');
+  if (!dd) return;
+  if (!dd.contains(e.target) && !e.target.classList.contains('row-cat-btn')) {
+    closeRowCatDd();
+  }
+});
 
 // ── Render Preview ────────────────────────────────────────
 function renderPreview() {
@@ -983,7 +1087,7 @@ function renderPreview() {
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(r.descricao)}">${escapeHtml(r.descricao)}${dupBadge}</td>
       <td><button class="tipo-pill ${tipoClass}" onclick="toggleRowTipo(${globalIdx})">${tipoLabel}</button></td>
       <td style="text-align:right;font-weight:700;white-space:nowrap;color:${r.tipo === 'receita' ? '#16a34a' : '#dc2626'};">${fmtBRL(r.valor)}</td>
-      <td><select onchange="setRowCategoria(${globalIdx}, this.value)">${buildCatOptions(r.categoria)}</select></td>
+      <td><button class="row-cat-btn" id="rowcatbtn-${globalIdx}" onclick="toggleRowCatDd(${globalIdx}, this)">${getCatDisplay(r.categoria)}</button></td>
     </tr>`;
   }).join('');
 

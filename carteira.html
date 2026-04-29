@@ -187,9 +187,21 @@
     .import-preview-table td{padding:0.5rem 0.625rem;border-bottom:1px solid var(--input-border);color:var(--card-text);vertical-align:middle;}
     .import-preview-table tr:hover td{background:rgba(0,0,0,0.02);}
     .import-preview-table tr.skipped td{opacity:0.4;}
-    .import-preview-table select{-webkit-appearance:none;appearance:none;border:1.5px solid var(--input-border);border-radius:0.625rem;padding:0.3rem 2rem 0.3rem 0.625rem;font-size:0.75rem;font-weight:600;background:var(--input-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 0.5rem center;color:var(--card-text);font-family:inherit;width:175px;cursor:pointer;outline:none;transition:border-color .2s,box-shadow .2s;}
-    .import-preview-table select:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.12);}
-    .import-preview-table select option{background:var(--card-bg);color:var(--card-text);font-size:0.8125rem;font-weight:500;padding:0.5rem;}
+    /* ── Custom dropdown por linha (categoria) ─────────────── */
+    .row-cat-btn{-webkit-appearance:none;appearance:none;border:1.5px solid var(--input-border);border-radius:0.625rem;padding:0.3rem 2rem 0.3rem 0.625rem;font-size:0.75rem;font-weight:600;background:var(--input-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 0.5rem center;color:var(--card-text);font-family:inherit;width:175px;cursor:pointer;outline:none;transition:border-color .2s,box-shadow .2s;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;}
+    .row-cat-btn:focus,.row-cat-btn.open{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.12);}
+    #rowCatSharedDd{position:fixed;z-index:99999;background:var(--card-bg);border:1.5px solid var(--card-border);border-radius:0.875rem;box-shadow:0 8px 32px rgba(0,0,0,0.14);max-height:280px;overflow-y:auto;display:none;backdrop-filter:blur(12px);}
+    #rowCatSharedDd.open{display:block;}
+    #rowCatSharedDd::-webkit-scrollbar{width:4px;}
+    #rowCatSharedDd::-webkit-scrollbar-thumb{background:var(--input-border);border-radius:4px;}
+    .row-cat-option{padding:0.45rem 0.875rem;font-size:0.8125rem;font-weight:500;cursor:pointer;color:var(--card-text);transition:background .1s;white-space:nowrap;}
+    .row-cat-option:hover{background:rgba(59,130,246,0.07);}
+    .row-cat-option.selected{background:#eff6ff;color:#2563eb;font-weight:700;}
+    /* ── Cor-picker (contas) ─────────────────────────────────── */
+    .conta-cor-picker{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.25rem;}
+    .conta-cor-pill{width:1.75rem;height:1.75rem;border-radius:50%;border:2.5px solid transparent;cursor:pointer;transition:transform .15s,border-color .15s;outline:none;}
+    .conta-cor-pill:hover{transform:scale(1.15);}
+    .conta-cor-pill.selected{border-color:var(--input-focus);transform:scale(1.18);box-shadow:0 0 0 2px rgba(59,130,246,0.25);}
     .tipo-pill{display:inline-flex;align-items:center;gap:0.25rem;padding:0.2rem 0.5rem;border-radius:999px;font-size:0.6875rem;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:all .15s;}
     .tipo-pill-receita{background:#dcfce7;color:#16a34a;}
     .tipo-pill-despesa{background:#fee2e2;color:#dc2626;}
@@ -427,6 +439,24 @@
         <input type="text" id="contaSaldoInicial" class="modal-input" placeholder="R$ 0,00">
       </div>
 
+      <!-- Cor da Conta -->
+      <div class="modal-field">
+        <label class="modal-label">Cor de Identificação</label>
+        <div class="conta-cor-picker" id="contaCorPicker">
+          <button type="button" class="conta-cor-pill" data-cor="sem_cor" style="background:var(--input-bg);border-color:var(--input-border);" title="Sem cor">✕</button>
+          <button type="button" class="conta-cor-pill" data-cor="roxo"    style="background:linear-gradient(135deg,#7c3aed,#4c1d95);" title="Roxo"></button>
+          <button type="button" class="conta-cor-pill" data-cor="azul"    style="background:linear-gradient(135deg,#2563eb,#1e3a8a);" title="Azul"></button>
+          <button type="button" class="conta-cor-pill" data-cor="teal"    style="background:linear-gradient(135deg,#0d9488,#134e4a);" title="Teal"></button>
+          <button type="button" class="conta-cor-pill" data-cor="verde"   style="background:linear-gradient(135deg,#16a34a,#14532d);" title="Verde"></button>
+          <button type="button" class="conta-cor-pill" data-cor="laranja" style="background:linear-gradient(135deg,#f97316,#c2410c);" title="Laranja"></button>
+          <button type="button" class="conta-cor-pill" data-cor="vermelho"style="background:linear-gradient(135deg,#ef4444,#991b1b);" title="Vermelho"></button>
+          <button type="button" class="conta-cor-pill" data-cor="rosa"    style="background:linear-gradient(135deg,#ec4899,#9d174d);" title="Rosa"></button>
+          <button type="button" class="conta-cor-pill" data-cor="amarelo" style="background:linear-gradient(135deg,#d97706,#78350f);" title="Amarelo"></button>
+          <button type="button" class="conta-cor-pill" data-cor="cyan"    style="background:linear-gradient(135deg,#0891b2,#164e63);" title="Cyan"></button>
+          <button type="button" class="conta-cor-pill" data-cor="preto"   style="background:linear-gradient(135deg,#374151,#111827);" title="Preto"></button>
+        </div>
+      </div>
+
       <button class="modal-submit" id="btnSalvarConta">Salvar Conta</button>
       <button class="modal-cancel" id="btnCancelarConta">Cancelar</button>
     </div>
@@ -571,6 +601,9 @@
       </div>
     </div>
   </div>
+
+  <!-- ═ Shared row-category dropdown ════════════════════════ -->
+  <div id="rowCatSharedDd"></div>
 
   <!-- ═ Scripts ════════════════════════════════════════════ -->
   <script src="js/bud-utils.js"></script>
