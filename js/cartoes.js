@@ -58,6 +58,7 @@ let cartaoParaExcluir = null;
 let gastoParaExcluir  = null;
 let gastoParaStatus   = null;  // { id, desc } ao abrir modal status
 let cartaoParaPagar   = null;
+let contaParaPagarId  = null;  // conta selecionada no modal Pagar Fatura (null = só marcar)
 let cartaoImportIA    = null;  // id ao abrir modal import IA
 let itensIAExtraidos  = [];    // transações extraídas pela IA
 
@@ -285,8 +286,16 @@ function calcularStatusFatura(cartao, mesKey, temGastos) {
     const diaVenc = cartao.vencimento || 10;
     const diaFech = cartao.fechamento || 1;
     if (diaHoje >= diaVenc) return { label: 'Vencida', cor: '#ef4444', bg: 'rgba(239,68,68,0.12)' };
-    if (diaHoje >= diaFech) return { label: 'Fechada', cor: '#f59e0b', bg: 'rgba(245,158,11,0.12)' };
-    return { label: 'Aberta', cor: '#3b82f6', bg: 'rgba(59,130,246,0.12)' };
+    if (diaHoje >= diaFech) {
+      // Fatura fechada: mostrar countdown até vencimento
+      const diasVenc = diaVenc - diaHoje;
+      const labelVenc = diasVenc === 0 ? 'Vence hoje' : diasVenc <= 3 ? `Vence em ${diasVenc}d` : 'Fechada';
+      return { label: labelVenc, cor: '#f59e0b', bg: 'rgba(245,158,11,0.12)' };
+    }
+    // Fatura aberta: mostrar countdown até fechamento
+    const diasFech = diaFech - diaHoje;
+    const labelFech = diasFech === 0 ? 'Fecha hoje' : diasFech <= 5 ? `Fecha em ${diasFech}d` : 'Aberta';
+    return { label: labelFech, cor: '#3b82f6', bg: 'rgba(59,130,246,0.12)' };
   }
 
   // Mês futuro
@@ -444,11 +453,11 @@ function buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey) 
       <!-- Barra de limite -->
       <div class="limite-wrap">
         <div class="limite-bar-bg">
-          <div class="limite-bar-fill" style="width:${dispPct.toFixed(1)}%;background:${barCor};"></div>
+          <div class="limite-bar-fill" style="width:${(100 - dispPct).toFixed(1)}%;background:${barCor};"></div>
         </div>
         <div class="limite-labels">
-          <span class="limite-label">${formatBRL(limiteDisp)} disponível</span>
-          <span class="limite-label">${dispPct.toFixed(0)}%</span>
+          <span class="limite-label">${formatBRL(fatura)} usado de ${formatBRL(limite)}</span>
+          <span class="limite-label" style="color:${barCor};font-weight:700;">${(100 - dispPct).toFixed(0)}%</span>
         </div>
       </div>
 
@@ -659,6 +668,56 @@ function setupFormCartao() {
   // Máscara BRL no limite
   document.getElementById('inputLimite')?.addEventListener('input', (e) => {
     e.target.value = maskBRL(e.target.value);
+  });
+
+  // Auto-detect bandeira e cor pelo nome (PEND-016)
+  const AUTO_BANCOS = [
+    { match: /nubank|nu\s/i,              bandeira: 'mastercard', cor: 'roxo',     label: 'Mastercard' },
+    { match: /ita[uú]|iti\b/i,            bandeira: 'mastercard', cor: 'laranja',  label: 'Mastercard' },
+    { match: /bradesco/i,                 bandeira: 'mastercard', cor: 'vermelho', label: 'Mastercard' },
+    { match: /santander/i,               bandeira: 'mastercard', cor: 'vermelho', label: 'Mastercard' },
+    { match: /banco do brasil|cartao bb/i,bandeira: 'visa',       cor: 'amarelo',  label: 'Visa' },
+    { match: /caixa|cef\b/i,              bandeira: 'visa',       cor: 'azul',     label: 'Visa' },
+    { match: /inter\b|banco inter/i,      bandeira: 'mastercard', cor: 'laranja',  label: 'Mastercard' },
+    { match: /xp\b|xp invest/i,           bandeira: 'visa',       cor: 'preto',    label: 'Visa' },
+    { match: /c6\b|c6 bank/i,             bandeira: 'mastercard', cor: 'preto',    label: 'Mastercard' },
+    { match: /sicoob|sicredi/i,           bandeira: 'visa',       cor: 'verde',    label: 'Visa' },
+    { match: /elo\b/i,                    bandeira: 'elo',        cor: null,       label: 'Elo' },
+    { match: /amex|american express/i,    bandeira: 'amex',       cor: 'azul',     label: 'American Express' },
+    { match: /hiper(card)?/i,             bandeira: 'hipercard',  cor: 'vermelho', label: 'Hipercard' },
+  ];
+
+  document.getElementById('inputNomeCartao')?.addEventListener('input', (e) => {
+    // Só auto-preenche se estiver criando (não editando)
+    if (cartaoEditandoId) return;
+    const nome = e.target.value.trim();
+    if (!nome) return;
+
+    const match = AUTO_BANCOS.find(b => b.match.test(nome));
+    if (!match) return;
+
+    // Auto-setar bandeira se ainda não selecionada
+    const bandAtual = document.getElementById('hiddenBandeira').value;
+    if (!bandAtual) {
+      const bandLabels = { visa:'Visa', mastercard:'Mastercard', elo:'Elo', amex:'American Express', hipercard:'Hipercard', outro:'Outro' };
+      setSelectValue('triggerBandeiraText', 'hiddenBandeira', match.bandeira, bandLabels[match.bandeira] || match.label);
+      document.querySelectorAll('#dropdownBandeira .custom-select-option').forEach(o => {
+        o.classList.toggle('selected', o.dataset.value === match.bandeira);
+      });
+    }
+
+    // Auto-setar cor se ainda não selecionada (mantém "roxo" se nenhuma foi clicada)
+    if (match.cor) {
+      const corAtual = document.getElementById('hiddenCor').value;
+      // "roxo" é o default — só sobrescreve se for o default (não clicado pelo user)
+      const isDefault = !corAtual || corAtual === 'roxo';
+      if (isDefault) {
+        document.getElementById('hiddenCor').value = match.cor;
+        document.querySelectorAll('.cor-pill').forEach(p => {
+          p.classList.toggle('selected', p.dataset.cor === match.cor);
+        });
+      }
+    }
   });
 }
 
@@ -909,6 +968,7 @@ async function handleSubmitGasto(e) {
 function abrirModalPagarFatura(cartaoId, fatura) {
   const c = cartoesGlobal.find(x => x.id === cartaoId);
   cartaoParaPagar = { cartaoId, fatura };
+  contaParaPagarId = null;
   const mesKey = getMesKey();
   const isPago = c?.faturasPagas?.[mesKey];
 
@@ -916,6 +976,7 @@ function abrirModalPagarFatura(cartaoId, fatura) {
   const sub   = document.getElementById('subPagarFatura');
   const info  = document.getElementById('infoPagarFatura');
   const btn   = document.getElementById('btnConfirmarPagarFatura');
+  const wrapConta = document.getElementById('wrapContaFatura');
 
   if (isPago) {
     title.textContent = 'Desfazer pagamento?';
@@ -926,28 +987,94 @@ function abrirModalPagarFatura(cartaoId, fatura) {
     info.style.borderColor = 'rgba(217,119,6,0.2)';
     btn.textContent   = '↩ Desfazer';
     btn.style.background = '#f59e0b';
-  } else {
-    title.textContent = 'Marcar Fatura como Paga?';
-    sub.textContent   = 'Esta ação apenas marca a fatura como paga. Lembre-se de registrar o débito na sua conta manualmente.';
-    info.textContent  = `Fatura de ${MESES_PT[mesVisualizando]}: ${formatBRL(fatura)}`;
-    info.style.color  = '#059669';
-    info.style.background = 'rgba(16,185,129,0.08)';
-    info.style.borderColor = 'rgba(16,185,129,0.2)';
-    btn.textContent   = '✓ Confirmar';
-    btn.style.background = '#10b981';
+    if (wrapConta) wrapConta.style.display = 'none';
+    document.getElementById('modalPagarFatura').classList.add('open');
+    return;
   }
 
+  // Modo: pagar fatura
+  title.textContent = 'Pagar Fatura';
+  info.textContent  = `Fatura de ${MESES_PT[mesVisualizando]}: ${formatBRL(fatura)}`;
+  info.style.color  = '#059669';
+  info.style.background = 'rgba(16,185,129,0.08)';
+  info.style.borderColor = 'rgba(16,185,129,0.2)';
+  btn.textContent   = '✓ Confirmar Pagamento';
+  btn.style.background = '#10b981';
+
   document.getElementById('modalPagarFatura').classList.add('open');
+
+  if (!wrapConta || fatura <= 0) {
+    if (wrapConta) wrapConta.style.display = 'none';
+    sub.textContent = fatura <= 0
+      ? 'A fatura está em zero. Você pode marcá-la como paga mesmo assim.'
+      : 'Esta ação marcará a fatura como paga.';
+    return;
+  }
+
+  // Carregar contas de débito assincronamente
+  wrapConta.style.display = 'none';
+  sub.textContent = 'Carregando contas...';
+  btn.disabled = true;
+
+  getDocs(query(
+    collection(db, 'usuarios', uid, 'carteira'),
+    where('tipo', '!=', 'credito'),
+    limit(50)
+  )).then(snap => {
+    const contas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    btn.disabled = false;
+
+    if (contas.length === 0) {
+      sub.textContent = 'Nenhuma conta de débito cadastrada. Fatura será apenas marcada como paga. Adicione contas em Carteira para registrar o débito automaticamente.';
+      wrapConta.style.display = 'none';
+      return;
+    }
+
+    sub.textContent = 'Selecione de qual conta deseja pagar a fatura.';
+    const sel = document.getElementById('selectContaFatura');
+    const TIPO_ICONS = { dinheiro:'💵', debito:'🏦', vale_refeicao:'🍽️', vale_alimentacao:'🛒', transporte:'🚌' };
+
+    sel.innerHTML = contas.map(conta => {
+      const icon = TIPO_ICONS[conta.tipo] || '🏦';
+      const id   = escHtml(conta.id);
+      return `<label style="display:flex;align-items:center;gap:0.625rem;padding:0.625rem;border-radius:0.625rem;cursor:pointer;border:1.5px solid var(--glass-border);background:var(--glass-bg);transition:border-color .15s;">
+        <input type="radio" name="contaPagamento" value="${id}" style="accent-color:var(--primary);flex-shrink:0;">
+        <span>${icon}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:0.8125rem;font-weight:600;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(conta.nome || conta.tipo)}</div>
+          <div style="font-size:0.75rem;color:var(--card-text-sec);">Saldo: ${formatBRL(conta.saldo || 0)}</div>
+        </div>
+      </label>`;
+    }).join('') + `<label style="display:flex;align-items:center;gap:0.625rem;padding:0.625rem;border-radius:0.625rem;cursor:pointer;border:1.5px solid var(--glass-border);background:var(--glass-bg);">
+      <input type="radio" name="contaPagamento" value="" style="accent-color:var(--primary);flex-shrink:0;">
+      <span>📋</span>
+      <div style="flex:1;">
+        <div style="font-size:0.8125rem;font-weight:600;color:var(--card-text);">Apenas marcar como paga</div>
+        <div style="font-size:0.75rem;color:var(--card-text-sec);">Não descontar de nenhuma conta</div>
+      </div>
+    </label>`;
+
+    sel.querySelectorAll('input[name="contaPagamento"]').forEach(r => {
+      r.addEventListener('change', (e) => { contaParaPagarId = e.target.value || null; });
+    });
+
+    wrapConta.style.display = '';
+  }).catch(() => {
+    btn.disabled = false;
+    sub.textContent = 'Esta ação marcará a fatura como paga.';
+    wrapConta.style.display = 'none';
+  });
 }
 
 function fecharModalPagarFatura() {
   document.getElementById('modalPagarFatura').classList.remove('open');
   cartaoParaPagar = null;
+  contaParaPagarId = null;
 }
 
 async function confirmarPagarFatura() {
   if (!cartaoParaPagar) return;
-  const { cartaoId } = cartaoParaPagar;
+  const { cartaoId, fatura } = cartaoParaPagar;
   const mesKey = getMesKey();
   const c = cartoesGlobal.find(x => x.id === cartaoId);
   const isPago = c?.faturasPagas?.[mesKey];
@@ -956,15 +1083,66 @@ async function confirmarPagarFatura() {
   btn.disabled = true;
 
   try {
-    const ref = doc(db, 'usuarios', uid, 'carteira', cartaoId);
+    const cartaoRef = doc(db, 'usuarios', uid, 'carteira', cartaoId);
     const novasFaturas = { ...(c.faturasPagas || {}) };
+    const batch = writeBatch(db);
+
     if (isPago) {
+      // ── Desfazer pagamento ──────────────────────────────────────────
+      const pagInfo = typeof isPago === 'object' && isPago !== null ? isPago : null;
+      if (pagInfo?.txId) {
+        // Deletar transação de pagamento criada anteriormente
+        batch.delete(doc(db, 'usuarios', uid, 'transacoes', pagInfo.txId));
+        // Restaurar saldo da conta debitada
+        if (pagInfo.carteiraId) {
+          const contaSnap = await getDoc(doc(db, 'usuarios', uid, 'carteira', pagInfo.carteiraId));
+          if (contaSnap.exists()) {
+            batch.update(contaSnap.ref, { saldo: (contaSnap.data().saldo || 0) + pagInfo.valor });
+          }
+        }
+      }
       delete novasFaturas[mesKey];
+      batch.update(cartaoRef, { faturasPagas: novasFaturas });
+      await batch.commit();
+      showToast('Pagamento desfeito.', 'ok');
     } else {
-      novasFaturas[mesKey] = true;
+      // ── Confirmar pagamento ─────────────────────────────────────────
+      if (contaParaPagarId && fatura > 0) {
+        // Criar transação de pagamento de fatura
+        const txRef = doc(collection(db, 'usuarios', uid, 'transacoes'));
+        const hoje = new Date();
+        const dataRef = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+        batch.set(txRef, {
+          tipo: 'despesa',
+          descricao: `Pagamento fatura ${c.nome || 'Cartão'} — ${MESES_PT[mesVisualizando]} ${anoVisualizando}`,
+          categoria: 'Cartão de Crédito',
+          valor: fatura,
+          dataReferencia: dataRef,
+          carteiraId: contaParaPagarId,
+          pagamentoFatura: true,
+          origem: 'pagamento_fatura',
+          status: 'ativa',
+          dataCriacao: serverTimestamp(),
+        });
+        // Decrementar saldo da conta
+        const contaSnap = await getDoc(doc(db, 'usuarios', uid, 'carteira', contaParaPagarId));
+        if (contaSnap.exists()) {
+          batch.update(contaSnap.ref, { saldo: (contaSnap.data().saldo || 0) - fatura });
+        }
+        // Guardar txId para poder desfazer depois
+        novasFaturas[mesKey] = { txId: txRef.id, carteiraId: contaParaPagarId, valor: fatura };
+      } else {
+        // Apenas marcar como paga sem débito
+        novasFaturas[mesKey] = true;
+      }
+      batch.update(cartaoRef, { faturasPagas: novasFaturas });
+      await batch.commit();
+      showToast(
+        contaParaPagarId && fatura > 0 ? 'Fatura paga e débito registrado!' : 'Fatura marcada como paga!',
+        'ok'
+      );
     }
-    await updateDoc(ref, { faturasPagas: novasFaturas });
-    showToast(isPago ? 'Pagamento desfeito.' : 'Fatura marcada como paga!', 'ok');
+
     fecharModalPagarFatura();
   } catch {
     showToast('Erro ao atualizar fatura.', 'erro');
@@ -1454,6 +1632,16 @@ async function enviarParaIA() {
 
 // ─── Pós-processador IA ───────────────────────────────────────────────────────
 
+// Helper: avança N meses numa data YYYY-MM-DD (respeita fim de mês)
+function _addMesesData(dateStr, n) {
+  const [ano, mes, dia] = dateStr.split('-').map(Number);
+  let novoMes = mes - 1 + n;
+  const novoAno = ano + Math.floor(novoMes / 12);
+  novoMes = ((novoMes % 12) + 12) % 12;
+  const maxDia = new Date(novoAno, novoMes + 1, 0).getDate();
+  return `${novoAno}-${String(novoMes + 1).padStart(2, '0')}-${String(Math.min(dia, maxDia)).padStart(2, '0')}`;
+}
+
 function processarItensIA(itens) {
   return itens.map((item) => {
     const desc = String(item.desc || item.descricao || item.description || '').trim();
@@ -1480,6 +1668,14 @@ function processarItensIA(itens) {
     if (!/ESTORNO|DEVOLUC|DEVOLUCAO|REEMBOLSO|CHARGEBACK/.test(descUpper)) {
       if (/CANCELAD|CANCELAMENTO/.test(descUpper)) {
         status = 'cancelado';
+      }
+    }
+
+    // Encargos bancários (multas, juros, IOF de atraso) — auto-deselecionados
+    // OBS: Renegociação NUNCA é encargo — é parcela de dívida real (faz parte das compras da fatura)
+    if (status === 'ativa') {
+      if (/\b(JUROS|MULTA|IOF)\s+DE\s+(ATRASO|MORA)|\bMULTA\s+DE\s+ATRASO\b|\bJUROS\s+DE\s+ATRASO\b|\bIOF\s+DE\s+ATRASO\b|SALDO\s+EM\s+ATRASO|JUROS\s+ROTATIVO|JUROS\s+DE\s+DIVIDA|JUROS\s+DE\s+PARCELAMENTO|ENCERRAMENTO\s+DE\s+DIVIDA|CREDITO\s+DE\s+ATRASO/.test(descUpper)) {
+        status = 'encargo';
       }
     }
 
@@ -1514,6 +1710,8 @@ function processarItensIA(itens) {
       parcelado,
       parcelaAtual,
       totalParcelas,
+      // Se parcelado E ainda há parcelas futuras, ativa "expandir" por padrão
+      expandirParcelas: parcelado && totalParcelas > parcelaAtual,
       selecionado: status === 'ativa',  // estornados/cancelados vêm desmarcados
     };
   }).filter(item => item.valor > 0 || item.status !== 'ativa'); // remove itens com valor 0 que não são especiais
@@ -1585,20 +1783,60 @@ function renderListaReviewIA() {
   const lista = document.getElementById('iaListaItens');
   if (!lista) return;
 
-  const CATS_IA = [...new Set([...CATEGORIAS_PADRAO, ...categoriasGlobal.map(c => c.nome || c.id).filter(Boolean)])];
+  const _catsPadrao = (window.BUD_CATEGORIAS_PADRAO && window.BUD_CATEGORIAS_PADRAO.despesa || []);
+  // Mapa categoria → emoji para visualização no select
+  const _catEmojiMap = {};
+  _catsPadrao.forEach(c => {
+    if (c && c.nome) _catEmojiMap[c.nome] = c.emoji || '';
+  });
+  const _nomesPadrao = _catsPadrao.map(c => c.nome || c).filter(Boolean);
+  const _nomesUser   = categoriasGlobal.map(c => c.nome || c.id).filter(Boolean);
+  const CATS_IA = [...new Set([..._nomesPadrao, ..._nomesUser])];
 
-  lista.innerHTML = itensIAExtraidos.map((item, i) => {
+  const qtdEncargos = itensIAExtraidos.filter(i => i.status === 'encargo').length;
+  const notaEncargosHTML = qtdEncargos > 0
+    ? `<div style="padding:0.5rem 0.75rem;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:0.5rem;font-size:0.75rem;color:var(--card-text-sec);margin-bottom:0.5rem;line-height:1.5;">⚠️ <b>${qtdEncargos}</b> encargo${qtdEncargos !== 1 ? 's' : ''} bancário${qtdEncargos !== 1 ? 's' : ''} (juros, multas, IOF) deselecionados automaticamente. Ative manualmente se necessário.</div>`
+    : '';
+
+  // Barra de ações em massa
+  const acoesHTML = `<div style="display:flex;gap:0.375rem;flex-wrap:wrap;margin-bottom:0.625rem;padding:0.5rem;background:var(--input-bg);border:1px solid var(--card-border);border-radius:0.625rem;">
+    <span style="font-size:0.75rem;font-weight:700;color:var(--card-text-sec);align-self:center;margin-right:0.25rem;">Seleção:</span>
+    <button type="button" onclick="window._iaSelAll(true)" style="padding:0.3125rem 0.625rem;border:1.5px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.6875rem;font-weight:700;cursor:pointer;font-family:inherit;">✓ Todos</button>
+    <button type="button" onclick="window._iaSelAll(false)" style="padding:0.3125rem 0.625rem;border:1.5px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.6875rem;font-weight:700;cursor:pointer;font-family:inherit;">✕ Nenhum</button>
+    <button type="button" onclick="window._iaSelCompras()" style="padding:0.3125rem 0.625rem;border:1.5px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.6875rem;font-weight:700;cursor:pointer;font-family:inherit;">🛒 Apenas compras</button>
+    <button type="button" onclick="window._iaSelInv()" style="padding:0.3125rem 0.625rem;border:1.5px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.6875rem;font-weight:700;cursor:pointer;font-family:inherit;">⇄ Inverter</button>
+  </div>`;
+
+  lista.innerHTML = acoesHTML + notaEncargosHTML + itensIAExtraidos.map((item, i) => {
     const isEstornado = item.status === 'estornado';
     const isCancelado = item.status === 'cancelado';
+    const isEncargo  = item.status === 'encargo';
 
     let badgesHTML = '';
     if (isEstornado) badgesHTML += `<span style="font-size:0.6875rem;font-weight:700;background:rgba(245,158,11,0.15);color:#d97706;border-radius:0.375rem;padding:0.125rem 0.375rem;">Estorno</span>`;
     if (isCancelado) badgesHTML += `<span style="font-size:0.6875rem;font-weight:700;background:rgba(239,68,68,0.13);color:#dc2626;border-radius:0.375rem;padding:0.125rem 0.375rem;">Cancelado</span>`;
+    if (isEncargo)   badgesHTML += `<span style="font-size:0.6875rem;font-weight:700;background:rgba(107,114,128,0.12);color:#6b7280;border-radius:0.375rem;padding:0.125rem 0.375rem;">Encargo</span>`;
     if (item.parcelado) badgesHTML += `<span style="font-size:0.6875rem;font-weight:700;background:rgba(59,130,246,0.13);color:#2563eb;border-radius:0.375rem;padding:0.125rem 0.375rem;">${item.parcelaAtual}/${item.totalParcelas}x</span>`;
 
-    const opcoesCategoria = CATS_IA.map(cat =>
-      `<option value="${escHtml(cat)}" ${cat === item.categoria ? 'selected' : ''}>${escHtml(cat)}</option>`
-    ).join('');
+    // Toggle expandir parcelas restantes (só quando há parcelas futuras)
+    const expandirHTML = item.parcelado && item.totalParcelas > item.parcelaAtual
+      ? `<label style="display:flex;align-items:center;gap:0.375rem;margin-top:0.375rem;cursor:pointer;font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">
+          <input type="checkbox" id="iaExpandir_${i}" ${item.expandirParcelas ? 'checked' : ''} style="accent-color:var(--btn-bg);width:0.875rem;height:0.875rem;" onchange="window._iaExpandirChange(${i}, this.checked)">
+          <span>📅 Criar ${item.totalParcelas - item.parcelaAtual} parcela${item.totalParcelas - item.parcelaAtual !== 1 ? 's' : ''} restante${item.totalParcelas - item.parcelaAtual !== 1 ? 's' : ''} (${item.parcelaAtual + 1}/${item.totalParcelas} até ${item.totalParcelas}/${item.totalParcelas})</span>
+         </label>`
+      : '';
+
+    const opcoesCategoria = CATS_IA.map(cat => {
+      const emj = _catEmojiMap[cat] || '';
+      const label = emj ? `${emj} ${cat}` : cat;
+      const sel = cat === item.categoria ? ' selected' : '';
+      return `<div class="custom-select-option${sel}" role="option" data-value="${escHtml(cat)}">${escHtml(label)}</div>`;
+    }).join('');
+
+    const triggerLabel = (() => {
+      const emj = _catEmojiMap[item.categoria] || '';
+      return emj ? `${emj} ${item.categoria}` : item.categoria;
+    })();
 
     return `
       <div style="display:flex;gap:0.625rem;align-items:flex-start;padding:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);border-radius:0.875rem;opacity:${item.selecionado ? '1' : '0.55'};" id="ia-item-${i}">
@@ -1609,11 +1847,18 @@ function renderListaReviewIA() {
           </div>
           <input type="text" value="${escHtml(item.desc)}" maxlength="100" style="width:100%;padding:0.375rem 0.5rem;border:1.5px solid var(--input-border);border-radius:0.5rem;font-size:0.8125rem;font-weight:600;color:var(--card-text);background:var(--input-bg);font-family:inherit;outline:none;margin-bottom:0.375rem;" oninput="window._iaDescChange(${i}, this.value)" onfocus="this.style.borderColor='var(--input-focus)'" onblur="this.style.borderColor='var(--input-border)'">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.375rem;">
-            <select style="padding:0.375rem 0.5rem;border:1.5px solid var(--input-border);border-radius:0.5rem;font-size:0.75rem;font-weight:600;color:var(--card-text);background:var(--input-bg);font-family:inherit;outline:none;cursor:pointer;" onchange="window._iaCatChange(${i}, this.value)" onfocus="this.style.borderColor='var(--input-focus)'" onblur="this.style.borderColor='var(--input-border)'">
-              ${opcoesCategoria}
-            </select>
+            <div class="custom-select-wrap" data-ia-cat="${i}">
+              <button type="button" class="custom-select-trigger ia-cat-trigger" style="padding:0.4375rem 1.75rem 0.4375rem 0.625rem;font-size:0.75rem;border-radius:0.5rem;" onclick="window._iaToggleCatDropdown(${i}, event)">
+                <span class="ia-cat-label" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(triggerLabel)}</span>
+                <span class="custom-select-arrow">▼</span>
+              </button>
+              <div class="custom-select-dropdown" id="iaCatDrop_${i}" role="listbox" style="font-size:0.75rem;" onclick="window._iaPickCat(${i}, event)">
+                ${opcoesCategoria}
+              </div>
+            </div>
             <input type="text" value="${formatBRL(item.valor)}" style="padding:0.375rem 0.5rem;border:1.5px solid var(--input-border);border-radius:0.5rem;font-size:0.75rem;font-weight:700;color:var(--card-text);background:var(--input-bg);font-family:inherit;outline:none;text-align:right;" oninput="window._iaValorChange(${i}, this.value)" onfocus="this.style.borderColor='var(--input-focus)'" onblur="this.style.borderColor='var(--input-border)'">
           </div>
+          ${expandirHTML}
         </div>
       </div>
     `;
@@ -1633,6 +1878,63 @@ function renderListaReviewIA() {
     if (v > 0) itensIAExtraidos[i].valor = v;
     atualizarResumoReviewIA();
   };
+  // Custom select de categoria (sem <select> nativo)
+  window._iaToggleCatDropdown = (i, ev) => {
+    ev.stopPropagation();
+    const drop = document.getElementById(`iaCatDrop_${i}`);
+    if (!drop) return;
+    const trig = drop.previousElementSibling;
+    const wasOpen = drop.classList.contains('open');
+    // fechar todos os outros
+    document.querySelectorAll('.custom-select-dropdown.open').forEach(d => d.classList.remove('open'));
+    document.querySelectorAll('.custom-select-trigger.open').forEach(t => t.classList.remove('open'));
+    if (!wasOpen) {
+      drop.classList.add('open');
+      trig?.classList.add('open');
+    }
+  };
+  window._iaPickCat = (i, ev) => {
+    const opt = ev.target.closest('.custom-select-option');
+    if (!opt) return;
+    const val = opt.dataset.value;
+    itensIAExtraidos[i].categoria = val;
+    // atualizar label sem re-render completo
+    const wrap = document.querySelector(`[data-ia-cat="${i}"]`);
+    if (wrap) {
+      const lbl = wrap.querySelector('.ia-cat-label');
+      if (lbl) lbl.textContent = opt.textContent;
+      wrap.querySelectorAll('.custom-select-option').forEach(o => o.classList.toggle('selected', o === opt));
+    }
+    document.querySelectorAll('.custom-select-dropdown.open').forEach(d => d.classList.remove('open'));
+    document.querySelectorAll('.custom-select-trigger.open').forEach(t => t.classList.remove('open'));
+  };
+  // Fechar dropdowns IA ao clicar fora (registrado uma única vez)
+  if (!window._iaOutsideClickRegistered) {
+    window._iaOutsideClickRegistered = true;
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('[data-ia-cat]')) {
+        document.querySelectorAll('[data-ia-cat] .custom-select-dropdown.open').forEach(d => d.classList.remove('open'));
+        document.querySelectorAll('[data-ia-cat] .custom-select-trigger.open').forEach(t => t.classList.remove('open'));
+      }
+    });
+  }
+  window._iaExpandirChange = (i, checked) => {
+    itensIAExtraidos[i].expandirParcelas = checked;
+    atualizarResumoReviewIA();
+  };
+  // Seleções em massa
+  window._iaSelAll = (val) => {
+    itensIAExtraidos.forEach(it => { it.selecionado = !!val; });
+    renderListaReviewIA();
+  };
+  window._iaSelCompras = () => {
+    itensIAExtraidos.forEach(it => { it.selecionado = (it.status === 'ativa'); });
+    renderListaReviewIA();
+  };
+  window._iaSelInv = () => {
+    itensIAExtraidos.forEach(it => { it.selecionado = !it.selecionado; });
+    renderListaReviewIA();
+  };
 
   atualizarResumoReviewIA();
 }
@@ -1640,12 +1942,20 @@ function renderListaReviewIA() {
 function atualizarResumoReviewIA() {
   const selecionados = itensIAExtraidos.filter(i => i.selecionado);
   const total = selecionados
-    .filter(i => i.status === 'ativa')
+    .filter(i => i.status !== 'estornado') // encargos selecionados manualmente também contam
     .reduce((s, i) => s + (i.valor || 0), 0);
+
+  // Contar transações totais incluindo parcelas expandidas
+  const totalTx = selecionados.reduce((s, i) => {
+    if (i.selecionado && i.expandirParcelas && i.totalParcelas > i.parcelaAtual) {
+      return s + 1 + (i.totalParcelas - i.parcelaAtual);
+    }
+    return s + 1;
+  }, 0);
 
   const countEl = document.getElementById('iaResumoCount');
   const totalEl = document.getElementById('iaResumoTotal');
-  if (countEl) countEl.textContent = `${selecionados.length} selecionado${selecionados.length !== 1 ? 's' : ''}`;
+  if (countEl) countEl.textContent = `${totalTx} transa${totalTx !== 1 ? 'ções' : 'ção'}`;
   if (totalEl) totalEl.textContent = `Total: ${formatBRL(total)}`;
 }
 
@@ -1670,34 +1980,54 @@ async function salvarTransacoesIA() {
     const CHUNK = 400;
     const colRef = collection(db, 'usuarios', uid, 'transacoes');
 
-    for (let ci = 0; ci < itensSelecionados.length; ci += CHUNK) {
-      const chunk = itensSelecionados.slice(ci, ci + CHUNK);
+    // Expandir itens com parcelamento inteligente (PEND-012)
+    const itensExpandidos = [];
+    for (const item of itensSelecionados) {
+      // Derivar dataReferencia base para este item
+      let dataBase = `${anoMes}-15`;
+      if (item.dataRaw) {
+        const m  = item.dataRaw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        const m2 = item.dataRaw.match(/^(\d{1,2})[\/\-](\d{1,2})/);
+        const m3 = item.dataRaw.match(/^(\d{1,2})$/);
+        if (m)       dataBase = item.dataRaw;
+        else if (m2) dataBase = `${anoMes}-${m2[1].padStart(2, '0')}`;
+        else if (m3) dataBase = `${anoMes}-${m3[1].padStart(2, '0')}`;
+      }
+
+      itensExpandidos.push({ ...item, dataReferencia: dataBase });
+
+      // Se parcelado e usuário ativou "expandir", gerar parcelas futuras
+      if (item.expandirParcelas && item.parcelado && item.parcelaAtual && item.totalParcelas && item.totalParcelas > item.parcelaAtual) {
+        for (let p = item.parcelaAtual + 1; p <= item.totalParcelas; p++) {
+          const offset = p - item.parcelaAtual;
+          const novaData = _addMesesData(dataBase, offset);
+          // Substituir "N/M" na descrição pela nova parcela
+          const novaDesc = item.desc
+            .replace(/\b\d{1,2}\s*\/\s*\d{1,2}\b/, `${p}/${item.totalParcelas}`)
+            .replace(/PARCELA\s+\d+\s+DE\s+\d+/i, `PARCELA ${p} DE ${item.totalParcelas}`);
+          itensExpandidos.push({
+            ...item,
+            desc: novaDesc,
+            dataReferencia: novaData,
+            parcelaAtual: p,
+            expandirParcelas: false, // evitar recursão acidental
+          });
+        }
+      }
+    }
+
+    for (let ci = 0; ci < itensExpandidos.length; ci += CHUNK) {
+      const chunk = itensExpandidos.slice(ci, ci + CHUNK);
       const batch = writeBatch(db);
 
       for (const item of chunk) {
-        // Derivar data: usar dataRaw se disponível, senão dia 15
-        let dataReferencia = `${anoMes}-15`;
-        if (item.dataRaw) {
-          // Tentar extrair dia de formatos como "15/03", "2026-03-15", "15 MAR", "15"
-          const m  = item.dataRaw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-          const m2 = item.dataRaw.match(/^(\d{1,2})[\/\-](\d{1,2})/);
-          const m3 = item.dataRaw.match(/^(\d{1,2})$/);
-          if (m) {
-            dataReferencia = item.dataRaw; // já está em YYYY-MM-DD
-          } else if (m2) {
-            dataReferencia = `${anoMes}-${m2[1].padStart(2, '0')}`;
-          } else if (m3) {
-            dataReferencia = `${anoMes}-${m3[1].padStart(2, '0')}`;
-          }
-        }
-
         const docData = {
           tipo: 'despesa',
           descricao: budSanitize(item.desc).substring(0, 100),
           valor: item.valor,
           categoria: item.categoria.replace(/\p{Emoji}/gu, '').trim() || 'Outros',
           cartaoId: cartaoImportIA,
-          dataReferencia,
+          dataReferencia: item.dataReferencia,
           formaPagamento: 'Crédito',
           pagamentoFatura: false,
           origem: 'importacao_ia',
@@ -1717,7 +2047,7 @@ async function salvarTransacoesIA() {
       await batch.commit();
     }
 
-    const salvos = itensSelecionados.length;
+    const salvos = itensExpandidos.length;
     showToast(`${salvos} transaç${salvos !== 1 ? 'ões importadas' : 'ão importada'} com sucesso!`, 'ok');
     fecharModalReviewIA();
     itensIAExtraidos = [];

@@ -358,6 +358,48 @@
       border:1px solid var(--card-border); border-radius:1.5rem;
       transition:background 0.35s ease,border-color 0.35s ease;
     }
+    .cartoes-empty-visual {
+      width:80px; height:52px; margin:0 auto 1.25rem; position:relative;
+    }
+    .cartoes-empty-visual .ev-card {
+      position:absolute; border-radius:0.625rem; box-shadow:0 4px 16px rgba(0,0,0,0.12);
+    }
+    .cartoes-empty-visual .ev-card-1 {
+      width:60px; height:38px; background:linear-gradient(135deg,#7c3aed,#4c1d95);
+      top:14px; left:0; transform:rotate(-8deg);
+    }
+    .cartoes-empty-visual .ev-card-2 {
+      width:60px; height:38px; background:linear-gradient(135deg,#2563eb,#1e3a8a);
+      top:14px; right:0; transform:rotate(8deg);
+    }
+    .cartoes-empty-visual .ev-card-3 {
+      width:62px; height:40px; background:linear-gradient(135deg,#0d9488,#134e4a);
+      bottom:0; left:50%; transform:translateX(-50%);
+    }
+
+    /* ── Skeleton loader ────────────────────────────────────────── */
+    @keyframes shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position:  400px 0; }
+    }
+    .skeleton-item {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 1.5rem;
+      padding: 1.25rem;
+      overflow: hidden;
+    }
+    .sk-line {
+      border-radius: 0.5rem;
+      background: linear-gradient(90deg, var(--input-border) 25%, rgba(255,255,255,0.06) 50%, var(--input-border) 75%);
+      background-size: 800px 100%;
+      animation: shimmer 1.4s infinite linear;
+    }
+    .sk-card { height: 120px; border-radius: 0.875rem; margin-bottom: 1rem; }
+    .sk-row { display: flex; gap: 0.75rem; margin-bottom: 0.625rem; }
+    .sk-bar-bg { height: 6px; border-radius: 3px; }
+    .sk-btn-row { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    .sk-btn { height: 36px; border-radius: 0.75rem; flex: 1; }
     .cartoes-empty-icon { font-size:3rem; margin-bottom:1rem; }
     .cartoes-empty-title { font-size:1.125rem; font-weight:700; color:var(--card-text); margin-bottom:0.5rem; transition:color 0.35s ease; }
     .cartoes-empty-sub { font-size:0.875rem; font-weight:500; color:var(--card-text-sec); transition:color 0.35s ease; }
@@ -673,16 +715,33 @@
 
       <!-- Estado vazio -->
       <div id="cartoesEmpty" class="cartoes-empty" style="display:none;">
-        <div class="cartoes-empty-icon">💳</div>
-        <div class="cartoes-empty-title">Nenhum cartão de crédito ainda</div>
-        <div class="cartoes-empty-sub">Adicione seu primeiro cartão para começar a controlar suas faturas.</div>
-        <button class="btn-primary" id="btnNovoCartaoEmpty" style="margin-top:1.25rem;">+ Adicionar Cartão</button>
+        <div class="cartoes-empty-visual">
+          <div class="ev-card ev-card-1"></div>
+          <div class="ev-card ev-card-2"></div>
+          <div class="ev-card ev-card-3"></div>
+        </div>
+        <div class="cartoes-empty-title">Nenhum cartão cadastrado</div>
+        <div class="cartoes-empty-sub" style="max-width:320px;margin:0.5rem auto 0;">Adicione seus cartões de crédito para controlar faturas, limites e gastos em um só lugar.</div>
+        <button class="btn-primary" id="btnNovoCartaoEmpty" style="margin-top:1.5rem;padding:0.75rem 2rem;font-size:0.9375rem;">💳 Adicionar meu primeiro Cartão</button>
+        <div style="margin-top:1rem;font-size:0.75rem;font-weight:500;color:var(--card-text-sec);opacity:0.7;">Suporta Visa, Mastercard, Elo, Amex e mais</div>
       </div>
 
-      <!-- Loading state -->
-      <div id="cartoesLoading" style="text-align:center;padding:3rem;color:var(--card-text-sec);">
-        <div style="font-size:1.5rem;margin-bottom:0.5rem;">⏳</div>
-        <div style="font-size:0.875rem;font-weight:600;">Carregando cartões...</div>
+      <!-- Skeleton loader -->
+      <div id="cartoesLoading">
+        <div class="cartoes-grid" style="display:grid;">
+          <div class="skeleton-item">
+            <div class="sk-line sk-card"></div>
+            <div class="sk-row"><div class="sk-line" style="flex:2;height:18px;"></div><div class="sk-line" style="flex:1;height:18px;"></div></div>
+            <div class="sk-line sk-bar-bg" style="width:100%;margin-bottom:0.5rem;"></div>
+            <div class="sk-btn-row"><div class="sk-line sk-btn"></div><div class="sk-line sk-btn"></div><div class="sk-line sk-btn" style="flex:2;"></div></div>
+          </div>
+          <div class="skeleton-item">
+            <div class="sk-line sk-card"></div>
+            <div class="sk-row"><div class="sk-line" style="flex:2;height:18px;"></div><div class="sk-line" style="flex:1;height:18px;"></div></div>
+            <div class="sk-line sk-bar-bg" style="width:100%;margin-bottom:0.5rem;"></div>
+            <div class="sk-btn-row"><div class="sk-line sk-btn"></div><div class="sk-line sk-btn"></div><div class="sk-line sk-btn" style="flex:2;"></div></div>
+          </div>
+        </div>
       </div>
 
     </main>
@@ -829,12 +888,17 @@
   <!-- ─── Modal: Pagar Fatura ──────────────────────────────────── -->
   <div class="confirm-modal-overlay" id="modalPagarFatura" role="dialog" aria-modal="true">
     <div class="confirm-box">
-      <div class="confirm-title" id="titlePagarFatura">Marcar Fatura como Paga?</div>
-      <div class="confirm-sub" id="subPagarFatura">Esta ação apenas marca a fatura como paga. Lembre-se de registrar o débito na sua conta manualmente.</div>
+      <div class="confirm-title" id="titlePagarFatura">Pagar Fatura</div>
+      <div class="confirm-sub" id="subPagarFatura">Selecione de qual conta deseja pagar a fatura.</div>
       <div id="infoPagarFatura" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:0.75rem;padding:0.75rem;margin-bottom:1.25rem;font-size:0.875rem;font-weight:700;color:#059669;text-align:center;"></div>
+      <!-- Seleção de conta (mostrado ao pagar, oculto ao desfazer) -->
+      <div id="wrapContaFatura" style="display:none;margin-bottom:1.25rem;">
+        <div style="font-size:0.8125rem;font-weight:600;color:var(--card-text);margin-bottom:0.625rem;">De qual conta deseja pagar?</div>
+        <div id="selectContaFatura" style="display:flex;flex-direction:column;gap:0.5rem;max-height:220px;overflow-y:auto;"></div>
+      </div>
       <div class="confirm-btns">
         <button class="btn-secondary" id="btnCancelarPagarFatura">Cancelar</button>
-        <button class="btn-primary" id="btnConfirmarPagarFatura" style="background:#10b981;">✓ Confirmar</button>
+        <button class="btn-primary" id="btnConfirmarPagarFatura" style="background:#10b981;">✓ Confirmar Pagamento</button>
       </div>
     </div>
   </div>

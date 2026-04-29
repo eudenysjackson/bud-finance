@@ -12,7 +12,7 @@
  */
 
 import { initializeApp }    from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
-import { getAuth, onAuthStateChanged, signOut }
+import { getAuth, onAuthStateChanged, signOut, getIdToken }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
   getFirestore, collection, query, where, orderBy, limit,
@@ -777,12 +777,68 @@ onAuthStateChanged(auth, async (user) => {
   document.head.appendChild(st);
 })();
 
+// ─── Processar recorrentes de hoje ────────────────────────────────────────
+const BUD_BACKEND_URL = window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com';
+
+async function processarHoje() {
+  if (!currentUser) return;
+
+  const btn = document.getElementById('btnProcessarHoje');
+  const status = document.getElementById('processingStatus');
+
+  if (btn) { btn.disabled = true; btn.querySelector('span:last-child').textContent = 'Processando…'; }
+  if (status) { status.style.display = 'none'; }
+
+  try {
+    const token = await getIdToken(currentUser, /* forceRefresh= */ false);
+    const resp = await fetch(BUD_BACKEND_URL + '/api/processar-recorrentes', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type':  'application/json',
+      },
+    });
+
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      throw new Error(data.error || 'Erro desconhecido');
+    }
+
+    if (status) {
+      const cor = data.processadas > 0 ? '#16a34a' : '#64748b';
+      const bg  = data.processadas > 0 ? '#f0fdf4' : '#f8fafc';
+      const bd  = data.processadas > 0 ? '#bbf7d0' : '#e2e8f0';
+      status.style.cssText = `display:block;background:${bg};border:1px solid ${bd};color:${cor};padding:0.625rem 1rem;border-radius:0.75rem;font-size:0.8125rem;font-weight:600;margin-bottom:1.25rem;`;
+      status.textContent = data.processadas > 0
+        ? '✓ ' + data.mensagem
+        : 'ℹ️ ' + data.mensagem;
+    }
+
+    if (data.processadas > 0 && window.budSuccess) {
+      window.budSuccess(data.mensagem);
+    }
+
+  } catch (err) {
+    if (status) {
+      status.style.cssText = 'display:block;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;padding:0.625rem 1rem;border-radius:0.75rem;font-size:0.8125rem;font-weight:600;margin-bottom:1.25rem;';
+      status.textContent = '⚠ ' + (err.message || 'Erro ao processar recorrentes.');
+    }
+    (window.budError || console.error)('processarHoje:', err);
+  } finally {
+    if (btn) { btn.disabled = false; btn.querySelector('span:last-child').textContent = 'Processar Hoje'; }
+  }
+}
+
 // ─── Bindings de UI ────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   setupSidebar();
 
   // Botão Nova Recorrente
   document.getElementById('btnNovaRec')?.addEventListener('click', () => abrirModal(null));
+
+  // Botão Processar Hoje
+  document.getElementById('btnProcessarHoje')?.addEventListener('click', processarHoje);
 
   // Fechar modal
   document.getElementById('btnFecharModalRec')?.addEventListener('click', fecharModal);

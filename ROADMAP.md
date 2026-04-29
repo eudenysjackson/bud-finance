@@ -1,8 +1,8 @@
 # ROADMAP.md — Foco e Controle de Escopo
 
 **Projeto**: Bud Finance  
-**Última atualização**: 27/04/2026 — Fase 1 concluída (16 telas operacionais). Iniciando **Fase 2: Inteligência e Análise Financeira**.  
-**Item atual**: Gráficos (`graficos.html`) — Fase 2 · Item 3
+**Última atualização**: 30/04/2026 — PEND-031 concluído: `POST /api/processar-recorrentes` implementado com auth ID Token + botão na UI. Próximos: Configurações LGPD (PEND-005 / PEND-007).  
+**Item atual**: Configurações LGPD — Exportar dados (PEND-005) + Excluir conta (PEND-007)
 
 > **REGRA**: NÃO implementar itens do Backlog sem pedido explícito do usuário.
 
@@ -90,16 +90,19 @@
   - 3 summary cards: Total de Faturas, Limite Disponível, Faturas Pagas
   - Cartão físico visual: gradiente por cor, chip, número (últimos 4 do doc ID), fechamento/vencimento
   - Fatura calculada **dinamicamente** (sem campos denormalizados — DEC-034)
-  - Status de fatura por mês: Paga / Vencida / Fechada / Aberta
-  - Barra de limite com cor dinâmica (verde/amarelo/vermelho)
+  - Status de fatura por mês: Paga / Vencida / Fechada / Aberta + badges dinâmicos "Fecha em Xd", "Vence em Xd" (PEND-009)
+  - Barra de limite com cor dinâmica (verde/amarelo/vermelho) exibindo "R$ X usado de R$ Y" (PEND-013)
   - Lista colapsável de gastos do mês com exclusão individual
   - CRUD completo de cartões: nome, bandeira (6 opções), limite BRL, dia fechamento, dia vencimento, 10 cores
+  - Auto-detect bandeira+cor ao digitar nome do banco (13 bancos mapeados — PEND-016)
   - Registro de gastos no crédito (não afeta saldo da carteira)
-  - Pagar/desfazer fatura (toggle `faturasPagas[mesKey]`)
+  - Pagar fatura com seleção de conta de débito da Carteira; writeBatch cria transação `pagamento_fatura` + decrementa saldo; undo exato (PEND-011)
   - Exclusão em cascata: writeBatch deleta todas as transações + doc do cartão
   - 5 modals: Cartão, Gasto, Pagar Fatura, Excluir Cartão, Excluir Gasto
   - Custom datepicker (DEC-018), custom select bandeira e categoria
   - 10 cor pills com gradientes físicos de cartão
+  - Skeleton loader animado com shimmer (PEND-014) + empty state com ilustração CSS 3 cartões (PEND-015)
+  - Importação IA: parcelamento inteligente — toggle por item para criar parcelas futuras automaticamente, distribuídas em meses via `_addMesesData` (PEND-012)
   - Link Cartões adicionado a todos os sidebars (dashboard, metas, configurações)
 - [x] **Tela de Recorrentes** (`recorrentes.html` + `js/recorrentes.js`)
   - Feature gate: planos Pro/Plus/Trial (Free/Starter vê planGate com CTA de upgrade)
@@ -221,7 +224,7 @@
 
 > Anotados em memória do repo. Atacar quando a tela for tocada por outro motivo.
 
-- **DT-001** — `js/cartoes.js#salvarTransacoesIA` usa loop sequencial de `addDoc`. Converter para `writeBatch` em chunks de 400-500 para garantir atomicidade da importação IA. _Atacar na próxima alteração em Cartões._
+- ~~**DT-001**~~ — ✅ **RESOLVIDO 29/04/2026** — `salvarTransacoesIA` convertido para `writeBatch` em chunks de 400 com suporte a expansão de parcelas (PEND-012).
 - **DT-002** — `js/cartoes.js#L824` `perfilPlano = null` hardcoded. Buscar `userData.plano` do Firestore quando feature de planos pagos for ativada.
 - **DT-003** — `js/configuracoes.js#exportarCSV` cobre apenas `transacoes`. Expandir para 14 subcoleções quando a feature LGPD completa (item 25) entrar no escopo.
 

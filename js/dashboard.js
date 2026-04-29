@@ -30,6 +30,8 @@ let filtroAtividadeAtual = 'todos'; // 'todos' | 'receita' | 'despesa'
 let _skipThemeSync = false; // evita escrita circular no Firestore ao aplicar tema vindo do Firestore
 var dividasGlobaisDash = [];  // dívidas do usuário para o widget do dashboard
 var limitesGlobaisDash = [];  // limites por categoria para o widget do dashboard
+var carteiraGlobal = [];      // contas da carteira para o widget do dashboard
+var recorrentesGlobaisDash = []; // recorrentes para o widget de lembretes
 // ─── Categorias ──────────────────────────────────────────────────────────
 // Padrão vem de window.BUD_CATEGORIAS_PADRAO (categorias-padrao.js)
 // Personalizadas são carregadas via onSnapshot em setupListeners()
@@ -145,6 +147,24 @@ function renderizarDashboard() {
 
   // Widget limites do mês
   atualizarLimitesWidget(transacoesDoMes, saidas);
+
+  // Mini widget carteira
+  atualizarWidgetCarteira();
+
+  // Lembretes 7 dias
+  atualizarLembretes7Dias();
+
+  // Economia potencial
+  atualizarEconomiaPotencial(transacoesDoMes);
+
+  // Saúde financeira
+  atualizarSaudeFinanceira(transacoesDoMes, entradas, saidas);
+
+  // Dica contextual
+  atualizarDicaFinanceira(transacoesDoMes, entradas, saidas);
+
+  // Tudo em dia (após dividas + lembretes)
+  atualizarTudoEmDia();
 
   // Apply visibility toggle (sempre — atualiza icon e oculta se necessário)
   atualizarVisibilidadeValores();
@@ -497,6 +517,7 @@ function atualizarDividasAtraso() {
 
   if (comAtraso.length === 0) {
     sec.style.display = 'none';
+    atualizarTudoEmDia();
     return;
   }
 
@@ -541,6 +562,317 @@ function atualizarDividasAtraso() {
     mais.textContent = '+ mais ' + (comAtraso.length - 3) + ' dívida' + (comAtraso.length - 3 > 1 ? 's' : '') + ' em atraso';
     lista.appendChild(mais);
   }
+  atualizarTudoEmDia();
+}
+
+// ─── Mini Widget Carteira ────────────────────────────────────────────────
+function atualizarWidgetCarteira() {
+  var sec   = document.getElementById('secCarteiraWidget');
+  var lista = document.getElementById('listaCarteiraWidget');
+  var total = document.getElementById('carteiraWidgetTotal');
+  if (!sec || !lista) return;
+
+  // Apenas contas (excluir cartões de crédito)
+  var contas = carteiraGlobal.filter(function (c) { return c.tipo !== 'credito'; });
+
+  if (contas.length === 0) {
+    sec.style.display = 'none';
+    return;
+  }
+
+  sec.style.display = '';
+  var totalSaldo = contas.reduce(function (s, c) { return s + (parseFloat(c.saldo) || 0); }, 0);
+  if (total) total.textContent = valoresOcultos ? '•••' : formatarValor(totalSaldo);
+
+  lista.innerHTML = '';
+  contas.slice(0, 3).forEach(function (c) {
+    var el = document.createElement('div');
+    el.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0.75rem;background:var(--sidebar-link-hover-bg);border-radius:0.75rem;margin-bottom:0.375rem;';
+    var cor = (parseFloat(c.saldo) || 0) >= 0 ? '#16a34a' : '#dc2626';
+    var nomeEsc = (c.nome || 'Conta').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    var icone = c.icone || (c.tipo === 'poupanca' ? '🏦' : c.tipo === 'investimento' ? '📈' : '💳');
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:0.5rem;">'
+      + '<span style="font-size:1rem;">' + icone + '</span>'
+      + '<span style="font-size:0.8125rem;font-weight:600;color:var(--card-text);">' + nomeEsc + '</span>'
+      + '</div>'
+      + '<span style="font-size:0.875rem;font-weight:700;color:' + cor + ';">' + (valoresOcultos ? '•••' : formatarValor(parseFloat(c.saldo) || 0)) + '</span>';
+    lista.appendChild(el);
+  });
+
+  if (contas.length > 3) {
+    var mais = document.createElement('div');
+    mais.style.cssText = 'text-align:center;font-size:0.75rem;font-weight:600;color:#94a3b8;padding-top:0.25rem;';
+    mais.textContent = '+ ' + (contas.length - 3) + ' conta' + (contas.length - 3 > 1 ? 's' : '') + ' na carteira';
+    lista.appendChild(mais);
+  }
+}
+
+// ─── Lembretes 7 dias ─────────────────────────────────────────────────────
+function atualizarLembretes7Dias() {
+  var sec   = document.getElementById('secLembretes7Dias');
+  var lista = document.getElementById('listaLembretes7Dias');
+  if (!sec || !lista) return;
+
+  var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  var em7  = new Date(hoje); em7.setDate(em7.getDate() + 7);
+
+  var lembretes = [];
+
+  // Recorrentes com diaVencimento nos próximos 7 dias
+  recorrentesGlobaisDash.forEach(function (r) {
+    if (r.ativo === false) return;
+    var dia = parseInt(r.diaVencimento, 10);
+    if (!dia) return;
+
+    for (var offset = 0; offset <= 1; offset++) {
+      var d = new Date(hoje.getFullYear(), hoje.getMonth() + offset, dia);
+      if (d < hoje || d > em7) continue;
+      // Verificar se já tem transação para este recorrente neste mês
+      var mesVenc = d.getMonth();
+      var anoVenc = d.getFullYear();
+      var jaLancado = transacoesGlobais.some(function (t) {
+        if (!t.recorrenteId || t.recorrenteId !== r.id) return false;
+        var dt = t.data && t.data.toDate ? t.data.toDate() : new Date(t.data || 0);
+        return dt.getMonth() === mesVenc && dt.getFullYear() === anoVenc;
+      });
+      if (!jaLancado) {
+        lembretes.push({
+          tipo: 'recorrente', nome: r.nome || r.descricao || 'Recorrente',
+          valor: r.valor, dataVenc: d,
+          diffDias: Math.round((d - hoje) / 86400000),
+          tipoTrans: r.tipo || 'despesa'
+        });
+      }
+    }
+  });
+
+  // Dívidas com próxima parcela nos próximos 7 dias
+  dividasGlobaisDash.forEach(function (d) {
+    if (!d.vencimento || !d.parcelas) return;
+    var pagas = d.parcelasPagas || 0;
+    if (pagas >= d.parcelas) return;
+    var base = new Date(d.vencimento + 'T12:00:00');
+    var proxVenc = addMonthsDash(base, pagas);
+    proxVenc.setHours(0, 0, 0, 0);
+    if (proxVenc >= hoje && proxVenc <= em7) {
+      lembretes.push({
+        tipo: 'divida', nome: d.nome || 'Dívida',
+        valor: d.valorParcela, dataVenc: proxVenc,
+        diffDias: Math.round((proxVenc - hoje) / 86400000),
+        tipoTrans: 'despesa'
+      });
+    }
+  });
+
+  lembretes.sort(function (a, b) { return a.dataVenc - b.dataVenc; });
+
+  if (lembretes.length === 0) {
+    sec.style.display = 'none';
+    atualizarTudoEmDia();
+    return;
+  }
+
+  sec.style.display = '';
+  lista.innerHTML = '';
+
+  lembretes.slice(0, 5).forEach(function (l) {
+    var el = document.createElement('div');
+    var urgente = l.diffDias <= 1;
+    var bgCol  = urgente ? 'rgba(255,251,235,0.8)' : 'var(--sidebar-link-hover-bg)';
+    var brdCol = urgente ? '1.5px solid rgba(253,211,77,0.5)' : '1px solid var(--card-border)';
+    var textCor = urgente ? '#d97706' : 'var(--card-text)';
+    el.style.cssText = 'background:' + bgCol + ';border:' + brdCol + ';border-radius:0.875rem;padding:0.625rem 0.875rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;';
+    var dataFmt = l.diffDias === 0 ? 'Hoje' : l.diffDias === 1 ? 'Amanhã' : 'Em ' + l.diffDias + 'd';
+    var icone = l.tipo === 'divida' ? '💸' : (l.tipoTrans === 'receita' ? '📥' : '📅');
+    var nomeEsc = l.nome.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    var valorFmt = l.valor ? formatarValor(l.valor) : '';
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:0.625rem;min-width:0;flex:1;">'
+      + '<span style="font-size:1.125rem;flex-shrink:0;">' + icone + '</span>'
+      + '<div style="min-width:0;">'
+      + '<div style="font-size:0.8125rem;font-weight:700;color:' + textCor + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + nomeEsc + '</div>'
+      + '<div style="font-size:0.6875rem;font-weight:600;color:#94a3b8;">' + (l.tipo === 'divida' ? 'Parcela de dívida' : (l.tipoTrans === 'receita' ? 'Receita recorrente' : 'Despesa recorrente')) + '</div>'
+      + '</div></div>'
+      + '<div style="text-align:right;flex-shrink:0;">'
+      + (valorFmt ? '<div style="font-size:0.8125rem;font-weight:700;color:' + (l.tipoTrans === 'receita' ? '#16a34a' : '#dc2626') + ';">' + (valoresOcultos ? '•••' : (l.tipoTrans === 'receita' ? '+' : '-') + formatarValor(l.valor)) + '</div>' : '')
+      + '<div style="font-size:0.6875rem;font-weight:700;color:' + (urgente ? '#d97706' : '#94a3b8') + ';">' + dataFmt + '</div>'
+      + '</div>';
+    lista.appendChild(el);
+  });
+
+  if (lembretes.length > 5) {
+    var mais = document.createElement('div');
+    mais.style.cssText = 'text-align:center;font-size:0.75rem;font-weight:600;color:#94a3b8;padding-top:0.25rem;';
+    mais.textContent = '+ mais ' + (lembretes.length - 5) + ' lembrete' + (lembretes.length - 5 > 1 ? 's' : '');
+    lista.appendChild(mais);
+  }
+
+  atualizarTudoEmDia();
+}
+
+// ─── Tudo em dia ──────────────────────────────────────────────────────────
+function atualizarTudoEmDia() {
+  var secAtraso = document.getElementById('secDividasAtraso');
+  var secLemb   = document.getElementById('secLembretes7Dias');
+  var secTudo   = document.getElementById('secTudoEmDia');
+  if (!secTudo) return;
+  var temAtraso = secAtraso && secAtraso.style.display !== 'none';
+  var temLemb   = secLemb  && secLemb.style.display  !== 'none';
+  secTudo.style.display = (!temAtraso && !temLemb) ? '' : 'none';
+}
+
+// ─── Economia Potencial ───────────────────────────────────────────────────
+function atualizarEconomiaPotencial(transacoesDoMes) {
+  var sec    = document.getElementById('secEconomiaPotencial');
+  var body   = document.getElementById('economiaPotencialBody');
+  var totalEl = document.getElementById('economiaPotencialTotal');
+  if (!sec || !body) return;
+
+  var despesas = transacoesDoMes.filter(function (t) { return t.tipo === 'despesa' && !t.cartaoId; });
+  if (despesas.length === 0) { sec.style.display = 'none'; return; }
+
+  var porCat = {};
+  despesas.forEach(function (t) {
+    var cat = t.categoria || 'Outros';
+    porCat[cat] = (porCat[cat] || 0) + (t.valor || 0);
+  });
+
+  var sorted = Object.keys(porCat).map(function (k) { return [k, porCat[k]]; })
+    .sort(function (a, b) { return b[1] - a[1]; });
+
+  if (sorted.length === 0) { sec.style.display = 'none'; return; }
+
+  var top2 = sorted.slice(0, 2);
+  var totalPot = top2.reduce(function (s, c) { return s + c[1] * 0.15; }, 0);
+
+  sec.style.display = '';
+  if (totalEl) totalEl.textContent = valoresOcultos ? '•••' : formatarValor(totalPot);
+
+  var html = '';
+  top2.forEach(function (item) {
+    var nomeCat = item[0].replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    var economia = item[1] * 0.15;
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0.875rem;background:var(--sidebar-link-hover-bg);border-radius:0.75rem;margin-bottom:0.375rem;">'
+      + '<div>'
+      + '<div style="font-size:0.8125rem;font-weight:700;color:var(--card-text);">' + nomeCat + '</div>'
+      + '<div style="font-size:0.6875rem;color:#94a3b8;margin-top:0.1rem;">Reduzir 15% → econom. ' + (valoresOcultos ? '•••' : formatarValor(economia)) + '</div>'
+      + '</div>'
+      + '<div style="font-size:0.75rem;font-weight:700;color:#dc2626;white-space:nowrap;margin-left:0.5rem;">' + (valoresOcultos ? '•••' : formatarValor(item[1])) + '</div>'
+      + '</div>';
+  });
+  body.innerHTML = html;
+}
+
+// ─── Saúde Financeira Preview ─────────────────────────────────────────────
+function atualizarSaudeFinanceira(transacoesDoMes, entradas, saidas) {
+  var scoreEl = document.getElementById('saudeScore');
+  var labelEl = document.getElementById('saudeLabel');
+  var descEl  = document.getElementById('saudeDesc');
+  var arcEl   = document.getElementById('saudeArc');
+  if (!scoreEl) return;
+
+  var score = 0;
+
+  // Saldo positivo (+30)
+  if (entradas > 0 && entradas > saidas) score += 30;
+  else if (entradas === 0 && saidas === 0) score += 0;
+  else if (entradas > 0) score += 5;
+
+  // Ratio despesas/receita (+25)
+  if (entradas > 0) {
+    var ratio = saidas / entradas;
+    if (ratio <= 0.5)      score += 25;
+    else if (ratio <= 0.7) score += 20;
+    else if (ratio <= 0.9) score += 10;
+  }
+
+  // Tem transações este mês (+15)
+  if (transacoesDoMes.length > 0) score += 15;
+
+  // Sem dívidas em atraso (+15)
+  var hoje2 = new Date(); hoje2.setHours(0, 0, 0, 0);
+  var temAtraso = dividasGlobaisDash.some(function (d) {
+    if (!d.vencimento || !d.parcelas) return false;
+    var pagas = d.parcelasPagas || 0;
+    if (pagas >= d.parcelas) return false;
+    var base = new Date(d.vencimento + 'T12:00:00');
+    var pv = addMonthsDash(base, pagas); pv.setHours(0, 0, 0, 0);
+    return pv < hoje2;
+  });
+  if (!temAtraso) score += 15;
+
+  // Tem limites definidos (+15)
+  if (limitesGlobaisDash.length > 0) score += 15;
+
+  score = Math.min(100, score);
+
+  var label, cor;
+  if (score >= 80)      { label = 'Excelente 🎉'; cor = '#16a34a'; }
+  else if (score >= 60) { label = 'Bom 👍';       cor = '#65a30d'; }
+  else if (score >= 40) { label = 'Regular 🤔';   cor = '#d97706'; }
+  else                  { label = 'Atenção ⚠️';   cor = '#dc2626'; }
+
+  scoreEl.textContent = valoresOcultos ? '—' : score;
+  if (labelEl) { labelEl.textContent = label; labelEl.style.color = cor; }
+  if (descEl) {
+    if (valoresOcultos) {
+      descEl.textContent = 'Valores ocultos.';
+    } else if (score >= 80) {
+      descEl.textContent = 'Suas finanças estão sob controle! Continue assim.';
+    } else if (score >= 60) {
+      descEl.textContent = 'Bom progresso. Pequenos ajustes podem melhorar ainda mais.';
+    } else if (score >= 40) {
+      descEl.textContent = 'Há oportunidades de melhoria. Veja a análise completa.';
+    } else {
+      descEl.textContent = 'Atenção: revise despesas e dívidas. A análise pode ajudar.';
+    }
+  }
+
+  // Arc SVG (stroke-dasharray: progresso 176 = circunferência de r=28)
+  if (arcEl) {
+    var circ = 2 * Math.PI * 28;
+    arcEl.style.strokeDasharray = ((score / 100) * circ).toFixed(1) + ' ' + circ.toFixed(1);
+    arcEl.style.stroke = cor;
+  }
+}
+
+// ─── Dica Financeira Contextual ───────────────────────────────────────────
+function atualizarDicaFinanceira(transacoesDoMes, entradas, saidas) {
+  var el = document.getElementById('dicaDiaTexto');
+  if (!el) return;
+
+  var dica;
+  var despesas = transacoesDoMes.filter(function (t) { return t.tipo === 'despesa'; });
+
+  if (valoresOcultos) {
+    dica = 'Ative a visibilidade de valores para ver dicas personalizadas.';
+  } else if (transacoesDoMes.length === 0) {
+    dica = 'Comece registrando suas receitas e despesas para acompanhar sua saúde financeira.';
+  } else if (entradas > 0 && saidas > entradas) {
+    dica = 'Suas despesas superaram as receitas este mês. Identifique onde é possível cortar para equilibrar o orçamento.';
+  } else if (despesas.length > 0) {
+    var porCat = {};
+    despesas.forEach(function (t) {
+      var cat = t.categoria || 'Outros';
+      porCat[cat] = (porCat[cat] || 0) + (t.valor || 0);
+    });
+    var sorted = Object.keys(porCat).map(function (k) { return [k, porCat[k]]; })
+      .sort(function (a, b) { return b[1] - a[1]; });
+    var topCat = sorted[0];
+    var pct = saidas > 0 ? Math.round((topCat[1] / saidas) * 100) : 0;
+    if (pct >= 40) {
+      dica = '"' + topCat[0] + '" representa ' + pct + '% das suas despesas. Avalie se há espaço para economizar nessa categoria.';
+    } else if (entradas > 0 && entradas > saidas && (entradas - saidas) >= 200) {
+      dica = 'Você teve saldo positivo de ' + formatarValor(entradas - saidas) + ' este mês! Considere reforçar uma meta ou investir a diferença.';
+    } else if (limitesGlobaisDash.length === 0) {
+      dica = 'Defina limites de gastos por categoria para manter o orçamento sob controle. Acesse Limites no menu.';
+    } else {
+      dica = 'Registrar categorias corretamente em cada transação ajuda a visualizar padrões e tomar decisões melhores.';
+    }
+  } else {
+    dica = 'Adicione suas despesas com categorias para ver dicas personalizadas sobre onde você pode economizar.';
+  }
+
+  el.textContent = dica;
 }
 
 // ─── Atividades recentes ────────────────────────────────────────────────
@@ -567,7 +899,6 @@ function renderizarAtividades(transacoesDoMes) {
     container.innerHTML = '';
     var emptyDiv = document.createElement('div');
     emptyDiv.className = 'dash-empty';
-    emptyDiv.innerHTML = '';
 
     var iconDiv = document.createElement('div');
     iconDiv.className = 'dash-empty-icon';
@@ -575,10 +906,29 @@ function renderizarAtividades(transacoesDoMes) {
     emptyDiv.appendChild(iconDiv);
 
     var pEl = document.createElement('p');
-    pEl.textContent = filtroAtividadeAtual === 'todos' ? 
-      'Nenhuma transação este mês. Comece adicionando uma receita ou despesa!' :
+    pEl.textContent = filtroAtividadeAtual === 'todos' ?
+      'Nenhuma transação este mês.' :
       'Nenhuma ' + (filtroAtividadeAtual === 'receita' ? 'receita' : 'despesa') + ' neste mês.';
     emptyDiv.appendChild(pEl);
+
+    if (filtroAtividadeAtual === 'todos') {
+      var ctaDiv = document.createElement('div');
+      ctaDiv.style.cssText = 'display:flex;gap:0.625rem;justify-content:center;flex-wrap:wrap;margin-top:0.625rem;';
+
+      var btnR = document.createElement('button');
+      btnR.style.cssText = 'padding:0.5rem 1.125rem;border:none;border-radius:0.75rem;background:#16a34a;color:#fff;font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:inherit;';
+      btnR.textContent = '+ Receita';
+      btnR.addEventListener('click', function () { abrirModal('receita'); });
+
+      var btnD = document.createElement('button');
+      btnD.style.cssText = 'padding:0.5rem 1.125rem;border:none;border-radius:0.75rem;background:#dc2626;color:#fff;font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:inherit;';
+      btnD.textContent = '+ Despesa';
+      btnD.addEventListener('click', function () { abrirModal('despesa'); });
+
+      ctaDiv.appendChild(btnR);
+      ctaDiv.appendChild(btnD);
+      emptyDiv.appendChild(ctaDiv);
+    }
 
     container.appendChild(emptyDiv);
     return;
@@ -623,14 +973,26 @@ function renderizarAtividades(transacoesDoMes) {
     left.appendChild(icon);
     left.appendChild(info);
 
+    var right = document.createElement('div');
+    right.style.cssText = 'text-align:right;flex-shrink:0;';
+
     var valorEl = document.createElement('div');
     valorEl.style.cssText = 'font-size:0.875rem;font-weight:700;';
     valorEl.style.color = t.tipo === 'receita' ? '#16a34a' : '#dc2626';
     var prefix = t.tipo === 'receita' ? '+' : '-';
     valorEl.textContent = valoresOcultos ? '•••' : prefix + ' ' + formatarValor(t.valor || 0);
 
+    var dataRowEl = document.createElement('div');
+    dataRowEl.style.cssText = 'font-size:0.6875rem;color:var(--card-text-sec);margin-top:0.125rem;';
+    if (t.data) {
+      var dtRow = t.data.toDate ? t.data.toDate() : new Date(t.data);
+      dataRowEl.textContent = String(dtRow.getDate()).padStart(2, '0') + '/' + String(dtRow.getMonth() + 1).padStart(2, '0');
+    }
+
+    right.appendChild(valorEl);
+    right.appendChild(dataRowEl);
     row.appendChild(left);
-    row.appendChild(valorEl);
+    row.appendChild(right);
     container.appendChild(row);
   });
 
@@ -1271,6 +1633,25 @@ function setupListeners(uid) {
     // Re-renderiza para atualizar widget e indicador do card Saídas
     renderizarDashboard();
   }, function () {}));
+
+  // Carteira — mini widget contas
+  var carteiraRef = query(collection(db, 'usuarios', uid, 'carteira'), limit(500));
+  _unsubs.push(onSnapshot(carteiraRef, function (snapshot) {
+    carteiraGlobal = snapshot.docs.map(function (d) {
+      return Object.assign({}, d.data(), { id: d.id });
+    });
+    atualizarWidgetCarteira();
+  }, function () {}));
+
+  // Recorrentes — widget lembretes 7 dias
+  var recorrentesRef = query(collection(db, 'usuarios', uid, 'recorrentes'), limit(500));
+  _unsubs.push(onSnapshot(recorrentesRef, function (snapshot) {
+    recorrentesGlobaisDash = snapshot.docs.map(function (d) {
+      return Object.assign({}, d.data(), { id: d.id });
+    });
+    atualizarLembretes7Dias();
+    atualizarTudoEmDia();
+  }, function () {}));
 }
 
 // ─── Cleanup listeners ─────────────────────────────────────────────────
@@ -1328,6 +1709,19 @@ onAuthStateChanged(auth, async function (user) {
     var firstName = nomeSeguro.split(' ')[0];
     if (welcomeText) welcomeText.textContent = getSaudacao() + ', ' + firstName + '! 👋';
     if (welcomeDate) welcomeDate.textContent = formatarDataHoje();
+
+    // ── Streak de dias consecutivos ────────────────────────────────
+    var streak = userData.streakDias || 0;
+    var streakBadge = document.getElementById('streakBadge');
+    var streakCount = document.getElementById('streakCount');
+    if (streakBadge) {
+      if (streak >= 2) {
+        if (streakCount) streakCount.textContent = streak;
+        streakBadge.style.display = '';
+      } else {
+        streakBadge.style.display = 'none';
+      }
+    }
 
     // ── Banner de plano/trial ───────────────────────────────────────
     configurarBannerPlano(userData);

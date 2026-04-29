@@ -38,8 +38,17 @@
 | **DashSummaryCards** | 3 cards glassmorphic: Saldo Total, Entradas, Saídas | `dashboard.html` |
 | **DashTrialBanner** | Banner condicional trial/free/expirado | `dashboard.html` |
 | **DashQuickActions** | Botões rápidos: Nova Receita, Nova Despesa | `dashboard.html` |
-| **DashAtividades** | Lista das últimas 5 transações do mês (style inline) | `dashboard.html` |
-| **DashGraficoCategorias** | Placeholder para donut chart de despesas | `dashboard.html` |
+| **DashStreakBadge** | Badge 🔥 Nd no header quando streakDias ≥ 2 (lê `userData.streakDias`) | `dashboard.html` |
+| **DashCarteiraWidget** | Mini-widget contas da carteira (saldo total + lista até 3, exclui crédito) | `dashboard.html` — `atualizarWidgetCarteira()` |
+| **DashLimitesWidget** | Widget limites por categoria com alertas visuais (já existia) | `dashboard.html` — `atualizarLimitesWidget()` |
+| **DashDividasAtraso** | Widget dívidas vencidas com botão "Ver" (já existia) | `dashboard.html` — `atualizarDividasAtraso()` |
+| **DashLembretes7Dias** | Próximas contas a vencer em 7 dias (recorrentes + parcelas de dívidas) | `dashboard.html` — `atualizarLembretes7Dias()` |
+| **DashTudoEmDia** | Aparece quando não há dívidas em atraso nem lembretes pendentes | `dashboard.html` — `atualizarTudoEmDia()` |
+| **DashAtividades** | Últimas 5 transações do mês com data + CTA vazio (+ Receita / + Despesa) | `dashboard.html` — `renderizarAtividades()` |
+| **DashGraficoCategorias** | Donut chart Chart.js despesas por categoria | `dashboard.html` |
+| **DashEconomiaPotencial** | Sugere reduzir 15% nas 2 maiores categorias de despesa | `dashboard.html` — `atualizarEconomiaPotencial()` |
+| **DashSaudeFinanceira** | Score 0-100 com arco SVG animado + label + link insights | `dashboard.html` — `atualizarSaudeFinanceira()` |
+| **DashDicaDia** | Dica financeira contextual baseada nos dados reais do mês | `dashboard.html` — `atualizarDicaFinanceira()` |
 | **TransactionModal** | Modal glassmorphic único para Nova Receita e Nova Despesa | `dashboard.html` |
 | **CfgTabs** | 3 abas: Perfil, Personalização, Segurança | `configuracoes.html` |
 | **CfgCardPerfil** | Card com campos editáveis (nome) e leitura (email, matrícula, criação) | `configuracoes.html` |

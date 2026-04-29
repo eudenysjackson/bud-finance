@@ -5,7 +5,7 @@
 import { initializeApp }                from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut, updateProfile }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
-import { getFirestore, doc, getDoc, getDocs, updateDoc, collection, query, orderBy }
+import { getFirestore, doc, getDoc, getDocs, updateDoc, deleteDoc, collection, query, orderBy, writeBatch }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
@@ -226,7 +226,155 @@ async function salvarNome() {
   }
 }
 
-// ─── Exportar CSV ────────────────────────────────────────────────────────
+// ─── Exportar Dados Completos (JSON — LGPD PEND-005) ────────────────────
+async function exportarDadosJSON() {
+  const btn = document.getElementById('btnExportarJSON');
+  if (!btn || !uid) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Exportando...';
+
+  try {
+    const COLECOES = [
+      'transacoes', 'carteira', 'cartoes', 'metas',
+      'limites', 'categorias', 'recorrentes', 'dividas', 'investimentos'
+    ];
+
+    const [perfilSnap, ...colSnaps] = await Promise.all([
+      getDoc(doc(db, 'usuarios', uid)),
+      ...COLECOES.map(col => getDocs(collection(db, 'usuarios', uid, col)))
+    ]);
+
+    // Replacer para serializar Timestamps do Firestore como ISO string
+    function replacer(_key, value) {
+      if (value && typeof value === 'object' && typeof value.toDate === 'function') {
+        return value.toDate().toISOString();
+      }
+      if (value && typeof value === 'object' && typeof value.seconds === 'number' && typeof value.nanoseconds === 'number') {
+        return new Date(value.seconds * 1000).toISOString();
+      }
+      return value;
+    }
+
+    const perfilData = perfilSnap.exists() ? perfilSnap.data() : {};
+    // Não exportar campos internos de plano/pagamento (não são dados pessoais do usuário)
+    const { fcmToken: _f, assinatura: _a, ...perfilPublico } = perfilData;
+
+    const exportacao = {
+      gerado_em: new Date().toISOString(),
+      app: 'Bud Finance',
+      perfil: perfilPublico,
+      dados: {}
+    };
+
+    COLECOES.forEach((col, i) => {
+      exportacao.dados[col] = colSnaps[i].docs.map(d => ({ id: d.id, ...d.data() }));
+    });
+
+    const blob = new Blob(
+      [JSON.stringify(exportacao, replacer, 2)],
+      { type: 'application/json;charset=utf-8;' }
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bud-finance-meus-dados-' + Date.now() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    const total = COLECOES.reduce((s, _, i) => s + colSnaps[i].size, 0);
+    if (window.budShowToast) window.budShowToast(
+      total + ' registro' + (total !== 1 ? 's' : '') + ' exportado' + (total !== 1 ? 's' : '') + ' com sucesso!',
+      'success'
+    );
+  } catch (_) {
+    if (window.budShowToast) window.budShowToast('Erro ao exportar dados. Tente novamente.', 'error');
+  } finally {
+    btn.textContent = 'Exportar JSON';
+    btn.disabled = false;
+  }
+}
+
+// ─── Excluir Conta Permanentemente (LGPD PEND-007) ──────────────────────
+function abrirModalExcluirConta() {
+  const modal = document.getElementById('modalExcluirConta');
+  const input = document.getElementById('confirmacaoExcluir');
+  const btnConf = document.getElementById('btnConfirmarExcluir');
+  if (!modal) return;
+  if (input) input.value = '';
+  if (btnConf) btnConf.disabled = true;
+  modal.style.display = 'flex';
+}
+
+function fecharModalExcluirConta() {
+  const modal = document.getElementById('modalExcluirConta');
+  if (modal) modal.style.display = 'none';
+}
+
+async function confirmarExcluirConta() {
+  const input = document.getElementById('confirmacaoExcluir');
+  if (!input || input.value.trim().toUpperCase() !== 'EXCLUIR') return;
+
+  const btnConf = document.getElementById('btnConfirmarExcluir');
+  if (btnConf) { btnConf.disabled = true; btnConf.textContent = 'Excluindo...'; }
+
+  const COLECOES = [
+    'transacoes', 'carteira', 'cartoes', 'metas',
+    'limites', 'categorias', 'recorrentes', 'dividas', 'investimentos',
+    'compras', 'listas-compras', 'tokens', 'notificacoes_eventos_enviadas'
+  ];
+
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Usuário não autenticado.');
+
+    // Coletar todas as referências a deletar
+    const refs = [];
+    for (const col of COLECOES) {
+      try {
+        const snap = await getDocs(collection(db, 'usuarios', uid, col));
+        snap.docs.forEach(d => refs.push(d.ref));
+      } catch (_) { /* coleção pode não existir */ }
+    }
+    // Documento principal do usuário
+    refs.push(doc(db, 'usuarios', uid));
+
+    // Deletar em batches de 400
+    const CHUNK = 400;
+    for (let i = 0; i < refs.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      refs.slice(i, i + CHUNK).forEach(ref => batch.delete(ref));
+      await batch.commit();
+    }
+
+    // Deletar conta do Firebase Auth
+    await user.delete();
+
+    fecharModalExcluirConta();
+    window.location.href = 'index.html';
+
+  } catch (err) {
+    if (err.code === 'auth/requires-recent-login') {
+      fecharModalExcluirConta();
+      if (window.budShowToast) window.budShowToast(
+        'Por segurança, faça login novamente antes de excluir a conta.',
+        'warning',
+        5000
+      );
+      setTimeout(async function () {
+        await signOut(auth);
+        window.location.href = 'index.html';
+      }, 2500);
+    } else {
+      if (btnConf) { btnConf.disabled = false; btnConf.textContent = 'Confirmar Exclusão'; }
+      if (window.budShowToast) window.budShowToast('Erro ao excluir conta. Tente novamente.', 'error');
+    }
+  }
+}
+
+
 async function exportarCSV() {
   const btn = document.getElementById('btnExportarCSV');
   if (!btn || !uid) return;
@@ -351,7 +499,86 @@ async function carregarPerfil(user) {
   }
 }
 
-// ─── Redefinir senha (via backend — mesmo fluxo de recuperar-senha.js) ──
+// ─── Resetar Toda a Conta (PEND-008) ────────────────────────────────────
+function abrirModalReset() {
+  const modal = document.getElementById('modalResetarConta');
+  if (modal) modal.style.display = 'flex';
+}
+
+function fecharModalReset() {
+  const modal = document.getElementById('modalResetarConta');
+  if (modal) modal.style.display = 'none';
+}
+
+async function executarReset() {
+  const btnConf = document.getElementById('btnConfirmarReset');
+  if (btnConf) { btnConf.disabled = true; btnConf.textContent = 'Resetando...'; }
+
+  const COLECOES = [
+    'transacoes', 'carteira', 'cartoes', 'metas',
+    'limites', 'categorias', 'recorrentes', 'dividas', 'investimentos',
+    'compras', 'listas-compras', 'tokens', 'notificacoes_eventos_enviadas'
+  ];
+
+  try {
+    const refs = [];
+    for (const col of COLECOES) {
+      try {
+        const snap = await getDocs(collection(db, 'usuarios', uid, col));
+        snap.docs.forEach(d => refs.push(d.ref));
+      } catch (_) { /* coleção pode não existir */ }
+    }
+
+    const CHUNK = 400;
+    for (let i = 0; i < refs.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      refs.slice(i, i + CHUNK).forEach(ref => batch.delete(ref));
+      await batch.commit();
+    }
+
+    // Marcar onboarding como não concluído (mantém conta ativa)
+    await updateDoc(doc(db, 'usuarios', uid), { onboardingConcluido: false });
+
+    // Limpar chaves de tutorial do localStorage
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('nexo_tutorial_done_'))
+      .forEach(k => localStorage.removeItem(k));
+
+    fecharModalReset();
+    window.location.href = 'dashboard.html';
+
+  } catch (err) {
+    if (btnConf) { btnConf.disabled = false; btnConf.textContent = 'Sim, resetar tudo'; }
+    if (window.budShowToast) window.budShowToast('Erro ao resetar conta. Tente novamente.', 'error');
+  }
+}
+
+// ─── Reiniciar Tutorial ──────────────────────────────────────────────────
+async function reiniciarTutorial() {
+  const btn = document.getElementById('btnReiniciarTutorial');
+  if (!btn || !uid) return;
+  btn.disabled = true;
+  btn.textContent = 'Reiniciando...';
+
+  try {
+    // Limpar chaves do localStorage
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('nexo_tutorial_done_'))
+      .forEach(k => localStorage.removeItem(k));
+
+    // Marcar onboarding como não concluído no Firestore
+    await updateDoc(doc(db, 'usuarios', uid), { onboardingConcluido: false });
+
+    if (window.budShowToast) window.budShowToast('Tutorial reiniciado! Ele aparecerá na próxima vez que você acessar cada tela.', 'success', 4000);
+  } catch (_) {
+    if (window.budShowToast) window.budShowToast('Erro ao reiniciar tutorial.', 'error');
+  } finally {
+    btn.textContent = '🔄 Reiniciar Tutorial';
+    btn.disabled = false;
+  }
+}
+
+// ─── Segurança ───────────────────────────────────────────────────────────
 function setupSeguranca() {
   const btnReset = document.getElementById('btnResetSenha');
   if (btnReset) {
@@ -445,4 +672,36 @@ onAuthStateChanged(auth, async function (user) {
 
   const btnCSV = document.getElementById('btnExportarCSV');
   if (btnCSV) btnCSV.addEventListener('click', exportarCSV);
+
+  const btnJSON = document.getElementById('btnExportarJSON');
+  if (btnJSON) btnJSON.addEventListener('click', exportarDadosJSON);
+
+  const btnExcluir = document.getElementById('btnExcluirConta');
+  if (btnExcluir) btnExcluir.addEventListener('click', abrirModalExcluirConta);
+
+  const btnFecharExcluir = document.getElementById('btnFecharModalExcluir');
+  if (btnFecharExcluir) btnFecharExcluir.addEventListener('click', fecharModalExcluirConta);
+
+  const btnConfirmar = document.getElementById('btnConfirmarExcluir');
+  if (btnConfirmar) btnConfirmar.addEventListener('click', confirmarExcluirConta);
+
+  const inputConf = document.getElementById('confirmacaoExcluir');
+  if (inputConf) {
+    inputConf.addEventListener('input', function () {
+      const btnConf = document.getElementById('btnConfirmarExcluir');
+      if (btnConf) btnConf.disabled = inputConf.value.trim().toUpperCase() !== 'EXCLUIR';
+    });
+  }
+
+  const btnResetar = document.getElementById('btnResetarConta');
+  if (btnResetar) btnResetar.addEventListener('click', abrirModalReset);
+
+  const btnFecharReset = document.getElementById('btnFecharModalReset');
+  if (btnFecharReset) btnFecharReset.addEventListener('click', fecharModalReset);
+
+  const btnConfReset = document.getElementById('btnConfirmarReset');
+  if (btnConfReset) btnConfReset.addEventListener('click', executarReset);
+
+  const btnTutorial = document.getElementById('btnReiniciarTutorial');
+  if (btnTutorial) btnTutorial.addEventListener('click', reiniciarTutorial);
 });

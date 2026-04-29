@@ -797,6 +797,7 @@
         <div class="dash-header-actions">
           <button class="dash-icon-btn" id="btnToggleValues" title="Ocultar/Mostrar valores">👁️</button>
           <button class="dash-icon-btn" id="btnSync" title="Sincronizar dados">🔄</button>
+          <span id="streakBadge" style="display:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:0.3rem 0.625rem;border-radius:9999px;font-size:0.75rem;font-weight:700;white-space:nowrap;cursor:default;user-select:none;" title="Dias consecutivos com lançamentos">🔥 <span id="streakCount">0</span>d</span>
         </div>
       </div>
 
@@ -865,6 +866,18 @@
         </button>
       </div>
 
+      <!-- Mini Carteira Widget -->
+      <div class="dash-section" id="secCarteiraWidget" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <div>
+            <div class="dash-section-title">🏦 Minhas Contas</div>
+            <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.125rem;">Saldo total: <span id="carteiraWidgetTotal" style="font-weight:700;color:var(--card-text);">—</span></div>
+          </div>
+          <a href="carteira.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver carteira →</a>
+        </div>
+        <div id="listaCarteiraWidget"></div>
+      </div>
+
       <!-- Limites do Mês -->
       <div class="dash-section" id="secLimitesWidget" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
@@ -887,6 +900,28 @@
           <a href="dividas.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver todas →</a>
         </div>
         <div id="listaDividasAtraso"></div>
+      </div>
+
+      <!-- Lembretes 7 dias -->
+      <div class="dash-section" id="secLembretes7Dias" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+          <div>
+            <div class="dash-section-title">🔔 Próximos Vencimentos</div>
+            <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.25rem;">Nos próximos 7 dias</div>
+          </div>
+        </div>
+        <div id="listaLembretes7Dias"></div>
+      </div>
+
+      <!-- Tudo em dia -->
+      <div class="dash-section" id="secTudoEmDia" style="display:none;">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <span style="font-size:1.5rem;">✅</span>
+          <div>
+            <div style="font-size:0.9375rem;font-weight:700;color:#16a34a;">Tudo em dia!</div>
+            <div style="font-size:0.75rem;color:#94a3b8;">Nenhuma conta vencida ou próxima de vencer.</div>
+          </div>
+        </div>
       </div>
 
       <!-- Atividades recentes -->
@@ -920,6 +955,54 @@
         <!-- Canvas do gráfico (oculto quando vazio) -->
         <div id="graficoContainer" style="display:none;position:relative;height:280px;">
           <canvas id="chartCategorias"></canvas>
+        </div>
+      </div>
+
+      <!-- Economia Potencial -->
+      <div class="dash-section" id="secEconomiaPotencial" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <div>
+            <div class="dash-section-title">💡 Economia Potencial</div>
+            <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.125rem;">Reduzindo 15% nas maiores categorias</div>
+          </div>
+          <div style="font-size:0.75rem;font-weight:700;padding:0.25rem 0.625rem;border-radius:9999px;background:rgba(22,163,74,0.1);color:#16a34a;">+ <span id="economiaPotencialTotal">—</span></div>
+        </div>
+        <div id="economiaPotencialBody"></div>
+        <a href="insights.html" style="display:block;text-align:center;margin-top:0.75rem;font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver análise completa →</a>
+      </div>
+
+      <!-- Saúde Financeira Preview -->
+      <div class="dash-section" id="secSaudeFinanceira">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.875rem;">
+          <div class="dash-section-title">🧠 Saúde Financeira</div>
+          <a href="insights.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver análise →</a>
+        </div>
+        <div style="display:flex;align-items:center;gap:1.25rem;">
+          <div style="flex-shrink:0;position:relative;width:72px;height:72px;">
+            <svg width="72" height="72" viewBox="0 0 72 72" fill="none" style="transform:rotate(-90deg);">
+              <circle cx="36" cy="36" r="28" stroke="var(--card-border)" stroke-width="7" fill="none"/>
+              <circle id="saudeArc" cx="36" cy="36" r="28" stroke="#16a34a" stroke-width="7" fill="none"
+                stroke-linecap="round" style="stroke-dasharray:0 176;transition:stroke-dasharray .8s ease,stroke .4s;"/>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+              <span id="saudeScore" style="font-size:1.125rem;font-weight:800;color:var(--card-text);">—</span>
+            </div>
+          </div>
+          <div style="flex:1;">
+            <div id="saudeLabel" style="font-size:1.0625rem;font-weight:700;color:#16a34a;margin-bottom:0.3rem;">—</div>
+            <div id="saudeDesc" style="font-size:0.8125rem;color:var(--card-text-sec);line-height:1.4;">Carregando...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dica do Dia -->
+      <div class="dash-section" id="secDicaDia" style="background:linear-gradient(135deg,rgba(59,130,246,0.06),rgba(139,92,246,0.06));border:1.5px solid rgba(59,130,246,0.15);">
+        <div style="display:flex;align-items:flex-start;gap:0.75rem;">
+          <span style="font-size:1.25rem;flex-shrink:0;margin-top:0.125rem;">💬</span>
+          <div>
+            <div style="font-size:0.6875rem;font-weight:700;color:var(--theme-accent);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.3rem;">DICA DO DIA</div>
+            <div id="dicaDiaTexto" style="font-size:0.875rem;color:var(--card-text);line-height:1.5;font-weight:500;">Carregando...</div>
+          </div>
         </div>
       </div>
 
@@ -1051,7 +1134,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/bud-utils.js"></script>
   <script src="js/categorias-padrao.js"></script>
-  <script type="module" src="js/dashboard.js"></script>
+  <script type="module" src="js/dashboard.js?v=2"></script>
 
   <!-- Splash dismiss -->
   <script>

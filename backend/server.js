@@ -998,6 +998,150 @@ app.get('/', function (_req, res) {
   res.json({ status: 'ok', service: 'bud-finance-backend' });
 });
 
+// ─── POST /api/processar-recorrentes ────────────────────────────────
+// Lança transações de recorrentes cujo diaVencimento coincide com hoje (fuso Brasília).
+// Autenticação: Bearer token do Firebase ID verificado server-side (anti-IDOR).
+// Idempotência: antes de criar, verifica se já existe transação com
+//   recorrenteId === id AND mesReferencia === YYYY-MM do mês atual.
+app.post('/api/processar-recorrentes', async function (req, res) {
+  if (!auth || !db) {
+    return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+  }
+
+  // ── Autenticação via Bearer token ──────────────────────────────────
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) {
+    return res.status(401).json({ error: 'Token de autenticação ausente.' });
+  }
+
+  var decoded;
+  try {
+    decoded = await auth.verifyIdToken(idToken);
+  } catch (_e) {
+    return res.status(401).json({ error: 'Token inválido ou expirado.' });
+  }
+  var uid = decoded.uid;
+
+  // ── Gate por plano (server-side — PEND-034) ───────────────────────
+  var PLANOS_PERMITIDOS_REC = ['pro', 'plus', 'trial'];
+  try {
+    var userDoc = await db.collection('usuarios').doc(uid).get();
+    var plano = (userDoc.exists && userDoc.data().plano) ? userDoc.data().plano.toLowerCase() : 'free';
+    if (!PLANOS_PERMITIDOS_REC.includes(plano)) {
+      return res.status(403).json({ error: 'Recurso disponível apenas nos planos Pro, Plus e Trial.' });
+    }
+  } catch (_e) {
+    return res.status(500).json({ error: 'Erro ao verificar plano do usuário.' });
+  }
+
+  // ── Fuso horário Brasília (UTC-3) ───────────────────────────────────
+  var agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  var hojeAno  = agora.getFullYear();
+  var hojeMes  = agora.getMonth() + 1;           // 1–12
+  var hojeDia  = agora.getDate();
+  var mesRef   = hojeAno + '-' + String(hojeMes).padStart(2, '0'); // "YYYY-MM"
+
+  try {
+    // Buscar recorrentes ativas
+    var snapRec = await db
+      .collection('usuarios').doc(uid).collection('recorrentes')
+      .where('ativa', '==', true)
+      .get();
+
+    if (snapRec.empty) {
+      return res.json({ success: true, processadas: 0, mensagem: 'Nenhuma recorrente ativa.' });
+    }
+
+    var recorrentes = snapRec.docs.map(function (d) {
+      return Object.assign({ id: d.id }, d.data());
+    });
+
+    // Filtrar pelo dia de vencimento = hoje
+    var paraProcessar = recorrentes.filter(function (rec) {
+      var dia = parseInt(rec.diaVencimento, 10) || 1;
+      if (rec.periodicidade === 'diaria') return true;
+      if (rec.periodicidade === 'semanal') {
+        // Disparar a cada 7 dias a partir da proximaData
+        if (!rec.proximaData) return false;
+        var proxDate = rec.proximaData.toDate ? rec.proximaData.toDate() : new Date(rec.proximaData);
+        var diffDias = Math.round((agora - proxDate) / (1000 * 60 * 60 * 24));
+        return diffDias >= 0 && diffDias % 7 === 0;
+      }
+      // mensal: clamp ao último dia do mês
+      var maxDia = new Date(hojeAno, hojeMes, 0).getDate();
+      return Math.min(dia, maxDia) === hojeDia;
+    });
+
+    if (paraProcessar.length === 0) {
+      return res.json({ success: true, processadas: 0, mensagem: 'Nenhuma recorrente vence hoje.' });
+    }
+
+    // Anti-duplicidade: buscar transações já lançadas neste mês por recorrenteId
+    var snapTx = await db
+      .collection('usuarios').doc(uid).collection('transacoes')
+      .where('mesReferencia', '==', mesRef)
+      .where('origem', '==', 'recorrente')
+      .get();
+
+    var jaProcessados = new Set(
+      snapTx.docs.map(function (d) { return d.data().recorrenteId; }).filter(Boolean)
+    );
+
+    var novas = paraProcessar.filter(function (rec) {
+      return !jaProcessados.has(rec.id);
+    });
+
+    if (novas.length === 0) {
+      return res.json({ success: true, processadas: 0, mensagem: 'Todas as recorrentes de hoje já foram lançadas.' });
+    }
+
+    // Criar transações em batch (chunks de 400)
+    var CHUNK = 400;
+    var colTx = db.collection('usuarios').doc(uid).collection('transacoes');
+    var dataHoje = hojeAno + '-' + String(hojeMes).padStart(2,'0') + '-' + String(hojeDia).padStart(2,'0');
+
+    for (var ci = 0; ci < novas.length; ci += CHUNK) {
+      var chunk = novas.slice(ci, ci + CHUNK);
+      var batch = db.batch();
+      chunk.forEach(function (rec) {
+        var txRef = colTx.doc();
+        batch.set(txRef, {
+          tipo:           rec.tipo || 'despesa',
+          descricao:      sanitizeStr(rec.descricao || '').substring(0, 100),
+          valor:          Number(rec.valor) || 0,
+          categoria:      sanitizeStr(rec.categoria || 'Outros'),
+          dataReferencia: dataHoje,
+          mesReferencia:  mesRef,
+          formaPagamento: rec.cartaoId ? 'Crédito' : 'Débito',
+          cartaoId:       rec.cartaoId || null,
+          recorrenteId:   rec.id,
+          origem:         'recorrente',
+          observacao:     sanitizeStr(rec.observacao || ''),
+          dataCriacao:    admin.firestore.FieldValue.serverTimestamp(),
+        });
+      });
+      await batch.commit();
+    }
+
+    // Registrar último processamento no doc do usuário
+    await db.collection('usuarios').doc(uid).update({
+      recorrentesUltimoProcessamento: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return res.json({
+      success: true,
+      processadas: novas.length,
+      mensagem: novas.length + ' recorrente' + (novas.length !== 1 ? 's lançadas' : ' lançada') + ' no Extrato.',
+      itens: novas.map(function (r) { return { id: r.id, descricao: r.descricao, valor: r.valor }; }),
+    });
+
+  } catch (err) {
+    console.error('[processar-recorrentes]', err.message);
+    return res.status(500).json({ error: 'Erro interno ao processar recorrentes.' });
+  }
+});
+
 // ─── Start server ───────────────────────────────────────────────────
 var PORT = process.env.PORT || 3000;
 app.listen(PORT, function () {

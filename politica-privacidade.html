@@ -114,7 +114,7 @@
            style="width:3rem;height:3rem;object-fit:contain;margin:0 auto 0.75rem;display:block;">
     </div>
     <h1>Política de Privacidade</h1>
-    <p class="subtitle">Última atualização: 15 de abril de 2026 — Versão 1.0</p>
+    <p class="subtitle">Última atualização: 29 de abril de 2026 — Versão 1.1</p>
 
     <!-- ─── 1. Introdução ────────────────────────────────────────── -->
     <h2>1. Introdução</h2>
@@ -154,9 +154,11 @@
     <ul>
       <li><strong>Dados de cadastro:</strong> nome completo, e-mail, telefone (WhatsApp);</li>
       <li><strong>Dados de autenticação:</strong> senha (armazenada com criptografia pelo Firebase Authentication — nunca temos acesso à senha em texto plano);</li>
-      <li><strong>Dados de uso:</strong> registros financeiros que você inserir voluntariamente (receitas, despesas, categorias, metas);</li>
+      <li><strong>Dados de uso:</strong> registros financeiros que você inserir voluntariamente (receitas, despesas, categorias, metas, dívidas, investimentos, cartões, recorrentes, limites, lista de compras);</li>
       <li><strong>Dados técnicos:</strong> endereço IP, tipo de navegador, data e hora de acesso (para segurança e prevenção de fraude);</li>
-      <li><strong>Dados de indicação:</strong> código de indicação utilizado, se aplicável.</li>
+      <li><strong>Dados de indicação:</strong> código de indicação utilizado, se aplicável;</li>
+      <li><strong>Conteúdo de faturas bancárias (temporário):</strong> ao usar a função de importação de fatura via IA, o conteúdo do arquivo PDF ou OFX é enviado ao nosso servidor exclusivamente para extração das transações — <strong>não é armazenado permanentemente</strong> em nenhum banco de dados após o processamento;</li>
+      <li><strong>Token FCM (notificações):</strong> identificador de dispositivo armazenado no Firestore para futura entrega de notificações push. O recurso ainda não está ativo — o token é armazenado mas não utilizado para envio de mensagens nesta versão.</li>
     </ul>
 
     <!-- ─── 4. Finalidade do Tratamento ──────────────────────────── -->
@@ -168,6 +170,8 @@
       <li>Enviar comunicações essenciais (verificação de e-mail, recuperação de senha);</li>
       <li>Processar seu programa de indicações e eventuais descontos;</li>
       <li>Gerenciar planos e assinaturas (gratuitos e pagos);</li>
+      <li>Processar automaticamente transações recorrentes via servidor (recurso disponível nos planos Pro, Plus e Trial);</li>
+      <li>Extrair transações de arquivos de fatura (PDF/OFX) via inteligência artificial, a pedido do usuário;</li>
       <li>Cumprir obrigações legais e regulatórias;</li>
       <li>Garantir a segurança da plataforma.</li>
     </ul>
@@ -187,6 +191,8 @@
     <p>Seus dados podem ser compartilhados com:</p>
     <ul>
       <li><strong>Firebase (Google):</strong> autenticação e armazenamento em nuvem (Firestore), com servidores conforme padrões internacionais de segurança;</li>
+      <li><strong>Backend próprio (Render.com):</strong> servidor intermediário utilizado para processamento de recuperação de senha, importação de faturas via IA e processamento de transações recorrentes. Toda requisição é autenticada via token de identidade Firebase — o servidor verifica sua identidade antes de qualquer operação. Os dados processados não são retidos após a resposta;</li>
+      <li><strong>Google Gemini AI:</strong> ao importar uma fatura bancária (PDF/OFX), o conteúdo do arquivo é enviado ao serviço de inteligência artificial da Google (Gemini 1.5 Flash) exclusivamente para extração de transações. O dado é processado em trânsito e não é armazenado pela Google para treinamento de modelos em nossa integração;</li>
       <li><strong>EmailJS:</strong> envio de e-mails transacionais (boas-vindas, verificação);</li>
       <li><strong>Autoridades competentes:</strong> quando exigido por decisão judicial ou lei aplicável.</li>
     </ul>
@@ -201,8 +207,9 @@
     <ul>
       <li>Autenticação via Firebase com criptografia de senhas;</li>
       <li>Comunicação via HTTPS (criptografia em trânsito);</li>
-      <li>Sanitização de inputs para prevenção de ataques XSS;</li>
-      <li>Mensagens de erro genéricas para evitar enumeração de contas;</li>
+      <li>Sanitização de todos os inputs do usuário antes do armazenamento (proteção contra XSS e injeção de dados);</li>
+      <li>Mensagens de erro genéricas para evitar enumeração de contas (anti-IDOR);</li>
+      <li>Autenticação por token de identidade (ID Token Firebase) em todas as operações no backend — o UID do usuário nunca é informado pelo cliente, apenas verificado pelo servidor;</li>
       <li>Timestamps de consentimento gerados pelo servidor (imutáveis).</li>
     </ul>
     <p>
@@ -213,14 +220,15 @@
     <!-- ─── 8. Planos e Assinaturas ──────────────────────────────── -->
     <h2>8. Planos e Assinaturas</h2>
     <p>
-      O Bud Finance oferece um período de teste gratuito (trial). No futuro, serão
-      disponibilizados <strong>planos pagos</strong> com funcionalidades adicionais.
+      O Bud Finance opera com os seguintes planos: <strong>Gratuito</strong>, <strong>Starter</strong>,
+      <strong>Pro</strong>, <strong>Plus</strong> e <strong>Período Trial</strong>.
+      Cada plano define quais funcionalidades estão disponíveis ao usuário.
     </p>
     <ul>
-      <li>Os dados de pagamento serão processados por plataformas de pagamento terceirizadas com certificação PCI-DSS — <strong>não armazenamos dados de cartão de crédito</strong>;</li>
+      <li>O plano atual do usuário é armazenado no Firestore e utilizado para controle de acesso às funcionalidades;</li>
+      <li>Os dados de pagamento, quando aplicável, serão processados por plataformas terceirizadas com certificação PCI-DSS — <strong>não armazenamos dados de cartão de crédito</strong>;</li>
       <li>Ao assinar um plano, dados adicionais poderão ser coletados conforme necessário para a cobrança;</li>
-      <li>Os termos específicos de cada plano serão informados no momento da contratação;</li>
-      <li>Esta política será atualizada quando os planos forem lançados.</li>
+      <li>Os termos específicos de cada plano são informados no momento da contratação.</li>
     </ul>
 
     <!-- ─── 9. Seus Direitos (LGPD — Art. 18) ───────────────────── -->
@@ -237,7 +245,15 @@
       <li><strong>Informação</strong> sobre com quem seus dados foram compartilhados.</li>
     </ul>
     <p>
-      Para exercer qualquer um desses direitos, entre em contato conosco pelo
+      Vários desses direitos podem ser exercidos <strong>diretamente no aplicativo</strong>, sem necessidade de contato:
+    </p>
+    <ul>
+      <li><strong>Portabilidade / Exportar dados:</strong> em <em>Configurações → Perfil → Exportar Meus Dados</em> — baixa todos os seus dados financeiros e de perfil em formato JSON;</li>
+      <li><strong>Eliminação da conta:</strong> em <em>Configurações → Segurança → Excluir Conta</em> — remove permanentemente todos os seus dados pessoais, financeiros e a conta de acesso (irreversível);</li>
+      <li><strong>Eliminação de dados financeiros (manter conta):</strong> em <em>Configurações → Segurança → Resetar Dados</em> — apaga todos os registros financeiros mantendo a conta ativa.</li>
+    </ul>
+    <p>
+      Para os demais direitos ou em caso de dúvidas, entre em contato pelo
       e-mail informado na seção de contato abaixo.
     </p>
 
@@ -245,17 +261,25 @@
     <h2>10. Retenção de Dados</h2>
     <ul>
       <li>Seus dados são mantidos enquanto sua conta estiver ativa;</li>
-      <li>Após exclusão da conta, os dados serão eliminados em até 30 dias, exceto quando houver obrigação legal de retenção;</li>
-      <li>Registros de consentimento LGPD são mantidos pelo prazo legal mesmo após exclusão da conta.</li>
+      <li>Ao solicitar a exclusão da conta pelo aplicativo, todos os dados financeiros e o registro de autenticação são eliminados imediatamente, em uma única operação atômica;</li>
+      <li>Registros de consentimento LGPD são mantidos pelo prazo legal mesmo após exclusão da conta;</li>
+      <li>Conteúdo de faturas bancárias enviados para processamento via IA não são armazenados — são descartados após a extração das transações na mesma requisição.</li>
     </ul>
 
     <!-- ─── 11. Cookies e Armazenamento Local ────────────────────── -->
     <h2>11. Cookies e Armazenamento Local</h2>
     <p>
       Utilizamos <strong>localStorage</strong> do navegador para armazenar preferências
-      de interface (como tema visual selecionado). Não utilizamos cookies de
-      rastreamento ou publicidade. Os dados de autenticação são gerenciados
-      diretamente pelo Firebase SDK.
+      e estado de interface. Os dados armazenados localmente são:
+    </p>
+    <ul>
+      <li><strong>Tema visual selecionado</strong> (ex: escuro, claro, colorido);</li>
+      <li><strong>Estado da barra lateral</strong> (colapsada ou expandida);</li>
+      <li><strong>Progresso do tutorial</strong> — chaves no formato <code>nexo_tutorial_done_[tela]</code> indicam quais guias passo a passo foram concluídos.</li>
+    </ul>
+    <p>
+      Não utilizamos cookies de rastreamento ou publicidade. Os dados de autenticação
+      são gerenciados diretamente pelo Firebase SDK e não ficam expostos no localStorage.
     </p>
 
     <!-- ─── 12. Menores de Idade ─────────────────────────────────── -->
