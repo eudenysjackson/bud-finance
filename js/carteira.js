@@ -630,7 +630,15 @@ async function processarViaBackend(file) {
 
     if (!resp.ok) throw new Error(`Servidor retornou ${resp.status}`);
     const data = await resp.json();
-    return data.transacoes || data.rows || [];
+    // Backend retorna array direto [{desc, valor, data, tipo}] — normalizar para {descricao, tipoOrigem}
+    const raw = Array.isArray(data) ? data : (data.transacoes || data.rows || []);
+    return raw.map(r => ({
+      descricao: r.descricao || r.desc || '',
+      valor: r.valor,
+      data: r.data,
+      tipoOrigem: r.tipoOrigem || r.tipo || null,
+      fitId: r.fitId || null,
+    }));
   } catch (err) {
     clearTimeout(timer);
     if (err.name === 'AbortError') throw new Error('Tempo esgotado (120s). Tente um arquivo menor.');
