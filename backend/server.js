@@ -494,14 +494,18 @@ function parseBankStatementText(rawText) {
     }
   }
 
-  // ─── Estratégia 6: Nubank extrato conta corrente PDF (DD MMM YYYY Total de saídas/entradas) ──
-  // Formato: linha de data "01 ABR 2026 Total de saídas - 84,96" define data+tipo;
-  //           linhas de descrição acumuladas; valor puro "30,00" encerra cada transação.
+  // ─── Estratégia 6: Nubank extrato conta corrente PDF ───────────────
+  // Formato real (duas linhas separadas):
+  //   Linha A: "01 ABR 2026"           ← data isolada
+  //   Linha B: "Total de saídas- 84,96" ← tipo + total do dia
+  //   Linhas+: descrição multi-linha
+  //   Última:  "30,00"                  ← valor puro encerra tx
   if (results.length < 2) {
-    var RE_HDR6  = /^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\s+\d{4}\s+Total de (sa[íi]das?|entradas?)/i;
-    var RE_SUB6  = /^Total de (sa[íi]das?|entradas?)/i; // mudança de direção no mesmo dia
-    var RE_VAL6  = /^[\d\.]+,\d{2}$/;                   // valor puro: "30,00", "1.234,56"
-    var RE_SKIP6 = /^(saldo\b|rendimento\b|movimenta|cpf\b|tem alguma|caso a\b|extrato gerado|asseguramos|nu (financeira|pagamentos)|cnpj:|o saldo l[íi]quido|n[ãa]o nos)/i;
+    var RE_HDR6  = /^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\s+(\d{4})$/i;  // data sozinha
+    var RE_SUB6  = /^Total de (sa[íi]das?|entradas?)/i;   // define direção (mesmo dia pode alternar)
+    var RE_VAL6  = /^[\d\.]+,\d{2}$/;                    // valor puro: "30,00", "1.234,56"
+    var RE_SKIP6 = /^(saldo\b|rendimento\b|movimenta|cpf\b|tem alguma|caso a\b|extrato gerado|asseguramos|nu (financeira|pagamentos)|cnpj:|o saldo l[íi]quido|n[ãa]o nos|valores em|•••|página|de \d|\d+ de \d+$)/i;
+    var RE_ONLYNUMS6 = /^\d[\d\.\-]+$/; // linhas que são só números/conta (ex: "87450507-6", "4")
 
     var curData6 = null;
     var curTipo6 = null;
@@ -510,19 +514,19 @@ function parseBankStatementText(rawText) {
     for (var s6 = 0; s6 < lines.length; s6++) {
       var line6 = lines[s6];
 
-      // Linha de data+tipo: "01 ABR 2026 Total de saídas - 84,96"
+      // Linha de data isolada: "01 ABR 2026"
       var hm6 = line6.match(RE_HDR6);
       if (hm6) {
         descBuf6 = [];
         var mes6 = MESES_PT[hm6[2].toLowerCase()];
         if (mes6) {
-          curData6 = ano + '-' + String(mes6).padStart(2, '0') + '-' + String(parseInt(hm6[1])).padStart(2, '0');
-          curTipo6 = /sa[íi]da/i.test(hm6[3]) ? 'debito' : 'credito';
+          curData6 = hm6[3] + '-' + String(mes6).padStart(2, '0') + '-' + String(parseInt(hm6[1])).padStart(2, '0');
+          curTipo6 = null; // será definido pela linha seguinte (Total de saídas/entradas)
         }
         continue;
       }
 
-      // Sub-header no mesmo dia: "Total de saídas - 65,00" muda direção
+      // Linha de tipo/total do dia: "Total de saídas- 84,96" ou "Total de entradas+ 65,00"
       if (RE_SUB6.test(line6)) {
         descBuf6 = [];
         curTipo6 = /sa[íi]da/i.test(line6) ? 'debito' : 'credito';
@@ -532,8 +536,8 @@ function parseBankStatementText(rawText) {
       // Linhas de rodapé/cabeçalho irrelevantes
       if (RE_SKIP6.test(line6)) { descBuf6 = []; continue; }
 
-      // Aguarda primeira data
-      if (!curData6) { descBuf6 = []; continue; }
+      // Aguarda data E tipo estarem definidos
+      if (!curData6 || !curTipo6) { descBuf6 = []; continue; }
 
       // Valor puro → cria transação com descrição acumulada
       if (RE_VAL6.test(line6)) {
@@ -547,8 +551,13 @@ function parseBankStatementText(rawText) {
       }
 
       // Acumula linhas de descrição (2–200 chars)
-      if (line6.length >= 2 && line6.length <= 200) {
-        descBuf6.push(line6);
+      // Ignora linhas que são só números de conta (ex: "87450507-6", "4")
+      if (line6.length >= 2 && line6.length <= 200 && !RE_ONLYNUMS6.test(line6)) {
+        // Remove valores embutidos no final da linha (ex: "Resgate RDB1.592,47")
+        var cleanLine6 = line6.replace(/[\d\.]+,\d{2}$/, '').trim();
+        // Ignora rótulos de resumo que aparecem sem valor separado (ex: "Pagamento de fatura", "Resgate RDB")
+        var isLabel6 = /^(resgate rdb|pagamento de fatura|compra no débito|compra no debito)\b/i.test(cleanLine6);
+        if (!isLabel6 && cleanLine6.length >= 2) descBuf6.push(cleanLine6);
       }
     }
   }

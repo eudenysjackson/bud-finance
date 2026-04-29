@@ -460,8 +460,30 @@ function abrirModalImport(contaId) {
   document.getElementById('btnImportStep2Back').onclick = () => goImportStep(1);
   document.getElementById('btnImportStep1Next').onclick = () => processarArquivo();
   document.getElementById('btnImportStep2Next').onclick = () => confirmarImport();
-  document.getElementById('btnImportConcluir').onclick = () => {
+  document.getElementById('btnImportConcluir').onclick = async () => {
+    const btn = document.getElementById('btnImportConcluir');
+    // Ler saldo editado pelo usuário
+    const saldoInputEl = document.getElementById('importSaldoFinalInput');
+    let saldoFinal = btn._pendingSaldo ?? 0;
+    if (saldoInputEl && saldoInputEl.value) {
+      // Converter "R$ 1.454,50" ou "1454.50" → número
+      const raw = saldoInputEl.value.replace(/R\$\s*/g, '').replace(/\./g, '').replace(',', '.').trim();
+      const parsed = parseFloat(raw);
+      if (!isNaN(parsed)) saldoFinal = parsed;
+    }
+    // Salvar saldo confirmado no Firestore
+    try {
+      await updateDoc(doc(db, 'usuarios', btn._pendingUid, 'carteira', btn._pendingId), {
+        ultimaConfirmacao: {
+          data: btn._pendingData,
+          saldo: saldoFinal,
+          origem: 'extrato_importado',
+        },
+        atualizadaEm: serverTimestamp(),
+      });
+    } catch (e) { console.warn('Erro ao salvar saldo:', e); }
     modal.classList.remove('open');
+    window._ofxLedgerBal = null;
     carregarContas();
   };
 
@@ -554,7 +576,11 @@ async function processarArquivo() {
       rows = parseCSV(text);
     } else if (ext === 'ofx' || ext === 'qfx') {
       const text = await readFileAsText(file);
-      rows = parseOFX(text);
+      const ofxResult = parseOFX(text);
+      rows = ofxResult.rows;
+      // Guardar saldo final do extrato OFX se disponível
+      if (ofxResult.ledgerBal != null) window._ofxLedgerBal = ofxResult.ledgerBal;
+      else window._ofxLedgerBal = null;
     } else if (ext === 'pdf' || ['jpg', 'jpeg', 'png'].includes(ext)) {
       // Backend: mostrar feedback de progressão
       btn.textContent = '🤖 Analisando com IA… pode levar até 2 min';
@@ -715,6 +741,10 @@ function parseOFX(text) {
   // Remover BOM e normalizar
   text = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
+  // Extrair LEDGERBAL (saldo final do extrato, se disponível)
+  const ledgerMatch = text.match(/<LEDGERBAL>[\s\S]*?<BALAMT>([\d\.\-]+)/i);
+  const ledgerBal = ledgerMatch ? parseFloat(ledgerMatch[1]) : null;
+
   const rows = [];
   const txBlocks = text.match(/<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi) || [];
 
@@ -747,7 +777,7 @@ function parseOFX(text) {
     });
   });
 
-  return rows;
+  return { rows, ledgerBal };
 }
 
 // ── Mapear Transações ─────────────────────────────────────
@@ -795,28 +825,40 @@ function detectarTipo(desc, tipoOrigem) {
 }
 
 // ── Detectar Categoria ────────────────────────────────────
-// BUG #10 fix: regras unificadas em uma única lista (sem duplicatas)
+// Nomes devem ser idênticos aos de BUD_CATEGORIAS_PADRAO para seleção correta no <select>
 const REGRAS_CAT = [
-  { cat: 'Mercado',          words: ['mercado','supermercado','hipermercado','atacadao','assai','carrefour','extra','pao de acucar','hortifruti','sacolao','feira'] },
-  { cat: 'Restaurante',      words: ['restaurante','lanchonete','hamburger','pizza','sushi','churrascaria','ifood','rappi','delivery','uber eats'] },
-  { cat: 'Transporte',       words: ['uber','taxi','99pop','cabify','onibus','metro','trem','combustivel','gasolina','etanol','estacionamento','pedagio','metrô'] },
-  { cat: 'Farmácia',         words: ['farmacia','drogaria','ultrafarma','droga raia','drogasil','pacheco','medifarma'] },
-  { cat: 'Saúde',            words: ['hospital','clinica','medico','consulta','plano de saude','dentista','fisioterapia','laboratorio','exame'] },
-  { cat: 'Educação',         words: ['faculdade','universidade','escola','curso','mensalidade','udemy','coursera','alura','livro'] },
-  { cat: 'Streaming',        words: ['netflix','spotify','amazon prime','disney','globoplay','hbo','paramount','youtube premium','deezer'] },
-  { cat: 'Assinaturas',      words: ['assinatura','subscricao','plano'] },
-  { cat: 'Compras Online',   words: ['mercadolivre','amazon','shopee','aliexpress','americanas','magazine luiza','casas bahia','submarino','shein'] },
-  { cat: 'Roupas',           words: ['roupa','calcado','zara','renner','riachuelo','marisa','c&a','trick','calvin','lacoste'] },
-  { cat: 'Moradia',          words: ['aluguel','condominio','agua','luz','energia','gas','iptu','internet','telefone','celular','vivo','claro','tim','oi'] },
-  { cat: 'Investimentos',    words: ['aplicacao','investimento','cdb','rdb','lci','lca','tesouro direto','acoes','fundo','bovespa'] },
-  { cat: 'Salário',          words: ['salario','proventos','folha de pagamento','holerite'] },
-  { cat: 'Transferência',    words: ['transferencia','pix','ted','doc','tev'] },
-  { cat: 'Pets',             words: ['pet','veterinario','racao','petshop','petz','cobasi'] },
-  { cat: 'Beleza',           words: ['salao','cabelereiro','estetica','manicure','barbearia','perfumaria','sephora'] },
-  { cat: 'Academia',         words: ['academia','ginasio','crossfit','smartfit','bluefit'] },
-  { cat: 'Padaria/Café',     words: ['padaria','cafe','cafeteria','starbucks','bobs','mcdonalds','burger king','kfc','subway'] },
-  { cat: 'Viagem',           words: ['hotel','hospedagem','passagem','voo','airbnb','booking','decolar','latam','gol','azul'] },
-  { cat: 'Lazer',            words: ['cinema','teatro','show','ingresso','parque','diversao'] },
+  { cat: 'Mercado',                 words: ['mercado','supermercado','hipermercado','atacadao','assai','carrefour','extra','pao de acucar','hortifruti','sacolao','feira'] },
+  { cat: 'Restaurante',             words: ['restaurante','lanchonete','hamburger','pizza','sushi','churrascaria'] },
+  { cat: 'Delivery/Ifood',          words: ['ifood','rappi','delivery','uber eats','deliway'] },
+  { cat: 'Padaria/Café',            words: ['padaria','cafe','cafeteria','starbucks','bobs','mcdonalds','burger king','kfc','subway','panificacao'] },
+  { cat: 'Uber/Táxi',               words: ['uber','taxi','99pop','99 tecnologia','cabify'] },
+  { cat: 'Ônibus/Metrô',            words: ['onibus','metro','trem'] },
+  { cat: 'Combustível',             words: ['combustivel','gasolina','etanol','posto','shell','ipiranga'] },
+  { cat: 'Estacionamento',          words: ['estacionamento','pedagio'] },
+  { cat: 'Farmácia',                words: ['farmacia','drogaria','ultrafarma','droga raia','drogasil','pacheco','medifarma','boa fe'] },
+  { cat: 'Plano de Saúde',          words: ['plano de saude','supermed','unimed','amil','bradesco saude'] },
+  { cat: 'Consultas/Exames',        words: ['hospital','clinica','medico','consulta','dentista','fisioterapia','laboratorio','exame'] },
+  { cat: 'Faculdade/Escola',        words: ['faculdade','universidade','escola','mensalidade escolar'] },
+  { cat: 'Cursos',                  words: ['curso','udemy','coursera','alura'] },
+  { cat: 'Assinaturas/Streaming',   words: ['netflix','spotify','amazon prime','disney','globoplay','hbo','paramount','youtube premium','deezer','assinatura','subscricao'] },
+  { cat: 'Roupas/Sapatos',          words: ['roupa','calcado','zara','renner','riachuelo','marisa','c&a','trick','calvin','lacoste','shein'] },
+  { cat: 'Salão/Barbearia',         words: ['salao','cabelereiro','barbearia'] },
+  { cat: 'Cosméticos',              words: ['estetica','manicure','perfumaria','sephora','bela ferraz'] },
+  { cat: 'Viagens',                 words: ['hotel','hospedagem','passagem','voo','airbnb','booking','decolar','latam','gol','azul'] },
+  { cat: 'Cinema/Teatro',           words: ['cinema','teatro'] },
+  { cat: 'Shows/Eventos',           words: ['show','ingresso','parque','diversao'] },
+  { cat: 'Academia/Esportes',       words: ['academia','ginasio','crossfit','smartfit','bluefit'] },
+  { cat: 'Aluguel',                 words: ['aluguel'] },
+  { cat: 'Internet/TV',             words: ['claro','vivo','tim','oi','internet','telefone'] },
+  { cat: 'Luz',                     words: ['light servicos','eletricidade','cemig','copel','energisa','cpfl','enel'] },
+  { cat: 'Gás',                     words: ['ceg','comgas'] },
+  { cat: 'Pet',                     words: ['pet','veterinario','racao','petshop','petz','cobasi','apetit'] },
+  { cat: 'Eletrônicos',             words: ['shpp','shoptime','americanas','magazine luiza','casas bahia','kabum','terabyte'] },
+  { cat: 'Compras Online',          words: ['mercadolivre','amazon','shopee','aliexpress','submarino'] },
+  { cat: 'Empréstimos/Dívidas',     words: ['emprestimo','financiamento','prestacao','resgate de emprestimo'] },
+  { cat: 'Salário',                 words: ['salario','proventos','folha de pagamento','holerite'] },
+  { cat: 'Rendimentos/Dividendos',  words: ['rendimento','dividendo','resgate rdb','resgate cdb'] },
+  { cat: 'Outros',                  words: ['transferencia','pix','ted','doc','tev'] },
 ];
 
 function detectarCategoria(desc, tipo) {
@@ -828,7 +870,7 @@ function detectarCategoria(desc, tipo) {
       if (d.includes(w)) return regra.cat;
     }
   }
-  return tipo === 'receita' ? 'Renda' : 'Outros';
+  return 'Outros';
 }
 
 // ── Verificar Duplicatas ──────────────────────────────────
@@ -925,7 +967,7 @@ function renderPreview() {
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(r.descricao)}">${escapeHtml(r.descricao)}${dupBadge}</td>
       <td><button class="tipo-pill ${tipoClass}" onclick="toggleRowTipo(${globalIdx})">${tipoLabel}</button></td>
       <td style="text-align:right;font-weight:700;white-space:nowrap;color:${r.tipo === 'receita' ? '#16a34a' : '#dc2626'};">${fmtBRL(r.valor)}</td>
-      <td><select onchange="setRowCategoria(${globalIdx}, this.value)" style="border:1px solid var(--input-border);border-radius:0.375rem;padding:0.2rem 0.375rem;font-size:0.75rem;background:var(--input-bg);color:var(--card-text);font-family:inherit;width:160px;cursor:pointer;">${buildCatOptions(r.categoria)}</select></td>
+      <td><select onchange="setRowCategoria(${globalIdx}, this.value)">${buildCatOptions(r.categoria)}</select></td>
     </tr>`;
   }).join('');
 
@@ -1003,8 +1045,11 @@ function initGlobalCatSelect() {
       dd.classList.remove('open');
       if (globalCat) {
         parsedRows.forEach(r => { r.categoria = globalCat; });
-        renderPreview();
+      } else {
+        // Auto-detectar: recalcular categoria de cada linha
+        parsedRows.forEach(r => { r.categoria = detectarCategoria(r.descricao, r.tipo); });
       }
+      renderPreview();
     };
   });
 }
@@ -1065,21 +1110,17 @@ async function confirmarImport() {
     const despesas = selecionados.filter(r => r.tipo === 'despesa').reduce((s, r) => s + r.valor, 0);
     const netDelta = receitas - despesas;
     const saldoAtual = getSaldoExibido(currentContaObj);
-    const novoSaldo = saldoAtual + netDelta;
+    const saldoSugerido = window._ofxLedgerBal != null
+      ? window._ofxLedgerBal           // OFX com LEDGERBAL: usar saldo real do banco
+      : saldoAtual + netDelta;          // sem LEDGERBAL: saldo atual + delta desta importação
+    const novoSaldo = saldoSugerido;
 
-    await updateDoc(doc(db, 'usuarios', uid, 'carteira', currentCarteiraId), {
-      ultimaConfirmacao: {
-        data: ultimaData,
-        saldo: novoSaldo,
-        origem: 'extrato_importado',
-      },
-      atualizadaEm: serverTimestamp(),
-    });
+    // NÃO salvar saldo aqui — será salvo no clique do Concluído após confirmação do usuário
 
     // UI resultado
     document.getElementById('importResultIcon').textContent = '✅';
     document.getElementById('importResultTitle').textContent = `${salvos} transações importadas!`;
-    document.getElementById('importResultSub').textContent = `Saldo atualizado: ${fmtBRL(novoSaldo)}`;
+    document.getElementById('importResultSub').textContent = `Saldo calculado: ${fmtBRL(novoSaldo)}`;
     document.getElementById('importResultDetails').style.display = 'block';
     document.getElementById('importResultDetails').innerHTML = `
       <div>📈 Receitas: <strong style="color:#16a34a;">${fmtBRL(receitas)}</strong></div>
@@ -1087,7 +1128,22 @@ async function confirmarImport() {
       <div>💰 Delta: <strong style="color:${netDelta >= 0 ? '#16a34a' : '#dc2626'};">${netDelta >= 0 ? '+' : ''}${fmtBRL(netDelta)}</strong></div>
       <div>📅 Última data: <strong>${fmtDataBR(ultimaData)}</strong></div>
     `;
-    document.getElementById('btnImportConcluir').style.display = 'block';
+
+    // Mostrar campo de confirmação de saldo
+    const saldoConfirmDiv = document.getElementById('importSaldoConfirm');
+    const saldoInput = document.getElementById('importSaldoFinalInput');
+    if (saldoConfirmDiv && saldoInput) {
+      saldoConfirmDiv.style.display = 'block';
+      saldoInput.value = fmtBRL(novoSaldo);
+    }
+
+    // Salvar saldo ao clicar Concluído (lê o valor editado pelo usuário)
+    const btnConcluir = document.getElementById('btnImportConcluir');
+    btnConcluir._pendingSaldo = novoSaldo;
+    btnConcluir._pendingData  = ultimaData;
+    btnConcluir._pendingUid   = uid;
+    btnConcluir._pendingId    = currentCarteiraId;
+    btnConcluir.style.display = 'block';
 
   } catch (err) {
     console.error('Erro na importação:', err);
