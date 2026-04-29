@@ -375,8 +375,16 @@ async function salvarConta() {
   try {
     const ref = collection(db, 'usuarios', currentUser.uid, 'carteira');
     if (editId) {
+      // Atualizar conta existente — saldo digitado vira ultimaConfirmacao manual
+      const hojeISO = new Date().toISOString().slice(0, 10);
       await updateDoc(doc(db, 'usuarios', currentUser.uid, 'carteira', editId), {
-        nome, tipo, atualizadaEm: serverTimestamp(),
+        nome, tipo,
+        ultimaConfirmacao: {
+          data: hojeISO,
+          saldo,
+          origem: 'manual',
+        },
+        atualizadaEm: serverTimestamp(),
       });
     } else {
       await addDoc(ref, {
