@@ -243,7 +243,10 @@ function parseValorBRL(str) {
 function isNonTransactionLine(line) {
   // Linhas de cabeçalho, rodapé e resumo que NÃO são transações
   var keywords = /^(total|saldo|limite|fatura|pagamento|vencimento|encarg|iof|taxa|juros|subtotal|compras nacionais|compras internacionais|parceladas|demais cobranças|valor mínimo|valor da fatura|data de|fechamento|melhor dia|obrigado|olá|esta é)/i;
-  return keywords.test(line.trim());
+  if (keywords.test(line.trim())) return true;
+  // Nubank CC extrato: headers "DD ABR YYYY Total de saídas/entradas" — evita Strategy 1 capturar como transação
+  if (/\btotal de (sa[íi]das?|entradas?)\b/i.test(line)) return true;
+  return false;
 }
 
 /**
@@ -488,6 +491,65 @@ function parseBankStatementText(rawText) {
         }
       }
       i5++;
+    }
+  }
+
+  // ─── Estratégia 6: Nubank extrato conta corrente PDF (DD MMM YYYY Total de saídas/entradas) ──
+  // Formato: linha de data "01 ABR 2026 Total de saídas - 84,96" define data+tipo;
+  //           linhas de descrição acumuladas; valor puro "30,00" encerra cada transação.
+  if (results.length < 2) {
+    var RE_HDR6  = /^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\s+\d{4}\s+Total de (sa[íi]das?|entradas?)/i;
+    var RE_SUB6  = /^Total de (sa[íi]das?|entradas?)/i; // mudança de direção no mesmo dia
+    var RE_VAL6  = /^[\d\.]+,\d{2}$/;                   // valor puro: "30,00", "1.234,56"
+    var RE_SKIP6 = /^(saldo\b|rendimento\b|movimenta|cpf\b|tem alguma|caso a\b|extrato gerado|asseguramos|nu (financeira|pagamentos)|cnpj:|o saldo l[íi]quido|n[ãa]o nos)/i;
+
+    var curData6 = null;
+    var curTipo6 = null;
+    var descBuf6 = [];
+
+    for (var s6 = 0; s6 < lines.length; s6++) {
+      var line6 = lines[s6];
+
+      // Linha de data+tipo: "01 ABR 2026 Total de saídas - 84,96"
+      var hm6 = line6.match(RE_HDR6);
+      if (hm6) {
+        descBuf6 = [];
+        var mes6 = MESES_PT[hm6[2].toLowerCase()];
+        if (mes6) {
+          curData6 = ano + '-' + String(mes6).padStart(2, '0') + '-' + String(parseInt(hm6[1])).padStart(2, '0');
+          curTipo6 = /sa[íi]da/i.test(hm6[3]) ? 'debito' : 'credito';
+        }
+        continue;
+      }
+
+      // Sub-header no mesmo dia: "Total de saídas - 65,00" muda direção
+      if (RE_SUB6.test(line6)) {
+        descBuf6 = [];
+        curTipo6 = /sa[íi]da/i.test(line6) ? 'debito' : 'credito';
+        continue;
+      }
+
+      // Linhas de rodapé/cabeçalho irrelevantes
+      if (RE_SKIP6.test(line6)) { descBuf6 = []; continue; }
+
+      // Aguarda primeira data
+      if (!curData6) { descBuf6 = []; continue; }
+
+      // Valor puro → cria transação com descrição acumulada
+      if (RE_VAL6.test(line6)) {
+        if (descBuf6.length > 0) {
+          var desc6  = descBuf6.join(' ').replace(/\s+/g, ' ').trim();
+          var valor6 = parseValorBRL(line6);
+          addTx(desc6, valor6, curData6, curTipo6);
+          descBuf6 = [];
+        }
+        continue;
+      }
+
+      // Acumula linhas de descrição (2–200 chars)
+      if (line6.length >= 2 && line6.length <= 200) {
+        descBuf6.push(line6);
+      }
     }
   }
 

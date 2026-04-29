@@ -776,6 +776,9 @@ function detectarTipo(desc, tipoOrigem) {
   if (!desc) return tipoOrigem === 'credito' ? 'receita' : 'despesa';
   const d = desc.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
+  // Empréstimos/financiamentos → sempre despesa ("Resgate de empréstimo" = pagamento da dívida)
+  if (/emprestimo|financiamento|prestacao/.test(d)) return 'despesa';
+
   // Padrões de receita explícitos
   if (/pix receb|transferencia receb|credito receb|deposito receb|estorno|reembolso|devolucao|resgate|rendimento|dividendo|salario|proventos/.test(d)) return 'receita';
   if (/\bsalario\b|\bpagamento receb|\bbonus\b|\b13o\b/.test(d)) return 'receita';
@@ -883,6 +886,18 @@ function normDesc(desc) {
   return desc.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().substring(0, 30);
 }
 
+// ── buildCatOptions ───────────────────────────────────────
+function buildCatOptions(selected) {
+  const p = window.BUD_CATEGORIAS_PADRAO || { despesa: [], receita: [] };
+  const all = [...(p.despesa || []), ...(p.receita || [])];
+  let html = '<option value="">-- Categoria --</option>';
+  all.forEach(function(c) {
+    const sel = c.nome === selected ? ' selected' : '';
+    html += '<option value="' + escapeHtml(c.nome) + '"' + sel + '>' + (c.emoji || '') + ' ' + escapeHtml(c.nome) + '</option>';
+  });
+  return html;
+}
+
 // ── Render Preview ────────────────────────────────────────
 function renderPreview() {
   const totalPages = Math.max(1, Math.ceil(parsedRows.length / PER_PAGE));
@@ -910,7 +925,7 @@ function renderPreview() {
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(r.descricao)}">${escapeHtml(r.descricao)}${dupBadge}</td>
       <td><button class="tipo-pill ${tipoClass}" onclick="toggleRowTipo(${globalIdx})">${tipoLabel}</button></td>
       <td style="text-align:right;font-weight:700;white-space:nowrap;color:${r.tipo === 'receita' ? '#16a34a' : '#dc2626'};">${fmtBRL(r.valor)}</td>
-      <td><input type="text" value="${escapeHtml(r.categoria)}" style="border:1px solid var(--input-border);border-radius:0.375rem;padding:0.2rem 0.375rem;font-size:0.75rem;background:var(--input-bg);color:var(--card-text);font-family:inherit;width:120px;" onchange="setRowCategoria(${globalIdx}, this.value)" placeholder="Categoria..."></td>
+      <td><select onchange="setRowCategoria(${globalIdx}, this.value)" style="border:1px solid var(--input-border);border-radius:0.375rem;padding:0.2rem 0.375rem;font-size:0.75rem;background:var(--input-bg);color:var(--card-text);font-family:inherit;width:160px;cursor:pointer;">${buildCatOptions(r.categoria)}</select></td>
     </tr>`;
   }).join('');
 
@@ -968,11 +983,14 @@ function initGlobalCatSelect() {
   const btn = document.getElementById('globalCatBtn');
   const dd = document.getElementById('globalCatDropdown');
 
-  // Construir opções
-  const cats = ['Auto-detectar', ...REGRAS_CAT.map(r => r.cat), 'Renda', 'Outros'];
-  dd.innerHTML = cats.map(c =>
-    `<div class="custom-select-option" style="font-size:0.8125rem;" data-value="${c === 'Auto-detectar' ? '' : c}">${c}</div>`
-  ).join('');
+  // Construir opções com emojis via BUD_CATEGORIAS_PADRAO
+  const padroes = window.BUD_CATEGORIAS_PADRAO || { despesa: [], receita: [] };
+  const allCats = [...padroes.despesa, ...padroes.receita];
+  dd.innerHTML =
+    `<div class="custom-select-option" style="font-size:0.8125rem;" data-value="">🔍 Auto-detectar</div>` +
+    allCats.map(c =>
+      `<div class="custom-select-option" style="font-size:0.8125rem;" data-value="${escapeHtml(c.nome)}">${c.emoji} ${escapeHtml(c.nome)}</div>`
+    ).join('');
 
   btn.onclick = (e) => { e.stopPropagation(); btn.classList.toggle('open'); dd.classList.toggle('open'); };
 
