@@ -43,6 +43,8 @@ let abaAtual       = 'resumo';
 let _dadosDirty    = true;         // BUG 14: só recriar gráficos quando dados mudaram
 let _filtroDiaDia  = 'tudo';
 let _filtroTend    = 'ambos';
+let _filtroDetalhamento = 'despesas';
+let _expandedCats  = new Set();
 let charts         = { cat: null, rd: null, tend: null, dia: null };
 let splashHidden   = false;
 
@@ -115,6 +117,20 @@ function setText(id, v) {
   if (el) el.textContent = v;
 }
 
+function renderBadge(id, curr, prev) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = '';
+  if (valoresOcultos || Math.abs(prev) < 0.01) return;
+  const diff  = curr - prev;
+  const pct   = Math.abs((diff / prev) * 100).toFixed(1);
+  const up    = diff >= 0;
+  const cor   = up ? '#16a34a' : '#dc2626';
+  const bg    = up ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)';
+  const sinal = up ? '▲' : '▼';
+  el.innerHTML = `<span style="font-size:0.6875rem;font-weight:700;color:${cor};background:${bg};padding:0.15rem 0.4rem;border-radius:0.375rem;display:inline-block;margin-top:0.25rem;">${sinal} ${pct}% vs mês ant.</span>`;
+}
+
 // BUG 15 — tooltip callbacks respeitam valoresOcultos
 const tooltipCallbacks = {
   label(ctx) {
@@ -154,6 +170,53 @@ window.sincronizarDados = async function() {
 };
 
 window.exportarPDF = function() { window.print(); };
+
+window.exportarCSV = function() {
+  const prefixo = getPrefixo();
+  const doMes = transacoes.filter(t =>
+    t.dataReferencia &&
+    t.dataReferencia.startsWith(prefixo) &&
+    t.status !== 'pendente' &&
+    t.pago !== false
+  );
+  if (!doMes.length) { showToast('Sem transações para exportar', 'error'); return; }
+  const linhas = [['Data', 'Tipo', 'Categoria', 'Descrição', 'Valor (R$)']];
+  doMes.slice().sort((a, b) => (a.dataReferencia || '').localeCompare(b.dataReferencia || '')).forEach(t => {
+    const data = t.dataReferencia || '';
+    const tipo = t.tipo || '';
+    const cat  = (t.categoria || 'Outros').replace(/"/g, '""');
+    const desc = (t.descricao || t.titulo || '').replace(/"/g, '""');
+    const val  = (Number(t.valor) || 0).toFixed(2).replace('.', ',');
+    linhas.push([data, tipo, `"${cat}"`, `"${desc}"`, val]);
+  });
+  const csv  = '\uFEFF' + linhas.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `bud-relatorio-${prefixo}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('CSV exportado com sucesso!', 'ok');
+};
+
+window.filtrarDetalhamento = function(filtro) {
+  _filtroDetalhamento = filtro;
+  _expandedCats.clear();
+  ['despesas', 'receitas'].forEach(f => {
+    const chip = document.getElementById('chipDet' + f.charAt(0).toUpperCase() + f.slice(1));
+    if (chip) chip.className = 'chip-filtro' + (f === filtro ? ' ativo' : '');
+  });
+  renderDetalhamento();
+};
+
+window.toggleCatDet = function(idx) {
+  if (_expandedCats.has(idx)) _expandedCats.delete(idx);
+  else _expandedCats.add(idx);
+  renderDetalhamento();
+};
 
 // ─── Seletor de mês mobile ────────────────────────────────────────────────
 window.abrirSeletorMes = function() {
@@ -313,6 +376,25 @@ function renderTudo() {
   }
   setText('kpiSaldoSub', saldo >= 0 ? 'resultado positivo ✅' : 'resultado negativo ⚠️');
 
+  // Limpar expansão de categorias ao carregar novos dados
+  _expandedCats.clear();
+
+  // Badges vs mês anterior
+  const prevPfx = (() => {
+    const d = new Date(dataFiltro.getFullYear(), dataFiltro.getMonth() - 1, 1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  })();
+  let prevRec = 0, prevDep = 0;
+  transacoes.forEach(t => {
+    if (!t.dataReferencia || !t.dataReferencia.startsWith(prevPfx)) return;
+    if (t.status === 'pendente' || t.pago === false) return;
+    const val = Number(t.valor) || 0;
+    if (t.tipo === 'receita') prevRec += val; else prevDep += val;
+  });
+  renderBadge('kpiRecBadge',   totalRec, prevRec);
+  renderBadge('kpiDepBadge',   totalDep, prevDep);
+  renderBadge('kpiSaldoBadge', saldo,    prevRec - prevDep);
+
   // Dispatch para a aba ativa
   if (abaAtual === 'resumo')           renderResumo();
   else if (abaAtual === 'graficos')    renderGraficos();
@@ -389,6 +471,9 @@ function renderResumo() {
 
   // ── Dia a dia ───────────────────────────────────────────────────────────
   renderDiaDia(porDia, _filtroDiaDia);
+
+  // Insight compartilhado com aba Gráficos
+  renderInsight(totalRec, totalDep, totalRec - totalDep, porCatDep);
 }
 
 function renderCats(containerId, porCat, total, cor, emptyMsg) {

@@ -261,10 +261,10 @@ function setupListeners() {
     }
   );
 
-  // Carteiras (para dropdown de aporte)
-  const cartRef = collection(db, 'usuarios', uid, 'carteiras');
+  // Carteiras (para dropdown de aporte) — coleção correta: 'carteira' (sem 's')
+  const cartRef = collection(db, 'usuarios', uid, 'carteira');
   _carteiraListenerUnsubscribe = onSnapshot(
-    query(cartRef, orderBy('nome', 'asc')),
+    query(cartRef, orderBy('criadaEm', 'asc')),
     (snap) => {
       carteirasGlobal = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     },
@@ -737,15 +737,21 @@ function popularDropdownCarteiras() {
     const item = document.createElement('div');
     item.className = 'custom-select-option';
     item.style.cssText = 'color:var(--card-text-sec);font-style:italic;';
-    item.textContent = 'Nenhuma conta encontrada';
+    item.textContent = 'Nenhuma conta encontrada. Crie uma em Carteira.';
     dropdown.appendChild(item);
     return;
   }
+  // Mapa de ícones por tipo (espelha TIPO_CONFIG do carteira.js)
+  const TIPO_ICONS = {
+    dinheiro: '💵', debito: '🏦', vale_refeicao: '🍽️',
+    vale_alimentacao: '🛒', transporte: '🚌',
+  };
   contas.forEach(c => {
     const item = document.createElement('div');
     item.className = 'custom-select-option';
     item.setAttribute('role', 'option');
-    item.textContent = `${c.icone || '🏦'} ${c.nome || 'Conta'}`;
+    const icon = TIPO_ICONS[c.tipo] || '🏦';
+    item.textContent = `${icon} ${c.nome || 'Conta'}`;
     item.addEventListener('click', () => {
       carteiraSelectedId    = c.id;
       carteiraSelectedLabel = item.textContent;
@@ -811,7 +817,7 @@ async function handleSubmitAporte(e) {
       atualizadoEm: serverTimestamp(),
     });
 
-    // 2. Registrar transação vinculada
+    // 2. Registrar transação vinculada no extrato
     const txRef = doc(collection(db, 'usuarios', uid, 'transacoes'));
     batch.set(txRef, {
       tipo: 'despesa',
@@ -824,9 +830,8 @@ async function handleSubmitAporte(e) {
       dataCriacao: serverTimestamp(),
     });
 
-    // 3. Debitar saldo da carteira
-    const cartRef = doc(db, 'usuarios', uid, 'carteiras', carteiraId);
-    batch.update(cartRef, { saldo: increment(-valor) });
+    // Nota: não incrementamos saldo diretamente no doc da carteira — o balanço
+    // é gerenciado via snapshot ultimaConfirmacao (import) para evitar dessincronização.
 
     await batch.commit();
 

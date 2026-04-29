@@ -447,45 +447,45 @@
 
 ---
 
-### DEC-036 — Categorias: fonte única de verdade via `window.BUD_CATEGORIAS_PADRAO`
+### DEC-036 ï¿½ Categorias: fonte ï¿½nica de verdade via `window.BUD_CATEGORIAS_PADRAO`
 - **Data**: 23/04/2026
-- **Contexto**: BUG 3 do cérebro — lista de categorias padrão estava duplicada em múltiplos arquivos JS podendo divergir entre telas.
-- **Decisão**: Criar `js/categorias-padrao.js` como script não-módulo que expõe `window.BUD_CATEGORIAS_PADRAO`. Todas as telas que precisam da lista carregam este script.
-- **Alternativas descartadas**: ES module export — exigiria reescrever todos os módulos consumidores.
-- **Impacto**: `categorias.html` já carrega o script. Demais telas devem adicioná-lo quando forem construídas.
-- **Quando revisar**: Se o app migrar para bundler (Vite/esbuild), substituir pelo import estático.
+- **Contexto**: BUG 3 do cï¿½rebro ï¿½ lista de categorias padrï¿½o estava duplicada em mï¿½ltiplos arquivos JS podendo divergir entre telas.
+- **Decisï¿½o**: Criar `js/categorias-padrao.js` como script nï¿½o-mï¿½dulo que expï¿½e `window.BUD_CATEGORIAS_PADRAO`. Todas as telas que precisam da lista carregam este script.
+- **Alternativas descartadas**: ES module export ï¿½ exigiria reescrever todos os mï¿½dulos consumidores.
+- **Impacto**: `categorias.html` jï¿½ carrega o script. Demais telas devem adicionï¿½-lo quando forem construï¿½das.
+- **Quando revisar**: Se o app migrar para bundler (Vite/esbuild), substituir pelo import estï¿½tico.
 
 ---
 
-### DEC-037 — Categorias personalizadas: liberadas para todos no MVP (sem gate de plano)
+### DEC-037 ï¿½ Categorias personalizadas: liberadas para todos no MVP (sem gate de plano)
 - **Data**: 23/04/2026
-- **Contexto**: Cérebro especifica custom categories como exclusivas de planos pagos. MVP não tem sistema de planos (PEND-001 pendente).
-- **Decisão**: Todos os usuários podem criar categorias personalizadas no MVP. Código tem comentário indicando onde inserir o gate quando PEND-001 for implementado.
-- **Quando revisar**: Ao implementar PEND-001 — adicionar verificação em `salvarCategoria()` em `js/categorias.js`.
+- **Contexto**: Cï¿½rebro especifica custom categories como exclusivas de planos pagos. MVP nï¿½o tem sistema de planos (PEND-001 pendente).
+- **Decisï¿½o**: Todos os usuï¿½rios podem criar categorias personalizadas no MVP. Cï¿½digo tem comentï¿½rio indicando onde inserir o gate quando PEND-001 for implementado.
+- **Quando revisar**: Ao implementar PEND-001 ï¿½ adicionar verificaï¿½ï¿½o em `salvarCategoria()` em `js/categorias.js`.
 
 ---
 
-### DEC-038 — Refatoração de cores hardcoded exige revisão visual nos 8 temas
+### DEC-038 ï¿½ Refatoraï¿½ï¿½o de cores hardcoded exige revisï¿½o visual nos 8 temas
 - **Data**: 27/04/2026
 - **Contexto**: Auditoria 27/04 detectou cores hex literais inline (B9/M5/DT-005/DT-006) em alguns elementos.
-- **Decisão**: NÃO refatorar em massa para `var(--…)` sem validação visual manual em cada um dos 8 temas (padrao, hbo, azul, roxo, rosa, amarelo, verde, vermelho).
-- **Por quê**: Risco de regressão visual silenciosa supera o ganho de consistência. Vários hex são intencionais (verde-receita / vermelho-despesa devem ficar iguais em todos os temas para acessibilidade semântica).
-- **Consequências**: DT-005 / DT-006 ficam em `PENDENCIAS.md` aguardando sessão dedicada de revisão visual com o usuário.
-- **Quando revisar**: Quando houver disponibilidade para revisão de UI tema a tema.
+- **Decisï¿½o**: Nï¿½O refatorar em massa para `var(--ï¿½)` sem validaï¿½ï¿½o visual manual em cada um dos 8 temas (padrao, hbo, azul, roxo, rosa, amarelo, verde, vermelho).
+- **Por quï¿½**: Risco de regressï¿½o visual silenciosa supera o ganho de consistï¿½ncia. Vï¿½rios hex sï¿½o intencionais (verde-receita / vermelho-despesa devem ficar iguais em todos os temas para acessibilidade semï¿½ntica).
+- **Consequï¿½ncias**: DT-005 / DT-006 ficam em `PENDENCIAS.md` aguardando sessï¿½o dedicada de revisï¿½o visual com o usuï¿½rio.
+- **Quando revisar**: Quando houver disponibilidade para revisï¿½o de UI tema a tema.
 
 ---
 
-### DEC-039 — Repositório público é seguro: Firebase Web API keys são públicas por design
+### DEC-039 ï¿½ Repositï¿½rio pï¿½blico ï¿½ seguro: Firebase Web API keys sï¿½o pï¿½blicas por design
 - **Data**: 27/04/2026
-- **Contexto**: Auditoria questionou se manter o repo público no GitHub expõe credenciais Firebase.
-- **Decisão**: Manter `js/firebase-config.js` no `.gitignore` (apenas `firebase-config.example.js` é versionado). O repo pode permanecer público.
-- **Por quê**: As Web API keys do Firebase NÃO são segredos — elas identificam o projeto, não autorizam ações. Segurança real vem de:
-  1. **Firestore Security Rules** (controlam quem lê/escreve cada documento)
-  2. **Authorized Domains** no Firebase Console (somente domínios listados podem usar a key)
+- **Contexto**: Auditoria questionou se manter o repo pï¿½blico no GitHub expï¿½e credenciais Firebase.
+- **Decisï¿½o**: Manter `js/firebase-config.js` no `.gitignore` (apenas `firebase-config.example.js` ï¿½ versionado). O repo pode permanecer pï¿½blico.
+- **Por quï¿½**: As Web API keys do Firebase Nï¿½O sï¿½o segredos ï¿½ elas identificam o projeto, nï¿½o autorizam aï¿½ï¿½es. Seguranï¿½a real vem de:
+  1. **Firestore Security Rules** (controlam quem lï¿½/escreve cada documento)
+  2. **Authorized Domains** no Firebase Console (somente domï¿½nios listados podem usar a key)
   3. **reCAPTCHA Enterprise** (App Check) bloqueia bots
-  4. **Email/senha + verificação** controlada pelo Auth
-- **Consequências**: Não há ação a tomar para ocultar a key. Foco de segurança permanece nas Rules + Authorized Domains + reCAPTCHA.
-- **Quando revisar**: Se o Google mudar o modelo (improvável); ou se o app migrar para outro backend.
+  4. **Email/senha + verificaï¿½ï¿½o** controlada pelo Auth
+- **Consequï¿½ncias**: Nï¿½o hï¿½ aï¿½ï¿½o a tomar para ocultar a key. Foco de seguranï¿½a permanece nas Rules + Authorized Domains + reCAPTCHA.
+- **Quando revisar**: Se o Google mudar o modelo (improvï¿½vel); ou se o app migrar para outro backend.
 ---
 
 ### DEC-040 - window.BUD_CATEGORIAS_PADRAO como SSOT (fonte unica de verdade)
@@ -501,7 +501,8 @@
 - **Data**: 27/04/2026
 - **Contexto**: Operacoes como "salvar compra + criar N transacoes" ou "fazer aporte + decrementar carteira" precisam ser atomicas.
 - **Decisao**: Usar writeBatch em todos os casos onde multiplos documentos devem ser gravados em conjunto (max 500 ops por batch - usar chunks se necessario).
-- **Por que**: Firestore nao tem transacoes multi-doc automaticas fora do writeBatch/unTransaction. Sem atomicidade, falha parcial corromperia dados.
+- **Por que**: Firestore nao tem transacoes multi-doc automaticas fora do writeBatch/
+unTransaction. Sem atomicidade, falha parcial corromperia dados.
 - **Consequencias**: writeBatch + atch.commit() e o padrao para: salvarCompra, handleSubmitAporte, salvarTransacoesIA, copiarLimitesMesAnterior.
 - **Quando revisar**: Se alguma operacao ultrapassar 500 docs - usar loop de chunks de 400.
 
@@ -514,3 +515,33 @@
 - **Por que**: Date.setMonth aplica overflow de dias automaticamente; fixar dia=1 antes garante comportamento previsivel.
 - **Consequencias**: Padrao obrigatorio em qualquer funcao de navegacao de mes: mudarMes(), selecionarMes() e equivalentes em Extrato, Dashboard, Balanco Mensal.
 - **Registrado originalmente como**: BUG-2 em cerebro/balanco-mensal.md.
+
+---
+
+### DEC-043 â€” Carteira = hub de Contas & ConciliaÃ§Ã£o; Importar absorvido; CartÃµes = sÃ³ crÃ©dito
+
+- **Data**: 28/04/2026
+- **O que foi decidido**:
+  1. `carteira.html` (Minhas Contas) Ã© a tela de gestÃ£o de contas de **dÃ©bito/pix/dinheiro/benefÃ­cios** (Nubank conta, Caixa, vale refeiÃ§Ã£o, vale alimentaÃ§Ã£o, vale transporte, etc.) e **nÃ£o** de cartÃµes de crÃ©dito.
+  2. Cada card de conta terÃ¡ um botÃ£o â€œImportar extratoâ€ que abre o fluxo de importaÃ§Ã£o (CSV, OFX, PDF, imagem) **inline**, jÃ¡ com a carteira prÃ©-vinculada.
+  3. A tela standalone `importar.html` + `js/importar.js` Ã© **deprecada** e nÃ£o serÃ¡ construÃ­da como tela independente. A lÃ³gica de importaÃ§Ã£o serÃ¡ absorvida por `js/carteira.js`.
+  4. `cartoes.html` permanece focada exclusivamente em `tipo: 'credito'` (faturas, limites, parcelamento).
+  5. A sidebar perde o item â€œImportarâ€ e ganha â€œCarteiraâ€ (ou â€œMinhas Contasâ€).
+- **Por quÃª**:
+  - O fluxo natural do usuÃ¡rio Ã©: â€œestou na conta Nubank â†’ importar extrato desta contaâ€ â€” nÃ£o faz sentido navegar para outra tela e repetir a escolha de conta.
+  - Elimina uma tela isolada de baixo valor, concentrando poder de gestÃ£o onde o dinheiro mora.
+  - `cÃ©rebro/carteira-importar.md` jÃ¡ documentava essa uniÃ£o desde 06/04/2026.
+  - SeparaÃ§Ã£o clara: Carteira = dÃ©bito/benefÃ­cios; CartÃµes = crÃ©dito.
+- **Estrutura planejada de `carteira.html`**:
+  - Grid de cards por conta (nome, banco, tipo, saldo atual)
+  - BotÃ£o por card: â€œImportar extratoâ€ â†’ abre modal/drawer inline de upload
+  - Fluxo import: drag&drop CSV/OFX/PDF/imagem â†’ preview editÃ¡vel â†’ confirmaÃ§Ã£o â†’ writeBatch em `transacoes` + update `carteira.ultimaConfirmacao`
+  - Deduplication: impede importar o mesmo arquivo duas vezes (hash ou range de datas)
+  - Aba ConciliaÃ§Ã£o: saldo no app vs saldo do Ãºltimo extrato + diferenÃ§a
+  - CRUD de contas: criar/editar/excluir conta bancÃ¡ria ou benefÃ­cio
+- **ConsequÃªncias**:
+  - `importar.html` nunca serÃ¡ construÃ­do como tela standalone; o item 16 do ROADMAP Ã© substituÃ­do por `carteira.html`.
+  - `js/carteira.js` absorve toda a lÃ³gica de `js/importar.js` (parseCSV, parseOFX, extrairFaturaIA, deduplicar, writeBatch).
+  - Sidebar de todas as telas precisa ser atualizada: remover "Importar", adicionar "ğŸ¦ Carteira" (ou "ğŸ’³ Minhas Contas").
+  - `cÃ©rebro/carteira-importar.md` Ã© o documento de referÃªncia para a implementaÃ§Ã£o.
+- **Quando revisar**: Ao iniciar a sprint de `carteira.html`.

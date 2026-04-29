@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -210,7 +210,7 @@
 
     /* ── @media print ───────────────────────────────────── */
     @media print{
-      .sidebar,.sidebar-overlay,#btnHamburger,.mes-nav,.btn-cal-mobile,#btnOcultarValores,.btn-refresh,#btnExportarPDF,#bsOverlay,#bottomSheetMes,.blob,#splash,.pill-bar,#paywallContainer,#filtrosDiaDia{display:none !important;}
+      .sidebar,.sidebar-overlay,#btnHamburger,.mes-nav,.btn-cal-mobile,#btnOcultarValores,.btn-refresh,#btnExportarPDF,#btnExportarCSV,#bsOverlay,#bottomSheetMes,.blob,#splash,.pill-bar,#paywallContainer,#filtrosDiaDia{display:none !important;}
       body{background:#fff !important;}
       .dash-main{margin-left:0 !important;padding:1rem !important;}
       .dash-layout{display:block !important;}
@@ -281,9 +281,9 @@
           <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
         </a>
         <div class="sidebar-group-label">Finanças</div>
-        <span class="sidebar-link sidebar-link-disabled">
-          <span class="sidebar-link-icon">💰</span><span class="sidebar-link-text"> Minha Carteira</span><span class="sidebar-badge-soon">breve</span>
-        </span>
+        <a href="carteira.html" class="sidebar-link">
+          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Carteira</span>
+        </a>
         <a href="cartoes.html" class="sidebar-link">
           <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
         </a>
@@ -293,9 +293,6 @@
         <a href="dividas.html" class="sidebar-link">
           <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
         </a>
-        <span class="sidebar-link sidebar-link-disabled">
-          <span class="sidebar-link-icon">📥</span><span class="sidebar-link-text"> Importar</span><span class="sidebar-badge-soon">breve</span>
-        </span>
         <a href="limites.html" class="sidebar-link">
           <span class="sidebar-link-icon">🎯</span><span class="sidebar-link-text"> Limites</span>
         </a>
@@ -327,9 +324,9 @@
         <a href="relatorios.html" class="sidebar-link active">
           <span class="sidebar-link-icon">📑</span><span class="sidebar-link-text"> Relatórios</span>
         </a>
-        <span class="sidebar-link sidebar-link-disabled">
-          <span class="sidebar-link-icon">💡</span><span class="sidebar-link-text"> Insights</span><span class="sidebar-badge-soon">breve</span>
-        </span>
+        <a href="insights.html" class="sidebar-link">
+          <span class="sidebar-link-icon">💡</span><span class="sidebar-link-text"> Insights</span>
+        </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <span class="sidebar-link sidebar-link-disabled">
           <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span><span class="sidebar-badge-plus">Plus</span>
@@ -382,6 +379,9 @@
           <button id="btnExportarPDF" onclick="window.exportarPDF()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--text-sec);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Exportar PDF">
             🖨️
           </button>
+          <button id="btnExportarCSV" onclick="window.exportarCSV()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--text-sec);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Exportar CSV">
+            📥 CSV
+          </button>
         </div>
       </div>
 
@@ -403,18 +403,27 @@
           <div class="summary-card">
             <div class="card-header"><span class="card-label">Receitas</span><div class="card-icon card-icon-green">💚</div></div>
             <div class="card-value" id="kpiReceitas" style="color:#16a34a;">R$ 0,00</div>
+            <div id="kpiRecBadge"></div>
             <div class="card-sub" id="kpiReceitasSub">0 entradas</div>
           </div>
           <div class="summary-card">
             <div class="card-header"><span class="card-label">Despesas</span><div class="card-icon card-icon-red">💔</div></div>
             <div class="card-value" id="kpiDespesas" style="color:#dc2626;">R$ 0,00</div>
+            <div id="kpiDepBadge"></div>
             <div class="card-sub" id="kpiDespesasSub">0 saídas</div>
           </div>
           <div class="summary-card">
             <div class="card-header"><span class="card-label">Saldo do Mês</span><div class="card-icon card-icon-blue">⚖️</div></div>
             <div class="card-value" id="kpiSaldo">R$ 0,00</div>
+            <div id="kpiSaldoBadge"></div>
             <div class="card-sub" id="kpiSaldoSub">resultado líquido</div>
           </div>
+        </div>
+
+        <!-- Insight automático (compartilhado) -->
+        <div id="insightBanner" style="display:none;align-items:center;gap:0.875rem;padding:0.875rem 1.125rem;background:var(--card-bg);border:1.5px solid var(--card-border);border-radius:1rem;margin-bottom:1.25rem;box-shadow:0 2px 10px -3px rgba(0,0,0,0.08);">
+          <span class="insight-emoji" style="font-size:1.5rem;flex-shrink:0;">📊</span>
+          <span class="insight-text" style="font-size:0.875rem;color:var(--card-text);line-height:1.5;"></span>
         </div>
 
         <!-- Pill bar de abas -->
@@ -480,12 +489,6 @@
         <!-- ══ Painel Gráficos ════════════════════════════ -->
         <div id="painelGraficos" style="display:none;">
 
-          <!-- Insight automático -->
-          <div id="insightBanner" style="display:none;align-items:center;gap:0.875rem;padding:0.875rem 1.125rem;background:var(--card-bg);border:1.5px solid var(--card-border);border-radius:1rem;margin-bottom:1.25rem;box-shadow:0 2px 10px -3px rgba(0,0,0,0.08);">
-            <span class="insight-emoji" style="font-size:1.5rem;flex-shrink:0;">📊</span>
-            <span class="insight-text" style="font-size:0.875rem;color:var(--card-text);line-height:1.5;"></span>
-          </div>
-
           <!-- Doughnut + Bar lado a lado -->
           <div class="charts-grid-2">
             <div class="section-card" style="margin-bottom:0;">
@@ -522,9 +525,14 @@
         <!-- ══ Painel Detalhamento ═══════════════════════ -->
         <div id="painelDetalhamento" style="display:none;">
 
+          <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+            <button class="chip-filtro ativo" id="chipDetDespesas" onclick="window.filtrarDetalhamento('despesas')">📉 Despesas</button>
+            <button class="chip-filtro"       id="chipDetReceitas" onclick="window.filtrarDetalhamento('receitas')">📈 Receitas</button>
+          </div>
+
           <div class="section-card">
             <div class="section-header">
-              <span class="section-title">🔍 Despesas por Categoria — Detalhamento</span>
+              <span class="section-title" id="detTituloSecao">🔍 Despesas por Categoria — Detalhamento</span>
               <span id="totalDespesasGeral" style="font-size:0.9375rem;font-weight:800;color:#dc2626;"></span>
             </div>
             <div id="containerCategorias">

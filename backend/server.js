@@ -267,18 +267,20 @@ function parseBankStatementText(rawText) {
   var results = [];
   var seen = new Set();
 
-  function addTx(desc, valor, data) {
+  // tipo: 'credito' | 'debito' | null (usado pelo frontend para detectarTipo)
+  function addTx(desc, valor, data, tipo) {
     if (!desc || valor <= 0 || valor > 99999) return;
     var key = desc.toLowerCase() + '|' + valor + '|' + data;
     if (seen.has(key)) return;
     seen.add(key);
-    results.push({ desc: desc, valor: valor, data: data });
+    results.push({ desc: desc, valor: valor, data: data, tipo: tipo || null });
   }
 
   // ─── Estratégia 1: layout horizontal ──────────────────────────────
-  // "DD ABR Description R$ 50,00" ou "DD/MM Description 50,00"
-  var RE_PT = /^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\s+(.{3,70}?)\s+([\d\.]+,\d{2})\s*$/i;
-  var RE_DDMM = /^(\d{2})\/(\d{2})(?:\/\d{4})?\s+(.{3,70}?)\s+R?\$?\s*([\d\.]+,\d{2})\s*$/;
+  // "DD ABR Description R$ 50,00" ou "DD/MM Description ±R$ 50,00"
+  var RE_PT   = /^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\s+(.{3,70}?)\s+([\d\.]+,\d{2})\s*$/i;
+  // Captura sinal opcional antes do R$ para determinar tipo (crédito/débito)
+  var RE_DDMM = /^(\d{2})\/(\d{2})(?:\/\d{4})?\s+(.{3,70}?)\s+([+-])?R?\$?\s*([\d\.]+,\d{2})\s*$/;
 
   lines.forEach(function(line) {
     if (isNonTransactionLine(line)) return;
@@ -297,10 +299,12 @@ function parseBankStatementText(rawText) {
 
     var m2 = line.match(RE_DDMM);
     if (m2) {
-      var desc2 = m2[3].replace(/R\$\s*/g, '').trim();
-      var valor2 = parseValorBRL(m2[4]);
-      var data2 = ano + '-' + m2[2] + '-' + m2[1];
-      addTx(desc2, valor2, data2);
+      var desc2  = m2[3].replace(/R\$\s*/g, '').trim();
+      var sign2  = m2[4]; // '+' | '-' | undefined
+      var valor2 = parseValorBRL(m2[5]);
+      var data2  = ano + '-' + m2[2] + '-' + m2[1];
+      var tipo2  = sign2 === '+' ? 'credito' : sign2 === '-' ? 'debito' : null;
+      addTx(desc2, valor2, data2, tipo2);
     }
   });
 
@@ -331,15 +335,17 @@ function parseBankStatementText(rawText) {
             j++;
             if (j > i + 5) break;
           }
-          // Linha de valor
+          // Linha de valor — captura sinal +/- para determinar tipo crédito/débito
           if (j < lines.length) {
             var valLine = lines[j];
-            var valM = valLine.match(/^-?R?\$?\s*([\d\.]+,\d{2})$/);
+            var valM = valLine.match(/^([+-])?R?\$?\s*([\d\.]+,\d{2})$/);
             if (valM && descLines.length > 0) {
-              var desc3 = descLines.join(' ').replace(/\s+/g, ' ').trim();
-              var valor3 = parseValorBRL(valM[1]);
-              var data3 = ano + '-' + String(mesV).padStart(2,'0') + '-' + String(dia).padStart(2,'0');
-              addTx(desc3, valor3, data3);
+              var desc3  = descLines.join(' ').replace(/\s+/g, ' ').trim();
+              var sign3  = valM[1]; // '+' | '-' | undefined
+              var valor3 = parseValorBRL(valM[2]);
+              var tipo3  = sign3 === '+' ? 'credito' : sign3 === '-' ? 'debito' : null;
+              var data3  = ano + '-' + String(mesV).padStart(2,'0') + '-' + String(dia).padStart(2,'0');
+              addTx(desc3, valor3, data3, tipo3);
               i = j + 1;
               continue;
             }
@@ -440,6 +446,48 @@ function parseBankStatementText(rawText) {
           break;
         }
       }
+    }
+  }
+
+  // ─── Estratégia 5: extrato conta corrente — data DD/MM ou DD/MM/YYYY sozinha ──
+  // Nubank conta: "DD/MM" ou "DD/MM/YYYY" em linha própria
+  //               → linhas de descrição
+  //               → linha de valor "[+-]R$ X,XX"
+  if (results.length < 2) {
+    var RE_DATE5 = /^(\d{2})\/(\d{2})(?:\/\d{4})?$/;
+    var RE_VAL5  = /^([+-])?R?\$?\s*([\d\.]+,\d{2})\s*$/;
+    var i5 = 0;
+    while (i5 < lines.length) {
+      var l5 = lines[i5];
+      var dm5 = l5.match(RE_DATE5);
+      if (dm5) {
+        var descLines5 = [];
+        var j5 = i5 + 1;
+        while (j5 < lines.length) {
+          var nxt5 = lines[j5];
+          if (RE_VAL5.test(nxt5)) break;
+          if (RE_DATE5.test(nxt5)) break;
+          if (descLines5.length > 0 && isNonTransactionLine(nxt5)) break;
+          if (nxt5.length >= 2 && nxt5.length <= 100) descLines5.push(nxt5);
+          j5++;
+          if (j5 > i5 + 5) break;
+        }
+        if (j5 < lines.length && descLines5.length > 0) {
+          var vl5 = lines[j5];
+          var vm5 = vl5.match(RE_VAL5);
+          if (vm5) {
+            var desc5  = descLines5.join(' ').replace(/\s+/g, ' ').trim();
+            var sign5  = vm5[1]; // '+' | '-' | undefined
+            var valor5 = parseValorBRL(vm5[2]);
+            var tipo5  = sign5 === '+' ? 'credito' : sign5 === '-' ? 'debito' : null;
+            var data5  = ano + '-' + dm5[2] + '-' + dm5[1];
+            addTx(desc5, valor5, data5, tipo5);
+            i5 = j5 + 1;
+            continue;
+          }
+        }
+      }
+      i5++;
     }
   }
 

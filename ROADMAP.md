@@ -185,14 +185,14 @@
 10. **Comparativo** (`comparativo.html` + `js/comparativo.js`) — ✅ **CONCÍUDO** — 2 meses lado a lado + Chart.js (plano Plus)
 11. **Gráficos** (`graficos.html` + `js/graficos.js`) — ✅ **CONCLUÍDO** — 4 charts Chart.js (plano Pro)
 12. **Relatórios** (`relatorios.html` + `js/relatorios.js`) — ✅ **CONCLUÍDO** — interface 3 abas (Resumo / Gráficos / Detalhamento), 15 bugs do cérebro corrigidos preventivamente
-13. **Insights** (`insights.html` + `js/insights.js`) — Score saúde, alertas IA, simulador, FCM push (plano Plus)
+13. **Insights** (`insights.html` + `js/insights.js`) — ✅ **CONCLUÍDO** — Score saúde, alertas IA, simulador, comparativo meses, FCM push (plano Plus)
 
 ### Telas de IA / Assistentes
 14. **Assistente IA** (`assistente-ia.html` + `js/assistente-ia.js`) — Gemini 1.5 Flash via backend + chamados (plano Plus)
 15. **Assistente WhatsApp** (`assistente-whatsapp.html` + `js/assistente-whatsapp.js`) — Decorativa por ora; webhook só loga
 
 ### Telas de Sistema / Negócio
-16. **Importar** (`importar.html` + `js/importar.js`) — CSV, OFX, PDF, imagens via `/api/extrair-fatura`
+16. **Carteira — Minhas Contas** (`carteira.html` + `js/carteira.js`) — ✅ **CONCLUÍDO** — Hub de contas débito/pix/benefícios (Nubank conta, Caixa, vale refeição, vale alimentação, etc.) + importação de extrato inline por conta (CSV, OFX, PDF, imagem via `/api/extrair-fatura`) + deduplication + conciliação de saldo (DEC-043). ~~`importar.html` standalone cancelado.~~
 17. **Painel Admin** (`admin.html` + `js/admin.js`) — 6 abas: Overview, CRM, Feature Flags, Notificações, Promoções, Sistema; sem sidebar
 18. **Onboarding** (`onboarding.html` + `js/onboarding.js`)
 19. **Vendas** (`vendas.html`) — Landing pública; 4 planos; Mercado Pago ⚠️ uid/email devem vir do idToken no backend (IDOR)
