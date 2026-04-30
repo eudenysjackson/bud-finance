@@ -397,7 +397,11 @@ function addBoasVindas(nome, ctx, alertas) {
 
 // ─── Enviar para IA ──────────────────────────────────────────────────────────────
 async function enviarParaIA(mensagem) {
-  conversaIA.push({ role: 'user', content: mensagem });
+  // Limitar tamanho para não explodir o body (extratos/planilhas grandes)
+  const mensagemFinal = mensagem.length > 6000
+    ? mensagem.slice(0, 6000) + '\n\n*(conteúdo truncado)*'
+    : mensagem;
+  conversaIA.push({ role: 'user', content: mensagemFinal });
   addTyping();
   let timeoutId;
   try {
@@ -416,13 +420,18 @@ async function enviarParaIA(mensagem) {
     removeTyping();
 
     if (resp.status === 429) {
+      conversaIA.pop(); // rollback
       const data = await resp.json().catch(() => ({}));
       addMsg('bot', escapeHTML(data.error || 'Limite de mensagens atingido. Tente mais tarde.')); return;
     }
     if (resp.status === 403) {
+      conversaIA.pop(); // rollback
       addMsg('bot', formatarMensagemIA('\uD83D\uDD12 O Assistente IA está disponível apenas no plano **Plus**.')); return;
     }
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    if (!resp.ok) {
+      conversaIA.pop(); // rollback para não acumular msg com erro no histórico
+      throw new Error('HTTP ' + resp.status);
+    }
 
     const data  = await resp.json();
     const reply = data.reply || 'Desculpe, não consegui gerar uma resposta.';
@@ -433,6 +442,10 @@ async function enviarParaIA(mensagem) {
   } catch (err) {
     clearTimeout(timeoutId);
     removeTyping();
+    // Garantir rollback se mensagem ainda estiver no histórico sem resposta
+    if (conversaIA.length > 0 && conversaIA[conversaIA.length - 1].role === 'user') {
+      conversaIA.pop();
+    }
     if (err.name === 'AbortError') {
       addMsg('bot', '⏱ A resposta demorou demais. Tente novamente.');
     } else {

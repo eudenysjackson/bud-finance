@@ -34,7 +34,7 @@ const FRONTEND_URL        = process.env.FRONTEND_URL || 'https://bud-finance.onr
 
 // ─── Express setup ──────────────────────────────────────────────────
 const app = express();
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: '200kb' })); // aumentado para suportar mensagens com extratos/planilhas do Assistente IA
 
 // A3 fix: CORS allowlist split por NODE_ENV (dev permite localhost; prod só domínios públicos).
 const IS_PROD = process.env.NODE_ENV === 'production';
