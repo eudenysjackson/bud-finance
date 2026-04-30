@@ -665,22 +665,32 @@ function renderizarCartaoTransacao(dados, afterEl) {
     try {
       const [y, m, d] = dataStr.split('-').map(Number);
       const txData = {
-        descricao: String(desc).substring(0, 200),
-        valor:     Math.abs(valor),
+        descricao:      String(desc).substring(0, 200),
+        valor:          Math.abs(valor),
         tipo,
-        categoria: cat,
-        data:      Timestamp.fromDate(new Date(y, m - 1, d, 12, 0, 0)),
-        criadoEm:  serverTimestamp(),
-        fonte:     'assistente-ia',
+        categoria:      cat,
+        data:           Timestamp.fromDate(new Date(y, m - 1, d, 12, 0, 0)),
+        dataReferencia: dataStr,          // campo exigido por cartoes.js
+        dataCriacao:    serverTimestamp(), // campo exigido por extrato.js e cartoes.js
+        status:         'ativa',
+        origem:         'assistente-ia',
       };
       if (contaId) {
         const contaObj = todasContas.find(c => c.id === contaId);
-        if (contaObj?.tipo === 'cartao') txData.cartaoId     = contaId;
-        else if (contaObj?.tipo === 'conta') txData.carteiraId = contaId;
+        if (contaObj?.tipo === 'cartao') {
+          txData.cartaoId        = contaId;
+          txData.formaPagamento  = 'Crédito';
+          txData.pagamentoFatura = false;
+        } else if (contaObj?.tipo === 'conta') {
+          txData.carteiraId     = contaId;
+          txData.formaPagamento = 'Débito';
+        }
       }
 
       await addDoc(collection(db, 'usuarios', uid, 'transacoes'), txData);
-      card.innerHTML = '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem;color:#16a34a;font-size:0.875rem;font-weight:600;">✅ Transação registrada! <a href="extrato.html" style="color:var(--btn-bg);font-size:0.8rem;margin-left:0.25rem;">Ver no extrato →</a></div>';
+      const destino = txData.cartaoId ? 'cartoes.html' : 'extrato.html';
+      const label   = txData.cartaoId ? 'Ver no cartão →' : 'Ver no extrato →';
+      card.innerHTML = `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem;color:#16a34a;font-size:0.875rem;font-weight:600;">✅ Transação registrada! <a href="${destino}" style="color:var(--btn-bg);font-size:0.8rem;margin-left:0.25rem;">${label}</a></div>`;
       _contextoCache = null; // invalidar cache para próxima mensagem ter dados atualizados
 
     } catch (_e) {
