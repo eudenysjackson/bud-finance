@@ -1222,6 +1222,16 @@ app.post('/api/chat', async function (req, res) {
     '- Se não tiver dados suficientes para responder, diga que o usuário precisa cadastrar mais informações no app.',
     oculto ? '- O usuário ativou o modo privacidade. NÃO exiba valores monetários explícitos. Use termos como "seu saldo", "seus gastos" sem números.' : '',
     '',
+    '=== REGISTRAR TRANSAÇÕES ===',
+    'Quando o usuário declarar que fez uma compra, gastou, pagou, recebeu ou transferiu dinheiro (ex: "gastei 30 no posto", "paguei R$150 de luz", "recebi meu salário"), interprete como intenção de registrar uma transação.',
+    'Responda confirmando o que entendeu E inclua ao final da sua resposta:',
+    '[ACTION:TRANSACTION]{"descricao":"nome do estabelecimento ou descrição","valor":0.00,"tipo":"despesa","categoria":"Categoria","data":"' + new Date().toISOString().slice(0, 10) + '","conta":"banco ou cartão mencionado ou vazio"}[/ACTION]',
+    'Tipos: "despesa" (gastou/pagou/comprou) ou "receita" (recebeu/ganhou/transferência positiva).',
+    'Categorias disponíveis: Alimentação, Transporte, Saúde, Educação, Lazer, Moradia, Vestuário, Tecnologia, Serviços, Outros.',
+    'Para a data: use a data mencionada (ex: "ontem", "segunda") ou hoje se não especificada. Hoje = ' + new Date().toISOString().slice(0, 10) + '.',
+    'Para a conta: use o banco/cartão mencionado (ex: "Nubank", "Itaú") ou "" se não especificado.',
+    'IMPORTANTE: inclua o bloco [ACTION:TRANSACTION]...[/ACTION] SOMENTE quando há intenção clara de registrar uma transação. Não use para análises ou perguntas gerais.',
+    '',
     '=== FUNCIONALIDADES DO BUD FINANCE (para ajudar o usuário) ===',
     '• Dashboard: visão geral com saldo, resumo do mês, últimas transações e alertas.',
     '• Extrato: histórico completo de transações com filtros por data, categoria, tipo. Para lançar uma transação: botão "+" no extrato ou dashboard.',
@@ -1251,12 +1261,14 @@ app.post('/api/chat', async function (req, res) {
     '',
     '=== DADOS FINANCEIROS REAIS DO USUÁRIO ===',
     'Nome: ' + nome,
-    'Período: ' + mesAno,
+    'Período atual: ' + mesAno,
     'Receitas: ' + fmtVal(r.receitas),
     'Despesas: ' + fmtVal(r.despesas),
     'Resultado: ' + fmtVal((r.receitas||0) - (r.despesas||0)),
     'Saldo total contas: ' + fmtVal(r.saldoContas),
     'Contas: ' + (Array.isArray(r.contas) && r.contas.length ? r.contas.join(' | ') : 'nenhuma cadastrada'),
+    Array.isArray(r.carteira) && r.carteira.length ? 'Contas cadastradas: ' + r.carteira.map(function(c){return c.nome;}).join(', ') : '',
+    Array.isArray(r.cartoes) && r.cartoes.length  ? 'Cartões cadastrados: ' + r.cartoes.map(function(c){return c.nome;}).join(', ') : '',
     'Top categorias de gasto: ' + (Array.isArray(r.topCats) && r.topCats.length ? r.topCats.join(' | ') : 'sem dados'),
     'Dívidas ativas: ' + (r.dividasAtivas || 0),
     'Metas ativas: ' + (r.metas || 0),
@@ -1264,6 +1276,7 @@ app.post('/api/chat', async function (req, res) {
     'Limites estourados: ' + (r.limitesEstourados || 0),
     Array.isArray(r.limites) && r.limites.length ? 'Detalhe limites: ' + r.limites.join(' | ') : '',
     'Investimentos cadastrados: ' + (r.investimentos || 0),
+    r.mesAnoAnt ? ('Mês anterior (' + r.mesAnoAnt + '): Receitas ' + fmtVal(r.receitasAnt) + ' | Despesas ' + fmtVal(r.despesasAnt) + ' | Saldo ' + fmtVal(r.saldoAnt)) : '',
   ].filter(Boolean).join('\n');
 
   // Converter formato de mensagens para Groq
@@ -1274,8 +1287,9 @@ app.post('/api/chat', async function (req, res) {
     }
   });
 
+  var streamMode = req.body.stream === true;
   var controller = new AbortController();
-  var timeoutId = setTimeout(function () { controller.abort(); }, 30000);
+  var timeoutId = setTimeout(function () { controller.abort(); }, 40000);
 
   try {
     var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -1286,21 +1300,43 @@ app.post('/api/chat', async function (req, res) {
         messages:    groqMessages,
         temperature: 0.7,
         max_tokens:  1500,
+        stream:      streamMode,
       }),
       signal: controller.signal
     });
     clearTimeout(timeoutId);
-
 
     if (!resp.ok) {
       var errTxt = await resp.text().catch(function () { return resp.status; });
       throw new Error('Groq API: ' + errTxt);
     }
 
+    if (streamMode) {
+      // ── Streaming SSE ────────────────────────────────────────────────────────
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.flushHeaders();
+
+      var reader  = resp.body.getReader();
+      var decoder = new TextDecoder();
+      try {
+        while (true) {
+          var chunk = await reader.read();
+          if (chunk.done) break;
+          res.write(decoder.decode(chunk.value, { stream: true }));
+        }
+      } catch (_se) {
+        res.write('data: ' + JSON.stringify({ error: 'Erro durante streaming.' }) + '\n\n');
+      }
+      return res.end();
+    }
+
+    // ── Resposta JSON (fallback sem streaming) ───────────────────────────────
     var data   = await resp.json();
     var reply  = (data.choices || [])[0]?.message?.content || 'Não consegui gerar uma resposta.';
 
-    // Detectar truncamento (BUG 9 do cérebro)
+    // Detectar truncamento
     var finishReason = (data.choices || [])[0]?.finish_reason;
     if (finishReason === 'length') {
       reply += '\n\n_⚠️ Resposta resumida. Peça "continue" para mais detalhes._';
@@ -1310,6 +1346,10 @@ app.post('/api/chat', async function (req, res) {
 
   } catch (err) {
     clearTimeout(timeoutId);
+    if (res.headersSent) {
+      res.write('data: ' + JSON.stringify({ error: 'Erro interno.' }) + '\n\n');
+      return res.end();
+    }
     if (err.name === 'AbortError') {
       return res.status(504).json({ error: 'Timeout na geração da resposta. Tente novamente.' });
     }

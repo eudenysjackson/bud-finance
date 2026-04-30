@@ -17,8 +17,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getAuth, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
-  getFirestore, doc, getDoc, getDocs,
-  collection, query, where, limit, Timestamp
+  getFirestore, doc, getDoc, getDocs, addDoc, setDoc,
+  collection, query, where, limit, Timestamp, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // ─── Firebase ────────────────────────────────────────────────────────────────────
@@ -124,7 +124,13 @@ async function buildContexto(uid, forceRefresh = false) {
     const inicioMes = Timestamp.fromDate(new Date(ano, mes - 1, 1, 0, 0, 0));
     const fimMes    = Timestamp.fromDate(new Date(ano, mes, 0, 23, 59, 59));
 
-    const [txSnap, divSnap, metSnap, invSnap, cartSnap, limSnap] = await Promise.all([
+    // Mês anterior
+    const mesAnt       = mes === 1 ? 12 : mes - 1;
+    const anoAnt       = mes === 1 ? ano - 1 : ano;
+    const inicioMesAnt = Timestamp.fromDate(new Date(anoAnt, mesAnt - 1, 1, 0, 0, 0));
+    const fimMesAnt    = Timestamp.fromDate(new Date(anoAnt, mesAnt, 0, 23, 59, 59));
+
+    const [txSnap, divSnap, metSnap, invSnap, cartSnap, limSnap, cartCartSnap, txAntSnap] = await Promise.all([
       getDocs(query(
         collection(db, 'usuarios', uid, 'transacoes'),
         where('data', '>=', inicioMes),
@@ -136,6 +142,13 @@ async function buildContexto(uid, forceRefresh = false) {
       getDocs(query(collection(db, 'usuarios', uid, 'investimentos'), limit(50))),
       getDocs(collection(db, 'usuarios', uid, 'carteira')),
       getDocs(query(collection(db, 'usuarios', uid, 'limites'), limit(50))),
+      getDocs(query(collection(db, 'usuarios', uid, 'cartoes'), limit(20))),
+      getDocs(query(
+        collection(db, 'usuarios', uid, 'transacoes'),
+        where('data', '>=', inicioMesAnt),
+        where('data', '<=', fimMesAnt),
+        limit(200)
+      )),
     ]);
 
     const transacoes    = txSnap.docs.map(d => ({ ...d.data(), id: d.id }));
@@ -144,6 +157,17 @@ async function buildContexto(uid, forceRefresh = false) {
     const investimentos = invSnap.docs.map(d => ({ ...d.data(), id: d.id }));
     const carteiras     = cartSnap.docs.map(d => ({ ...d.data(), id: d.id }));
     const limites       = limSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+    const cartoes       = cartCartSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+
+    // ── Transações do mês anterior
+    let receitasAnt = 0;
+    let despesasAnt = 0;
+    txAntSnap.docs.forEach(d => {
+      const t = d.data();
+      const val = Number(t.valor) || 0;
+      if (t.tipo === 'receita') receitasAnt += val;
+      else despesasAnt += val;
+    });
 
     // ── Transações do mês
     let receitas = 0;
@@ -222,6 +246,14 @@ async function buildContexto(uid, forceRefresh = false) {
         investimentos:      investimentos.length,
         limites:            limitesDetalhe,
         limitesEstourados,
+        // Mês anterior
+        receitasAnt,
+        despesasAnt,
+        saldoAnt:           receitasAnt - despesasAnt,
+        mesAnoAnt:          `${meses[mesAnt - 1]} de ${anoAnt}`,
+        // Listas completas para o card de transação
+        carteira: carteiras.filter(c => c.ativo !== false).map(c => ({ id: c.id, nome: c.nome || 'Conta' })),
+        cartoes:  cartoes.map(c => ({ id: c.id, nome: c.nome || 'Cartão' })),
       }
     };
     return _contextoCache;
@@ -395,57 +427,90 @@ function addBoasVindas(nome, ctx, alertas) {
   chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
-// ─── Enviar para IA ──────────────────────────────────────────────────────────────
+// ─── Enviar para IA (streaming via SSE) ─────────────────────────────────────────
 async function enviarParaIA(mensagem) {
-  // Limitar tamanho para não explodir o body (extratos/planilhas grandes)
+  // Limitar tamanho para não explodir o body
   const mensagemFinal = mensagem.length > 6000
     ? mensagem.slice(0, 6000) + '\n\n*(conteúdo truncado)*'
     : mensagem;
   conversaIA.push({ role: 'user', content: mensagemFinal });
-  addTyping();
+
+  // Criar bolha vazia que receberá o texto em streaming
+  const botRow   = addMsg('bot', '<div class="typing"><span></span><span></span><span></span></div>');
+  const bubbleEl = botRow.querySelector('.msg-bubble');
   let timeoutId;
+
   try {
     const token    = await auth.currentUser.getIdToken();
     const contexto = await buildContexto(auth.currentUser.uid);
     const controller = new AbortController();
-    timeoutId = setTimeout(() => controller.abort(), 30000);
+    timeoutId = setTimeout(() => controller.abort(), 45000);
 
     const resp = await fetch(`${BACKEND_URL}/api/chat`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body:    JSON.stringify({ messages: conversaIA.slice(-12), contexto }),
+      body:    JSON.stringify({ messages: conversaIA.slice(-12), contexto, stream: true }),
       signal:  controller.signal
     });
     clearTimeout(timeoutId);
-    removeTyping();
 
+    // Tratamento de erros HTTP antes de consumir o body
     if (resp.status === 429) {
-      conversaIA.pop(); // rollback
+      conversaIA.pop(); botRow.remove();
       const data = await resp.json().catch(() => ({}));
       addMsg('bot', escapeHTML(data.error || 'Limite de mensagens atingido. Tente mais tarde.')); return;
     }
     if (resp.status === 403) {
-      conversaIA.pop(); // rollback
+      conversaIA.pop(); botRow.remove();
       addMsg('bot', formatarMensagemIA('\uD83D\uDD12 O Assistente IA está disponível apenas no plano **Plus**.')); return;
     }
     if (!resp.ok) {
-      conversaIA.pop(); // rollback para não acumular msg com erro no histórico
+      conversaIA.pop(); botRow.remove();
       throw new Error('HTTP ' + resp.status);
     }
 
-    const data  = await resp.json();
-    const reply = data.reply || 'Desculpe, não consegui gerar uma resposta.';
-    conversaIA.push({ role: 'assistant', content: reply });
-    salvarConversa();
-    addMsg('bot', formatarMensagemIA(reply));
+    let fullText = '';
+
+    if (resp.headers.get('content-type')?.includes('text/event-stream')) {
+      // ── Modo streaming SSE ───────────────────────────────────────────────────
+      bubbleEl.innerHTML = '';
+      const reader  = resp.body.getReader();
+      const decoder = new TextDecoder();
+
+      outer: while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        for (const line of chunk.split('\n')) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (raw === '[DONE]') break outer;
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed.error) throw new Error(parsed.error);
+            const delta = parsed.choices?.[0]?.delta?.content || '';
+            if (delta) {
+              fullText += delta;
+              // Exibe sem o bloco de ação (ele aparece como card depois)
+              const display = fullText.replace(/\[ACTION:TRANSACTION\][\s\S]*?\[\/ACTION\]/g, '').trim();
+              bubbleEl.innerHTML = display ? formatarMensagemIA(display) : '<span style="opacity:0.4">...</span>';
+              chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+          } catch (_e) { /* ignora chunk malformado */ }
+        }
+      }
+    } else {
+      // ── Fallback JSON (backend sem streaming) ────────────────────────────────
+      const data = await resp.json();
+      fullText = data.reply || 'Desculpe, não consegui gerar uma resposta.';
+    }
+
+    await finalizarRespostaIA(fullText, bubbleEl, botRow);
 
   } catch (err) {
     clearTimeout(timeoutId);
-    removeTyping();
-    // Garantir rollback se mensagem ainda estiver no histórico sem resposta
-    if (conversaIA.length > 0 && conversaIA[conversaIA.length - 1].role === 'user') {
-      conversaIA.pop();
-    }
+    botRow.remove();
+    if (conversaIA.length > 0 && conversaIA[conversaIA.length - 1].role === 'user') conversaIA.pop();
     if (err.name === 'AbortError') {
       addMsg('bot', '⏱ A resposta demorou demais. Tente novamente.');
     } else {
@@ -454,7 +519,228 @@ async function enviarParaIA(mensagem) {
   }
 }
 
-// ─── Fluxo de chamado ────────────────────────────────────────────────────────────
+// ─── Finalizar resposta IA (detectar ações + salvar histórico) ──────────────────
+async function finalizarRespostaIA(fullText, bubbleEl, rowEl) {
+  const acao        = detectarAcaoTransacao(fullText);
+  const displayText = fullText.replace(/\[ACTION:TRANSACTION\][\s\S]*?\[\/ACTION\]/g, '').trim();
+
+  // Atualiza bolha com texto limpo e formatado
+  bubbleEl.innerHTML = displayText ? formatarMensagemIA(displayText) : '';
+
+  // Histórico: salvar texto limpo (sem o bloco de ação)
+  conversaIA.push({ role: 'assistant', content: displayText || fullText });
+  salvarConversa();
+  if (auth.currentUser) salvarHistoricoFirestore(auth.currentUser.uid);
+
+  // Mostrar card de confirmação de transação
+  if (acao && rowEl) renderizarCartaoTransacao(acao, rowEl);
+
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+// ─── Detectar bloco de ação de transação na resposta da IA ──────────────────────
+function detectarAcaoTransacao(texto) {
+  const match = texto.match(/\[ACTION:TRANSACTION\]([\s\S]*?)\[\/ACTION\]/);
+  if (!match) return null;
+  try {
+    const dados = JSON.parse(match[1].trim());
+    if (!dados.descricao || dados.valor == null) return null;
+    return dados;
+  } catch (_e) { return null; }
+}
+
+// ─── Renderizar card de confirmação de transação ─────────────────────────────────
+function renderizarCartaoTransacao(dados, afterEl) {
+  const uid  = auth.currentUser?.uid;
+  const ctx  = _contextoCache;
+  const contasList  = ctx?.resumo?.carteira || [];
+  const cartoesList = ctx?.resumo?.cartoes  || [];
+
+  // Montar lista unificada de contas/cartões para o select
+  const todasContas = [
+    ...contasList.map(c => ({ id: c.id, nome: c.nome, tipo: 'conta' })),
+    ...cartoesList.map(c => ({ id: c.id, nome: c.nome, tipo: 'cartao' })),
+    { id: '', nome: 'Sem vincular conta', tipo: '' },
+  ];
+
+  // Tentar pré-selecionar conta mencionada pela IA
+  const contaMatch = todasContas.find(c =>
+    c.nome && dados.conta && c.nome.toLowerCase().includes((dados.conta || '').toLowerCase())
+  ) || todasContas[todasContas.length - 1];
+
+  const CATS = ['Alimentação','Transporte','Saúde','Educação','Lazer','Moradia','Vestuário','Tecnologia','Serviços','Outros'];
+  const dataHoje = new Date().toISOString().slice(0, 10);
+  const dataVal  = dados.data && /^\d{4}-\d{2}-\d{2}$/.test(dados.data) ? dados.data : dataHoje;
+  const cardId   = 'ac-' + Date.now();
+
+  const optsContas = todasContas.map(c =>
+    `<option value="${escapeHTML(c.id)}"${c.id === contaMatch.id ? ' selected' : ''}>${escapeHTML(c.nome)}${c.tipo === 'cartao' ? ' 💳' : c.tipo === 'conta' ? ' 🏦' : ''}</option>`
+  ).join('');
+  const optsCats = CATS.map(c =>
+    `<option${c === dados.categoria ? ' selected' : ''}>${escapeHTML(c)}</option>`
+  ).join('');
+
+  const card = document.createElement('div');
+  card.style.cssText = 'margin:0.5rem 0 0.5rem 2.625rem;background:var(--card-bg);border:1.5px solid var(--input-focus);border-radius:1rem;padding:1rem;max-width:400px;box-shadow:0 2px 12px rgba(37,99,235,0.1);';
+  card.innerHTML = `
+    <div style="font-size:0.875rem;font-weight:700;color:var(--text-main);margin-bottom:0.75rem;">📝 Registrar transação?</div>
+    <div style="display:grid;gap:0.5rem;">
+      <div>
+        <div style="font-size:0.7rem;color:var(--text-sec);font-weight:600;margin-bottom:0.2rem;">Descrição</div>
+        <input id="${cardId}-desc" value="${escapeHTML(dados.descricao)}" maxlength="200"
+          style="width:100%;padding:0.4rem 0.6rem;border-radius:0.5rem;border:1.5px solid var(--card-border);background:var(--input-bg);color:var(--text-main);font-size:0.8125rem;font-family:inherit;outline:none;box-sizing:border-box;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+        <div>
+          <div style="font-size:0.7rem;color:var(--text-sec);font-weight:600;margin-bottom:0.2rem;">Valor (R$)</div>
+          <input id="${cardId}-valor" type="number" min="0.01" step="0.01" value="${Number(dados.valor).toFixed(2)}"
+            style="width:100%;padding:0.4rem 0.6rem;border-radius:0.5rem;border:1.5px solid var(--card-border);background:var(--input-bg);color:var(--text-main);font-size:0.8125rem;font-family:inherit;outline:none;box-sizing:border-box;">
+        </div>
+        <div>
+          <div style="font-size:0.7rem;color:var(--text-sec);font-weight:600;margin-bottom:0.2rem;">Tipo</div>
+          <select id="${cardId}-tipo" style="width:100%;padding:0.4rem 0.6rem;border-radius:0.5rem;border:1.5px solid var(--card-border);background:var(--input-bg);color:var(--text-main);font-size:0.8125rem;font-family:inherit;outline:none;box-sizing:border-box;">
+            <option value="despesa"${dados.tipo !== 'receita' ? ' selected' : ''}>💸 Despesa</option>
+            <option value="receita"${dados.tipo === 'receita' ? ' selected' : ''}>💰 Receita</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+        <div>
+          <div style="font-size:0.7rem;color:var(--text-sec);font-weight:600;margin-bottom:0.2rem;">Categoria</div>
+          <select id="${cardId}-cat" style="width:100%;padding:0.4rem 0.6rem;border-radius:0.5rem;border:1.5px solid var(--card-border);background:var(--input-bg);color:var(--text-main);font-size:0.8125rem;font-family:inherit;outline:none;box-sizing:border-box;">${optsCats}</select>
+        </div>
+        <div>
+          <div style="font-size:0.7rem;color:var(--text-sec);font-weight:600;margin-bottom:0.2rem;">Data</div>
+          <input id="${cardId}-data" type="date" value="${dataVal}"
+            style="width:100%;padding:0.4rem 0.6rem;border-radius:0.5rem;border:1.5px solid var(--card-border);background:var(--input-bg);color:var(--text-main);font-size:0.8125rem;font-family:inherit;outline:none;box-sizing:border-box;">
+        </div>
+      </div>
+      ${todasContas.length > 1 ? `<div>
+        <div style="font-size:0.7rem;color:var(--text-sec);font-weight:600;margin-bottom:0.2rem;">Conta / Cartão</div>
+        <select id="${cardId}-conta" style="width:100%;padding:0.4rem 0.6rem;border-radius:0.5rem;border:1.5px solid var(--card-border);background:var(--input-bg);color:var(--text-main);font-size:0.8125rem;font-family:inherit;outline:none;box-sizing:border-box;">${optsContas}</select>
+      </div>` : ''}
+    </div>
+    <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
+      <button id="${cardId}-ok" style="flex:1;padding:0.5rem;border-radius:0.625rem;background:var(--btn-bg);color:#fff;border:none;font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:inherit;">✓ Confirmar</button>
+      <button id="${cardId}-cancel" style="padding:0.5rem 0.75rem;border-radius:0.625rem;background:none;border:1.5px solid var(--card-border);color:var(--text-sec);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;">✕</button>
+    </div>
+    <div id="${cardId}-status" style="font-size:0.75rem;margin-top:0.4rem;display:none;"></div>
+  `;
+
+  afterEl.insertAdjacentElement('afterend', card);
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+
+  // ── Confirmar ─────────────────────────────────────────────────────────────────
+  document.getElementById(cardId + '-ok').addEventListener('click', async () => {
+    const desc    = (document.getElementById(cardId + '-desc')?.value  || '').trim();
+    const valor   = parseFloat(document.getElementById(cardId + '-valor')?.value || '0');
+    const tipo    = document.getElementById(cardId + '-tipo')?.value   || 'despesa';
+    const cat     = document.getElementById(cardId + '-cat')?.value    || 'Outros';
+    const dataStr = document.getElementById(cardId + '-data')?.value   || dataHoje;
+    const contaId = document.getElementById(cardId + '-conta')?.value  || '';
+
+    const statusEl = document.getElementById(cardId + '-status');
+    if (!desc || isNaN(valor) || valor <= 0) {
+      if (statusEl) { statusEl.style.display = 'block'; statusEl.style.color = '#dc2626'; statusEl.textContent = 'Preencha descrição e valor corretamente.'; }
+      return;
+    }
+
+    const btnOk = document.getElementById(cardId + '-ok');
+    if (btnOk) { btnOk.disabled = true; btnOk.textContent = '⏳ Salvando...'; }
+
+    try {
+      const [y, m, d] = dataStr.split('-').map(Number);
+      const txData = {
+        descricao: String(desc).substring(0, 200),
+        valor:     Math.abs(valor),
+        tipo,
+        categoria: cat,
+        data:      Timestamp.fromDate(new Date(y, m - 1, d, 12, 0, 0)),
+        criadoEm:  serverTimestamp(),
+        fonte:     'assistente-ia',
+      };
+      if (contaId) {
+        const contaObj = todasContas.find(c => c.id === contaId);
+        if (contaObj?.tipo === 'cartao') txData.cartaoId     = contaId;
+        else if (contaObj?.tipo === 'conta') txData.carteiraId = contaId;
+      }
+
+      await addDoc(collection(db, 'usuarios', uid, 'transacoes'), txData);
+      card.innerHTML = '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem;color:#16a34a;font-size:0.875rem;font-weight:600;">✅ Transação registrada! <a href="extrato.html" style="color:var(--btn-bg);font-size:0.8rem;margin-left:0.25rem;">Ver no extrato →</a></div>';
+      _contextoCache = null; // invalidar cache para próxima mensagem ter dados atualizados
+
+    } catch (_e) {
+      if (btnOk) { btnOk.disabled = false; btnOk.textContent = '✓ Confirmar'; }
+      if (statusEl) { statusEl.style.display = 'block'; statusEl.style.color = '#dc2626'; statusEl.textContent = 'Erro ao salvar. Tente novamente.'; }
+    }
+  });
+
+  document.getElementById(cardId + '-cancel').addEventListener('click', () => card.remove());
+}
+
+// ─── Histórico persistente (Firestore) ──────────────────────────────────────────
+async function salvarHistoricoFirestore(uid) {
+  if (!conversaIA.length) return;
+  try {
+    await setDoc(doc(db, 'usuarios', uid, 'ia_sessao', 'ultima'), {
+      conversa:     conversaIA.slice(-30),
+      atualizadoEm: serverTimestamp(),
+    });
+  } catch (_e) { /* silencia — não crítico */ }
+}
+
+async function carregarHistoricoFirestore(uid) {
+  try {
+    const snap  = await getDoc(doc(db, 'usuarios', uid, 'ia_sessao', 'ultima'));
+    if (!snap.exists()) return [];
+    const dados = snap.data();
+    const ts    = dados.atualizadoEm?.toDate?.();
+    // Carrega histórico se for de até 48h atrás
+    if (!ts || (Date.now() - ts.getTime()) > 48 * 60 * 60 * 1000) return [];
+    return Array.isArray(dados.conversa) ? dados.conversa : [];
+  } catch (_e) { return []; }
+}
+
+// ─── Exportar conversa ───────────────────────────────────────────────────────────
+function exportarConversa() {
+  if (!conversaIA.length) {
+    addMsg('bot', formatarMensagemIA('📭 Nenhuma mensagem para exportar ainda.'));
+    return;
+  }
+  const linhas = conversaIA.map(m => {
+    const quem  = m.role === 'user' ? 'Você' : 'Bud IA';
+    const texto = m.content.replace(/\[ACTION:TRANSACTION\][\s\S]*?\[\/ACTION\]/g, '').trim();
+    return `[${quem}]\n${texto}`;
+  });
+  const conteudo = `Conversa com Bud IA — ${new Date().toLocaleString('pt-BR')}\n${'─'.repeat(40)}\n\n` + linhas.join('\n\n---\n\n');
+  const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `bud-ia-${new Date().toISOString().slice(0, 10)}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+window.exportarConversa = exportarConversa;
+
+// ─── Modo coach (análise automática às segundas-feiras) ──────────────────────────
+function verificarModoCoach() {
+  const hoje    = new Date();
+  if (hoje.getDay() !== 1) return; // apenas segunda-feira
+  // Usar chave por semana para não repetir na mesma semana
+  const semana = `${hoje.getFullYear()}-${Math.ceil((hoje.getDate() + new Date(hoje.getFullYear(), hoje.getMonth(), 1).getDay()) / 7)}`;
+  const chave  = 'bud_ia_coach_' + semana;
+  if (localStorage.getItem(chave)) return;
+  localStorage.setItem(chave, '1');
+  setTimeout(() => {
+    addMsg('bot', formatarMensagemIA('📅 **Check semanal de segunda-feira!** Deixa eu dar uma olhada nas suas finanças...'));
+    enviarParaIA('Faça um check-up rápido das minhas finanças: como estou em relação ao mês passado? O que devo focar esta semana?');
+  }, 2000);
+}
+
+
 async function enviarChamado(tipo, descricao) {
   addTyping();
   try {
@@ -527,6 +813,12 @@ window.limparChat = function() {
   _contextoCache = null; // invalidar cache ao limpar
   chatInput.placeholder = 'Pergunte sobre suas finanças...';
   sessionStorage.removeItem('bud_conversa_ia');
+  // Limpar histórico persistente no Firestore
+  if (auth.currentUser) {
+    setDoc(doc(db, 'usuarios', auth.currentUser.uid, 'ia_sessao', 'ultima'), {
+      conversa: [], atualizadoEm: serverTimestamp()
+    }).catch(() => {});
+  }
   chatContainer.innerHTML = '';
   // Recarregar com boas vindas atualizadas
   buildContexto(auth.currentUser?.uid, true).then(ctx => {
@@ -882,12 +1174,15 @@ onAuthStateChanged(auth, async user => {
 
     document.getElementById('btnLimparChat')?.addEventListener('click', window.limparChat);
 
-    // Carregar conversa salva OU iniciar fresh com contexto
-    conversaIA = carregarConversa();
-    if (conversaIA.length > 0) {
-      // Replay da conversa sem alertas (já foram exibidos antes)
+    // Tentar carregar histórico do Firestore (até 48h); fallback para sessionStorage
+    let historico = await carregarHistoricoFirestore(user.uid);
+    if (!historico.length) historico = carregarConversa();
+
+    if (historico.length > 0) {
+      conversaIA = historico;
       conversaIA.forEach(m => addMsg(m.role === 'user' ? 'user' : 'bot', formatarMensagemIA(m.content)));
       ocultarSplash();
+      verificarModoCoach();
     } else {
       // Primeira abertura: carregar contexto + alertas + boas vindas
       const ctx     = await buildContexto(user.uid);
@@ -896,6 +1191,7 @@ onAuthStateChanged(auth, async user => {
       // Enviar email de alerta se houver problemas críticos (fire-and-forget)
       alertarAutomaticamente(alertas, nome);
       ocultarSplash();
+      verificarModoCoach();
     }
 
     chatInput.focus();
