@@ -25,6 +25,7 @@ const db   = getFirestore(app);
 // ─── Estado ────────────────────────────────────────────────────────────────
 let _flags   = [];  // array de { id, key, name, description, enabled, allowedPlans }
 let _panelAtual = 'overview';
+let _chamadosCarregados = false;
 
 // ─── Seed de Feature Flags padrão ─────────────────────────────────────────
 const FLAGS_DEFAULT = [
@@ -59,6 +60,8 @@ window.switchTab = function(tab) {
     if (btn) btn.classList.toggle('active', p === tab);
   });
   _panelAtual = tab;
+  // Lazy-load chamados ao abrir a aba CRM
+  if (tab === 'crm' && !_chamadosCarregados) carregarChamados();
 };
 
 // ─── Logout ────────────────────────────────────────────────────────────────
@@ -108,6 +111,73 @@ onAuthStateChanged(auth, async user => {
     denied.style.display = 'flex';
   }
 });
+
+// ─── Chamados de Suporte ────────────────────────────────────────────────────
+window.carregarChamados = async function() {
+  const container = document.getElementById('chamadosLista');
+  if (!container) return;
+  container.innerHTML = '<div style="color:#9ca3af;font-size:.875rem;padding:2rem;text-align:center;">⏳ Carregando...</div>';
+
+  try {
+    const filtro = document.getElementById('filtroStatusChamado')?.value || '';
+    let q = query(
+      collection(db, 'chamados'),
+      orderBy('criadoEm', 'desc'),
+      limit(100)
+    );
+    const snap = await getDocs(q);
+    let chamados = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (filtro) chamados = chamados.filter(c => c.status === filtro);
+
+    if (!chamados.length) {
+      container.innerHTML = '<div style="color:#9ca3af;font-size:.875rem;padding:2rem;text-align:center;">Nenhum chamado encontrado.</div>';
+      _chamadosCarregados = true;
+      return;
+    }
+
+    container.innerHTML = '';
+    chamados.forEach(c => {
+      const card = document.createElement('div');
+      card.className = 'chamado-card';
+      card.id = 'chamado-' + c.id;
+      const tipo    = c.tipo || 'bug';
+      const status  = c.status || 'aberto';
+      const data    = c.criadoEm ? new Date(c.criadoEm).toLocaleString('pt-BR') : '—';
+      const statusLabels = { aberto: '🟡 Aberto', em_analise: '🔵 Em análise', resolvido: '✅ Resolvido' };
+      card.innerHTML = `
+        <div class="chamado-header">
+          <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+            <span class="chamado-tipo ${esc(tipo)}">${tipo === 'bug' ? '🐛 Bug' : '💡 Sugestão'}</span>
+            <span class="chamado-meta">${esc(c.nomeUsuario || 'Anônimo')} &bull; ${esc(c.emailUsuario || '')} &bull; ${esc(data)}</span>
+          </div>
+          <button class="chamado-status ${esc(status)}" onclick="window.alterarStatusChamado('${esc(c.id)}', '${esc(status)}')" title="Clique para mudar o status">
+            ${statusLabels[status] || status}
+          </button>
+        </div>
+        <div class="chamado-desc">${esc(c.descricao || '—')}</div>
+        <div class="chamado-meta">UID: ${esc(c.uid || '—')}</div>
+      `;
+      container.appendChild(card);
+    });
+    _chamadosCarregados = true;
+  } catch (err) {
+    console.error('[admin] carregarChamados:', err);
+    container.innerHTML = '<div style="color:#dc2626;font-size:.875rem;padding:1rem;">Erro ao carregar chamados.</div>';
+  }
+};
+
+window.alterarStatusChamado = async function(id, statusAtual) {
+  const proximos = { aberto: 'em_analise', em_analise: 'resolvido', resolvido: 'aberto' };
+  const novoStatus = proximos[statusAtual] || 'aberto';
+  try {
+    await updateDoc(doc(db, 'chamados', id), { status: novoStatus });
+    _chamadosCarregados = false;
+    carregarChamados();
+  } catch (err) {
+    console.error('[admin] alterarStatusChamado:', err);
+    if (window.budShowToast) window.budShowToast('Erro ao atualizar status.', 'error');
+  }
+};
 
 // ─── Visão Geral ───────────────────────────────────────────────────────────
 async function carregarOverview(myUid) {

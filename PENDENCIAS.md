@@ -199,6 +199,7 @@ _Sem pendências ativas._
 | PEND-049 | ~~**Assistente IA — Function calling / Tool use**~~ ✅ **RESOLVIDO** — IA detecta intenção de registrar transação e retorna bloco `[ACTION:TRANSACTION]{...}[/ACTION]`. Frontend exibe card de confirmação editável e salva no Firestore. | ✅ Resolvido | Implementado em 30/04/2026 | Abordagem via prompt engineering + action block parsing, sem depender de tool-use nativo do Groq. Suporta: descrição, valor, tipo, categoria, data, conta/cartão. |
 | PEND-050 | ~~**Assistente IA — Histórico persistente**~~ ✅ **RESOLVIDO** — conversa salva em `usuarios/{uid}/ia_sessao/ultima` (até 30 mensagens, 48h de validade). Carregada automaticamente ao reabrir o chat. | ✅ Resolvido | Implementado em 30/04/2026 | |
 | PEND-051 | ~~**Assistente IA — Reconhecimento de voz**~~ ✅ **RESOLVIDO** — botão de microfone implementado com Web Speech API pt-BR. | ✅ Resolvido | Implementado em 29/04/2026 | |
+| PEND-052 | **EmailJS — Template dedicado para chamados de suporte** — `backend/server.js` já usa `EMAILJS_TEMPLATE_CHAMADO` (env var) e chama `sendEmailViaEmailJS` com campos corretos (`tipo`, `to_name`, `message`, `admin_url`). Template HTML pronto em `email-templates/template-chamado-suporte.html`. Bloqueado por limite de templates no plano atual do EmailJS. Ação necessária: criar template no painel EmailJS e adicionar env var `EMAILJS_TEMPLATE_CHAMADO=template_xxxxx` no Render. Chamados já são salvos no Firestore (`chamados/`) mesmo sem email. | 🟡 Média | Bloqueado por plano EmailJS — registrado em 30/04/2026 |
 
 ---
 
