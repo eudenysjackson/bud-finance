@@ -1301,8 +1301,13 @@ chatForm.addEventListener('submit', async e => {
     addMsg('user', escapeHTML(texto));
     if (modoChamado.ativo && modoChamado.tipo) {
       await enviarChamado(modoChamado.tipo, texto);
+    } else if (/\b(reportar?|report|abrir?)\s+(um\s+)?(bug|erro|problema|chamado|ticket)\b|quero\s+(reportar?|relatar?|abrir?)|encontrei\s+(um\s+)?(bug|erro|problema)/i.test(texto)) {
+      window.iniciarChamado('bug');
+    } else if (/\b(tenho\s+uma?\s+)?(sugest[aã]o|sugerir?|melhoria|feedback|ideia)\b/i.test(texto)) {
+      window.iniciarChamado('sugestao');
     } else {
       await enviarParaIA(texto);
+    }
     }
   } finally {
     _enviando = false;

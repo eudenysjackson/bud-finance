@@ -29,8 +29,9 @@ try {
 // ─── EmailJS config (env vars — set on Render) ─────────────────────
 const EMAILJS_PUBLIC_KEY  = process.env.EMAILJS_PUBLIC_KEY  || '';
 const EMAILJS_SERVICE_ID  = process.env.EMAILJS_SERVICE_ID  || '';
-const EMAILJS_TEMPLATE_ID = process.env.EMAILJS_TEMPLATE_RECUPERAR_SENHA || '';
-const FRONTEND_URL        = process.env.FRONTEND_URL || 'https://bud-finance.onrender.com';
+const EMAILJS_TEMPLATE_ID        = process.env.EMAILJS_TEMPLATE_RECUPERAR_SENHA || '';
+const EMAILJS_TEMPLATE_CHAMADO   = process.env.EMAILJS_TEMPLATE_CHAMADO || '';
+const FRONTEND_URL               = process.env.FRONTEND_URL || 'https://bud-finance.onrender.com';
 
 // ─── Express setup ──────────────────────────────────────────────────
 const app = express();
@@ -120,8 +121,9 @@ function sanitizeStr(str) {
 }
 
 // ─── Send email via EmailJS REST API ────────────────────────────────
-async function sendEmailViaEmailJS(templateParams) {
-  if (!EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID) {
+async function sendEmailViaEmailJS(templateParams, templateId) {
+  var tid = templateId || EMAILJS_TEMPLATE_ID;
+  if (!EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID || !tid) {
     // EmailJS not configured — skip silently
     return;
   }
@@ -131,7 +133,7 @@ async function sendEmailViaEmailJS(templateParams) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       service_id:  EMAILJS_SERVICE_ID,
-      template_id: EMAILJS_TEMPLATE_ID,
+      template_id: tid,
       user_id:     EMAILJS_PUBLIC_KEY,
       template_params: templateParams
     })
@@ -1444,14 +1446,14 @@ app.post('/api/chamado', async function (req, res) {
       plataforma:    (req.headers['user-agent'] || '').substring(0, 200),
     });
 
-    // Email de notificação (fire-and-forget, sem bloquear resposta)
+    // Email de notificação ao suporte (fire-and-forget, sem bloquear resposta)
     sendEmailViaEmailJS({
-      to_email:   'suporte@budfinance.com.br',
-      tipo,
-      descricao,
-      nomeUsuario,
-      uid,
-    }).catch(function () { /* ignora falha de email */ });
+      to_email:  'suporte@budfinance.com.br',
+      to_name:   nomeUsuario,
+      tipo:      tipo === 'bug' ? '🐛 Bug' : '💡 Sugestão',
+      message:   descricao,
+      admin_url: FRONTEND_URL + '/admin.html',
+    }, EMAILJS_TEMPLATE_CHAMADO).catch(function () { /* ignora falha de email */ });
 
     return res.json({ success: true });
 
