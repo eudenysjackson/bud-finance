@@ -120,14 +120,13 @@ window.carregarChamados = async function() {
 
   try {
     const filtro = document.getElementById('filtroStatusChamado')?.value || '';
-    let q = query(
-      collection(db, 'chamados'),
-      orderBy('criadoEm', 'desc'),
-      limit(100)
-    );
-    const snap = await getDocs(q);
-    let chamados = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (filtro) chamados = chamados.filter(c => c.status === filtro);
+    const user   = auth.currentUser;
+    if (!user) throw new Error('Não autenticado');
+    const token  = await user.getIdToken();
+    const url    = `${window.BUD_FUNCTIONS_URL}/api/chamados${filtro ? '?status=' + encodeURIComponent(filtro) : ''}`;
+    const resp   = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.error || resp.status); }
+    const chamados = await resp.json();
 
     if (!chamados.length) {
       container.innerHTML = '<div style="color:#9ca3af;font-size:.875rem;padding:2rem;text-align:center;">Nenhum chamado encontrado.</div>';
@@ -170,12 +169,18 @@ window.alterarStatusChamado = async function(id, statusAtual) {
   const proximos = { aberto: 'em_analise', em_analise: 'resolvido', resolvido: 'aberto' };
   const novoStatus = proximos[statusAtual] || 'aberto';
   try {
-    await updateDoc(doc(db, 'chamados', id), { status: novoStatus });
+    const token = await auth.currentUser.getIdToken();
+    const resp  = await fetch(`${window.BUD_FUNCTIONS_URL}/api/chamados/${encodeURIComponent(id)}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body:    JSON.stringify({ status: novoStatus })
+    });
+    if (!resp.ok) throw new Error('status ' + resp.status);
     _chamadosCarregados = false;
     carregarChamados();
   } catch (err) {
     console.error('[admin] alterarStatusChamado:', err);
-    if (window.budShowToast) window.budShowToast('Erro ao atualizar status.', 'error');
+    alert('Erro ao atualizar status.');
   }
 };
 

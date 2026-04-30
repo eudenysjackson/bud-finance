@@ -1463,6 +1463,78 @@ app.post('/api/chamado', async function (req, res) {
   }
 });
 
+// ─── GET /api/chamados ────────────────────────────────────────────────
+// Lista chamados para o painel admin. Auth: role === 'admin'.
+app.get('/api/chamados', async function (req, res) {
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
+
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+
+  // Verificar role admin
+  try {
+    var userSnap = await db.collection('usuarios').doc(decoded.uid).get();
+    if (!userSnap.exists || userSnap.data().role !== 'admin') {
+      return res.status(403).json({ error: 'Acesso negado.' });
+    }
+  } catch (_e) { return res.status(403).json({ error: 'Acesso negado.' }); }
+
+  try {
+    var statusFiltro = req.query.status || '';
+    var col = db.collection('chamados').orderBy('criadoEm', 'desc').limit(200);
+    var snap = await col.get();
+    var docs = snap.docs.map(function (d) {
+      return Object.assign({ id: d.id }, d.data());
+    });
+    if (statusFiltro) docs = docs.filter(function (c) { return c.status === statusFiltro; });
+    return res.json(docs);
+  } catch (err) {
+    console.error('[GET /api/chamados]', err.message);
+    return res.status(500).json({ error: 'Erro ao listar chamados.' });
+  }
+});
+
+// ─── PATCH /api/chamados/:id ──────────────────────────────────────────
+// Atualiza status de um chamado. Auth: role === 'admin'.
+app.patch('/api/chamados/:id', async function (req, res) {
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
+
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+
+  try {
+    var userSnap = await db.collection('usuarios').doc(decoded.uid).get();
+    if (!userSnap.exists || userSnap.data().role !== 'admin') {
+      return res.status(403).json({ error: 'Acesso negado.' });
+    }
+  } catch (_e) { return res.status(403).json({ error: 'Acesso negado.' }); }
+
+  var chamadoId = req.params.id;
+  var novoStatus = sanitizeStr(String(req.body.status || '')).substring(0, 30);
+  var statusValidos = ['aberto', 'em_analise', 'resolvido'];
+  if (!statusValidos.includes(novoStatus)) {
+    return res.status(400).json({ error: 'Status inválido.' });
+  }
+
+  try {
+    await db.collection('chamados').doc(chamadoId).update({ status: novoStatus });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[PATCH /api/chamados]', err.message);
+    return res.status(500).json({ error: 'Erro ao atualizar chamado.' });
+  }
+});
+
 // ─── POST /api/alerta-financeiro ────────────────────────────────────
 // Enviado pelo frontend quando detecta problemas críticos (saldo negativo,
 // despesas > receitas, limites estourados). Envia email para o usuário
