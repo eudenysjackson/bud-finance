@@ -1308,7 +1308,6 @@ chatForm.addEventListener('submit', async e => {
     } else {
       await enviarParaIA(texto);
     }
-    }
   } finally {
     _enviando = false;
     btnEnviar.disabled = false;
