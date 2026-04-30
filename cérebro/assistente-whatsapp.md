@@ -1,12 +1,196 @@
-# 📱 Tela: Assistente WhatsApp (`assistente-whatsapp.html` + `js/assistente-whatsapp.js`)
+# 📱 Assistente WhatsApp — Spec Completa
 
-## Visão Geral
+> **Última atualização:** 30/04/2026
+> **Status geral:** Fase 1 (Vínculo via Token) implementada. Fases 2–4 planejadas abaixo.
 
-Tela **informativa/landing page** do Assistente WhatsApp. **NÃO é um chat.** É uma página estática que explica como funciona o recurso, mostra exemplos de comandos, e exibe o status de conexão do WhatsApp do usuário (vinculado ou não). Toda a lógica real de interação WhatsApp acontece no **backend** (webhook Meta → Cloud Function).
+---
 
-**Acesso restrito:** Apenas planos Plus e Trial. Verificação frontend via `canUseFeatureSafely('whatsappAssistant')`.
+## Visão
 
-**Estado do recurso:** O webhook WhatsApp existe no backend mas **só loga "Recebido do Meta" e retorna 200** — não processa nenhuma mensagem. A Cloud Function de resumo semanal (`enviarResumoWhatsapp`) está **desativada** (comentada). Ou seja: **toda a feature WhatsApp é decorativa neste momento**.
+O Bud Finance como **"App Invisível"**: o usuário gere toda a vida financeira pelo WhatsApp sem precisar abrir o navegador. O WhatsApp vira a interface principal de controle — com taxa de abertura de ~100%.
+
+---
+
+## Arquitetura
+
+```
+[WhatsApp do usuário]
+        │
+        ▼
+[Meta Cloud API / Evolution API]
+        │  POST /webhook/whatsapp
+        ▼
+[backend/server.js — Node.js/Express]
+        │
+        ├── Identifica uid pelo número (Firestore)
+        ├── Verifica plano (Plus/Trial)
+        ├── Reutiliza POST /api/chat (mesmo engine Groq/Llama)
+        ├── Reutiliza POST /api/extrair-cupom (imagens)
+        ├── Reutiliza POST /api/extrair-fatura (PDFs/OFX)
+        └── Responde via WhatsApp API (POST graph.facebook.com)
+
+[Firestore]
+  usuarios/{uid}:
+    whatsappVinculado: string   // "5511999999999" ou null
+    whatsappToken:     string   // código temporário "BUD-X7K2" ou null
+    whatsappTokenExp:  number   // timestamp de expiração (24h)
+```
+
+---
+
+## Modelo de Dados (padronizado)
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `whatsappVinculado` | `string \| null` | Número vinculado (somente dígitos, ex: `"5511999999999"`). `null` = não vinculado |
+| `whatsappToken` | `string \| null` | Código de pareamento temporário, ex: `"BUD-X7K2"`. Null após uso ou expiração |
+| `whatsappTokenExp` | `number \| null` | Unix timestamp ms de expiração do token (24h após geração) |
+
+**Regra:** `whatsappVinculado` é o único campo de verdade. Os outros são auxiliares do processo de vínculo.
+
+---
+
+## Fases de Implementação
+
+### ✅ Fase 1 — Vínculo Seguro (Token de Pareamento)
+
+**Objetivo:** Substituir o vínculo direto por número (inseguro) por um sistema de token que prova que o usuário controla aquele número WhatsApp.
+
+**Fluxo:**
+```
+1. Usuário clica "Gerar Código de Vínculo" em Ajustes → WhatsApp
+2. Backend POST /api/whatsapp/gerar-token:
+   - Verifica ID Token (auth)
+   - Verifica plano (Plus/Pro/Trial)
+   - Gera token: "BUD-" + 4 chars aleatórios (A-Z0-9)
+   - Salva em usuarios/{uid}: { whatsappToken, whatsappTokenExp: now+24h }
+   - Retorna { token, waNumeroDisplay, waLink }
+3. UI mostra:
+   ┌─────────────────────────────────────────────┐
+   │ 📱 Envie este código para o WhatsApp do Bud │
+   │                                             │
+   │   BUD-X7K2   (válido 24h)                  │
+   │                                             │
+   │   [📲 Abrir WhatsApp]  [↩ Novo código]      │
+   └─────────────────────────────────────────────┘
+4. UI faz polling a cada 5s (máx 2min) → GET /api/whatsapp/status
+5. Usuário envia "BUD-X7K2" para o número do Bud no WhatsApp
+6. Webhook POST /webhook/whatsapp:
+   - Extrai msg.from (número) e texto
+   - Se texto == /^BUD-[A-Z0-9]{4}$/i:
+     - Busca uid onde whatsappToken == código e tokenExp > now
+     - Salva whatsappVinculado = msg.from, limpa token
+     - Responde ao usuário: "✅ Olá, {nome}! Seu WhatsApp está vinculado ao Bud Finance. 🎉"
+7. Polling detecta vinculo → UI atualiza para "✅ Vinculado"
+```
+
+**ENV vars necessárias no Render:**
+| Variável | Descrição |
+|---|---|
+| `WA_PHONE_NUMBER_ID` | ID do número na Meta Business API |
+| `WA_API_TOKEN` | Token permanente Meta Cloud API |
+| `WA_VERIFY_TOKEN` | String aleatória para verificação do webhook Meta |
+| `WA_APP_SECRET` | App Secret para HMAC (recomendado) |
+| `WA_NUMERO_DISPLAY` | Número formatado para exibir ao usuário (ex: `+55 11 9999-9999`) |
+| `WA_NUMERO_LINK` | Número puro para wa.me (ex: `5511999999999`) |
+
+> **Alternativa MVP sem Meta API:** Evolution API self-hosted. Troca `WA_PHONE_NUMBER_ID` + `WA_API_TOKEN` por `WA_EVOLUTION_URL` + `WA_EVOLUTION_KEY`.
+
+---
+
+### 🔜 Fase 2 — Chat Básico (texto)
+
+**Objetivo:** Processar mensagens de texto e responder usando o mesmo engine do Assistente IA.
+
+**Fluxo:**
+```
+POST /webhook/whatsapp → msg de texto → uid identificado → plano verificado
+  → Busca historico ia_sessao/ultima (mesma sessão do app web)
+  → Chama engine /api/chat internamente (Groq/Llama + contexto financeiro)
+  → Salva histórico atualizado
+  → Envia resposta via WhatsApp API
+```
+
+**Paridade Web ↔ WhatsApp:**
+- Mesma sessão de histórico (`ia_sessao/ultima`) — conversa continua entre os canais
+- ACTION:TRANSACTION detectado → WA responde: "📝 *Despesa R$50 — Gasolina*. Confirmar? (sim/não)"
+- "sim" → salva Firestore | "não" → descarta
+
+---
+
+### 🔜 Fase 3 — Multimodalidade
+
+**Objetivo:** Processar imagens, áudios e arquivos pelo WhatsApp.
+
+| Entrada | Endpoint reutilizado | Resposta WA |
+|---|---|---|
+| Foto de cupom fiscal | `POST /api/extrair-cupom` ✅ | "🧾 Supermercado X — R$150. Confirmar?" |
+| Foto de extrato/fatura | `POST /api/extrair-fatura` ✅ | "📋 3 transações. Registrar?" |
+| Áudio de voz | Groq Whisper API (PT-BR) | Mesmo fluxo do texto |
+| PDF de fatura | `POST /api/extrair-fatura` ✅ | Igual |
+
+---
+
+### 🔜 Fase 4 — Proativo (Concierge)
+
+**Objetivo:** O Bud inicia a conversa com alertas e resumos relevantes.
+
+| Gatilho | Mensagem WA | Implementação |
+|---|---|---|
+| Alerta de limite | "⚠️ 85% do limite de Alimentação atingido" | `POST /api/alerta-financeiro` + envio WA |
+| Vencimento de conta | "📅 Amanhã vence: Internet (R$99,90)" | Cron + endpoint novo |
+| Resumo semanal | "📊 Semana: Despesas R$2.340 / Receitas R$4.200" | Reaproveitamento da lógica já existente (comentada) |
+
+**Cron externo necessário** (Render free dorme): GitHub Actions scheduled, Upstash Cron ou Firebase Scheduled Functions.
+
+---
+
+## Estratégia de Canal
+
+| Opção | Custo | Complexidade | Recomendação |
+|---|---|---|---|
+| **Meta Cloud API** (oficial) | Grátis até 1k conversas/mês | Alta (aprovação de business) | Produção |
+| **Evolution API** (self-hosted) | ~R$30/mês VPS | Média | MVP / Beta ← recomendado agora |
+| **Baileys** (Node.js) | Gratuito | Baixa | Testes locais |
+| Twilio for WhatsApp | ~U$0.005/msg | Baixa | Evitar — caro por mensagem |
+
+---
+
+## Monetização
+
+| Plano | WhatsApp |
+|---|---|
+| Free | ❌ |
+| Starter | ❌ |
+| Plus | ✅ Chat + alertas proativos |
+| Pro | ✅ Chat + alertas + multimodalidade |
+
+---
+
+## Bugs corrigidos / Decisões
+
+| # | Problema original | Decisão |
+|---|---|---|
+| BUG-1 | Webhook não processava mensagens | Fase 1 já detecta token; Fase 2 processa chat |
+| BUG-2 | Campos inconsistentes (`whatsappVinculado` vs `whatsappConectado` vs `whatsappNumero`) | **Padronizado:** somente `whatsappVinculado` (string com número ou null) |
+| BUG-3 | Resumo semanal carregava todos os usuários | Query filtrada por plano + vinculado |
+| BUG-4 | Sem mecanismo de vínculo na tela assistente-whatsapp.html | Fluxo de token em Ajustes + wa.me link na tela informativa |
+| BUG-5 | Tela prometia funcionalidades inexistentes | Implementação progressiva por fases |
+| DEC-1 | Gemini sugeriu Gemini Flash como modelo IA | Mantemos Groq/Llama (já integrado, mais rápido) |
+| DEC-2 | Gemini sugeriu Twilio | Evolution API para MVP (sem custo por mensagem) |
+
+---
+
+## Estado dos Arquivos
+
+| Arquivo | Estado |
+|---|---|
+| `configuracoes.html` | ✅ Seção WhatsApp — fluxo token implementado |
+| `js/configuracoes.js` | ✅ `gerarTokenWhatsApp()`, `verificarVinculoWhatsApp()` (polling) |
+| `backend/server.js` | ✅ `POST /api/whatsapp/gerar-token`, `GET /api/whatsapp/status`, webhook processa token |
+| `assistente-whatsapp.html` | 🔜 Fase 2 — atualizar com wa.me link + status em tempo real |
+| `js/assistente-whatsapp.js` | 🔜 Fase 2 |
+
 
 | Propriedade | Valor |
 |---|---|

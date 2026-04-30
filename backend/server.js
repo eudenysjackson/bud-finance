@@ -33,6 +33,17 @@ const EMAILJS_TEMPLATE_ID        = process.env.EMAILJS_TEMPLATE_RECUPERAR_SENHA 
 const EMAILJS_TEMPLATE_CHAMADO   = process.env.EMAILJS_TEMPLATE_CHAMADO || '';
 const FRONTEND_URL               = process.env.FRONTEND_URL || 'https://bud-finance.onrender.com';
 
+// ─── WhatsApp config (env vars — set on Render) ─────────────────────
+const WA_PHONE_NUMBER_ID  = process.env.WA_PHONE_NUMBER_ID  || '';
+const WA_API_TOKEN        = process.env.WA_API_TOKEN        || '';
+const WA_VERIFY_TOKEN     = process.env.WA_VERIFY_TOKEN     || 'bud-wh-verify';
+const WA_APP_SECRET       = process.env.WA_APP_SECRET       || '';
+const WA_NUMERO_DISPLAY   = process.env.WA_NUMERO_DISPLAY   || '';
+const WA_NUMERO_LINK      = process.env.WA_NUMERO_LINK      || '';
+// Evolution API (alternativa MVP sem Meta API)
+const WA_EVOLUTION_URL    = process.env.WA_EVOLUTION_URL    || '';
+const WA_EVOLUTION_KEY    = process.env.WA_EVOLUTION_KEY    || '';
+
 // ─── Express setup ──────────────────────────────────────────────────
 const app = express();
 app.use(express.json({ limit: '200kb' })); // aumentado para suportar mensagens com extratos/planilhas do Assistente IA
@@ -1662,6 +1673,218 @@ app.post('/api/alerta-financeiro', async function (req, res) {
 // Chamada silenciosa no carregamento de qualquer página que use o backend.
 app.get('/api/ping', function (_req, res) {
   res.json({ ok: true, ts: Date.now() });
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// ASSISTENTE WHATSAPP — FASE 1: Vínculo via Token de Pareamento
+// ══════════════════════════════════════════════════════════════════════
+
+// Helper: gera token alfanumérico 4 chars
+function gerarTokenWA() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sem I/O/1/0 (confusos)
+  var t = '';
+  for (var i = 0; i < 4; i++) t += chars[Math.floor(Math.random() * chars.length)];
+  return 'BUD-' + t;
+}
+
+// Helper: envia mensagem de texto via Meta Cloud API
+async function enviarMensagemWA(numero, texto) {
+  if (!WA_PHONE_NUMBER_ID || !WA_API_TOKEN) {
+    // Evolution API como fallback
+    if (WA_EVOLUTION_URL && WA_EVOLUTION_KEY) {
+      await fetch(WA_EVOLUTION_URL + '/message/sendText/bud', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': WA_EVOLUTION_KEY },
+        body: JSON.stringify({ number: numero, text: texto })
+      }).catch(function () {});
+    }
+    return;
+  }
+  await fetch('https://graph.facebook.com/v19.0/' + WA_PHONE_NUMBER_ID + '/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + WA_API_TOKEN },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to: numero,
+      type: 'text',
+      text: { body: texto }
+    })
+  }).catch(function (e) { console.error('[WA] enviarMensagem:', e.message); });
+}
+
+// ─── GET /webhook/whatsapp ─── verificação Meta ─────────────────────
+app.get('/webhook/whatsapp', function (req, res) {
+  if (req.query['hub.mode'] === 'subscribe' &&
+      req.query['hub.verify_token'] === WA_VERIFY_TOKEN) {
+    console.log('[WA] webhook verificado');
+    return res.send(req.query['hub.challenge']);
+  }
+  res.sendStatus(403);
+});
+
+// ─── POST /webhook/whatsapp ─── recebe mensagens ────────────────────
+app.post('/webhook/whatsapp', async function (req, res) {
+  // Verificar assinatura HMAC se WA_APP_SECRET configurado
+  if (WA_APP_SECRET) {
+    var sig      = req.headers['x-hub-signature-256'] || '';
+    var expected = 'sha256=' + require('crypto')
+      .createHmac('sha256', WA_APP_SECRET)
+      .update(JSON.stringify(req.body))
+      .digest('hex');
+    if (sig !== expected) { console.warn('[WA] assinatura inválida'); return res.sendStatus(403); }
+  }
+  res.sendStatus(200); // responder rápido ao Meta
+
+  try {
+    var entry  = (req.body.entry  || [])[0];
+    var change = (entry?.changes  || [])[0];
+    var msg    = (change?.value?.messages || [])[0];
+    if (!msg) return;
+
+    var numero = msg.from || '';
+    var texto  = (msg.text?.body || '').trim();
+    if (!texto || !numero) return;
+
+    // ── Fase 1: Detectar código de pareamento ──────────────────────
+    if (/^BUD-[A-Z0-9]{4}$/i.test(texto)) {
+      var codigo  = texto.toUpperCase();
+      var agora   = Date.now();
+      var snap    = await db.collection('usuarios')
+        .where('whatsappToken', '==', codigo)
+        .limit(1).get();
+
+      if (snap.empty) {
+        await enviarMensagemWA(numero, '❌ Código inválido ou expirado. Gere um novo código em Ajustes → WhatsApp no app.');
+        return;
+      }
+
+      var userDoc  = snap.docs[0];
+      var userData = userDoc.data();
+
+      // Verificar expiração
+      if (!userData.whatsappTokenExp || agora > userData.whatsappTokenExp) {
+        await enviarMensagemWA(numero, '⏰ Código expirado. Gere um novo em Ajustes → WhatsApp no app.');
+        return;
+      }
+
+      // Vincular
+      await userDoc.ref.update({
+        whatsappVinculado: numero,
+        whatsappToken:     null,
+        whatsappTokenExp:  null,
+        whatsappVinculadoEm: new Date().toISOString()
+      });
+
+      var nome = (userData.nome || '').split(' ')[0] || 'usuário';
+      await enviarMensagemWA(numero,
+        '✅ Olá, ' + nome + '! Seu WhatsApp está vinculado ao Bud Finance. 🎉\n\n' +
+        'Agora você pode:\n' +
+        '• Registrar gastos: _"gastei 50 de gasolina"_\n' +
+        '• Consultar saldo: _"qual meu saldo?"_\n' +
+        '• Tirar foto de cupom e eu registro automaticamente\n\n' +
+        'Pode começar! 🚀'
+      );
+      console.log('[WA] número vinculado:', numero, '→ uid:', userDoc.id);
+      return;
+    }
+
+    // ── Fase 2 (futura): processar mensagens de chat ───────────────
+    // TODO: identificar uid pelo número, verificar plano, chamar engine IA
+
+  } catch (err) {
+    console.error('[WA] webhook error:', err.message);
+  }
+});
+
+// ─── POST /api/whatsapp/gerar-token ─────────────────────────────────
+// Gera código de pareamento para vincular WhatsApp. Auth: Bearer token.
+app.post('/api/whatsapp/gerar-token', async function (req, res) {
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase não inicializado.' });
+
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
+
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+
+  // Verificar plano
+  try {
+    var userSnap = await db.collection('usuarios').doc(decoded.uid).get();
+    var plano = (userSnap.data()?.plano || 'free').toLowerCase();
+    if (!['plus', 'pro', 'trial'].includes(plano)) {
+      return res.status(403).json({ error: 'Recurso disponível apenas nos planos Plus, Pro e Trial.' });
+    }
+  } catch (_e) { return res.status(403).json({ error: 'Erro ao verificar plano.' }); }
+
+  var token   = gerarTokenWA();
+  var expMs   = Date.now() + 24 * 60 * 60 * 1000; // 24h
+
+  try {
+    await db.collection('usuarios').doc(decoded.uid).update({
+      whatsappToken:    token,
+      whatsappTokenExp: expMs
+    });
+    return res.json({
+      token,
+      expiresAt:       new Date(expMs).toISOString(),
+      waNumeroDisplay: WA_NUMERO_DISPLAY || '(número não configurado)',
+      waLink:          WA_NUMERO_LINK ? 'https://wa.me/' + WA_NUMERO_LINK + '?text=' + encodeURIComponent(token) : null
+    });
+  } catch (err) {
+    console.error('[/api/whatsapp/gerar-token]', err.message);
+    return res.status(500).json({ error: 'Erro ao gerar token.' });
+  }
+});
+
+// ─── GET /api/whatsapp/status ─────────────────────────────────────
+// Retorna status do vínculo WhatsApp do usuário autenticado.
+app.get('/api/whatsapp/status', async function (req, res) {
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase não inicializado.' });
+
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
+
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+
+  try {
+    var snap    = await db.collection('usuarios').doc(decoded.uid).get();
+    var data    = snap.data() || {};
+    var vinculado = data.whatsappVinculado || null;
+    return res.json({ vinculado: !!vinculado, numero: vinculado });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erro ao consultar status.' });
+  }
+});
+
+// ─── POST /api/whatsapp/desvincular ──────────────────────────────────
+// Remove vínculo WhatsApp do usuário.
+app.post('/api/whatsapp/desvincular', async function (req, res) {
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase não inicializado.' });
+
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
+
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+
+  try {
+    await db.collection('usuarios').doc(decoded.uid).update({
+      whatsappVinculado:   null,
+      whatsappToken:       null,
+      whatsappTokenExp:    null,
+      whatsappVinculadoEm: null
+    });
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erro ao desvincular.' });
+  }
 });
 
 // ─── Start server ───────────────────────────────────────────────────

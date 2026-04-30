@@ -666,18 +666,28 @@
             </div>
           </div>
 
-          <!-- Desconectado (usuário Plus) -->
+          <!-- Desconectado (usuário Plus) — fluxo token de pareamento -->
           <div id="whatsappDesconectado" style="display:none;">
             <div class="cfg-action-row">
               <div class="cfg-action-info">
-                <div class="cfg-action-label">Vincular número</div>
-                <div class="cfg-action-desc">Informe seu celular com DDD para receber alertas automáticos.</div>
+                <div class="cfg-action-label">Vincular WhatsApp</div>
+                <div class="cfg-action-desc">Gere um código e envie para o nosso número no WhatsApp para confirmar o vínculo.</div>
               </div>
+              <button class="cfg-btn cfg-btn-primary" id="btnGerarTokenWA" style="white-space:nowrap;">📱 Gerar Código</button>
             </div>
-            <div style="display:flex;gap:.75rem;margin-top:.75rem;align-items:center;">
-              <input type="tel" id="inputWhatsApp" placeholder="11 99999-9999" maxlength="15"
-                style="flex:1;padding:.625rem .875rem;border:1.5px solid var(--input-border,#f1f5f9);border-radius:.75rem;font-family:inherit;font-size:.875rem;background:var(--input-bg,#f8fafc);color:var(--card-text,#1e293b);outline:none;">
-              <button class="cfg-btn cfg-btn-primary" id="btnVincularWhatsApp" style="white-space:nowrap;">Vincular</button>
+
+            <!-- Pairing Box (oculto até gerar token) -->
+            <div id="waPairingBox" style="display:none;margin-top:1.25rem;background:var(--input-bg,#f8fafc);border:1.5px solid var(--input-border,#e2e8f0);border-radius:.875rem;padding:1.25rem;text-align:center;">
+              <div style="font-size:.8125rem;color:var(--card-text-muted,#64748b);margin-bottom:.5rem;">Envie este código para</div>
+              <div id="waNumeroDisplay" style="font-weight:700;color:var(--card-text,#1e293b);font-size:.9375rem;margin-bottom:.75rem;">—</div>
+              <div id="waPairingCode" style="font-size:2.25rem;font-weight:900;letter-spacing:.25rem;color:var(--brand,#10b981);margin-bottom:.5rem;">BUD-XXXX</div>
+              <div style="font-size:.75rem;color:var(--card-text-muted,#94a3b8);margin-bottom:1rem;" id="waPairingExpiry">válido por 24 horas</div>
+              <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;">
+                <a id="waLinkBtn" href="#" target="_blank" rel="noopener noreferrer"
+                   class="cfg-btn cfg-btn-success" style="text-decoration:none;">📲 Abrir WhatsApp</a>
+                <button class="cfg-btn cfg-btn-secondary" id="btnNovoTokenWA">↩ Novo código</button>
+              </div>
+              <div id="waPairingStatus" style="margin-top:1rem;font-size:.8125rem;color:var(--card-text-muted,#64748b);">⏳ Aguardando confirmação…</div>
             </div>
           </div>
         </div>

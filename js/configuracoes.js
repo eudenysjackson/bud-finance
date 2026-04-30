@@ -346,31 +346,87 @@ function carregarWhatsApp() {
   }
 }
 
-async function vincularWhatsApp() {
-  const input = document.getElementById('inputWhatsApp');
-  const btn   = document.getElementById('btnVincularWhatsApp');
-  if (!input || !btn || !uid) return;
-
-  const raw = input.value.replace(/\D/g, '');
-  if (raw.length < 10 || raw.length > 11) {
-    if (window.budShowToast) window.budShowToast('Número inválido. Use DDD + número (ex: 11 99999-9999).', 'warning');
-    return;
-  }
-  const numero = '55' + raw;
+async function gerarTokenWhatsApp() {
+  const btn = document.getElementById('btnGerarTokenWA');
+  if (!btn || !uid) return;
 
   btn.disabled = true;
-  btn.textContent = 'Vinculando...';
+  btn.textContent = 'Gerando…';
+
   try {
-    await updateDoc(doc(db, 'usuarios', uid), { whatsappVinculado: numero });
-    _whatsappNumero = numero;
-    carregarWhatsApp();
-    if (window.budShowToast) window.budShowToast('WhatsApp vinculado com sucesso!', 'success');
-  } catch (_) {
-    if (window.budShowToast) window.budShowToast('Erro ao vincular. Tente novamente.', 'error');
+    const token = await auth.currentUser.getIdToken();
+    const backendUrl = (window.BUD_FUNCTIONS_URL || '').replace(/\/$/, '');
+    const resp = await fetch(backendUrl + '/api/whatsapp/gerar-token', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token }
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      if (window.budShowToast) window.budShowToast(err.error || 'Erro ao gerar código.', 'error');
+      return;
+    }
+
+    const data = await resp.json();
+    // Preencher pairing box
+    const box = document.getElementById('waPairingBox');
+    document.getElementById('waPairingCode').textContent = data.token;
+    document.getElementById('waNumeroDisplay').textContent = data.waNumeroDisplay || '(número não configurado)';
+    const linkBtn = document.getElementById('waLinkBtn');
+    if (data.waLink) { linkBtn.href = data.waLink; linkBtn.style.display = ''; }
+    else linkBtn.style.display = 'none';
+
+    // Exibir caixa
+    box.style.display = 'block';
+    document.getElementById('waPairingStatus').textContent = '⏳ Aguardando confirmação…';
+
+    // Iniciar polling
+    _iniciarPollingWA();
+
+  } catch (_e) {
+    if (window.budShowToast) window.budShowToast('Erro ao gerar código. Verifique sua conexão.', 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Vincular';
+    btn.textContent = '📱 Gerar Código';
   }
+}
+
+let _waPollTimer = null;
+let _waPollCount = 0;
+const WA_POLL_INTERVAL = 5000;   // 5 segundos
+const WA_POLL_MAX      = 24;     // 2 minutos
+
+function _pararPollingWA() {
+  if (_waPollTimer) { clearInterval(_waPollTimer); _waPollTimer = null; }
+  _waPollCount = 0;
+}
+
+function _iniciarPollingWA() {
+  _pararPollingWA();
+  _waPollTimer = setInterval(async function () {
+    _waPollCount++;
+    if (_waPollCount > WA_POLL_MAX) {
+      _pararPollingWA();
+      document.getElementById('waPairingStatus').textContent = '⏰ Tempo esgotado. Gere um novo código.';
+      return;
+    }
+
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const backendUrl = (window.BUD_FUNCTIONS_URL || '').replace(/\/$/, '');
+      const resp = await fetch(backendUrl + '/api/whatsapp/status', {
+        headers: { Authorization: 'Bearer ' + token }
+      });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (data.vinculado) {
+        _pararPollingWA();
+        _whatsappNumero = data.numero;
+        carregarWhatsApp();
+        if (window.budShowToast) window.budShowToast('WhatsApp vinculado com sucesso! 🎉', 'success');
+      }
+    } catch (_e) { /* ignora erros de rede no polling */ }
+  }, WA_POLL_INTERVAL);
 }
 
 async function desvincularWhatsApp() {
@@ -390,7 +446,12 @@ async function desvincularWhatsApp() {
   document.getElementById('_waConfirmar').onclick = async function () {
     ov.remove();
     try {
-      await updateDoc(doc(db, 'usuarios', uid), { whatsappVinculado: deleteField() });
+      const idToken = await auth.currentUser.getIdToken();
+      const backendUrl = (window.BUD_FUNCTIONS_URL || '').replace(/\/$/, '');
+      await fetch(backendUrl + '/api/whatsapp/desvincular', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + idToken }
+      });
       _whatsappNumero = null;
       carregarWhatsApp();
       if (window.budShowToast) window.budShowToast('WhatsApp desvinculado.', 'success');
@@ -939,8 +1000,11 @@ onAuthStateChanged(auth, async function (user) {
   const btnTutorial = document.getElementById('btnReiniciarTutorial');
   if (btnTutorial) btnTutorial.addEventListener('click', reiniciarTutorial);
 
-  const btnVincular = document.getElementById('btnVincularWhatsApp');
-  if (btnVincular) btnVincular.addEventListener('click', vincularWhatsApp);
+  const btnGerar = document.getElementById('btnGerarTokenWA');
+  if (btnGerar) btnGerar.addEventListener('click', gerarTokenWhatsApp);
+
+  const btnNovoToken = document.getElementById('btnNovoTokenWA');
+  if (btnNovoToken) btnNovoToken.addEventListener('click', gerarTokenWhatsApp);
 
   const btnDesvincular = document.getElementById('btnDesvincularWhatsApp');
   if (btnDesvincular) btnDesvincular.addEventListener('click', desvincularWhatsApp);
