@@ -48,7 +48,9 @@ const ALLOWED_ORIGINS_DEV = [
   'http://localhost:5500',
   'http://127.0.0.1:5500',
   'http://localhost:5501',
-  'http://127.0.0.1:5501'
+  'http://127.0.0.1:5501',
+  'http://localhost:5502',
+  'http://127.0.0.1:5502'
 ];
 const ALLOWED_ORIGINS_PROD = [
   'https://bud-finance.onrender.com',
@@ -56,7 +58,9 @@ const ALLOWED_ORIGINS_PROD = [
   'http://localhost:5500',
   'http://127.0.0.1:5500',
   'http://localhost:5501',
-  'http://127.0.0.1:5501'
+  'http://127.0.0.1:5501',
+  'http://localhost:5502',
+  'http://127.0.0.1:5502'
   // Adicione aqui o domínio customizado de produção quando for configurado.
 ];
 const ALLOWED_ORIGINS = IS_PROD
@@ -71,8 +75,8 @@ app.use(cors({
       callback(new Error('CORS not allowed'));
     }
   },
-  methods: ['POST', 'GET'],
-  allowedHeaders: ['Content-Type']
+  methods: ['POST', 'GET', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // ─── Rate limiting (simple in-memory) ───────────────────────────────
@@ -1139,6 +1143,329 @@ app.post('/api/processar-recorrentes', async function (req, res) {
   } catch (err) {
     console.error('[processar-recorrentes]', err.message);
     return res.status(500).json({ error: 'Erro interno ao processar recorrentes.' });
+  }
+});
+
+// ─── POST /api/chat ─────────────────────────────────────────────────
+// Chat com IA financeiro pessoal via Groq (llama-4-scout).
+// Auth: Bearer Firebase ID Token. Gate: plano plus/trial.
+// Rate limit: 30 msg/min por uid (in-memory).
+app.post('/api/chat', async function (req, res) {
+  if (!auth || !db) {
+    return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+  }
+
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Token de autenticação ausente.' });
+
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_e) { return res.status(401).json({ error: 'Token inválido ou expirado.' }); }
+
+  var uid = decoded.uid;
+
+  // Gate de plano server-side
+  var PLANOS_CHAT = ['plus', 'trial'];
+  try {
+    var userSnap = await db.collection('usuarios').doc(uid).get();
+    var plano = (userSnap.exists && userSnap.data().plano) ? userSnap.data().plano.toLowerCase() : 'free';
+    if (!PLANOS_CHAT.includes(plano)) {
+      return res.status(403).json({ error: 'Assistente IA disponível apenas no plano Plus.' });
+    }
+  } catch (_e) {
+    return res.status(500).json({ error: 'Erro ao verificar plano.' });
+  }
+
+  // Rate limit por uid: 30 msg/min
+  var RL_CHAT_MAX = 30;
+  var RL_CHAT_WINDOW = 60 * 1000;
+  var rlKey = 'chat_' + uid;
+  var rlEntry = rateLimitMap.get(rlKey);
+  var now = Date.now();
+  if (!rlEntry || now - rlEntry.start > RL_CHAT_WINDOW) {
+    rateLimitMap.set(rlKey, { start: now, count: 1 });
+  } else {
+    rlEntry.count++;
+    if (rlEntry.count > RL_CHAT_MAX) {
+      return res.status(429).json({ error: 'Limite de 30 mensagens por minuto atingido. Aguarde um momento.' });
+    }
+  }
+
+  var messages = req.body.messages;
+  var contexto = req.body.contexto || {};
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ error: 'messages é obrigatório.' });
+  }
+
+  var key = process.env.GROQ_API_KEY;
+  if (!key) return res.status(503).json({ error: 'Serviço de IA não configurado.' });
+
+  // System prompt com contexto financeiro + knowledge base do app
+  var nome    = sanitizeStr(String(contexto.nome  || 'usuário')).substring(0, 60);
+  var mesAno  = sanitizeStr(String(contexto.mesAno || '')).substring(0, 30);
+  var r = contexto.resumo || {};
+  var oculto  = contexto.valoresOcultos === true;
+  var fmtBRL  = function(v) { return 'R$ ' + (Number(v)||0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  var fmtVal  = function(v) { return oculto ? '(valor oculto)' : fmtBRL(v); };
+
+  var systemPrompt = [
+    '=== IDENTIDADE ===',
+    'Você é o Bud, assistente inteligente do app Bud Finance.',
+    'Tom: amigável, motivador, direto, empático. Use emojis com moderação.',
+    'Responda SEMPRE em português brasileiro.',
+    'Use Markdown para formatar suas respostas: **negrito**, listas, tabelas quando fizer sentido.',
+    '',
+    '=== REGRAS CRÍTICAS ===',
+    '- NUNCA invente dados financeiros. Use APENAS os dados do contexto abaixo.',
+    '- Se o usuário perguntar algo fora de finanças pessoais ou uso do app, redirecione gentilmente.',
+    '- Se não tiver dados suficientes para responder, diga que o usuário precisa cadastrar mais informações no app.',
+    oculto ? '- O usuário ativou o modo privacidade. NÃO exiba valores monetários explícitos. Use termos como "seu saldo", "seus gastos" sem números.' : '',
+    '',
+    '=== FUNCIONALIDADES DO BUD FINANCE (para ajudar o usuário) ===',
+    '• Dashboard: visão geral com saldo, resumo do mês, últimas transações e alertas.',
+    '• Extrato: histórico completo de transações com filtros por data, categoria, tipo. Para lançar uma transação: botão "+" no extrato ou dashboard.',
+    '• Carteira (Contas): gerenciar contas bancárias, poupança, benefícios (vale alimentação, etc). Importar extratos CSV/OFX/PDF/imagem.',
+    '• Cartões: gerenciar faturas de crédito. Lançar gastos no cartão escolhendo o cartão na transação.',
+    '• Recorrentes: lançar automaticamente contas fixas (aluguel, streaming, etc.) todo mês no dia configurado.',
+    '• Dívidas: controlar empréstimos e financiamentos com status de pagamento e parcelas.',
+    '• Metas: definir objetivos financeiros (viagem, reserva, etc) e acompanhar progresso com aportes manuais.',
+    '• Limites: definir teto de gastos por categoria (ex: máx R$ 500 em restaurantes/mês). Recebe alertas ao aproximar.',
+    '• Investimentos: registrar renda fixa, ações, FIIs, cripto e ver rentabilidade.',
+    '• Análises/Gráficos: gráficos de pizza, barras e evolução dos gastos por categoria.',
+    '• Insights: score de saúde financeira 0-100, alertas automáticos, projeções.',
+    '• Balanço Mensal: fechar o mês e ver resultado geral consolidado.',
+    '• Comparativo: comparar meses lado a lado para ver evolução.',
+    '• Relatórios: exportar dados em PDF/CSV.',
+    '• Mercado: lista de compras inteligente.',
+    '• Categorias: criar e personalizar categorias de gastos (ícone, cor, nome).',
+    '• Configurações: mudar plano, tema (claro/escuro/HBO), foto de perfil, ocultar valores (privacidade).',
+    '',
+    '=== PROBLEMAS COMUNS E SOLUÇÕES ===',
+    '- Transação não aparece: checar filtros de data no Extrato (pode estar fora do período selecionado).',
+    '- Saldo errado: verificar em Carteira se todas as contas têm saldo correto e se há lançamentos duplicados.',
+    '- Recorrente não lançou: verificar dia de vencimento em Recorrentes e aguardar o processamento automático (ocorre todo dia).',
+    '- Notificação não chegou: verificar permissões de notificação no navegador → Configurações → Notificações.',
+    '- Meta não avança: os aportes são manuais — ir em Metas e clicar em "Depositar" na meta desejada.',
+    '- Limite não aparece: verificar em Limites se a categoria está corretamente configurada.',
+    '',
+    '=== DADOS FINANCEIROS REAIS DO USUÁRIO ===',
+    'Nome: ' + nome,
+    'Período: ' + mesAno,
+    'Receitas: ' + fmtVal(r.receitas),
+    'Despesas: ' + fmtVal(r.despesas),
+    'Resultado: ' + fmtVal((r.receitas||0) - (r.despesas||0)),
+    'Saldo total contas: ' + fmtVal(r.saldoContas),
+    'Contas: ' + (Array.isArray(r.contas) && r.contas.length ? r.contas.join(' | ') : 'nenhuma cadastrada'),
+    'Top categorias de gasto: ' + (Array.isArray(r.topCats) && r.topCats.length ? r.topCats.join(' | ') : 'sem dados'),
+    'Dívidas ativas: ' + (r.dividasAtivas || 0),
+    'Metas ativas: ' + (r.metas || 0),
+    Array.isArray(r.metasDetalhe) && r.metasDetalhe.length ? 'Detalhe metas: ' + r.metasDetalhe.join(' | ') : '',
+    'Limites estourados: ' + (r.limitesEstourados || 0),
+    Array.isArray(r.limites) && r.limites.length ? 'Detalhe limites: ' + r.limites.join(' | ') : '',
+    'Investimentos cadastrados: ' + (r.investimentos || 0),
+  ].filter(Boolean).join('\n');
+
+  // Converter formato de mensagens para Groq
+  var groqMessages = [{ role: 'system', content: systemPrompt }];
+  messages.slice(-12).forEach(function (m) {
+    if (m.role === 'user' || m.role === 'assistant') {
+      groqMessages.push({ role: m.role, content: sanitizeStr(String(m.content || '')).substring(0, 2000) });
+    }
+  });
+
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function () { controller.abort(); }, 30000);
+
+  try {
+    var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body:    JSON.stringify({
+        model:       'meta-llama/llama-4-scout-17b-16e-instruct',
+        messages:    groqMessages,
+        temperature: 0.7,
+        max_tokens:  1500,
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+
+    if (!resp.ok) {
+      var errTxt = await resp.text().catch(function () { return resp.status; });
+      throw new Error('Groq API: ' + errTxt);
+    }
+
+    var data   = await resp.json();
+    var reply  = (data.choices || [])[0]?.message?.content || 'Não consegui gerar uma resposta.';
+
+    // Detectar truncamento (BUG 9 do cérebro)
+    var finishReason = (data.choices || [])[0]?.finish_reason;
+    if (finishReason === 'length') {
+      reply += '\n\n_⚠️ Resposta resumida. Peça "continue" para mais detalhes._';
+    }
+
+    return res.json({ reply: reply });
+
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      return res.status(504).json({ error: 'Timeout na geração da resposta. Tente novamente.' });
+    }
+    console.error('[/api/chat]', err.message);
+    return res.status(500).json({ error: 'Erro ao gerar resposta. Tente novamente.' });
+  }
+});
+
+// ─── POST /api/chamado ───────────────────────────────────────────────
+// Registra bug ou sugestão no Firestore + envia email ao suporte.
+// Auth: Bearer Firebase ID Token. Rate limit: 5 chamados/15 min.
+app.post('/api/chamado', async function (req, res) {
+  if (!auth || !db) {
+    return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+  }
+
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Token de autenticação ausente.' });
+
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_e) { return res.status(401).json({ error: 'Token inválido ou expirado.' }); }
+
+  var uid = decoded.uid;
+
+  // Rate limit: 5 chamados/15 min por uid
+  var RL_CHAMADO_MAX    = 5;
+  var RL_CHAMADO_WINDOW = 15 * 60 * 1000;
+  var rlKey = 'chamado_' + uid;
+  var rlEntry = rateLimitMap.get(rlKey);
+  var now = Date.now();
+  if (!rlEntry || now - rlEntry.start > RL_CHAMADO_WINDOW) {
+    rateLimitMap.set(rlKey, { start: now, count: 1 });
+  } else {
+    rlEntry.count++;
+    if (rlEntry.count > RL_CHAMADO_MAX) {
+      return res.status(429).json({ error: 'Limite de chamados atingido. Aguarde 15 minutos.' });
+    }
+  }
+
+  var tipo        = sanitizeStr(String(req.body.tipo        || '')).substring(0, 20);
+  var descricao   = sanitizeStr(String(req.body.descricao   || '')).substring(0, 2000);
+  var nomeUsuario = sanitizeStr(String(req.body.nomeUsuario || 'Anônimo')).substring(0, 100);
+
+  if (!tipo || !descricao) {
+    return res.status(400).json({ error: 'tipo e descricao são obrigatórios.' });
+  }
+  if (!['bug', 'sugestao'].includes(tipo)) {
+    return res.status(400).json({ error: 'tipo deve ser "bug" ou "sugestao".' });
+  }
+
+  try {
+    await db.collection('chamados').add({
+      tipo,
+      descricao,
+      uid:           uid,                              // fonte confiável (BUG 13)
+      emailUsuario:  decoded.email || '',              // email do token (mais seguro)
+      nomeUsuario,
+      criadoEm:      new Date().toISOString(),
+      status:        'aberto',
+      plataforma:    (req.headers['user-agent'] || '').substring(0, 200),
+    });
+
+    // Email de notificação (fire-and-forget, sem bloquear resposta)
+    sendEmailViaEmailJS({
+      to_email:   'suporte@budfinance.com.br',
+      tipo,
+      descricao,
+      nomeUsuario,
+      uid,
+    }).catch(function () { /* ignora falha de email */ });
+
+    return res.json({ success: true });
+
+  } catch (err) {
+    console.error('[/api/chamado]', err.message);
+    return res.status(500).json({ error: 'Erro ao registrar chamado.' });
+  }
+});
+
+// ─── POST /api/alerta-financeiro ────────────────────────────────────
+// Enviado pelo frontend quando detecta problemas críticos (saldo negativo,
+// despesas > receitas, limites estourados). Envia email para o usuário
+// e registra no Firestore. Rate limit: 1 por uid a cada 24h.
+app.post('/api/alerta-financeiro', async function (req, res) {
+  if (!auth || !db) {
+    return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+  }
+
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
+
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+
+  var uid = decoded.uid;
+
+  // Rate limit: 1 alerta a cada 24 horas por uid
+  var RL_ALERTA_WINDOW = 24 * 60 * 60 * 1000;
+  var rlKey = 'alerta_' + uid;
+  var rlEntry = rateLimitMap.get(rlKey);
+  var now = Date.now();
+  if (rlEntry && now - rlEntry.start < RL_ALERTA_WINDOW) {
+    return res.json({ success: true, enviado: false, motivo: 'rate_limit' });
+  }
+  rateLimitMap.set(rlKey, { start: now, count: 1 });
+
+  var alertas     = req.body.alertas || [];
+  var nomeUsuario = sanitizeStr(String(req.body.nomeUsuario || 'Usuário')).substring(0, 100);
+  var emailUser   = decoded.email || '';
+
+  if (!Array.isArray(alertas) || alertas.length === 0) {
+    return res.json({ success: true, enviado: false });
+  }
+
+  var alertasSanitizados = alertas.slice(0, 10).map(function (a) {
+    return {
+      nivel: ['critico', 'alerta', 'info'].includes(a.nivel) ? a.nivel : 'info',
+      texto: sanitizeStr(String(a.texto || '')).substring(0, 200),
+    };
+  });
+
+  // Salvar alerta no Firestore (para auditoria interna)
+  var salvarPromise = db.collection('alertas_financeiros').add({
+    uid,
+    emailUsuario: emailUser,
+    nomeUsuario,
+    alertas:      alertasSanitizados,
+    criadoEm:     new Date().toISOString(),
+    plataforma:   (req.headers['user-agent'] || '').substring(0, 200),
+  });
+
+  // Enviar email de alerta para o usuário (fire-and-forget)
+  if (emailUser) {
+    var alertasTexto = alertasSanitizados.map(function (a) {
+      var icone = a.nivel === 'critico' ? '🚨' : a.nivel === 'alerta' ? '⚠️' : 'ℹ️';
+      return icone + ' ' + a.texto;
+    }).join('\n');
+
+    sendEmailViaEmailJS({
+      to_email:      emailUser,
+      to_name:       nomeUsuario,
+      assunto:       'Alerta financeiro detectado no Bud Finance',
+      corpo:         'O Bud detectou os seguintes pontos de atenção nas suas finanças:\n\n' + alertasTexto + '\n\nAcesse o app para ver detalhes e tomar ação.',
+    }).catch(function () { /* ignora falha */ });
+  }
+
+  try {
+    await salvarPromise;
+    return res.json({ success: true, enviado: true });
+  } catch (err) {
+    console.error('[/api/alerta-financeiro]', err.message);
+    return res.json({ success: true, enviado: false }); // não falha o cliente
   }
 });
 

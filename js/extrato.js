@@ -41,6 +41,9 @@ let filtroTipo         = 'todos';      // 'todos'|'receita'|'despesa'
 let catFiltroAtual     = '';           // nome da categoria ('' = todas)
 let buscaQuery         = '';           // texto da busca
 let valoresOcultos     = false;
+let modoFiltro         = 'mes';        // 'mes' | 'intervalo'
+let filtroDataInicio   = null;         // Date — início do intervalo
+let filtroDataFim      = null;         // Date — fim do intervalo
 let _unsubCategorias   = null;
 let _unsubTransacoes   = null;
 let _unsubMesAnt       = null;
@@ -151,8 +154,62 @@ function atualizarTextosData() {
 
 // ─── Navegar mês ───────────────────────────────────────────────────────────
 window.mudarMes = function(dir) {
+  if (modoFiltro !== 'mes') return;
   dataFiltro = new Date(dataFiltro.getFullYear(), dataFiltro.getMonth() + dir, 1);
   atualizarTextosData();
+  if (usuarioAtualId) subscribeTransacoes(usuarioAtualId);
+};
+
+// ─── Modo Intervalo ────────────────────────────────────────────────────────
+window.ativarModoIntervalo = function() {
+  const mesNav = document.getElementById('mesNavBar');
+  const bar = document.getElementById('intervaloBar');
+  if (mesNav) mesNav.style.display = 'none';
+  if (bar) bar.style.display = 'flex';
+  // Preencher inputs com o mês atual como default
+  const ini = document.getElementById('filtroDataInicio');
+  const fim = document.getElementById('filtroDataFim');
+  if (ini && !ini.value) {
+    const d = new Date(dataFiltro.getFullYear(), dataFiltro.getMonth(), 1);
+    ini.value = d.toISOString().slice(0, 10);
+  }
+  if (fim && !fim.value) {
+    const d = new Date(dataFiltro.getFullYear(), dataFiltro.getMonth() + 1, 0);
+    fim.value = d.toISOString().slice(0, 10);
+  }
+};
+
+window.aplicarIntervalo = function() {
+  const iniStr = document.getElementById('filtroDataInicio')?.value;
+  const fimStr = document.getElementById('filtroDataFim')?.value;
+  if (!iniStr || !fimStr) {
+    if (window.budShowToast) window.budShowToast('Selecione data de início e fim.', 'warning');
+    return;
+  }
+  const ini = new Date(iniStr + 'T00:00:00');
+  const fim = new Date(fimStr + 'T23:59:59');
+  if (ini > fim) {
+    if (window.budShowToast) window.budShowToast('A data de início deve ser anterior à data de fim.', 'warning');
+    return;
+  }
+  modoFiltro = 'intervalo';
+  filtroDataInicio = ini;
+  filtroDataFim = fim;
+  const lbl = document.getElementById('labelIntervalo');
+  if (lbl) lbl.textContent = `📅 ${iniStr.split('-').reverse().join('/')} → ${fimStr.split('-').reverse().join('/')}`;
+  if (usuarioAtualId) subscribeTransacoes(usuarioAtualId);
+};
+
+window.limparIntervalo = function() {
+  modoFiltro = 'mes';
+  filtroDataInicio = null;
+  filtroDataFim = null;
+  const mesNav = document.getElementById('mesNavBar');
+  const bar = document.getElementById('intervaloBar');
+  if (mesNav) mesNav.style.display = '';
+  if (bar) bar.style.display = 'none';
+  const lbl = document.getElementById('labelIntervalo');
+  if (lbl) lbl.textContent = '';
   if (usuarioAtualId) subscribeTransacoes(usuarioAtualId);
 };
 
@@ -846,8 +903,10 @@ window.exportarCSV = function() {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  const mes  = `${MESES_PT[dataFiltro.getMonth()]}-${dataFiltro.getFullYear()}`.toLowerCase();
-  a.href = url; a.download = `extrato-${mes}.csv`; a.click();
+  const mesLabel = modoFiltro === 'intervalo' && filtroDataInicio && filtroDataFim
+    ? `${filtroDataInicio.toISOString().slice(0,10)}_${filtroDataFim.toISOString().slice(0,10)}`
+    : `${MESES_PT[dataFiltro.getMonth()]}-${dataFiltro.getFullYear()}`.toLowerCase();
+  a.href = url; a.download = `extrato-${mesLabel}.csv`; a.click();
   URL.revokeObjectURL(url);
 };
 
@@ -863,7 +922,11 @@ window.exportarPDF = function() {
   dados.forEach(t => { t.tipo === 'receita' ? totalRec += t.valor : totalDes += t.valor; });
   const saldo = totalRec - totalDes;
   const fmtPDF = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  const mesAno = `${MESES_PT[dataFiltro.getMonth()]} de ${dataFiltro.getFullYear()}`;
+  const fmtDate = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  const mesAno = modoFiltro === 'intervalo' && filtroDataInicio && filtroDataFim
+    ? `${fmtDate(filtroDataInicio)} a ${fmtDate(filtroDataFim)}`
+    : `${MESES_PT[dataFiltro.getMonth()]} de ${dataFiltro.getFullYear()}`;
+  // (usando mesAno para label do PDF abaixo)
 
   // Agrupar por dia
   const grupos = {};
@@ -935,10 +998,16 @@ function subscribeTransacoes(uid) {
   _dadosCarregados.transacoes = false;
   _dadosCarregados.mesAnterior = false;
 
-  const ano = dataFiltro.getFullYear();
-  const mes = dataFiltro.getMonth();
-  const inicio = Timestamp.fromDate(new Date(ano, mes, 1, 0, 0, 0));
-  const fim    = Timestamp.fromDate(new Date(ano, mes + 1, 0, 23, 59, 59));
+  let inicio, fim;
+  if (modoFiltro === 'intervalo' && filtroDataInicio && filtroDataFim) {
+    inicio = Timestamp.fromDate(filtroDataInicio);
+    fim    = Timestamp.fromDate(filtroDataFim);
+  } else {
+    const ano = dataFiltro.getFullYear();
+    const mes = dataFiltro.getMonth();
+    inicio = Timestamp.fromDate(new Date(ano, mes, 1, 0, 0, 0));
+    fim    = Timestamp.fromDate(new Date(ano, mes + 1, 0, 23, 59, 59));
+  }
 
   const q = query(
     collection(db, 'usuarios', uid, 'transacoes'),

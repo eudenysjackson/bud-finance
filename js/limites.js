@@ -43,6 +43,10 @@ let anoVisualizado  = new Date().getFullYear();
 let _unsubs         = [];
 let _unsubTrans     = null; // listener de transações (re-criado ao mudar mês)
 let _editandoId     = null; // null = criando, string = editando
+let _userPlano      = 'free'; // plano do usuário (lido no auth guard)
+
+// ─── Planos com acesso ao "Copiar Mês Anterior" ────────────────────────────
+const PLANOS_COPIAR = ['plus', 'pro', 'trial'];
 let _salvando       = false;
 let _catSelecionada = '';   // nome da categoria selecionada no dropdown
 let _tipoLimite     = 'valor'; // 'valor' | 'percentual'
@@ -517,6 +521,10 @@ window.excluirLimiteAtual = function() {
 
 // ─── Copiar Mês Anterior ───────────────────────────────────────────────────
 window.copiarMesAnterior = async function() {
+  if (!PLANOS_COPIAR.includes(_userPlano)) {
+    if (window.budShowToast) window.budShowToast('Recurso exclusivo para planos Plus e Pro.', 'warning');
+    return;
+  }
   const btn = document.getElementById('btnCopiar');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Copiando...'; }
 
@@ -694,7 +702,23 @@ function setupSidebar() {
 // ─── Botões ────────────────────────────────────────────────────────────────
 function setupBotoes() {
   document.getElementById('btnNovoLimite')?.addEventListener('click', () => window.abrirModalLimite());
-  document.getElementById('btnCopiar')?.addEventListener('click', () => window.copiarMesAnterior());
+
+  const btnCopiar = document.getElementById('btnCopiar');
+  if (btnCopiar) {
+    if (PLANOS_COPIAR.includes(_userPlano)) {
+      btnCopiar.addEventListener('click', () => window.copiarMesAnterior());
+    } else {
+      // Feature gate: bloquear para Free/Starter
+      btnCopiar.disabled = true;
+      btnCopiar.title = 'Exclusivo para planos Plus e Pro. Faça upgrade em Configurações!';
+      btnCopiar.style.cssText += ';opacity:0.5;cursor:not-allowed;';
+      btnCopiar.innerHTML = '🔒 Copiar mês anterior';
+      btnCopiar.addEventListener('click', () => {
+        if (window.budShowToast) window.budShowToast('Recurso exclusivo para planos Plus e Pro. Acesse Configurações para fazer upgrade.', 'warning');
+      });
+    }
+  }
+
   document.getElementById('btnLogout')?.addEventListener('click', async () => {
     _unsubs.forEach(fn => fn());
     _unsubs.length = 0;
@@ -719,6 +743,7 @@ onAuthStateChanged(auth, async user => {
     if (snap.exists()) {
       const d = snap.data();
       if (d.primeiroLogin) { window.location.href = 'trocar-senha.html'; return; }
+      _userPlano = (d.plano || 'free').toLowerCase();
       const nome = d.nome || user.email || '';
       const mat  = d.matricula || '';
       const iniciais = nome.trim().split(/\s+/).map(p => p[0]).join('').slice(0,2).toUpperCase() || '?';

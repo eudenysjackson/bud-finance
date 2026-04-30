@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Bud Finance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="js/firebase-config.js"></script>
+  <script src="js/bud-utils.js" defer></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f0fdf4; color: #1e293b; min-height: 100vh; }
+
+    /* ── Top Bar ─────────────────────────────────────────────── */
+    .g-bar {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(255,255,255,.88);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(16,185,129,.2);
+      padding: 0 1.5rem;
+      height: 3.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .g-bar-logo { display: flex; align-items: center; gap: 0.625rem; }
+    .g-logo-badge {
+      width: 2rem; height: 2rem; border-radius: 0.5rem;
+      background: linear-gradient(135deg, #059669, #10b981);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 0.875rem; color: #fff;
+    }
+    .g-bar-title { font-size: 0.9375rem; font-weight: 800; color: #064e3b; }
+    .g-bar-sub { font-size: 0.6875rem; font-weight: 600; color: #6b7280; }
+    .pulse-dot {
+      width: 0.5rem; height: 0.5rem; border-radius: 50%;
+      background: #10b981; display: inline-block; margin-right: 0.25rem;
+      animation: pulse-dot 2s infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .5; transform: scale(1.25); }
+    }
+    .g-bar-right { display: flex; align-items: center; gap: 0.75rem; font-size: 0.8125rem; color: #374151; }
+    .g-avatar {
+      width: 2rem; height: 2rem; border-radius: 50%;
+      background: linear-gradient(135deg, #059669, #10b981);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 0.75rem; color: #fff;
+    }
+
+    /* ── Loading / Access Denied ─────────────────────────────── */
+    #adminLoading, #accessDenied {
+      display: flex; align-items: center; justify-content: center;
+      min-height: calc(100vh - 3.5rem);
+      text-align: center;
+    }
+    .spinner {
+      width: 2.5rem; height: 2.5rem; border: 3px solid #d1fae5;
+      border-top-color: #10b981; border-radius: 50%;
+      animation: spin .8s linear infinite; margin: 0 auto 1rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .denied-card {
+      background: #fff; border-radius: 1rem; padding: 2.5rem 3rem;
+      border: 1.5px solid #fecaca; text-align: center;
+    }
+    .denied-card h2 { font-size: 1.25rem; font-weight: 800; color: #dc2626; margin: 0.75rem 0 0.5rem; }
+    .denied-card p { color: #6b7280; font-size: 0.875rem; }
+
+    /* ── Main content ────────────────────────────────────────── */
+    #adminContent { display: none; max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+
+    /* ── Tabs ────────────────────────────────────────────────── */
+    .tabs { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-bottom: 1.5rem; border-bottom: 2px solid #d1fae5; padding-bottom: 0; }
+    .tab-btn {
+      padding: 0.5rem 1.125rem; border: none; background: transparent;
+      font-family: inherit; font-size: 0.875rem; font-weight: 600;
+      color: #6b7280; cursor: pointer; border-radius: 0.5rem 0.5rem 0 0;
+      transition: all .15s; position: relative; bottom: -2px;
+    }
+    .tab-btn:hover { color: #059669; background: #ecfdf5; }
+    .tab-btn.active {
+      color: #059669; background: #fff;
+      border: 2px solid #d1fae5; border-bottom-color: #fff;
+      font-weight: 700;
+    }
+
+    /* ── Cards ───────────────────────────────────────────────── */
+    .g-card {
+      background: #fff; border-radius: 1rem;
+      border: 1.5px solid #d1fae5; padding: 1.5rem;
+      transition: box-shadow .2s;
+    }
+    .g-card:hover { box-shadow: 0 4px 24px rgba(16,185,129,.08); }
+    .panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.25rem;
+    }
+    .panel-title { font-size: 1.0625rem; font-weight: 800; color: #064e3b; }
+    .panel-sub { font-size: 0.75rem; color: #6b7280; margin-top: 0.125rem; }
+
+    /* ── Buttons ─────────────────────────────────────────────── */
+    .btn-cyan {
+      padding: 0.5rem 1rem; border: none; border-radius: 0.625rem;
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: #fff; font-family: inherit; font-size: 0.8125rem; font-weight: 700;
+      cursor: pointer; transition: opacity .15s;
+    }
+    .btn-cyan:hover { opacity: .9; }
+    .btn-ghost {
+      padding: 0.5rem 1rem; border-radius: 0.625rem;
+      border: 1.5px solid #d1d5db; background: #fff;
+      color: #374151; font-family: inherit; font-size: 0.8125rem; font-weight: 600;
+      cursor: pointer; transition: border-color .15s;
+    }
+    .btn-ghost:hover { border-color: #10b981; color: #059669; }
+    .btn-danger {
+      padding: 0.375rem 0.75rem; border: none; border-radius: 0.5rem;
+      background: #fef2f2; color: #dc2626; font-family: inherit;
+      font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: background .15s;
+    }
+    .btn-danger:hover { background: #fee2e2; }
+
+    /* ── Feature Flags ───────────────────────────────────────── */
+    #flagsGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1rem;
+    }
+    .ff-card {
+      background: #f0fdf4; border: 1.5px solid #a7f3d0; border-radius: 0.875rem;
+      padding: 1rem 1.125rem; transition: all .2s;
+    }
+    .ff-card.off { opacity: .55; background: #f8fafc; border-color: #e2e8f0; }
+    .ff-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+    .ff-name { font-size: 0.9375rem; font-weight: 700; color: #064e3b; }
+    .ff-key { font-size: 0.7rem; color: #6b7280; font-family: monospace; margin-top: 0.125rem; }
+    .ff-desc { font-size: 0.8125rem; color: #374151; margin: 0.5rem 0 0.75rem; }
+    .ff-plans { display: flex; gap: 0.25rem; flex-wrap: wrap; }
+    .plan-badge {
+      padding: 0.125rem 0.5rem; border-radius: 999px;
+      font-size: 0.6875rem; font-weight: 700; text-transform: uppercase;
+    }
+    .plan-free { background: #f1f5f9; color: #64748b; }
+    .plan-starter { background: #eff6ff; color: #2563eb; }
+    .plan-plus { background: #fdf4ff; color: #9333ea; }
+    .plan-pro { background: #ecfdf5; color: #059669; }
+    .plan-trial { background: #fff7ed; color: #ea580c; }
+    .plan-todos { background: #f0fdf4; color: #15803d; }
+    .ff-actions { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; }
+
+    /* ── Toggle ──────────────────────────────────────────────── */
+    .toggle {
+      position: relative; width: 2.75rem; height: 1.5rem;
+      border-radius: 999px; background: #e2e8f0;
+      cursor: pointer; transition: background .2s; flex-shrink: 0;
+      border: none; padding: 0;
+    }
+    .toggle.on { background: #10b981; }
+    .toggle::after {
+      content: ''; position: absolute;
+      top: 3px; left: 3px;
+      width: 1.125rem; height: 1.125rem;
+      border-radius: 50%; background: #fff;
+      transition: transform .2s; box-shadow: 0 1px 4px rgba(0,0,0,.15);
+    }
+    .toggle.on::after { transform: translateX(1.25rem); }
+
+    /* ── Modal ───────────────────────────────────────────────── */
+    .modal-bg {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.45); backdrop-filter: blur(4px);
+      z-index: 200; align-items: center; justify-content: center;
+    }
+    .modal-bg.open { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 1.25rem; padding: 2rem;
+      width: min(480px, 95vw); max-height: 90vh; overflow-y: auto;
+    }
+    .modal-title { font-size: 1.0625rem; font-weight: 800; color: #064e3b; margin-bottom: 1.25rem; }
+    .god-input {
+      width: 100%; padding: 0.625rem 0.875rem;
+      border: 1.5px solid #d1d5db; border-radius: 0.625rem;
+      font-family: inherit; font-size: 0.875rem; color: #1e293b;
+      background: #f9fafb; transition: border-color .15s;
+    }
+    .god-input:focus { outline: none; border-color: #10b981; background: #fff; }
+    .god-label { font-size: 0.8125rem; font-weight: 700; color: #374151; display: block; margin-bottom: 0.375rem; }
+    .form-row { margin-bottom: 1rem; }
+    .plans-check { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.375rem; }
+    .plan-chk-label {
+      display: flex; align-items: center; gap: 0.25rem;
+      padding: 0.25rem 0.625rem; border-radius: 999px;
+      border: 1.5px solid #d1d5db; cursor: pointer;
+      font-size: 0.75rem; font-weight: 700; transition: all .15s;
+    }
+    .plan-chk-label:has(input:checked) { border-color: #10b981; background: #ecfdf5; color: #059669; }
+    .plan-chk-label input { accent-color: #10b981; width: 13px; height: 13px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem; }
+
+    /* ── KPI cards ───────────────────────────────────────────── */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.875rem; margin-bottom: 1.25rem; }
+    .kpi-card { background: #fff; border-radius: 0.875rem; padding: 1rem 1.125rem; border: 1.5px solid #d1fae5; }
+    .kpi-val { font-size: 1.625rem; font-weight: 900; color: #064e3b; }
+    .kpi-lbl { font-size: 0.7rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .06em; margin-top: 0.25rem; }
+
+    /* ── Placeholder tab ─────────────────────────────────────── */
+    .tab-placeholder {
+      text-align: center; padding: 4rem 2rem;
+      color: #9ca3af;
+    }
+    .tab-placeholder .icon { font-size: 3rem; margin-bottom: 0.75rem; }
+    .tab-placeholder h3 { font-size: 1rem; font-weight: 700; color: #6b7280; margin-bottom: 0.375rem; }
+    .tab-placeholder p { font-size: 0.8125rem; }
+
+    /* ── Toast override (usa budShowToast) ───────────────────── */
+    #budToastContainer { z-index: 9999 !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <header class="g-bar">
+    <div class="g-bar-logo">
+      <div class="g-logo-badge">B</div>
+      <div>
+        <div class="g-bar-title">Bud Finance Admin</div>
+        <div class="g-bar-sub">Painel de Controle</div>
+      </div>
+    </div>
+    <div class="g-bar-right">
+      <span><span class="pulse-dot"></span>ONLINE</span>
+      <span id="adminName" style="font-weight:600;"></span>
+      <div class="g-avatar" id="adminAvatar">?</div>
+      <button onclick="fazerLogoutAdmin()" class="btn-ghost" style="padding:.3rem .7rem;font-size:.75rem;">Sair</button>
+    </div>
+  </header>
+
+  <!-- Loading -->
+  <div id="adminLoading">
+    <div>
+      <div class="spinner"></div>
+      <div style="font-size:.875rem;font-weight:600;color:#6b7280;">Verificando permissões...</div>
+    </div>
+  </div>
+
+  <!-- Access Denied -->
+  <div id="accessDenied" style="display:none;">
+    <div class="denied-card">
+      <div style="font-size:3rem;">🔒</div>
+      <h2>Acesso Negado</h2>
+      <p>Você não tem permissão para acessar este painel.<br>Apenas administradores podem visualizar esta página.</p>
+      <a href="index.html" style="display:inline-block;margin-top:1rem;padding:.5rem 1.5rem;background:#059669;color:#fff;border-radius:.625rem;font-weight:700;font-size:.875rem;text-decoration:none;">Voltar ao Login</a>
+    </div>
+  </div>
+
+  <!-- Admin Content -->
+  <div id="adminContent">
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('overview')" id="tab-overview">📊 Visão Geral</button>
+      <button class="tab-btn" onclick="switchTab('flags')" id="tab-flags">🚩 Feature Flags</button>
+      <button class="tab-btn" onclick="switchTab('crm')" id="tab-crm">👥 CRM</button>
+      <button class="tab-btn" onclick="switchTab('notifs')" id="tab-notifs">🔔 Notificações</button>
+      <button class="tab-btn" onclick="switchTab('promos')" id="tab-promos">🎟️ Promoções</button>
+      <button class="tab-btn" onclick="switchTab('system')" id="tab-system">⚙️ Sistema</button>
+    </div>
+
+    <!-- Panel: Overview -->
+    <div id="panel-overview">
+      <div class="kpi-grid" id="overviewKpis">
+        <div class="kpi-card"><div class="kpi-val" id="kpiTotal">—</div><div class="kpi-lbl">Usuários Total</div></div>
+        <div class="kpi-card"><div class="kpi-val" id="kpiPagantes">—</div><div class="kpi-lbl">Pagantes (Plus/Pro)</div></div>
+        <div class="kpi-card"><div class="kpi-val" id="kpiTrial">—</div><div class="kpi-lbl">Em Trial</div></div>
+        <div class="kpi-card"><div class="kpi-val" id="kpiFlags">—</div><div class="kpi-lbl">Feature Flags Ativas</div></div>
+      </div>
+      <div class="g-card">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">Últimos Cadastros</div>
+            <div class="panel-sub">10 usuários mais recentes</div>
+          </div>
+        </div>
+        <div id="overviewSignups" style="font-size:.8125rem;color:#6b7280;">Carregando...</div>
+      </div>
+    </div>
+
+    <!-- Panel: Feature Flags -->
+    <div id="panel-flags" style="display:none;">
+      <div class="g-card">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">🚩 Feature Flags</div>
+            <div class="panel-sub">Controle global de funcionalidades por plano</div>
+          </div>
+          <button class="btn-cyan" onclick="abrirModalFlag()">+ Nova Flag</button>
+        </div>
+        <div id="flagsGrid">
+          <div style="color:#9ca3af;font-size:.875rem;padding:2rem;text-align:center;">Carregando flags...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: CRM (placeholder) -->
+    <div id="panel-crm" style="display:none;">
+      <div class="g-card">
+        <div class="tab-placeholder">
+          <div class="icon">👥</div>
+          <h3>CRM — Em breve</h3>
+          <p>Listagem de usuários, busca, filtros e visão 360° do cliente.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: Notificações (placeholder) -->
+    <div id="panel-notifs" style="display:none;">
+      <div class="g-card">
+        <div class="tab-placeholder">
+          <div class="icon">🔔</div>
+          <h3>Notificações — Em breve</h3>
+          <p>Disparar notificações globais por tipo e segmento.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: Promoções (placeholder) -->
+    <div id="panel-promos" style="display:none;">
+      <div class="g-card">
+        <div class="tab-placeholder">
+          <div class="icon">🎟️</div>
+          <h3>Promoções — Em breve</h3>
+          <p>CRUD de cupons com código, desconto, validade e limites de uso.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: Sistema -->
+    <div id="panel-system" style="display:none;">
+      <div class="g-card">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">⚙️ Configurações do Sistema</div>
+            <div class="panel-sub">Configurações globais do app</div>
+          </div>
+          <button class="btn-cyan" onclick="salvarSistema()">💾 Salvar</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;">
+          <div class="g-card" style="background:#f8fafc;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+              <div>
+                <div style="font-size:.9rem;font-weight:700;color:#1e293b;">🚧 Modo Manutenção</div>
+                <div style="font-size:.75rem;color:#6b7280;margin-top:.125rem;">Bloqueia acesso de todos os usuários</div>
+              </div>
+              <button class="toggle" id="togManutencao" onclick="this.classList.toggle('on')"></button>
+            </div>
+          </div>
+          <div class="g-card" style="background:#f8fafc;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+              <div>
+                <div style="font-size:.9rem;font-weight:700;color:#1e293b;">👤 Cadastros Abertos</div>
+                <div style="font-size:.75rem;color:#6b7280;margin-top:.125rem;">Permite novos registros no app</div>
+              </div>
+              <button class="toggle on" id="togCadastros" onclick="this.classList.toggle('on')"></button>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:1rem;">
+          <label class="god-label">Versão do App</label>
+          <input type="text" id="inputVersao" class="god-input" placeholder="ex: 1.0.0" style="max-width:200px;">
+        </div>
+        <div style="margin-top:1rem;">
+          <label class="god-label">Mensagem de Boas-Vindas</label>
+          <input type="text" id="inputBoasVindas" class="god-input" placeholder="ex: Bem-vindo ao Bud Finance!">
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /adminContent -->
+
+  <!-- Modal: Feature Flag -->
+  <div class="modal-bg" id="modalFlag">
+    <div class="modal-box">
+      <div class="modal-title" id="modalFlagTitulo">Nova Feature Flag</div>
+      <input type="hidden" id="flagEditId">
+      <div class="form-row">
+        <label class="god-label">Nome da Flag *</label>
+        <input type="text" id="flagNome" class="god-input" placeholder="ex: Importação por IA">
+      </div>
+      <div class="form-row">
+        <label class="god-label">Chave (slug) *</label>
+        <input type="text" id="flagKey" class="god-input" placeholder="ex: importacao_ia" oninput="this.value=this.value.replace(/[^a-z0-9_]/g,'')">
+        <span style="font-size:.7rem;color:#9ca3af;margin-top:.25rem;display:block;">Apenas letras minúsculas, números e _</span>
+      </div>
+      <div class="form-row">
+        <label class="god-label">Descrição</label>
+        <input type="text" id="flagDesc" class="god-input" placeholder="Descreva brevemente a funcionalidade">
+      </div>
+      <div class="form-row">
+        <label class="god-label">Planos com Acesso</label>
+        <div class="plans-check">
+          <label class="plan-chk-label"><input type="checkbox" name="flagPlan" value="free"> Free</label>
+          <label class="plan-chk-label"><input type="checkbox" name="flagPlan" value="starter"> Starter</label>
+          <label class="plan-chk-label"><input type="checkbox" name="flagPlan" value="trial"> Trial</label>
+          <label class="plan-chk-label"><input type="checkbox" name="flagPlan" value="plus"> Plus</label>
+          <label class="plan-chk-label"><input type="checkbox" name="flagPlan" value="pro"> Pro</label>
+        </div>
+        <span style="font-size:.7rem;color:#9ca3af;margin-top:.375rem;display:block;">Deixe todos desmarcados para liberar para todos os planos.</span>
+      </div>
+      <div class="form-row" style="display:flex;align-items:center;gap:.75rem;">
+        <label class="god-label" style="margin:0;">Flag habilitada?</label>
+        <button class="toggle on" id="flagEnabled"></button>
+        <span id="flagEnabledLabel" style="font-size:.8125rem;color:#6b7280;">Sim</span>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="fecharModalFlag()">Cancelar</button>
+        <button class="btn-cyan" onclick="salvarFlag()">Salvar Flag</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>

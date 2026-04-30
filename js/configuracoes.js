@@ -5,7 +5,7 @@
 import { initializeApp }                from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut, updateProfile }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
-import { getFirestore, doc, getDoc, getDocs, updateDoc, deleteDoc, collection, query, orderBy, writeBatch }
+import { getFirestore, doc, getDoc, getDocs, updateDoc, deleteDoc, deleteField, setDoc, collection, query, orderBy, writeBatch }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
@@ -15,8 +15,8 @@ const db   = getFirestore(app);
 
 // ─── Estado ─────────────────────────────────────────────────────────────
 let uid = null;
-let _skipThemeSync = false;
-
+let _skipThemeSync = false;let _userPlano = 'free';
+let _whatsappNumero = null;
 // ─── Helpers ────────────────────────────────────────────────────────────
 function getIniciais(nome) {
   if (!nome) return '?';
@@ -186,6 +186,86 @@ function atualizarIndicadorTema() {
   });
 }
 
+// ─── Foto de Perfil ─────────────────────────────────────────────────────
+function aplicarFotoAvatar(photoURL, nome) {
+  const imgEl      = document.getElementById('avatarImg');
+  const initEl     = document.getElementById('avatarDisplay');
+  const sideAvatar = document.getElementById('sidebarAvatar');
+
+  if (photoURL) {
+    if (imgEl)  { imgEl.src = photoURL; imgEl.style.display = 'block'; }
+    if (initEl) { initEl.style.display = 'none'; }
+    if (sideAvatar) {
+      sideAvatar.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = photoURL;
+      img.alt = 'Foto de perfil';
+      img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;';
+      sideAvatar.appendChild(img);
+    }
+  } else {
+    if (imgEl)  { imgEl.style.display = 'none'; }
+    if (initEl) { initEl.style.display = 'flex'; initEl.textContent = getIniciais(nome); }
+    if (sideAvatar) { sideAvatar.innerHTML = ''; sideAvatar.textContent = getIniciais(nome); }
+  }
+
+  const nomeEl = document.getElementById('avatarNomeExibido');
+  if (nomeEl) nomeEl.textContent = nome || '—';
+}
+
+function setupFotoPerfil() {
+  const btnFoto   = document.getElementById('btnFotoPerfil');
+  const inputFile = document.getElementById('inputFotoPerfil');
+  if (!btnFoto || !inputFile) return;
+
+  btnFoto.addEventListener('click', function () { inputFile.click(); });
+
+  inputFile.addEventListener('change', async function () {
+    const file = inputFile.files && inputFile.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      if (window.budShowToast) window.budShowToast('Arquivo inválido. Use JPG, PNG ou WebP.', 'warning');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      if (window.budShowToast) window.budShowToast('Imagem muito grande. Máximo 5 MB.', 'warning');
+      return;
+    }
+
+    const spinner = document.getElementById('avatarSpinner');
+    if (spinner) spinner.classList.add('visible');
+    btnFoto.disabled = true;
+
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('Não autenticado');
+
+      // Import dinâmico para não bloquear o módulo se Storage não estiver disponível
+      const { getStorage, ref: sRef, uploadBytes, getDownloadURL } =
+        await import('https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js');
+      const storageInst = getStorage(app);
+
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const fileRef = sRef(storageInst, 'avatars/' + user.uid + '/avatar.' + ext);
+      const snap = await uploadBytes(fileRef, file, { contentType: file.type });
+      const url  = await getDownloadURL(snap.ref);
+
+      await updateProfile(user, { photoURL: url });
+      await updateDoc(doc(db, 'usuarios', user.uid), { photoURL: url });
+
+      aplicarFotoAvatar(url, user.displayName || '');
+      if (window.budShowToast) window.budShowToast('Foto atualizada com sucesso!', 'success');
+    } catch (_) {
+      if (window.budShowToast) window.budShowToast('Erro ao enviar foto. Tente novamente.', 'error');
+    } finally {
+      if (spinner) spinner.classList.remove('visible');
+      btnFoto.disabled = false;
+      inputFile.value = '';
+    }
+  });
+}
+
 // ─── Salvar nome ────────────────────────────────────────────────────────
 async function salvarNome() {
   const btn = document.getElementById('btnSalvarNome');
@@ -210,8 +290,12 @@ async function salvarNome() {
     // Atualiza sidebar imediatamente
     const avatar = document.getElementById('sidebarAvatar');
     const sName  = document.getElementById('sidebarUserName');
-    if (avatar) avatar.textContent = getIniciais(novoNome);
+    if (!user.photoURL && avatar) avatar.textContent = getIniciais(novoNome);
     if (sName)  sName.textContent  = novoNome;
+
+    // Atualiza nome exibido no card de foto
+    const nomeEl = document.getElementById('avatarNomeExibido');
+    if (nomeEl) nomeEl.textContent = novoNome;
 
     if (window.budShowToast) window.budShowToast('Nome atualizado com sucesso!', 'success');
     btn.textContent = 'Salvo ✓';
@@ -223,6 +307,112 @@ async function salvarNome() {
     if (window.budShowToast) window.budShowToast('Erro ao salvar. Tente novamente.', 'error');
     btn.textContent = 'Salvar Alterações';
     btn.disabled = false;
+  }
+}
+
+// ─── WhatsApp vincular / desvincular ───────────────────────────────────────
+const PLANOS_WHATSAPP = ['plus', 'pro', 'trial'];
+
+function formatarTelBR(numero) {
+  const s = String(numero || '').replace(/\D/g, '');
+  const local = s.startsWith('55') ? s.slice(2) : s;
+  if (local.length === 11) return '(' + local.slice(0, 2) + ') ' + local.slice(2, 7) + '-' + local.slice(7);
+  if (local.length === 10) return '(' + local.slice(0, 2) + ') ' + local.slice(2, 6) + '-' + local.slice(6);
+  return numero;
+}
+
+function carregarWhatsApp() {
+  const gate   = document.getElementById('whatsappGate');
+  const conect = document.getElementById('whatsappConectado');
+  const descon = document.getElementById('whatsappDesconectado');
+  if (!gate || !conect || !descon) return;
+
+  if (!PLANOS_WHATSAPP.includes(_userPlano)) {
+    gate.style.display   = 'block';
+    conect.style.display = 'none';
+    descon.style.display = 'none';
+    return;
+  }
+
+  gate.style.display = 'none';
+  if (_whatsappNumero) {
+    conect.style.display = 'block';
+    descon.style.display = 'none';
+    const el = document.getElementById('whatsappNumeroExibido');
+    if (el) el.textContent = formatarTelBR(_whatsappNumero);
+  } else {
+    conect.style.display = 'none';
+    descon.style.display = 'block';
+  }
+}
+
+async function vincularWhatsApp() {
+  const input = document.getElementById('inputWhatsApp');
+  const btn   = document.getElementById('btnVincularWhatsApp');
+  if (!input || !btn || !uid) return;
+
+  const raw = input.value.replace(/\D/g, '');
+  if (raw.length < 10 || raw.length > 11) {
+    if (window.budShowToast) window.budShowToast('Número inválido. Use DDD + número (ex: 11 99999-9999).', 'warning');
+    return;
+  }
+  const numero = '55' + raw;
+
+  btn.disabled = true;
+  btn.textContent = 'Vinculando...';
+  try {
+    await updateDoc(doc(db, 'usuarios', uid), { whatsappVinculado: numero });
+    _whatsappNumero = numero;
+    carregarWhatsApp();
+    if (window.budShowToast) window.budShowToast('WhatsApp vinculado com sucesso!', 'success');
+  } catch (_) {
+    if (window.budShowToast) window.budShowToast('Erro ao vincular. Tente novamente.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Vincular';
+  }
+}
+
+async function desvincularWhatsApp() {
+  if (!uid) return;
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);z-index:300;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  ov.innerHTML = '<div style="background:var(--bg-page,#fff);border-radius:1.25rem;padding:1.75rem 1.5rem;max-width:380px;width:100%;border:1px solid var(--card-border,#e2e8f0);box-shadow:0 24px 64px rgba(0,0,0,.25);">'
+    + '<div style="font-size:1.5rem;text-align:center;margin-bottom:.625rem;">💬</div>'
+    + '<h3 style="font-weight:800;font-size:1rem;text-align:center;margin:0 0 .5rem;color:var(--card-text,#1e293b);">Desvincular WhatsApp?</h3>'
+    + '<p style="font-size:.8125rem;color:var(--card-text-sec,#64748b);text-align:center;margin:0 0 1.25rem;line-height:1.5;">Você deixará de receber alertas via WhatsApp.</p>'
+    + '<div style="display:flex;gap:.75rem;">'
+    + '<button id="_waCancelar" class="cfg-btn cfg-btn-secondary" style="flex:1;">Cancelar</button>'
+    + '<button id="_waConfirmar" class="cfg-btn cfg-btn-danger" style="flex:1;">Desvincular</button>'
+    + '</div></div>';
+  document.body.appendChild(ov);
+  document.getElementById('_waCancelar').onclick = function () { ov.remove(); };
+  document.getElementById('_waConfirmar').onclick = async function () {
+    ov.remove();
+    try {
+      await updateDoc(doc(db, 'usuarios', uid), { whatsappVinculado: deleteField() });
+      _whatsappNumero = null;
+      carregarWhatsApp();
+      if (window.budShowToast) window.budShowToast('WhatsApp desvinculado.', 'success');
+    } catch (_) {
+      if (window.budShowToast) window.budShowToast('Erro ao desvincular. Tente novamente.', 'error');
+    }
+  };
+}
+
+// ─── Revogar Consentimento de Notificações (LGPD Art. 8) ─────────────────
+async function revogarConsentimentoNotificacoes() {
+  if (!uid) return;
+  const btn = document.getElementById('btnRevogarNotificacoes');
+  if (btn) { btn.disabled = true; btn.textContent = 'Revogando...'; }
+  try {
+    const tokenRef = doc(db, 'usuarios', uid, 'tokens', 'fcm');
+    await setDoc(tokenRef, { token: null, revogadoEm: new Date().toISOString() }, { merge: true });
+    if (window.budShowToast) window.budShowToast('Consentimento de notificações revogado.', 'success');
+  } catch (_) {
+    if (window.budShowToast) window.budShowToast('Erro ao revogar. Tente novamente.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Revogar'; }
   }
 }
 
@@ -306,6 +496,7 @@ function abrirModalExcluirConta() {
   if (input) input.value = '';
   if (btnConf) btnConf.disabled = true;
   modal.style.display = 'flex';
+  setTimeout(function () { if (input) input.focus(); }, 50);
 }
 
 function fecharModalExcluirConta() {
@@ -438,6 +629,9 @@ async function carregarPerfil(user) {
   const nome  = window.budSanitize ? window.budSanitize(user.displayName || '') : (user.displayName || '');
   const email = user.email || '';
 
+  // Avatar do card
+  aplicarFotoAvatar(user.photoURL || null, nome);
+
   const elNome  = document.getElementById('perfilNome');
   const elEmail = document.getElementById('perfilEmail');
   if (elNome)  elNome.value = nome || '';
@@ -447,7 +641,7 @@ async function carregarPerfil(user) {
   const avatar = document.getElementById('sidebarAvatar');
   const sName  = document.getElementById('sidebarUserName');
   const sId    = document.getElementById('sidebarUserId');
-  if (avatar) avatar.textContent = getIniciais(nome);
+  if (!user.photoURL && avatar) avatar.textContent = getIniciais(nome);
   if (sName)  sName.textContent  = nome || '—';
   if (sId)    sId.textContent    = email || '—'; // exibe email até matrícula carregar do Firestore
 
@@ -457,6 +651,16 @@ async function carregarPerfil(user) {
     : '—';
   const elCriacao = document.getElementById('perfilCriacao');
   if (elCriacao) elCriacao.textContent = criacao;
+
+  // Último acesso (tab Segurança)
+  const elUltimoAcesso = document.getElementById('ultimoAcesso');
+  if (elUltimoAcesso && user.metadata && user.metadata.lastSignInTime) {
+    elUltimoAcesso.textContent = formatarData(user.metadata.lastSignInTime);
+  }
+
+  // Loading state enquanto Firestore carrega
+  const elPlanoDescLoad = document.getElementById('planoDesc');
+  if (elPlanoDescLoad) elPlanoDescLoad.textContent = 'Carregando...';
 
   // Data de hoje
   const elDate = document.getElementById('welcomeDate');
@@ -486,6 +690,30 @@ async function carregarPerfil(user) {
         ? 'Plano gratuito ativo'
         : 'Assinatura ativa';
 
+      // Badge colorido do plano
+      const PLANO_BADGE_COLORS = { free: '#94a3b8', starter: '#3b82f6', plus: '#7c3aed', pro: '#d97706', trial: '#059669' };
+      const elBadge = document.getElementById('planoBadge');
+      if (elBadge) {
+        const badgeBg = PLANO_BADGE_COLORS[plano] || '#94a3b8';
+        elBadge.textContent = planosLabel[plano] || 'Gratuito';
+        elBadge.style.cssText = 'display:inline-block;font-size:0.625rem;font-weight:800;padding:0.15rem 0.5rem;border-radius:9999px;text-transform:uppercase;letter-spacing:0.04em;background:' + badgeBg + ';color:#fff;margin-left:0.25rem;vertical-align:middle;';
+      }
+
+      // Data de expiração do plano (Trial/Plus/Pro)
+      const elExpira = document.getElementById('planoExpira');
+      if (elExpira && data.assinaturaExpira) {
+        try {
+          const expDate = data.assinaturaExpira.toDate ? data.assinaturaExpira.toDate() : new Date(data.assinaturaExpira);
+          elExpira.textContent = 'Válido até ' + expDate.toLocaleDateString('pt-BR');
+          elExpira.style.display = 'block';
+        } catch (_) {}
+      }
+
+      // Armazenar plano e whatsapp para uso nas seções correspondentes
+      _userPlano = plano.toLowerCase();
+      _whatsappNumero = data.whatsappVinculado || null;
+      carregarWhatsApp();
+
       // Aplicar tema salvo (evita flash)
       if (tema && window.budThemeManager) {
         _skipThemeSync = true;
@@ -502,7 +730,12 @@ async function carregarPerfil(user) {
 // ─── Resetar Toda a Conta (PEND-008) ────────────────────────────────────
 function abrirModalReset() {
   const modal = document.getElementById('modalResetarConta');
-  if (modal) modal.style.display = 'flex';
+  if (!modal) return;
+  modal.style.display = 'flex';
+  setTimeout(function () {
+    const btnFechar = document.getElementById('btnFecharModalReset');
+    if (btnFechar) btnFechar.focus();
+  }, 50);
 }
 
 function fecharModalReset() {
@@ -666,6 +899,7 @@ onAuthStateChanged(auth, async function (user) {
   await carregarPerfil(user);
   renderThemeBubbles();
   setupSeguranca();
+  setupFotoPerfil();
 
   const btnSalvar = document.getElementById('btnSalvarNome');
   if (btnSalvar) btnSalvar.addEventListener('click', salvarNome);
@@ -704,4 +938,13 @@ onAuthStateChanged(auth, async function (user) {
 
   const btnTutorial = document.getElementById('btnReiniciarTutorial');
   if (btnTutorial) btnTutorial.addEventListener('click', reiniciarTutorial);
+
+  const btnVincular = document.getElementById('btnVincularWhatsApp');
+  if (btnVincular) btnVincular.addEventListener('click', vincularWhatsApp);
+
+  const btnDesvincular = document.getElementById('btnDesvincularWhatsApp');
+  if (btnDesvincular) btnDesvincular.addEventListener('click', desvincularWhatsApp);
+
+  const btnRevogar = document.getElementById('btnRevogarNotificacoes');
+  if (btnRevogar) btnRevogar.addEventListener('click', revogarConsentimentoNotificacoes);
 });

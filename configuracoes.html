@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -337,8 +337,9 @@
     }
     .cfg-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
     .cfg-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .cfg-btn-primary { background: var(--btn-bg); color: var(--btn-text); }
-    .cfg-btn-danger  { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .cfg-btn-primary   { background: var(--btn-bg); color: var(--btn-text); }
+    .cfg-btn-secondary { background: var(--input-bg,#f8fafc); color: var(--card-text,#1e293b); border: 1.5px solid var(--input-border,#f1f5f9); }
+    .cfg-btn-danger    { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
 
     /* ── Personalização — tema bubbles ────────────────────────────── */
     .cfg-theme-desc {
@@ -373,7 +374,56 @@
       width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
     }
 
-    /* ── Responsive ────────────────────────────────────────────────── */
+    /* ── Foto de perfil ─────────────────────────────────────────────── */
+    .cfg-avatar-wrap {
+      display: flex; align-items: center; gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    .cfg-avatar-btn {
+      position: relative; cursor: pointer;
+      width: 4.5rem; height: 4.5rem; border-radius: 50%;
+      flex-shrink: 0; border: none; padding: 0; background: none;
+    }
+    .cfg-avatar-img {
+      width: 4.5rem; height: 4.5rem; border-radius: 50%;
+      object-fit: cover;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 800; font-size: 1.25rem;
+      border: 2.5px solid var(--card-border);
+    }
+    .cfg-avatar-overlay {
+      position: absolute; inset: 0; border-radius: 50%;
+      background: rgba(0,0,0,0.45);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity .2s;
+      color: #fff; font-size: 1rem;
+    }
+    .cfg-avatar-btn:hover .cfg-avatar-overlay { opacity: 1; }
+    .cfg-avatar-btn:focus-visible { outline: 2px solid var(--input-focus,#3b82f6); outline-offset: 3px; }
+    .cfg-avatar-info { flex: 1; min-width: 0; }
+    .cfg-avatar-name {
+      font-size: 1rem; font-weight: 800; color: var(--card-text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      transition: color 0.35s;
+    }
+    .cfg-avatar-hint {
+      font-size: 0.75rem; font-weight: 500; color: var(--card-text-sec);
+      margin-top: 0.25rem; transition: color 0.35s;
+    }
+    .cfg-avatar-spinner {
+      position: absolute; inset: 0; border-radius: 50%;
+      background: rgba(0,0,0,0.55);
+      display: none; align-items: center; justify-content: center;
+    }
+    .cfg-avatar-spinner.visible { display: flex; }
+    @keyframes cfg-spin { to { transform: rotate(360deg); } }
+    .cfg-avatar-spinner::after {
+      content: ''; width: 1.25rem; height: 1.25rem; border-radius: 50%;
+      border: 2.5px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      animation: cfg-spin 0.7s linear infinite;
+    }
     @media (max-width: 768px) {
       .sidebar { transform: translateX(-100%); }
       .sidebar.open { transform: translateX(0); }
@@ -423,7 +473,7 @@
         </a>
         <div class="sidebar-group-label">Finanças</div>
         <a href="carteira.html" class="sidebar-link">
-          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Carteira</span>
+          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Contas</span>
         </a>
         <a href="cartoes.html" class="sidebar-link">
           <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
@@ -434,14 +484,8 @@
         <a href="dividas.html" class="sidebar-link">
           <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
         </a>
-        <a href="limites.html" class="sidebar-link">
-          <span class="sidebar-link-icon">🎯</span><span class="sidebar-link-text"> Limites</span>
-        </a>
         <a href="metas.html" class="sidebar-link">
           <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
-        </a>
-        <a href="investimentos.html" class="sidebar-link">
-          <span class="sidebar-link-icon">📈</span><span class="sidebar-link-text"> Investimentos</span>
         </a>
         <a href="mercado.html" class="sidebar-link">
           <span class="sidebar-link-icon">🛒</span><span class="sidebar-link-text"> Compras</span>
@@ -450,29 +494,13 @@
           <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
-        <a href="extrato.html" class="sidebar-link">
-          <span class="sidebar-link-icon">📋</span><span class="sidebar-link-text"> Extrato</span>
-        </a>
-        <a href="balanco-mensal.html" class="sidebar-link">
-          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Balanço Mensal</span><span class="sidebar-badge-plus">Plus</span>
-        </a>
-        <a href="comparativo.html" class="sidebar-link">
-          <span class="sidebar-link-icon">⚖️</span><span class="sidebar-link-text"> Comparativo</span><span class="sidebar-badge-plus">Plus</span>
-        </a>
-
         <a href="graficos.html" class="sidebar-link">
-          <span class="sidebar-link-icon">📉</span><span class="sidebar-link-text"> Gráficos</span>
-        </a>
-        <a href="relatorios.html" class="sidebar-link">
-          <span class="sidebar-link-icon">📑</span><span class="sidebar-link-text"> Relatórios</span>
-        </a>
-        <a href="insights.html" class="sidebar-link">
-          <span class="sidebar-link-icon">💡</span><span class="sidebar-link-text"> Insights</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
-        <span class="sidebar-link sidebar-link-disabled">
-          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span><span class="sidebar-badge-plus">Plus</span>
-        </span>
+        <a href="assistente-ia.html" class="sidebar-link">
+          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span>
+        </a>
         <span class="sidebar-link sidebar-link-disabled">
           <span class="sidebar-link-icon">💬</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
         </span>
@@ -523,6 +551,21 @@
 
         <div class="cfg-card">
           <div class="cfg-card-title">Informações da Conta</div>
+
+          <!-- Foto de Perfil -->
+          <div class="cfg-avatar-wrap">
+            <button class="cfg-avatar-btn" id="btnFotoPerfil" aria-label="Alterar foto de perfil" title="Alterar foto de perfil">
+              <div class="cfg-avatar-img" id="avatarDisplay" style="display:flex;">?</div>
+              <img id="avatarImg" alt="Foto de perfil" style="display:none;width:4.5rem;height:4.5rem;border-radius:50%;object-fit:cover;border:2.5px solid var(--card-border);">
+              <div class="cfg-avatar-overlay" aria-hidden="true">📷</div>
+              <div class="cfg-avatar-spinner" id="avatarSpinner" aria-hidden="true"></div>
+            </button>
+            <input type="file" id="inputFotoPerfil" accept="image/jpeg,image/png,image/webp" style="display:none;">
+            <div class="cfg-avatar-info">
+              <div class="cfg-avatar-name" id="avatarNomeExibido">Carregando...</div>
+              <div class="cfg-avatar-hint">Clique na foto para alterar &middot; máx. 5 MB</div>
+            </div>
+          </div>
 
           <div class="cfg-field">
             <div class="cfg-label">Nome</div>
@@ -576,14 +619,65 @@
             </div>
             <a href="politica-privacidade.html" target="_blank" class="cfg-btn cfg-btn-secondary" style="text-decoration:none;">Ver Política</a>
           </div>
+          <div class="cfg-action-row" style="margin-top:0.75rem;">
+            <div class="cfg-action-info">
+              <div class="cfg-action-label">Revogar Consentimento de Notificações</div>
+              <div class="cfg-action-desc">Remove sua autorização de notificações push e registra a revogação (LGPD Art. 8)</div>
+            </div>
+            <button class="cfg-btn cfg-btn-secondary" id="btnRevogarNotificacoes">Revogar</button>
+          </div>
         </div>
 
         <div class="cfg-card">
           <div class="cfg-card-title">Plano</div>
           <div class="cfg-action-row">
             <div class="cfg-action-info">
-              <div class="cfg-action-label" id="planoNome">Gratuito</div>
-              <div class="cfg-action-desc" id='planoDesc'>Plano atual da sua conta</div>
+              <div style="display:flex;align-items:center;flex-wrap:wrap;">
+                <div class="cfg-action-label" id="planoNome">Gratuito</div>
+                <span id="planoBadge"></span>
+              </div>
+              <div class="cfg-action-desc" id="planoDesc">Carregando...</div>
+              <div id="planoExpira" style="display:none;font-size:0.75rem;color:#f59e0b;font-weight:600;margin-top:0.25rem;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── WhatsApp ──────────────────────────────────────────── -->
+        <div class="cfg-card" id="cardWhatsApp">
+          <div class="cfg-card-title">💬 Assistente WhatsApp</div>
+
+          <!-- Gate: planos Free/Starter -->
+          <div id="whatsappGate">
+            <div style="background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1px solid #bbf7d0;border-radius:.875rem;padding:1.25rem;text-align:center;">
+              <div style="font-size:2rem;margin-bottom:.5rem;">💬</div>
+              <div style="font-weight:800;color:#064e3b;font-size:.9375rem;margin-bottom:.375rem;">Disponível no plano Plus</div>
+              <div style="font-size:.8125rem;color:#6b7280;line-height:1.5;">Vincule seu número para receber alertas de vencimentos, metas e limites diretamente no WhatsApp.</div>
+            </div>
+          </div>
+
+          <!-- Conectado -->
+          <div id="whatsappConectado" style="display:none;">
+            <div class="cfg-action-row">
+              <div class="cfg-action-info">
+                <div class="cfg-action-label" style="color:#059669;">✅ WhatsApp Vinculado</div>
+                <div class="cfg-action-desc" id="whatsappNumeroExibido">—</div>
+              </div>
+              <button class="cfg-btn cfg-btn-danger" id="btnDesvincularWhatsApp">Desvincular</button>
+            </div>
+          </div>
+
+          <!-- Desconectado (usuário Plus) -->
+          <div id="whatsappDesconectado" style="display:none;">
+            <div class="cfg-action-row">
+              <div class="cfg-action-info">
+                <div class="cfg-action-label">Vincular número</div>
+                <div class="cfg-action-desc">Informe seu celular com DDD para receber alertas automáticos.</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:.75rem;margin-top:.75rem;align-items:center;">
+              <input type="tel" id="inputWhatsApp" placeholder="11 99999-9999" maxlength="15"
+                style="flex:1;padding:.625rem .875rem;border:1.5px solid var(--input-border,#f1f5f9);border-radius:.75rem;font-family:inherit;font-size:.875rem;background:var(--input-bg,#f8fafc);color:var(--card-text,#1e293b);outline:none;">
+              <button class="cfg-btn cfg-btn-primary" id="btnVincularWhatsApp" style="white-space:nowrap;">Vincular</button>
             </div>
           </div>
         </div>
@@ -631,8 +725,14 @@
       <!-- ── Tab: Segurança ────────────────────────────────────── -->
       <div id="tabSeguranca" role="tabpanel" style="display:none;">
 
-        <div class="cfg-card">
-          <div class="cfg-card-title">Acesso à Conta</div>
+        <div class="cfg-card">          <div class="cfg-card-title">Informações da Sessão</div>
+          <div class="cfg-field">
+            <div class="cfg-label">Último Acesso</div>
+            <div class="cfg-value muted" id="ultimoAcesso">—</div>
+          </div>
+        </div>
+
+        <div class="cfg-card">          <div class="cfg-card-title">Acesso à Conta</div>
 
           <div class="cfg-action-row">
             <div class="cfg-action-info">
@@ -670,15 +770,20 @@
 
       </div>
 
+      <!-- Rodapé -->
+      <div style="text-align:center;padding:1.5rem 0 0.75rem;">
+        <span style="font-size:0.6875rem;font-weight:500;color:var(--card-text-sec);opacity:0.4;">Bud Finance v1.0.0</span>
+      </div>
+
     </main>
   </div>
 
   <!-- ═══ Modal: Confirmar Exclusão de Conta ═══════════════════════════ -->
-  <div id="modalExcluirConta" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:1rem;">
+  <div id="modalExcluirConta" role="dialog" aria-modal="true" aria-labelledby="modalExcluirContaTitulo" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:1rem;">
     <div style="background:var(--bg-page,#fff);border:1px solid var(--card-border,#e2e8f0);border-radius:1.5rem;padding:2rem 1.75rem;width:100%;max-width:420px;box-shadow:0 24px 64px -12px rgba(0,0,0,0.3);">
       <!-- Ícone -->
       <div style="width:4rem;height:4rem;border-radius:9999px;background:#fee2e2;display:flex;align-items:center;justify-content:center;font-size:1.75rem;margin:0 auto 1rem;">🧑‍💻</div>
-      <h2 style="font-size:1.1875rem;font-weight:800;color:var(--card-text,#1e293b);text-align:center;margin:0 0 0.5rem;">Excluir conta permanentemente?</h2>
+      <h2 id="modalExcluirContaTitulo" style="font-size:1.1875rem;font-weight:800;color:var(--card-text,#1e293b);text-align:center;margin:0 0 0.5rem;">Excluir conta permanentemente?</h2>
       <p style="font-size:0.8125rem;color:var(--card-text-sec,#64748b);text-align:center;margin:0 0 1.25rem;line-height:1.55;">Conforme a LGPD (Art. 18), você tem o direito de solicitar a exclusão dos seus dados. Esta ação é <strong>irreversível</strong>.</p>
       <!-- Lista do que será excluído -->
       <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:0.875rem;padding:0.875rem 1rem;margin-bottom:1.25rem;">
@@ -698,11 +803,11 @@
   </div>
 
   <!-- ═══ Modal: Resetar Toda a Conta ══════════════════════════════ -->
-  <div id="modalResetarConta" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:1rem;">
+  <div id="modalResetarConta" role="dialog" aria-modal="true" aria-labelledby="modalResetarContaTitulo" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:1rem;">
     <div style="background:var(--bg-page,#fff);border:1px solid var(--card-border,#e2e8f0);border-radius:1.5rem;padding:2rem 1.75rem;width:100%;max-width:420px;box-shadow:0 24px 64px -12px rgba(0,0,0,0.3);">
       <!-- Ícone -->
       <div style="width:4rem;height:4rem;border-radius:9999px;background:#fee2e2;display:flex;align-items:center;justify-content:center;font-size:1.75rem;margin:0 auto 1rem;">⚠️</div>
-      <h2 style="font-size:1.1875rem;font-weight:800;color:var(--card-text,#1e293b);text-align:center;margin:0 0 0.5rem;">Resetar toda a conta?</h2>
+      <h2 id="modalResetarContaTitulo" style="font-size:1.1875rem;font-weight:800;color:var(--card-text,#1e293b);text-align:center;margin:0 0 0.5rem;">Resetar toda a conta?</h2>
       <p style="font-size:0.8125rem;color:var(--card-text-sec,#64748b);text-align:center;margin:0 0 1rem;line-height:1.55;">Essa ação não pode ser desfeita. Todos os dados abaixo serão apagados permanentemente:</p>
       <!-- Lista do que será apagado -->
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.875rem;padding:0.875rem 1rem;margin-bottom:1rem;">

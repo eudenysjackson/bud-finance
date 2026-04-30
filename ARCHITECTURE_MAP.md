@@ -1,7 +1,7 @@
 # ARCHITECTURE_MAP.md — Inventário Vivo do Ecossistema
 
 **Projeto**: Bud Finance  
-**Última atualização**: 27/04/2026
+**Última atualização**: 29/04/2026 — Assistente IA implementado (assistente-ia.html + js/assistente-ia.js + /api/chat + /api/chamado no backend; sidebars atualizadas)
 
 > **REGRA**: Antes de criar algo novo, consulte este doc. Ao finalizar qualquer tarefa, atualize.  
 > Se algo novo quebrar uma conexão existente, **pare e avise o usuário**.
@@ -13,6 +13,8 @@
 | Nome | O que faz | Onde aparece |
 |---|---|---|
 | **LoginCard** | Card glassmorphic com formulário de login | `index.html` |
+| **OnboardingWizard** | Card wizard 6 passos com progress dots, animações e validação | `onboarding.html` + `js/onboarding.js` |
+| **AssistenteIA** | Chat IA com contexto financeiro real (Groq llama-4-scout), sistema de chamados (bug/sugestão), persiste conversa em sessionStorage | `assistente-ia.html` + `js/assistente-ia.js` |
 | **BlobsDecorativos** | Manchas de cor azul/ciano no fundo | `index.html` |
 | **LogoIcon** | Ícone `$` com gradiente azul | `index.html` |
 | **InputIdentificador** | Input email/matrícula com label | `index.html` |
@@ -39,6 +41,10 @@
 | **DashTrialBanner** | Banner condicional trial/free/expirado | `dashboard.html` |
 | **DashQuickActions** | Botões rápidos: Nova Receita, Nova Despesa | `dashboard.html` |
 | **DashStreakBadge** | Badge 🔥 Nd no header quando streakDias ≥ 2 (lê `userData.streakDias`) | `dashboard.html` |
+| **SubNavContasExtrato** | Sub-barra de navegação estática: Contas (carteira.html) e Extrato (extrato.html). Ativo via background CSS var. | `carteira.html`, `extrato.html` |
+| **SubNavRecorrentesLimites** | Sub-barra: Recorrentes (ativo em recorrentes.html) e Limites (ativo em limites.html). Sidebar aponta para Recorrentes. | `recorrentes.html`, `limites.html` |
+| **SubNavMetasInvestimentos** | Sub-barra: Metas (ativo em metas.html) e Investimentos (ativo em investimentos.html). Sidebar aponta para Metas. | `metas.html`, `investimentos.html` |
+| **SubNavAnalises** | Sub-barra com 5 abas de análise: Gráficos, Balanço, Comparativo, Relatórios, Insights. Sidebar aponta para Gráficos. | `graficos.html`, `balanco-mensal.html`, `comparativo.html`, `relatorios.html`, `insights.html` |
 | **DashCarteiraWidget** | Mini-widget contas da carteira (saldo total + lista até 3, exclui crédito) | `dashboard.html` — `atualizarWidgetCarteira()` |
 | **DashLimitesWidget** | Widget limites por categoria com alertas visuais (já existia) | `dashboard.html` — `atualizarLimitesWidget()` |
 | **DashDividasAtraso** | Widget dívidas vencidas com botão "Ver" (já existia) | `dashboard.html` — `atualizarDividasAtraso()` |
@@ -394,7 +400,9 @@
 | `/recuperar-senha` | Recuperar senha | `recuperar-senha.html` | Solicitar reset |
 | `/acao-auth` | Processar reset | `acao-auth.html` | ✅ Recebe `?oobCode=` — 4 estados visuais |
 | `/trocar-senha` | Trocar senha | `trocar-senha.html` | ✅ Guard: Auth + `primeiroLogin: true` |
-| `/dashboard` | Dashboard | `dashboard.html` | ✅ Auth guard + primeiroLogin guard + sidebar + 3 cards + trial banner |
+| `/onboarding` | Onboarding Wizard | `onboarding.html` | ✅ Auth guard + redirect se já onboarded + 6 steps (Boas-vindas, Como conheceu, Conta, Renda, Despesa, Conclusão) + cria carteira/transações/recorrentes no Firestore |
+| `/assistente-ia` | Assistente IA | `assistente-ia.html` | ✅ Auth guard + gate plano (plus/trial) + chat com contexto financeiro real (getDocs mês atual) + chamados via /api/chamado + conversa em sessionStorage |
+| `/dashboard` | Dashboard | `dashboard.html` | ✅ Auth guard + primeiroLogin guard + **onboardingConcluido guard** + sidebar + 3 cards + trial banner |
 | `/configuracoes` | Configurações | `configuracoes.html` | ✅ Auth guard + emailVerified guard + 3 abas (Perfil, Personalização, Segurança) |
 | `/metas` | Metas Financeiras | `metas.html` | ✅ Auth guard + emailVerified guard + sidebar + 4 summary cards + grid metas + 3 modais |
 | `/investimentos` | Investimentos | `investimentos.html` | ✅ Auth guard + emailVerified guard + sidebar + 3 KPIs + doughnut chart + cotações AwesomeAPI + CRUD |
@@ -403,10 +411,19 @@
 | `/investimentos` | Investimentos | `investimentos.html` | ✅ Auth guard + emailVerified guard + sidebar + 3 KPIs + doughnut chart + cotações AwesomeAPI + CRUD + feature gate Plus |
 | `/balanco-mensal` | Balanço Mensal | `balanco-mensal.html` | ✅ Auth guard + emailVerified guard + paywall Plus + 3 KPIs + comparativo + ranking categorias + dia-a-dia |
 | `/comparativo` | Comparativo de Meses | `comparativo.html` | ✅ Auth guard + emailVerified guard + paywall Plus + 2 meses lado a lado + KPI cards + Chart.js barras agrupadas + top-10 categorias |
-| `/graficos` | Gráficos | `graficos.html` | ✅ Auth guard + emailVerified guard + paywall Pro + 4 charts Chart.js (Doughnut, Bar, Line, Bar diário) + 4 KPIs + nav meses |
-| `/relatorios` | Central de Relatórios | `relatorios.html` | ✅ Auth guard + emailVerified guard + paywall advancedDashboard + interface 3 abas (Resumo / Gráficos / Detalhamento) + 3 KPIs + 4 charts Chart.js + insight automático + tendência 6 meses single-pass + detalhamento com barras hex |
-| `/insights` | Insights e Análises | `insights.html` | ✅ Auth guard + paywall dailySpendAverage (Plus) + 2 abas (Análises / Comparativo) + score saúde IA + alertas automáticos + simulador projeção + resumo semanal + oportunidades economia + comparativo 2 meses (Chart.js grouped bar) + FCM push |
-| `/admin` | Painel admin | `admin.html` | `role: admin` |
+| `/carteira` | Contas | `carteira.html` | ✅ Auth guard + emailVerified guard + sub-nav Contas/Extrato (Contas ativo) + CRUD de contas + importação de extrato |
+| `/extrato` | Extrato | `extrato.html` | ✅ Auth guard + sub-nav Contas/Extrato (Extrato ativo) + lista de transações + filtros + busca + export |
+| `/recorrentes` | Recorrentes | `recorrentes.html` | ✅ Auth guard + sub-nav Recorrentes/Limites (Recorrentes ativo) + CRUD recorrentes + endpoint processarRecorrentes |
+| `/limites` | Limites | `limites.html` | ✅ Auth guard + sub-nav Recorrentes/Limites (Limites ativo) + sidebar aponta para Recorrentes + feature gate Plus |
+| `/metas` | Metas Financeiras | `metas.html` | ✅ Auth guard + emailVerified guard + sub-nav Metas/Investimentos (Metas ativo) + 4 summary cards + grid metas + 3 modais |
+| `/investimentos` | Investimentos | `investimentos.html` | ✅ Auth guard + emailVerified guard + sub-nav Metas/Investimentos (Investimentos ativo) + sidebar aponta para Metas + 3 KPIs + doughnut chart + cotações AwesomeAPI + CRUD + feature gate Plus |
+| `/graficos` | Gráficos | `graficos.html` | ✅ Auth guard + emailVerified guard + paywall Pro + sub-nav Análises (Gráficos ativo) + 5 charts Chart.js (Doughnut, Bar, Line, Bar diário, Line faturas cartão) + 4 KPIs + nav meses |
+| `/balanco-mensal` | Balanço Mensal | `balanco-mensal.html` | ✅ Auth guard + emailVerified guard + paywall Plus + sub-nav Análises (Balanço ativo) |
+| `/comparativo` | Comparativo de Meses | `comparativo.html` | ✅ Auth guard + emailVerified guard + paywall Plus + sub-nav Análises (Comparativo ativo) |
+| `/relatorios` | Central de Relatórios | `relatorios.html` | ✅ Auth guard + emailVerified guard + paywall advancedDashboard + sub-nav Análises (Relatórios ativo) + interface 3 abas (Resumo / Gráficos / Detalhamento) + 3 KPIs + 4 charts Chart.js + insight automático + tendência 6 meses single-pass + detalhamento com barras hex |
+| `/insights` | Insights e Análises | `insights.html` | ✅ Auth guard + paywall dailySpendAverage (Plus) + sub-nav Análises (Insights ativo) + 2 abas + score saúde + alertas + simulador |
+
+| `/admin` | Painel admin | `admin.html` + `js/admin.js` | Auth guard `role==='admin'` + 6 abas (Visão Geral, Feature Flags, CRM, Notificações, Promoções, Sistema). Feature Flags: CRUD completo, seed de 19 flags padrão em `featureFlags/{id}`, toggle rápido, modal criar/editar, excluir. Sistema: `admin/config` doc (modoManutencao, cadastrosAbertos, versao, mensagemBoasVindas). Overview: últimos 10 cadastros + KPIs (total, pagantes, trial, flags ativas). |
 | `/politica-privacidade` | LGPD | `politica-privacidade.html` | Termos |
 
 ---
@@ -473,6 +490,7 @@
 | 28/04/2026 | Tela de Relatórios criada: `relatorios.html` + `js/relatorios.js`. Fase 2 · Item 4. Interface 3 abas: Resumo (comparativo + categorias + dia-a-dia), Gráficos (4 Chart.js), Detalhamento (barras hex por categoria). 15 bugs do cérebro/relatorios.md corrigidos preventivamente (BUG 1–15). Feature gate: `advancedDashboard`. Firestore query: 6-month range em `transacoes`. Sidebar atualizada em 14 páginas com link 📑 Relatórios. ROADMAP: Gráficos → CONCLUÍDO; Relatórios → CONCLUÍDO. | Copilot |
 | 28/04/2026 | Tela de Insights criada: `insights.html` + `js/insights.js`. Fase 2 · Item 5. 2 abas: Análises (alertas IA, economia, resumo semanal, score saúde SVG, insights detalhados, simulador projeção, push FCM) + Comparativo (2 meses com Chart.js grouped bar + categorias). 13 bugs do cérebro/insights.md corrigidos (BUG 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 17). Feature gate: `dailySpendAverage`. Sidebar atualizada em 15 páginas com link 💡 Insights. ROADMAP: Insights → CONCLUÍDO. | Copilot |
 | 29/04/2026 | Tela de Carteira criada: `carteira.html` + `js/carteira.js`. Item 16. Hub para contas não-crédito (débito/dinheiro/benefícios). Cards de contas com saldo e ultimaConfirmacao. Importação inline: CSV/OFX/PDF/imagem, preview paginado 25/page, override global tipo/categoria, deduplication por range de meses (BUG#2), writeBatch chunks de 400, snapshot ultimaConfirmacao (BUG#4). Bug#1 (detectarTipo nunca retorna Transferência como tipo), Bug#3 (dedup data+valor+desc30), Bug#8 (AbortController 120s), Bug#10 (REGRAS_CAT unificadas) corrigidos. Sidebar atualizada em 16 páginas: Carteira → link ativo, Importar → removido (DEC-043). ROADMAP: Carteira → CONCLUÍDO. | Copilot |
+| 30/04/2026 | Painel Admin criado: `admin.html` + `js/admin.js`. PEND-045. Auth guard `role==='admin'` via Firestore. 6 abas: Visão Geral (KPIs + últimos cadastros), Feature Flags (CRUD completo, seed 19 flags defaults, toggle rápido), CRM/Notificações/Promoções (stubs), Sistema (`admin/config` toggles manutenção/cadastros + versão + mensagem). Collection `featureFlags/{id}`: key, name, description, enabled, allowedPlans[]. Collection `admin/config` (setDoc merge). Firebase ES Modular v10.8.1. | Copilot |
 ---
 
 ## 📂 Arquivos Implementados

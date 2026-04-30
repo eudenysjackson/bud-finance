@@ -369,32 +369,36 @@ async function salvarCategoria() {
         nome, emoji: emojiAtual
       });
 
-      // Propagar renomeação para transações existentes (BUG 7)
+      // Propagar renomeação para transações, recorrentes e limites (BUG 7 + PEND-020/030)
       if (nomeAlterado) {
-        try {
-          const txSnap = await getDocs(query(
-            collection(db, 'usuarios', uid, 'transacoes'),
+        const MAX_BATCH = 400;
+        async function propagarColecao(colecao) {
+          const snap = await getDocs(query(
+            collection(db, 'usuarios', uid, colecao),
             where('categoria', '==', nomeAntigoEdit)
           ));
-          if (!txSnap.empty) {
-            const batch = writeBatch(db);
-            // writeBatch suporta até 500 ops; limitar chunk para segurança
-            const MAX_BATCH = 400;
-            let count = 0;
-            let batchAtual = writeBatch(db);
-            for (const d of txSnap.docs) {
-              batchAtual.update(d.ref, { categoria: nome });
-              count++;
-              if (count === MAX_BATCH) {
-                await batchAtual.commit();
-                batchAtual = writeBatch(db);
-                count = 0;
-              }
+          if (snap.empty) return;
+          let count = 0;
+          let batchAtual = writeBatch(db);
+          for (const d of snap.docs) {
+            batchAtual.update(d.ref, { categoria: nome });
+            count++;
+            if (count === MAX_BATCH) {
+              await batchAtual.commit();
+              batchAtual = writeBatch(db);
+              count = 0;
             }
-            if (count > 0) await batchAtual.commit();
           }
+          if (count > 0) await batchAtual.commit();
+        }
+        try {
+          await Promise.all([
+            propagarColecao('transacoes'),
+            propagarColecao('recorrentes'),
+            propagarColecao('limites'),
+          ]);
         } catch (e) {
-          (window.budWarn || console.warn)('Aviso: não foi possível propagar renomeação para transações.', e);
+          (window.budWarn || console.warn)('Aviso: não foi possível propagar renomeação de categoria.', e);
         }
       }
 

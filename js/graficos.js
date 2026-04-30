@@ -19,7 +19,7 @@ import { initializeApp }   from 'https://www.gstatic.com/firebasejs/10.8.1/fireb
 import { getAuth, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
-  getFirestore, collection, getDocs, getDoc, doc, updateDoc,
+  getFirestore, collection, getDocs, getDoc, doc, updateDoc, query, where,
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // ─── Firebase ─────────────────────────────────────────────────────────────────
@@ -30,10 +30,11 @@ const db   = getFirestore(app);
 // ─── Estado ───────────────────────────────────────────────────────────────────
 let currentUser    = null;
 let transacoes     = [];
+let cartoesCredito = [];
 let dataFiltro     = (() => { const d = new Date(); d.setDate(1); return d; })();
 let anoSeletor     = dataFiltro.getFullYear();
 let valoresOcultos = false;
-let charts         = { cat: null, rd: null, tend: null, dia: null };
+let charts         = { cat: null, rd: null, tend: null, dia: null, fat: null };
 let splashHidden   = false;
 let _filtroTend    = 'ambos'; // 'ambos' | 'receitas' | 'despesas'
 
@@ -154,11 +155,15 @@ window.filtrarTend = function(filtro) {
 window.sincronizarDados = async function() {
   if (!currentUser) return;
   try {
-    const snap = await getDocs(collection(db, 'usuarios', currentUser.uid, 'transacoes'));
-    transacoes = snap.docs.map(d => {
+    const [snapTx, snapCart] = await Promise.all([
+      getDocs(collection(db, 'usuarios', currentUser.uid, 'transacoes')),
+      getDocs(query(collection(db, 'usuarios', currentUser.uid, 'carteira'), where('tipo', '==', 'credito'))),
+    ]);
+    transacoes = snapTx.docs.map(d => {
       const data = d.data();
       return { ...data, id: d.id, dataReferencia: normalizarData(data.dataReferencia) };
     });
+    cartoesCredito = snapCart.docs.map(d => ({ id: d.id, ...d.data() }));
     renderizar();
     showToast('Dados atualizados!', 'sucesso');
   } catch(e) {
@@ -465,6 +470,9 @@ function renderizar() {
 
   // Guardar snapshot para modal de detalhe
   renderizar._lastDoMes = doMes;
+
+  // ── Chart 5: Line — Comparativo de Faturas por Cartão ───────────────────────
+  renderFaturas();
 }
 
 // ─── Melhoria 1 — Insight automático ─────────────────────────────────────────
@@ -561,6 +569,97 @@ window.fecharModalDetalheCat = function() {
   const modal = document.getElementById('modalDetalheCat');
   if (modal) { modal.style.display = 'none'; modal.classList.add('hidden'); }
 };
+
+// ─── Chart 5 — Comparativo de Faturas por Cartão (últimos 6 meses) ─────────
+function renderFaturas() {
+  destroyChart('fat');
+  const wrapFat = document.getElementById('wrapFaturas');
+  if (!wrapFat) return;
+
+  if (cartoesCredito.length === 0) {
+    wrapFat.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;font-size:0.875rem;font-weight:600;color:var(--card-text-sec);">Nenhum cartão de crédito cadastrado</div>';
+    return;
+  }
+
+  const canvasFat = ensureCanvas('wrapFaturas', 'chartFaturas');
+  if (!canvasFat) return;
+
+  const labels6  = [];
+  const fatPorCartao = cartoesCredito.map(() => []);
+  const cores    = ['#8b5cf6','#3b82f6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4','#f97316'];
+
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(dataFiltro.getFullYear(), dataFiltro.getMonth() - i, 1);
+    const p = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    labels6.push(MESES_ABR[d.getMonth()] + '/' + String(d.getFullYear()).slice(2));
+    cartoesCredito.forEach((cartao, ci) => {
+      const total = transacoes
+        .filter(t =>
+          t.cartaoId === cartao.id &&
+          t.dataReferencia && t.dataReferencia.startsWith(p) &&
+          t.status !== 'pendente' &&
+          !t.pagamentoFatura
+        )
+        .reduce((s, t) => s + (Number(t.valor) || 0), 0);
+      fatPorCartao[ci].push(valoresOcultos ? null : total);
+    });
+  }
+
+  // Só exibir cartões que têm ao menos 1 mês com fatura > 0
+  const cartoesCom = cartoesCredito.filter((_, ci) => fatPorCartao[ci].some(v => v > 0));
+  const dadosCom   = cartoesCredito
+    .map((c, ci) => ({ cartao: c, dados: fatPorCartao[ci], cor: cores[ci % cores.length] }))
+    .filter((_, ci) => fatPorCartao[ci].some(v => v > 0));
+
+  if (dadosCom.length === 0) {
+    wrapFat.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;font-size:0.875rem;font-weight:600;color:var(--card-text-sec);">Sem lançamentos nos últimos 6 meses</div>';
+    return;
+  }
+
+  const canvasFat2 = ensureCanvas('wrapFaturas', 'chartFaturas');
+  if (!canvasFat2) return;
+
+  const datasets = dadosCom.map(({ cartao, dados, cor }) => ({
+    label: cartao.nome || 'Cartão',
+    data: dados,
+    borderColor: cor,
+    backgroundColor: cor + '18',
+    fill: true, tension: 0.35,
+    pointRadius: dados.map((_, j) => j === 5 ? 7 : 4),
+    pointHoverRadius: 8, borderWidth: 2.5,
+    pointBackgroundColor: dados.map((_, j) => j === 5 ? cor : cor + 'aa'),
+    spanGaps: true,
+  }));
+
+  charts.fat = new Chart(canvasFat2, {
+    type: 'line',
+    data: { labels: labels6, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            font: { size: 11, weight: '700', family: "'Inter',sans-serif" },
+            padding: 12, boxWidth: 14,
+            color: cssVar('--text-main') || '#1e293b',
+          },
+        },
+        tooltip: { callbacks: tooltipCallbacks },
+      },
+      scales: {
+        y: {
+          ticks: { callback: fmtTick, font: { size: 11, family: "'Inter',sans-serif" }, color: cssVar('--text-sec') || '#64748b' },
+          grid:  { color: 'rgba(148,163,184,0.1)' },
+          beginAtZero: true,
+        },
+        x: {
+          ticks: { font: { size: 11, family: "'Inter',sans-serif" }, color: cssVar('--text-main') || '#1e293b' },
+          grid: { display: false },
+        },
+      },
+    },
+  });
+}
 
 // ─── Melhoria 7 — Render tendência separado (chips) ──────────────────────────
 function renderTendencia() {
@@ -721,11 +820,15 @@ onAuthStateChanged(auth, async (user) => {
     setupSidebar(user, userData);
 
     // ── Fetch (BUG 1 + BUG 6 — getDocs, sem limit, sem onSnapshot) ──────────
-    const snap = await getDocs(collection(db, 'usuarios', user.uid, 'transacoes'));
+    const [snap, snapCart] = await Promise.all([
+      getDocs(collection(db, 'usuarios', user.uid, 'transacoes')),
+      getDocs(query(collection(db, 'usuarios', user.uid, 'carteira'), where('tipo', '==', 'credito'))),
+    ]);
     transacoes = snap.docs.map(d => {
       const data = d.data();
       return { ...data, id: d.id, dataReferencia: normalizarData(data.dataReferencia) };
     });
+    cartoesCredito = snapCart.docs.map(d => ({ id: d.id, ...d.data() }));
 
     if (!splashHidden) { hideSplash(); splashHidden = true; }
     atualizarMes();

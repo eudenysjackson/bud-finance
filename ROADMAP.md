@@ -191,7 +191,7 @@
 13. **Insights** (`insights.html` + `js/insights.js`) — ✅ **CONCLUÍDO** — Score saúde, alertas IA, simulador, comparativo meses, FCM push (plano Plus)
 
 ### Telas de IA / Assistentes
-14. **Assistente IA** (`assistente-ia.html` + `js/assistente-ia.js`) — Gemini 1.5 Flash via backend + chamados (plano Plus)
+14. **Assistente IA** (`assistente-ia.html` + `js/assistente-ia.js`) — ✅ **CONCLUÍDO** — Chat IA financeiro pessoal via Groq llama-4-scout + contexto real (getDocs mês atual) + chamados bug/sugestão + gate plano Plus/Trial; sidebars atualizadas em todas as telas (29/04/2026)
 15. **Assistente WhatsApp** (`assistente-whatsapp.html` + `js/assistente-whatsapp.js`) — Decorativa por ora; webhook só loga
 
 ### Telas de Sistema / Negócio

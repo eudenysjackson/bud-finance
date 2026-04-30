@@ -1690,6 +1690,12 @@ onAuthStateChanged(auth, async function (user) {
       return;
     }
 
+    // Guard: onboarding não concluído → redirect onboarding.html
+    if (userData.onboardingConcluido !== true) {
+      window.location.href = 'onboarding.html';
+      return;
+    }
+
     // ── Nome + avatar na sidebar ────────────────────────────────────
     var nome = userData.nome || user.email || 'Usuário';
     var nomeSeguro = window.budSanitize ? window.budSanitize(nome) : nome;

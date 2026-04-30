@@ -306,3 +306,9 @@
 - **Data**: 27/04/2026
 - **Sintoma**: Allowlist única misturava `localhost:8080`, `localhost:3001` com domínio público — em prod ficava aceitando origens de dev.
 - **Correção**: Split por `NODE_ENV` em `backend/server.js` (`ALLOWED_ORIGINS_PROD` vs `_DEV`).
+### ERR-031 — Assistente IA: CORS bloqueando header Authorization no preflight
+- **Data**: 29/04/2026
+- **Sintoma**: Chat do Assistente IA falhava com `Access to fetch ... has been blocked by CORS policy: Request header field authorization is not allowed by Access-Control-Allow-Headers in preflight response` e mensagem "Erro ao conectar ao assistente".
+- **Causa raiz**: `app.use(cors(...))` em `backend/server.js` declarava `allowedHeaders: ['Content-Type']` — quando o frontend enviou `Authorization: Bearer <idToken>`, o navegador disparou preflight OPTIONS e o backend respondeu sem permitir o header.
+- **Solução aplicada**: `allowedHeaders: ['Content-Type', 'Authorization']` + `methods: ['POST', 'GET', 'OPTIONS']`. Também adicionadas portas 5502 (live-server alternativa) em ALLOWED_ORIGINS dev/prod.
+- **Regra de prevenção**: SEMPRE que um endpoint do backend exigir `Authorization` (Bearer token Firebase), o `cors()` precisa listar esse header em `allowedHeaders`. Validar no DevTools ? Network ? preflight OPTIONS. Lembrar: backend em produção (Render) precisa de redeploy para mudanças no CORS surtirem efeito.
