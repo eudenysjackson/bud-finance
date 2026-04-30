@@ -202,6 +202,24 @@
       .sidebar-collapse-btn{display:none !important;}
     }
     @media(min-width:769px){.sidebar-collapse-btn{display:flex;}}
+
+    /* ── Custom select (card de transação IA) ────────────── */
+    .ia-cs-wrap{position:relative;}
+    .ia-cs-trigger{width:100%;padding:0.4rem 2rem 0.4rem 0.6rem;border:1.5px solid var(--card-border);border-radius:0.5rem;font-size:0.8125rem;font-weight:600;color:var(--text-main);background:var(--input-bg);cursor:pointer;font-family:inherit;text-align:left;display:flex;align-items:center;justify-content:space-between;outline:none;transition:border-color .15s,background .35s,color .35s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .ia-cs-trigger:focus,.ia-cs-trigger.open{border-color:var(--input-focus);}
+    .ia-cs-arrow{font-size:0.55rem;color:var(--text-sec);pointer-events:none;flex-shrink:0;transition:transform .15s;margin-left:0.4rem;}
+    .ia-cs-trigger.open .ia-cs-arrow{transform:rotate(180deg);}
+    .ia-cs-dropdown{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:200;background:var(--card-bg);backdrop-filter:blur(20px);border:1.5px solid var(--card-border);border-radius:0.75rem;box-shadow:0 8px 32px -4px rgba(0,0,0,0.18);max-height:200px;overflow-y:auto;}
+    .ia-cs-dropdown.open{display:block;}
+    .ia-cs-option{padding:0.5rem 0.75rem;cursor:pointer;font-size:0.8125rem;font-weight:600;color:var(--text-main);transition:background .1s;}
+    .ia-cs-option:hover,.ia-cs-option.selected{background:var(--sidebar-link-hover-bg);color:var(--btn-bg);}
+    .ia-cs-option:first-child{border-radius:0.625rem 0.625rem 0 0;}
+    .ia-cs-option:last-child{border-radius:0 0 0.625rem 0.625rem;}
+    /* ── Toggle tipo (Despesa / Receita) ─────────────────── */
+    .ia-tipo-toggle{display:flex;gap:0;border:1.5px solid var(--card-border);border-radius:0.5rem;overflow:hidden;}
+    .ia-tipo-btn{flex:1;padding:0.4rem 0;font-size:0.8125rem;font-weight:700;font-family:inherit;border:none;background:var(--input-bg);color:var(--text-sec);cursor:pointer;transition:background .15s,color .15s;}
+    .ia-tipo-btn.active-despesa{background:#ef4444;color:#fff;}
+    .ia-tipo-btn.active-receita{background:#22c55e;color:#fff;}
   </style>
 </head>
 <body>

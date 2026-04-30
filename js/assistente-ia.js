@@ -144,7 +144,7 @@ async function buildContexto(uid, forceRefresh = false) {
     const inicioMesAnt = Timestamp.fromDate(new Date(anoAnt, mesAnt - 1, 1, 0, 0, 0));
     const fimMesAnt    = Timestamp.fromDate(new Date(anoAnt, mesAnt, 0, 23, 59, 59));
 
-    const [txSnap, divSnap, metSnap, invSnap, cartSnap, limSnap, cartCartSnap, txAntSnap] = await Promise.all([
+    const [txSnap, divSnap, metSnap, invSnap, cartSnap, limSnap, catSnap, txAntSnap] = await Promise.all([
       getDocs(query(
         collection(db, 'usuarios', uid, 'transacoes'),
         where('data', '>=', inicioMes),
@@ -156,7 +156,7 @@ async function buildContexto(uid, forceRefresh = false) {
       getDocs(query(collection(db, 'usuarios', uid, 'investimentos'), limit(50))),
       getDocs(collection(db, 'usuarios', uid, 'carteira')),
       getDocs(query(collection(db, 'usuarios', uid, 'limites'), limit(50))),
-      getDocs(query(collection(db, 'usuarios', uid, 'cartoes'), limit(20))),
+      getDocs(query(collection(db, 'usuarios', uid, 'categorias'), limit(100))),
       getDocs(query(
         collection(db, 'usuarios', uid, 'transacoes'),
         where('data', '>=', inicioMesAnt),
@@ -169,9 +169,12 @@ async function buildContexto(uid, forceRefresh = false) {
     const dividas       = divSnap.docs.map(d => ({ ...d.data(), id: d.id }));
     const metas         = metSnap.docs.map(d => ({ ...d.data(), id: d.id }));
     const investimentos = invSnap.docs.map(d => ({ ...d.data(), id: d.id }));
-    const carteiras     = cartSnap.docs.map(d => ({ ...d.data(), id: d.id }));
-    const limites       = limSnap.docs.map(d => ({ ...d.data(), id: d.id }));
-    const cartoes       = cartCartSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+    // carteira contém tanto contas bancárias quanto cartões (tipo:'credito')
+    const todasCarteiras = cartSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+    const carteiras      = todasCarteiras.filter(c => c.tipo !== 'credito');
+    const cartoes        = todasCarteiras.filter(c => c.tipo === 'credito');
+    const limites        = limSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+    const categoriasUser = catSnap.docs.map(d => d.data().nome).filter(Boolean);
 
     // ── Transações do mês anterior
     let receitasAnt = 0;
@@ -201,7 +204,7 @@ async function buildContexto(uid, forceRefresh = false) {
       .sort((a, b) => b[1] - a[1]).slice(0, 5)
       .map(([cat, val]) => `${cat}: ${valoresOcultos ? '•••' : fmtBRL(val)}`);
 
-    // ── Carteira
+    // ── Carteira (apenas contas bancárias, sem cartões de crédito)
     const saldoTotal  = carteiras.reduce((acc, c) => acc + (Number(c.saldo) || 0), 0);
     const contasLista = carteiras
       .filter(c => c.ativo !== false)
@@ -266,8 +269,9 @@ async function buildContexto(uid, forceRefresh = false) {
         saldoAnt:           receitasAnt - despesasAnt,
         mesAnoAnt:          `${meses[mesAnt - 1]} de ${anoAnt}`,
         // Listas completas para o card de transação
-        carteira: carteiras.filter(c => c.ativo !== false).map(c => ({ id: c.id, nome: c.nome || 'Conta' })),
-        cartoes:  cartoes.map(c => ({ id: c.id, nome: c.nome || 'Cartão' })),
+        carteira:    carteiras.filter(c => c.ativo !== false).map(c => ({ id: c.id, nome: c.nome || 'Conta' })),
+        cartoes:     cartoes.map(c => ({ id: c.id, nome: c.nome || 'Cartão' })),
+        categorias:  categoriasUser.length ? categoriasUser : ['Alimentação','Transporte','Saúde','Educação','Lazer','Moradia','Vestuário','Tecnologia','Serviços','Outros'],
       }
     };
     return _contextoCache;
@@ -282,6 +286,8 @@ async function buildContexto(uid, forceRefresh = false) {
         receitas: 0, despesas: 0, saldo: 0, topCats: [], saldoContas: 0,
         contas: [], dividasAtivas: 0, metas: 0, metasDetalhe: [], metasAtrasadas: 0,
         investimentos: 0, limites: [], limitesEstourados: 0,
+        carteira: [], cartoes: [],
+        categorias: ['Alimentação','Transporte','Saúde','Educação','Lazer','Moradia','Vestuário','Tecnologia','Serviços','Outros'],
       }
     };
     return _contextoCache;
@@ -506,7 +512,11 @@ async function enviarParaIA(mensagem) {
             if (delta) {
               fullText += delta;
               // Exibe sem o bloco de ação (ele aparece como card depois)
-              const display = fullText.replace(/\[ACTION:TRANSACTION\][\s\S]*?\[\/ACTION\]/g, '').trim();
+              // Remove bloco completo e também bloco parcial ainda em streaming
+              const display = fullText
+                .replace(/\[ACTION:TRANSACTION\][\s\S]*?\[\/ACTION\]/g, '')
+                .replace(/\[ACTION:TRANSACTION\][\s\S]*$/g, '')
+                .trim();
               bubbleEl.innerHTML = display ? formatarMensagemIA(display) : '<span style="opacity:0.4">...</span>';
               chatContainer.scrollTop = chatContainer.scrollHeight;
             }
@@ -629,56 +639,70 @@ function renderizarCartaoTransacao(dados, afterEl) {
     c.nome && dados.conta && c.nome.toLowerCase().includes((dados.conta || '').toLowerCase())
   ) || todasContas[todasContas.length - 1];
 
-  const CATS = ['Alimentação','Transporte','Saúde','Educação','Lazer','Moradia','Vestuário','Tecnologia','Serviços','Outros'];
+  const CATS = ctx?.resumo?.categorias || ['Alimentação','Transporte','Saúde','Educação','Lazer','Moradia','Vestuário','Tecnologia','Serviços','Outros'];
   const dataHoje = new Date().toISOString().slice(0, 10);
   const dataVal  = dados.data && /^\d{4}-\d{2}-\d{2}$/.test(dados.data) ? dados.data : dataHoje;
   const cardId   = 'ac-' + Date.now();
 
-  const optsContas = todasContas.map(c =>
-    `<option value="${escapeHTML(c.id)}"${c.id === contaMatch.id ? ' selected' : ''}>${escapeHTML(c.nome)}${c.tipo === 'cartao' ? ' 💳' : c.tipo === 'conta' ? ' 🏦' : ''}</option>`
-  ).join('');
-  const optsCats = CATS.map(c =>
-    `<option${c === dados.categoria ? ' selected' : ''}>${escapeHTML(c)}</option>`
-  ).join('');
-
   const card = document.createElement('div');
   card.style.cssText = 'margin:0.5rem 0 0.5rem 2.625rem;background:var(--card-bg);border:1.5px solid var(--input-focus);border-radius:1rem;padding:1rem;max-width:400px;box-shadow:0 2px 12px rgba(37,99,235,0.1);';
+
+  // ── Gerar opções dos custom-selects ───────────────────────────────────────────
+  const optsCatHtml = CATS.map(c =>
+    `<div class="ia-cs-option${c === (dados.categoria || 'Outros') ? ' selected' : ''}" data-val="${escapeHTML(c)}">${escapeHTML(c)}</div>`
+  ).join('');
+  const optsContaHtml = todasContas.map(c =>
+    `<div class="ia-cs-option${c.id === contaMatch.id ? ' selected' : ''}" data-val="${escapeHTML(c.id)}">${escapeHTML(c.nome)}${c.tipo === 'cartao' ? ' 💳' : c.tipo === 'conta' ? ' 🏦' : ''}</div>`
+  ).join('');
+
+  const inputStyle  = 'width:100%;padding:0.4rem 0.6rem;border-radius:0.5rem;border:1.5px solid var(--card-border);background:var(--input-bg);color:var(--text-main);font-size:0.8125rem;font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .15s;';
+  const labelStyle  = 'font-size:0.7rem;color:var(--text-sec);font-weight:600;margin-bottom:0.2rem;';
+
   card.innerHTML = `
     <div style="font-size:0.875rem;font-weight:700;color:var(--text-main);margin-bottom:0.75rem;">📝 Registrar transação?</div>
     <div style="display:grid;gap:0.5rem;">
       <div>
-        <div style="font-size:0.7rem;color:var(--text-sec);font-weight:600;margin-bottom:0.2rem;">Descrição</div>
-        <input id="${cardId}-desc" value="${escapeHTML(dados.descricao)}" maxlength="200"
-          style="width:100%;padding:0.4rem 0.6rem;border-radius:0.5rem;border:1.5px solid var(--card-border);background:var(--input-bg);color:var(--text-main);font-size:0.8125rem;font-family:inherit;outline:none;box-sizing:border-box;">
+        <div style="${labelStyle}">Descrição</div>
+        <input id="${cardId}-desc" value="${escapeHTML(dados.descricao)}" maxlength="200" style="${inputStyle}">
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
         <div>
-          <div style="font-size:0.7rem;color:var(--text-sec);font-weight:600;margin-bottom:0.2rem;">Valor (R$)</div>
-          <input id="${cardId}-valor" type="number" min="0.01" step="0.01" value="${Number(dados.valor).toFixed(2)}"
-            style="width:100%;padding:0.4rem 0.6rem;border-radius:0.5rem;border:1.5px solid var(--card-border);background:var(--input-bg);color:var(--text-main);font-size:0.8125rem;font-family:inherit;outline:none;box-sizing:border-box;">
+          <div style="${labelStyle}">Valor (R$)</div>
+          <input id="${cardId}-valor" type="number" min="0.01" step="0.01" value="${Number(dados.valor).toFixed(2)}" style="${inputStyle}">
         </div>
         <div>
-          <div style="font-size:0.7rem;color:var(--text-sec);font-weight:600;margin-bottom:0.2rem;">Tipo</div>
-          <select id="${cardId}-tipo" style="width:100%;padding:0.4rem 0.6rem;border-radius:0.5rem;border:1.5px solid var(--card-border);background:var(--input-bg);color:var(--text-main);font-size:0.8125rem;font-family:inherit;outline:none;box-sizing:border-box;">
-            <option value="despesa"${dados.tipo !== 'receita' ? ' selected' : ''}>💸 Despesa</option>
-            <option value="receita"${dados.tipo === 'receita' ? ' selected' : ''}>💰 Receita</option>
-          </select>
+          <div style="${labelStyle}">Tipo</div>
+          <div class="ia-tipo-toggle" id="${cardId}-tipo-wrap">
+            <button type="button" class="ia-tipo-btn${dados.tipo !== 'receita' ? ' active-despesa' : ''}" data-val="despesa">💸 Despesa</button>
+            <button type="button" class="ia-tipo-btn${dados.tipo === 'receita' ? ' active-receita' : ''}" data-val="receita">💰 Receita</button>
+          </div>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
         <div>
-          <div style="font-size:0.7rem;color:var(--text-sec);font-weight:600;margin-bottom:0.2rem;">Categoria</div>
-          <select id="${cardId}-cat" style="width:100%;padding:0.4rem 0.6rem;border-radius:0.5rem;border:1.5px solid var(--card-border);background:var(--input-bg);color:var(--text-main);font-size:0.8125rem;font-family:inherit;outline:none;box-sizing:border-box;">${optsCats}</select>
+          <div style="${labelStyle}">Categoria</div>
+          <div class="ia-cs-wrap">
+            <button type="button" class="ia-cs-trigger" id="${cardId}-cat-trigger">
+              <span id="${cardId}-cat-label">${escapeHTML(dados.categoria || 'Outros')}</span>
+              <span class="ia-cs-arrow">▼</span>
+            </button>
+            <div class="ia-cs-dropdown" id="${cardId}-cat-drop">${optsCatHtml}</div>
+          </div>
         </div>
         <div>
-          <div style="font-size:0.7rem;color:var(--text-sec);font-weight:600;margin-bottom:0.2rem;">Data</div>
-          <input id="${cardId}-data" type="date" value="${dataVal}"
-            style="width:100%;padding:0.4rem 0.6rem;border-radius:0.5rem;border:1.5px solid var(--card-border);background:var(--input-bg);color:var(--text-main);font-size:0.8125rem;font-family:inherit;outline:none;box-sizing:border-box;">
+          <div style="${labelStyle}">Data</div>
+          <input id="${cardId}-data" type="date" value="${dataVal}" style="${inputStyle}">
         </div>
       </div>
       ${todasContas.length > 1 ? `<div>
-        <div style="font-size:0.7rem;color:var(--text-sec);font-weight:600;margin-bottom:0.2rem;">Conta / Cartão</div>
-        <select id="${cardId}-conta" style="width:100%;padding:0.4rem 0.6rem;border-radius:0.5rem;border:1.5px solid var(--card-border);background:var(--input-bg);color:var(--text-main);font-size:0.8125rem;font-family:inherit;outline:none;box-sizing:border-box;">${optsContas}</select>
+        <div style="${labelStyle}">Conta / Cartão</div>
+        <div class="ia-cs-wrap">
+          <button type="button" class="ia-cs-trigger" id="${cardId}-conta-trigger">
+            <span id="${cardId}-conta-label">${escapeHTML(contaMatch.nome)}${contaMatch.tipo === 'cartao' ? ' 💳' : contaMatch.tipo === 'conta' ? ' 🏦' : ''}</span>
+            <span class="ia-cs-arrow">▼</span>
+          </button>
+          <div class="ia-cs-dropdown" id="${cardId}-conta-drop">${optsContaHtml}</div>
+        </div>
       </div>` : ''}
     </div>
     <div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
@@ -691,14 +715,75 @@ function renderizarCartaoTransacao(dados, afterEl) {
   afterEl.insertAdjacentElement('afterend', card);
   chatContainer.scrollTop = chatContainer.scrollHeight;
 
+  // ── Estado dos custom-selects ──────────────────────────────────────────────────
+  let _catVal   = dados.categoria || 'Outros';
+  let _contaVal = contaMatch.id;
+  let _tipoVal  = dados.tipo !== 'receita' ? 'despesa' : 'receita';
+
+  // Toggle tipo
+  card.querySelector(`#${cardId}-tipo-wrap`).addEventListener('click', e => {
+    const btn = e.target.closest('.ia-tipo-btn');
+    if (!btn) return;
+    _tipoVal = btn.dataset.val;
+    card.querySelectorAll(`#${cardId}-tipo-wrap .ia-tipo-btn`).forEach(b => {
+      b.className = 'ia-tipo-btn' + (b.dataset.val === _tipoVal ? (b.dataset.val === 'receita' ? ' active-receita' : ' active-despesa') : '');
+    });
+  });
+
+  // Helper: toggle custom-select
+  function setupCs(triggerId, dropId, onPick) {
+    const trigger = card.querySelector('#' + triggerId);
+    const drop    = card.querySelector('#' + dropId);
+    if (!trigger || !drop) return;
+    trigger.addEventListener('click', e => {
+      e.stopPropagation();
+      const isOpen = drop.classList.contains('open');
+      // Fechar todos os outros drops do card
+      card.querySelectorAll('.ia-cs-dropdown').forEach(d => { d.classList.remove('open'); });
+      card.querySelectorAll('.ia-cs-trigger').forEach(t => { t.classList.remove('open'); });
+      if (!isOpen) { drop.classList.add('open'); trigger.classList.add('open'); }
+    });
+    drop.addEventListener('click', e => {
+      const opt = e.target.closest('.ia-cs-option');
+      if (!opt) return;
+      drop.querySelectorAll('.ia-cs-option').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      drop.classList.remove('open');
+      trigger.classList.remove('open');
+      onPick(opt.dataset.val, opt.textContent.trim());
+    });
+  }
+
+  setupCs(`${cardId}-cat-trigger`, `${cardId}-cat-drop`, (val) => {
+    _catVal = val;
+    const lbl = card.querySelector(`#${cardId}-cat-label`);
+    if (lbl) lbl.textContent = val;
+  });
+  if (todasContas.length > 1) {
+    setupCs(`${cardId}-conta-trigger`, `${cardId}-conta-drop`, (val, txt) => {
+      _contaVal = val;
+      const lbl = card.querySelector(`#${cardId}-conta-label`);
+      if (lbl) lbl.textContent = txt;
+    });
+  }
+
+  // Fechar dropdowns ao clicar fora
+  const _closeDrops = (e) => {
+    if (!card.contains(e.target)) {
+      card.querySelectorAll('.ia-cs-dropdown').forEach(d => d.classList.remove('open'));
+      card.querySelectorAll('.ia-cs-trigger').forEach(t => t.classList.remove('open'));
+    }
+  };
+  document.addEventListener('click', _closeDrops);
+
   // ── Confirmar ─────────────────────────────────────────────────────────────────
   document.getElementById(cardId + '-ok').addEventListener('click', async () => {
     const desc    = (document.getElementById(cardId + '-desc')?.value  || '').trim();
     const valor   = parseFloat(document.getElementById(cardId + '-valor')?.value || '0');
-    const tipo    = document.getElementById(cardId + '-tipo')?.value   || 'despesa';
-    const cat     = document.getElementById(cardId + '-cat')?.value    || 'Outros';
+    const tipo    = _tipoVal;
+    const cat     = _catVal;
     const dataStr = document.getElementById(cardId + '-data')?.value   || dataHoje;
-    const contaId = document.getElementById(cardId + '-conta')?.value  || '';
+    const contaId = _contaVal;
 
     const statusEl = document.getElementById(cardId + '-status');
     if (!desc || isNaN(valor) || valor <= 0) {
@@ -735,6 +820,7 @@ function renderizarCartaoTransacao(dados, afterEl) {
       }
 
       await addDoc(collection(db, 'usuarios', uid, 'transacoes'), txData);
+      document.removeEventListener('click', _closeDrops);
       const destino = txData.cartaoId ? 'cartoes.html' : 'extrato.html';
       const label   = txData.cartaoId ? 'Ver no cartão →' : 'Ver no extrato →';
       card.innerHTML = `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem;color:#16a34a;font-size:0.875rem;font-weight:600;">✅ Transação registrada! <a href="${destino}" style="color:var(--btn-bg);font-size:0.8rem;margin-left:0.25rem;">${label}</a></div>`;
@@ -746,7 +832,10 @@ function renderizarCartaoTransacao(dados, afterEl) {
     }
   });
 
-  document.getElementById(cardId + '-cancel').addEventListener('click', () => card.remove());
+  document.getElementById(cardId + '-cancel').addEventListener('click', () => {
+    document.removeEventListener('click', _closeDrops);
+    card.remove();
+  });
   return card;
 }
 
