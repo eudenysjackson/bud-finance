@@ -522,6 +522,239 @@ window.limparChat = function() {
   });
 };
 
+// ─── Parser OFX inline ─────────────────────────────────────────────────────────
+function _parseOFXInline(text) {
+  text = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const ledgerMatch = text.match(/<LEDGERBAL>[\s\S]*?<BALAMT>([\d.\-]+)/i);
+  const ledgerBal   = ledgerMatch ? parseFloat(ledgerMatch[1]) : null;
+  const rows = [];
+  const txBlocks = text.match(/<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi) || [];
+  txBlocks.forEach(block => {
+    const get = (tag) => {
+      const m = block.match(new RegExp(`<${tag}>([^<\n]+)`, 'i'));
+      return m ? m[1].trim() : '';
+    };
+    const dtPosted = get('DTPOSTED');
+    const amtStr   = get('TRNAMT');
+    const memo     = get('MEMO') || get('NAME') || '';
+    if (!dtPosted || !amtStr) return;
+    const data  = `${dtPosted.slice(0,4)}-${dtPosted.slice(4,6)}-${dtPosted.slice(6,8)}`;
+    const valor = parseFloat(amtStr.replace(',', '.'));
+    if (isNaN(valor)) return;
+    rows.push({ data, descricao: memo.substring(0,200), valor: Math.abs(valor), tipo: valor < 0 ? 'despesa' : 'receita' });
+  });
+  return { rows, ledgerBal };
+}
+
+// ─── Parser CSV inline ─────────────────────────────────────────────────────────
+function _parseCSVInline(text) {
+  const linhas = text.trim().split(/\r?\n/).filter(l => l.trim());
+  if (linhas.length < 2) return { rows: [] };
+  const sep    = (linhas[0].match(/;/g)||[]).length > (linhas[0].match(/,/g)||[]).length ? ';' : ',';
+  const header = linhas[0].split(sep).map(h => h.trim().replace(/^"|"$/g,'').toLowerCase());
+  const iData  = header.findIndex(h => /\bdata\b|date/.test(h));
+  const iDesc  = header.findIndex(h => /descr|memo|hist|lancamento|lan.amento|estabelecimento/.test(h));
+  const iValor = header.findIndex(h => /\bvalor\b|value|amount/.test(h));
+  const iTipo  = header.findIndex(h => /\btipo\b|type|natureza/.test(h));
+  const rows = [];
+  for (let i = 1; i < linhas.length; i++) {
+    const cols  = linhas[i].split(sep).map(c => c.trim().replace(/^"|"$/g,''));
+    if (iValor < 0 || !cols[iValor]) continue;
+    const valor = parseFloat(String(cols[iValor]).replace(/[^\d,.\-]/g,'').replace(',','.'));
+    if (isNaN(valor) || valor === 0) continue;
+    rows.push({
+      data:      iData  >= 0 ? cols[iData]  : '—',
+      descricao: (iDesc >= 0 ? cols[iDesc]  : 'Transação').substring(0, 200),
+      valor:     Math.abs(valor),
+      tipo:      valor < 0 || (iTipo >= 0 && /deb|desp|sa[íi]da/i.test(cols[iTipo]||'')) ? 'despesa' : 'receita'
+    });
+  }
+  return { rows };
+}
+
+// ─── Parser Excel inline (SheetJS) ─────────────────────────────────────────────
+async function _parseExcelInline(file) {
+  if (!window.XLSX) throw new Error('Biblioteca Excel (SheetJS) não carregou. Recarregue a página.');
+  const buf  = await file.arrayBuffer();
+  const wb   = window.XLSX.read(new Uint8Array(buf), { type: 'array' });
+  const ws   = wb.Sheets[wb.SheetNames[0]];
+  const json = window.XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+  if (json.length < 2) return { rows: [] };
+  const header = json[0].map(h => String(h).toLowerCase().trim());
+  const iData  = header.findIndex(h => /\bdata\b|date/.test(h));
+  const iDesc  = header.findIndex(h => /descr|memo|hist|lancamento|lan.amento|estabelecimento/.test(h));
+  const iValor = header.findIndex(h => /\bvalor\b|value|amount/.test(h));
+  const iTipo  = header.findIndex(h => /\btipo\b|type|natureza/.test(h));
+  if (iValor < 0) throw new Error('Coluna "Valor" não encontrada na planilha.');
+  const rows = [];
+  for (let i = 1; i < json.length; i++) {
+    const row = json[i];
+    if (!row || row.every(c => !c)) continue;
+    const valor = parseFloat(String(row[iValor]||'').replace(/[^\d,.\-]/g,'').replace(',','.'));
+    if (isNaN(valor) || valor === 0) continue;
+    rows.push({
+      data:      iData  >= 0 ? String(row[iData]||'')    : '—',
+      descricao: (iDesc >= 0 ? String(row[iDesc]||'') : 'Transação').substring(0, 200),
+      valor:     Math.abs(valor),
+      tipo:      valor < 0 || (iTipo >= 0 && /deb|desp|sa[íi]da/i.test(String(row[iTipo]||''))) ? 'despesa' : 'receita'
+    });
+  }
+  return { rows };
+}
+
+// ─── Processar arquivo no chat ─────────────────────────────────────────────────
+async function processarArquivoChat(file) {
+  if (_enviando) return;
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const EXTS_OK = ['ofx','qfx','pdf','jpg','jpeg','png','webp','csv','xls','xlsx'];
+  if (!EXTS_OK.includes(ext)) {
+    addMsg('bot', formatarMensagemIA(`❌ Formato **${escapeHTML(ext.toUpperCase())}** não suportado.\n\nAceito: **OFX, QFX, PDF, imagens (JPG/PNG/WEBP), CSV, XLS, XLSX**`));
+    return;
+  }
+
+  _enviando = true;
+  btnEnviar.disabled = true;
+  const tipingEl = addMsg('bot', `⏳ Analisando **${escapeHTML(file.name)}**...`);
+
+  try {
+    let rows = [], ledgerBal = null, cupomData = null;
+
+    if (ext === 'ofx' || ext === 'qfx') {
+      const text = await file.text();
+      ({ rows, ledgerBal } = _parseOFXInline(text));
+
+    } else if (ext === 'csv') {
+      const text = await file.text();
+      ({ rows } = _parseCSVInline(text));
+
+    } else if (ext === 'xls' || ext === 'xlsx') {
+      ({ rows } = await _parseExcelInline(file));
+
+    } else if (ext === 'pdf') {
+      const fd = new FormData();
+      fd.append('arquivo', file);
+      const r = await fetch(`${BACKEND_URL}/api/extrair-fatura`, { method: 'POST', body: fd });
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        throw new Error(e.error || 'Erro ao processar PDF');
+      }
+      const tx = await r.json();
+      rows = tx.map(t => ({ data: t.data, descricao: t.desc, valor: t.valor, tipo: t.tipo || 'despesa' }));
+
+    } else {
+      // Imagem: tenta extrato/fatura → fallback cupom fiscal
+      const fd1 = new FormData();
+      fd1.append('arquivo', file);
+      const r1 = await fetch(`${BACKEND_URL}/api/extrair-fatura`, { method: 'POST', body: fd1 });
+      if (r1.ok) {
+        const tx = await r1.json();
+        rows = tx.map(t => ({ data: t.data, descricao: t.desc, valor: t.valor, tipo: t.tipo || 'despesa' }));
+      }
+      if (rows.length === 0) {
+        const fd2 = new FormData();
+        fd2.append('arquivos', file);
+        const r2 = await fetch(`${BACKEND_URL}/api/extrair-cupom`, { method: 'POST', body: fd2 });
+        if (!r2.ok) {
+          const e = await r2.json().catch(() => ({}));
+          throw new Error(e.error || 'Não foi possível extrair dados da imagem');
+        }
+        cupomData = await r2.json();
+      }
+    }
+
+    tipingEl.remove();
+    let mensagem;
+
+    if (cupomData) {
+      // Cupom fiscal
+      const { mercado = '', cnpj = '', data = '', itens = [] } = cupomData;
+      const total  = itens.reduce((a, it) => a + (Number(it.valor || 0) * (Number(it.qtd) || 1)), 0);
+      const linhas = itens.slice(0, 40).map(it =>
+        `- ${escapeHTML(it.nome || 'Item')} | Qtd:${it.qtd || 1} | R$${Number(it.valor || 0).toFixed(2)} | ${escapeHTML(it.cat || 'Outros')}`
+      ).join('\n');
+      mensagem =
+        `Cupom fiscal de **${escapeHTML(mercado)}** (Data: ${escapeHTML(data)}, CNPJ: ${escapeHTML(cnpj)}) ` +
+        `— ${itens.length} item(s), total R$${total.toFixed(2)}\n\n${linhas}\n\n` +
+        `Analise essa compra e sugira como posso economizar.`;
+
+    } else {
+      // Extrato / fatura / planilha
+      if (!rows.length) {
+        addMsg('bot', '⚠️ Não encontrei transações neste arquivo. Verifique se é um extrato bancário ou planilha financeira válida.');
+        return;
+      }
+      const recTot  = rows.filter(r => r.tipo === 'receita').reduce((a, r) => a + (r.valor || 0), 0);
+      const despTot = rows.filter(r => r.tipo !== 'receita').reduce((a, r) => a + (r.valor || 0), 0);
+      const linhas  = rows.slice(0, 50).map(r =>
+        `- ${r.data || '—'} | ${escapeHTML(r.descricao || 'Transação')} | ${r.tipo === 'receita' ? '+' : '-'}R$${Number(r.valor || 0).toFixed(2)}`
+      ).join('\n');
+      mensagem =
+        `Arquivo **${escapeHTML(file.name)}** — ${rows.length} transação(ões)\n` +
+        `Receitas: R$${recTot.toFixed(2)} | Despesas: R$${despTot.toFixed(2)}` +
+        (ledgerBal != null ? ` | Saldo banco: R$${ledgerBal.toFixed(2)}` : '') +
+        `\n\n**Transações${rows.length > 50 ? ' (primeiras 50)' : ''}:**\n${linhas}\n\n` +
+        `Analise essas transações e me dê insights sobre meus gastos e padrões financeiros.`;
+    }
+
+    addMsg('user', `📎 ${escapeHTML(file.name)}`);
+    await enviarParaIA(mensagem);
+
+  } catch (err) {
+    tipingEl.remove();
+    addMsg('bot', formatarMensagemIA(`❌ **Erro ao processar arquivo:** ${escapeHTML(err.message || 'Tente novamente.')}`));
+  } finally {
+    _enviando = false;
+    btnEnviar.disabled = false;
+    chatInput.focus();
+  }
+}
+
+// ─── Reconhecimento de voz (Web Speech API) ────────────────────────────────────
+function setupVoz() {
+  const SR     = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const btnMic = document.getElementById('btnMic');
+  if (!SR || !btnMic) return;
+  btnMic.style.display = 'flex'; // mostra só se API disponível
+
+  const rec = new SR();
+  rec.lang            = 'pt-BR';
+  rec.interimResults  = true;
+  rec.continuous      = false;
+  rec.maxAlternatives = 1;
+
+  let gravando = false, base = '';
+
+  rec.onstart  = () => { gravando = true;  base = chatInput.value; btnMic.classList.add('gravando');    btnMic.title = 'Parar gravação'; };
+  rec.onend    = () => { gravando = false; btnMic.classList.remove('gravando'); btnMic.title = 'Falar'; };
+  rec.onerror  = (e) => {
+    gravando = false;
+    btnMic.classList.remove('gravando');
+    if (e.error !== 'no-speech' && e.error !== 'aborted') {
+      addMsg('bot', '🎤 Microfone indisponível. Verifique as permissões do navegador.');
+    }
+  };
+  rec.onresult = (e) => {
+    const t = Array.from(e.results).map(r => r[0].transcript).join('');
+    chatInput.value = (base ? base + ' ' : '') + t;
+    chatInput.style.height = 'auto';
+    chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+  };
+
+  btnMic.addEventListener('click', () => gravando ? rec.stop() : rec.start());
+}
+
+// ─── Setup upload de arquivos ───────────────────────────────────────────────────
+function setupArquivos() {
+  const btnAnexar = document.getElementById('btnAnexar');
+  const fileInput = document.getElementById('fileInput');
+  if (!btnAnexar || !fileInput) return;
+  btnAnexar.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files[0];
+    if (f) { processarArquivoChat(f); fileInput.value = ''; }
+  });
+}
+
 // ─── Auto-resize textarea ───────────────────────────────────────────────────────
 chatInput.addEventListener('input', () => {
   chatInput.style.height = 'auto';
@@ -587,6 +820,11 @@ function ocultarSplash() {
   if (splash) { splash.classList.add('hide'); setTimeout(() => { splash.style.display = 'none'; }, 500); }
 }
 
+// ─── Setup sidebar + voz + arquivos ─────────────────────────────────────────────
+setupSidebar();
+setupVoz();
+setupArquivos();
+
 // ─── Auth guard + init ──────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async user => {
   if (!user) { window.location.href = 'index.html'; return; }
@@ -616,7 +854,6 @@ onAuthStateChanged(auth, async user => {
     document.getElementById('btnLogout')?.addEventListener('click', async () => {
       await signOut(auth); window.location.href = 'index.html';
     });
-    setupSidebar();
 
     // Gate de plano
     if (!PLANOS_ASSISTENTE.includes(plano)) {

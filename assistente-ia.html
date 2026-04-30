@@ -180,6 +180,13 @@
     [data-theme="dark"] .alerta-saude.alerta{color:#fcd34d;background:rgba(245,158,11,0.12);}
     [data-theme="dark"] .alerta-saude.info{color:#93c5fd;background:rgba(59,130,246,0.12);}
 
+    /* ── Voz + Anexar ───────────────────────────────────── */
+    #btnAnexar,#btnMic{width:2.25rem;height:2.25rem;border-radius:0.625rem;background:none;border:none;color:var(--text-sec);font-size:1.125rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:color .18s;padding:0;}
+    #btnAnexar:hover,#btnMic:hover{color:var(--btn-bg);}
+    #btnMic{display:none;}
+    #btnMic.gravando{color:#ef4444;animation:pulse-mic 1s ease-in-out infinite;}
+    @keyframes pulse-mic{0%,100%{transform:scale(1);}50%{transform:scale(1.2);}}
+
     /* ── Paywall ────────────────────────────────────────── */
     #paywallContainer{display:none;flex:1;align-items:center;justify-content:center;padding:2rem;}
 
@@ -313,7 +320,10 @@
         <div class="chat-input-bar">
           <form id="chatForm" autocomplete="off">
             <div class="chat-input-row">
+              <button type="button" id="btnAnexar" title="Enviar arquivo (OFX, PDF, imagem, Excel, CSV)">📎</button>
+              <input type="file" id="fileInput" style="display:none" accept=".ofx,.qfx,.pdf,.jpg,.jpeg,.png,.webp,.csv,.xls,.xlsx">
               <textarea id="chatInput" rows="1" placeholder="Pergunte sobre suas finanças..." maxlength="1000"></textarea>
+              <button type="button" id="btnMic" title="Falar">🎤</button>
               <button type="submit" id="btnEnviar" title="Enviar">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </button>
@@ -325,6 +335,8 @@
     </main>
   </div>
 
+  <!-- SheetJS para leitura de XLS/XLSX no chat -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- marked.js + DOMPurify para renderização segura de markdown nas respostas da IA -->
   <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
