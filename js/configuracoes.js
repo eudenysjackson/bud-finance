@@ -778,7 +778,7 @@ async function executarReset() {
       .forEach(k => localStorage.removeItem(k));
 
     fecharModalReset();
-    window.location.href = 'dashboard.html';
+    window.location.href = 'onboarding.html';
 
   } catch (err) {
     if (btnConf) { btnConf.disabled = false; btnConf.textContent = 'Sim, resetar tudo'; }

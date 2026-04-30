@@ -554,9 +554,18 @@ function ocultarSplash() {
   }
 }
 
-// ─── Auth guard + inicialização ───────────────────────────────────────────
-const _previewMode = new URLSearchParams(window.location.search).get('preview') === '1';
+// Safety: force-dismiss splash after 8s (para evitar tela travada em redes lentas)
+(function () {
+  const splash = document.getElementById('splash');
+  if (!splash) return;
+  setTimeout(() => {
+    if (splash && splash.style.display !== 'none' && !splash.classList.contains('hide')) {
+      ocultarSplash();
+    }
+  }, 8000);
+})();
 
+// ─── Auth guard + inicialização ───────────────────────────────────────────
 onAuthStateChanged(auth, async user => {
   if (_previewMode) return; // já inicializado no DOMContentLoaded
   if (!user) {
@@ -595,23 +604,28 @@ onAuthStateChanged(auth, async user => {
   }
 
   // ── Inicializar UI ──────────────────────────────────────────────
-  initSourceGrid();
-  initContaTipoGrid();
-  initDespesaTipoGrid();
-  initMasks();
+  try {
+    initSourceGrid();
+    initContaTipoGrid();
+    initDespesaTipoGrid();
+    initMasks();
 
-  btnVoltar.addEventListener('click', voltar);
-  btnPular.addEventListener('click', pularEtapa);
-  btnProximo.addEventListener('click', avancar);
+    if (btnVoltar)  btnVoltar.addEventListener('click', voltar);
+    if (btnPular)   btnPular.addEventListener('click', pularEtapa);
+    if (btnProximo) btnProximo.addEventListener('click', avancar);
 
-  // Tecla Enter → avançar (exceto em textarea)
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
-      e.preventDefault();
-      avancar();
-    }
-  });
+    // Tecla Enter → avançar (exceto em textarea)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        avancar();
+      }
+    });
 
-  mostrarPasso(1);
-  ocultarSplash();
+    mostrarPasso(1);
+  } catch (_initErr) {
+    // Garante que o splash sempre some mesmo em caso de erro de inicialização
+  } finally {
+    ocultarSplash();
+  }
 });

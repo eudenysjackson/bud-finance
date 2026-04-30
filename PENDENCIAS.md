@@ -202,7 +202,16 @@ _Sem pendências ativas._
 
 ---
 
-## 📜 Histórico de Atualizações
+## � Pendências Imediatas (Alta Prioridade)
+
+| ID | Descrição | Prioridade | Notas |
+|----|-----------|------------|-------|
+| PEND-IMM-01 | **Validar fix do onboarding no mobile após push** — confirmar que a tela de splash some corretamente após Reset de Conta no mobile real (iOS/Android). Ver ERR-032. | 🔴 Alta | Primeiro teste após push de 30/04/2026 |
+| PEND-IMM-02 | **Auditar outros módulos ES por `const` duplicados** — o mesmo padrão de `_previewMode` duplicado (ERR-032) pode existir em outros arquivos que tiveram blocos movidos/copiados. Verificar: `js/cartoes.js`, `js/extrato.js`, `js/dashboard.js`. | 🟡 Média | Risco de módulo falhando silenciosamente |
+
+---
+
+## �📜 Histórico de Atualizações
 
 - **23/04/2026** — Documento criado. Consolida itens 21-28 do `ROADMAP.md` (expansões de Configurações) + DT-001/002/003 da memória do repo. Origem: auditoria de paridade Cérebro→Bud em Cartões / Metas / Configurações.
 - **23/04/2026** — DT-001 resolvido: `salvarTransacoesIA` convertida para `writeBatch` em chunks de 400. Sugestões de refinamento Cartões registradas como PEND-009 a PEND-018. Sugestão 1 (modal exclusão) já existia — marcada como já implementada.
@@ -217,6 +226,7 @@ _Sem pendências ativas._
 - **29/04/2026** — Sidebar consolidada: Extrato movido para sub-nav dentro de Carteira (renomeada para **Contas**); Limites movido para sub-nav dentro de Recorrentes; Investimentos movido para sub-nav dentro de Metas. Sub-nav Análises agrupou Gráficos, Balanço, Comparativo, Relatórios e Insights. PEND-017 resolvido: gráfico comparativo de faturas de cartão implementado em `graficos.html`/`js/graficos.js`.
 - **29/04/2026** — PEND-009 e PEND-011 resolvidos em Cartões: (1) PEND-009: badge de status da fatura com countdown de dias ("Fecha em Xd"/"Vence em Xd"/"Fecha hoje"/"Vence hoje"); (2) PEND-011: modal Pagar Fatura integrado com Carteira — carrega contas de débito, cria transação `pagamento_fatura`, decrementa saldo via writeBatch, e permite desfazer restaurando saldo + deletando transação.
 - **28/04/2026** — Tela Relatórios implementada (`relatorios.html` + `js/relatorios.js`). Fase 2 · Item 4. 15 bugs do cérebro/relatorios.md corrigidos preventivamente. Interface 3 abas (Resumo / Gráficos / Detalhamento). Feature gate `advancedDashboard`. Tendência 6 meses em single-pass (BUG 13). Sidebar atualizada em 14 páginas com link 📑 Relatórios. ROADMAP: Gráficos → CONCLUÍDO; Relatórios → CONCLUÍDO.
+- **30/04/2026** — Corrigido ERR-032: splash do onboarding travava após Reset de conta. 5 fixes aplicados em `js/onboarding.js` e `js/configuracoes.js`. Pendências imediatas PEND-IMM-01 e PEND-IMM-02 abertas.
 - **27/04/2026** — Fase 1 concluída. Mercado IA implementado com Groq meta-llama/llama-4-scout. Balanço Mensal (`balanco-mensal.html` + `js/balanco-mensal.js`) criado — Fase 2 iniciada. Sidebars de 11 telas atualizadas com link "Balanço Mensal (Plus)". PEND-MER-11 reclassificada (verificar se backend ainda usa Gemini ou Groq). PEND-044/045/046 adicionadas (Cloud Function processarRecorrentes, Feature Flags, FCM Push).
 
 

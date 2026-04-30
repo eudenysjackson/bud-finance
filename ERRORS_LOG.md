@@ -264,51 +264,56 @@
 
 ---
 
-### ERR-023 — Tema Dark deixava texto solto invisível (body color preto sobre fundo preto)
+### ERR-023 ï¿½ Tema Dark deixava texto solto invisï¿½vel (body color preto sobre fundo preto)
 - **Data**: 27/04/2026
-- **Sintoma**: Em `hbo` (Dark), `getComputedStyle(document.body).color` resolvia `rgb(0,0,0)` — qualquer texto sem classe específica ficava invisível.
-- **Causa**: `theme-manager.js` definia variáveis de tema mas não tocava em `--text-main`/`--text-sec` nem em `document.body.style.color`.
-- **Correção**: `_setVars()` agora também seta `--text-main`, `--text-sec` e `document.body.style.color = t.text`.
+- **Sintoma**: Em `hbo` (Dark), `getComputedStyle(document.body).color` resolvia `rgb(0,0,0)` ï¿½ qualquer texto sem classe especï¿½fica ficava invisï¿½vel.
+- **Causa**: `theme-manager.js` definia variï¿½veis de tema mas nï¿½o tocava em `--text-main`/`--text-sec` nem em `document.body.style.color`.
+- **Correï¿½ï¿½o**: `_setVars()` agora tambï¿½m seta `--text-main`, `--text-sec` e `document.body.style.color = t.text`.
 - **Validado**: `rgb(255,255,255)` em Dark, `rgb(30,41,59)` em Gelo. (Auditoria 27/04/2026)
 
-### ERR-024 — Pluralização hardcoded "1 transações" no Dashboard
+### ERR-024 ï¿½ Pluralizaï¿½ï¿½o hardcoded "1 transaï¿½ï¿½es" no Dashboard
 - **Data**: 27/04/2026
-- **Sintoma**: Cards "Entradas/Saídas do Mês" mostravam `1 transações` quando `count === 1`.
-- **Correção**: Pattern `n === 1 ? '1 transação' : n + ' transações'` aplicado em `dashboard.js`. Helper `budPluralize()` adicionado em `bud-utils.js` para uso futuro.
+- **Sintoma**: Cards "Entradas/Saï¿½das do Mï¿½s" mostravam `1 transaï¿½ï¿½es` quando `count === 1`.
+- **Correï¿½ï¿½o**: Pattern `n === 1 ? '1 transaï¿½ï¿½o' : n + ' transaï¿½ï¿½es'` aplicado em `dashboard.js`. Helper `budPluralize()` adicionado em `bud-utils.js` para uso futuro.
 
-### ERR-025 — escapeHTML fallback usava budSanitize (NÃO escapa aspas)
+### ERR-025 ï¿½ escapeHTML fallback usava budSanitize (Nï¿½O escapa aspas)
 - **Data**: 27/04/2026
 - **Sintoma**: `dividas.js`, `investimentos.js`, `limites.js` declaravam `escapeHTML` apontando para `window.budSanitize`, que apenas remove tags. Strings com aspas em `onclick="..."` quebrariam o HTML (XSS-like).
-- **Correção**: Adicionado `window.budEscapeHTML` em `bud-utils.js` (escape completo). Os 3 arquivos passaram a usar `budEscapeHTML`.
-- **Risco real**: baixo (campos atingidos eram IDs alfanuméricos do Firestore), mas o pattern era frágil.
+- **Correï¿½ï¿½o**: Adicionado `window.budEscapeHTML` em `bud-utils.js` (escape completo). Os 3 arquivos passaram a usar `budEscapeHTML`.
+- **Risco real**: baixo (campos atingidos eram IDs alfanumï¿½ricos do Firestore), mas o pattern era frï¿½gil.
 
-### ERR-026 — cartoes.js excluía no máx 500 transações por cartão (truncamento silencioso)
+### ERR-026 ï¿½ cartoes.js excluï¿½a no mï¿½x 500 transaï¿½ï¿½es por cartï¿½o (truncamento silencioso)
 - **Data**: 27/04/2026
-- **Sintoma**: `confirmarExcluirCartao()` usava `query(...limit(500))` sem loop. Se um cartão tivesse >500 transações, o resto ficava órfão.
-- **Correção**: Loop `do/while` deletando em batches de 500 até esgotar.
+- **Sintoma**: `confirmarExcluirCartao()` usava `query(...limit(500))` sem loop. Se um cartï¿½o tivesse >500 transaï¿½ï¿½es, o resto ficava ï¿½rfï¿½o.
+- **Correï¿½ï¿½o**: Loop `do/while` deletando em batches de 500 atï¿½ esgotar.
 
-### ERR-027 — console.error/warn exibidos em produção
+### ERR-027 ï¿½ console.error/warn exibidos em produï¿½ï¿½o
 - **Data**: 27/04/2026
-- **Sintoma**: Erros internos vazavam para o console em produção (telemetria não desejada, leak de mensagens).
-- **Correção**: Wrappers `budError/budWarn/budLog` em `bud-utils.js` que só logam quando `BUD_IS_DEV`. Substituições aplicadas em `extrato.js`, `dividas.js`, `investimentos.js`, `recorrentes.js`, `limites.js`, `categorias.js`.
+- **Sintoma**: Erros internos vazavam para o console em produï¿½ï¿½o (telemetria nï¿½o desejada, leak de mensagens).
+- **Correï¿½ï¿½o**: Wrappers `budError/budWarn/budLog` em `bud-utils.js` que sï¿½ logam quando `BUD_IS_DEV`. Substituiï¿½ï¿½es aplicadas em `extrato.js`, `dividas.js`, `investimentos.js`, `recorrentes.js`, `limites.js`, `categorias.js`.
 
-### ERR-028 — theme-manager.localStorage sem try/catch (Safari private mode)
+### ERR-028 ï¿½ theme-manager.localStorage sem try/catch (Safari private mode)
 - **Data**: 27/04/2026
-- **Sintoma**: `localStorage.setItem` lançava `QuotaExceededError` em modo privativo, quebrando o switching de tema.
-- **Correção**: try/catch em todas as chamadas + helper `budStorage` para uso futuro.
+- **Sintoma**: `localStorage.setItem` lanï¿½ava `QuotaExceededError` em modo privativo, quebrando o switching de tema.
+- **Correï¿½ï¿½o**: try/catch em todas as chamadas + helper `budStorage` para uso futuro.
 
-### ERR-029 — preview-temas não sincronizava com tela principal
+### ERR-029 ï¿½ preview-temas nï¿½o sincronizava com tela principal
 - **Data**: 27/04/2026
-- **Sintoma**: Trocar tema na aba Configurações não atualizava outras abas abertas do app.
-- **Correção**: `window.addEventListener('storage', ...)` no `theme-manager.js` reaplica tema se `bud_theme` mudar em outra aba.
+- **Sintoma**: Trocar tema na aba Configuraï¿½ï¿½es nï¿½o atualizava outras abas abertas do app.
+- **Correï¿½ï¿½o**: `window.addEventListener('storage', ...)` no `theme-manager.js` reaplica tema se `bud_theme` mudar em outra aba.
 
-### ERR-030 — CORS backend permitia localhost em produção
+### ERR-030 ï¿½ CORS backend permitia localhost em produï¿½ï¿½o
 - **Data**: 27/04/2026
-- **Sintoma**: Allowlist única misturava `localhost:8080`, `localhost:3001` com domínio público — em prod ficava aceitando origens de dev.
-- **Correção**: Split por `NODE_ENV` em `backend/server.js` (`ALLOWED_ORIGINS_PROD` vs `_DEV`).
-### ERR-031 — Assistente IA: CORS bloqueando header Authorization no preflight
+- **Sintoma**: Allowlist ï¿½nica misturava `localhost:8080`, `localhost:3001` com domï¿½nio pï¿½blico ï¿½ em prod ficava aceitando origens de dev.
+- **Correï¿½ï¿½o**: Split por `NODE_ENV` em `backend/server.js` (`ALLOWED_ORIGINS_PROD` vs `_DEV`).### ERR-032 â€” Onboarding travado na splash apÃ³s Reset de conta
+- **Data**: 30/04/2026
+- **Sintoma**: Ao usar o botÃ£o "Resetar Dados" em ConfiguraÃ§Ãµes pelo mobile, o app ficava travado em uma tela de carregamento sem logo e nunca iniciava.
+- **Causa raiz**: `const _previewMode` declarado duas vezes em `js/onboarding.js` (linha 30 e linha 568). O `SyntaxError: Identifier '_previewMode' has already been declared` fazia o mÃ³dulo ES inteiro falhar silenciosamente â€” `onAuthStateChanged` nunca era registrado e `ocultarSplash()` jamais era chamado.
+- **SoluÃ§Ã£o aplicada**: Removida a segunda declaraÃ§Ã£o duplicada (linha 568). Adicionado timeout de seguranÃ§a de 8s para forÃ§ar o dismiss do splash (proteÃ§Ã£o para redes lentas). Bloco de init envolvido em `try/finally` para garantir `ocultarSplash()` sempre. Redirect apÃ³s reset alterado de `dashboard.html` para `onboarding.html` diretamente (eliminando hop desnecessÃ¡rio). Logo do splash corrigida de `<div class="splash-logo">B</div>` para `<img src="logo.png">` igual ao `index.html`.
+- **Regra de prevenÃ§Ã£o**: MÃ³dulos ES com `const` no escopo top-level falham **silenciosamente** se houver duplicata â€” o erro nÃ£o aparece no console como erro de runtime, sÃ³ como `pageError`. Ao mover ou copiar blocos de cÃ³digo entre seÃ§Ãµes de um mÃ³dulo, verificar se a constante jÃ¡ foi declarada mais acima. PadrÃ£o: declarar `_previewMode` e variÃ¡veis de mÃ³dulo apenas uma vez, no topo do arquivo.
+### ERR-031 ï¿½ Assistente IA: CORS bloqueando header Authorization no preflight
 - **Data**: 29/04/2026
 - **Sintoma**: Chat do Assistente IA falhava com `Access to fetch ... has been blocked by CORS policy: Request header field authorization is not allowed by Access-Control-Allow-Headers in preflight response` e mensagem "Erro ao conectar ao assistente".
-- **Causa raiz**: `app.use(cors(...))` em `backend/server.js` declarava `allowedHeaders: ['Content-Type']` — quando o frontend enviou `Authorization: Bearer <idToken>`, o navegador disparou preflight OPTIONS e o backend respondeu sem permitir o header.
-- **Solução aplicada**: `allowedHeaders: ['Content-Type', 'Authorization']` + `methods: ['POST', 'GET', 'OPTIONS']`. Também adicionadas portas 5502 (live-server alternativa) em ALLOWED_ORIGINS dev/prod.
-- **Regra de prevenção**: SEMPRE que um endpoint do backend exigir `Authorization` (Bearer token Firebase), o `cors()` precisa listar esse header em `allowedHeaders`. Validar no DevTools ? Network ? preflight OPTIONS. Lembrar: backend em produção (Render) precisa de redeploy para mudanças no CORS surtirem efeito.
+- **Causa raiz**: `app.use(cors(...))` em `backend/server.js` declarava `allowedHeaders: ['Content-Type']` ï¿½ quando o frontend enviou `Authorization: Bearer <idToken>`, o navegador disparou preflight OPTIONS e o backend respondeu sem permitir o header.
+- **Soluï¿½ï¿½o aplicada**: `allowedHeaders: ['Content-Type', 'Authorization']` + `methods: ['POST', 'GET', 'OPTIONS']`. Tambï¿½m adicionadas portas 5502 (live-server alternativa) em ALLOWED_ORIGINS dev/prod.
+- **Regra de prevenï¿½ï¿½o**: SEMPRE que um endpoint do backend exigir `Authorization` (Bearer token Firebase), o `cors()` precisa listar esse header em `allowedHeaders`. Validar no DevTools ? Network ? preflight OPTIONS. Lembrar: backend em produï¿½ï¿½o (Render) precisa de redeploy para mudanï¿½as no CORS surtirem efeito.
