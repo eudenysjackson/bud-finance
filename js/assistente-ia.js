@@ -599,7 +599,9 @@ async function finalizarRespostaIA(fullText, bubbleEl, rowEl) {
     .trim();
 
   // Atualiza bolha com texto limpo e formatado
-  bubbleEl.innerHTML = displayText ? formatarMensagemIA(displayText) : '';
+  bubbleEl.innerHTML = displayText
+    ? formatarMensagemIA(displayText)
+    : (acao ? '<span style="opacity:0.55;font-size:0.8125rem;">📝 Confirme os detalhes abaixo:</span>' : '');
 
   // Histórico: salvar texto limpo (sem o bloco de ação)
   conversaIA.push({ role: 'assistant', content: displayText || fullText });
@@ -651,7 +653,10 @@ function renderizarCartaoTransacao(dados, afterEl) {
     c.nome && dados.conta && c.nome.toLowerCase().includes((dados.conta || '').toLowerCase())
   ) || todasContas[todasContas.length - 1];
 
-  const CATS = ctx?.resumo?.categorias || ['Alimentação','Transporte','Saúde','Educação','Lazer','Moradia','Vestuário','Tecnologia','Serviços','Outros'];
+  const CATS_BASE = ctx?.resumo?.categorias || ['Alimentação','Transporte','Saúde','Educação','Lazer','Moradia','Vestuário','Tecnologia','Serviços','Outros'];
+  // Garantir que a categoria sugerida pela IA esteja na lista (mesmo que seja de outra lista)
+  const aiCat = (dados.categoria || '').trim();
+  const CATS  = aiCat && !CATS_BASE.includes(aiCat) ? [aiCat, ...CATS_BASE] : CATS_BASE;
   const dataHoje = new Date().toISOString().slice(0, 10);
   const dataVal  = dados.data && /^\d{4}-\d{2}-\d{2}$/.test(dados.data) ? dados.data : dataHoje;
   const cardId   = 'ac-' + Date.now();

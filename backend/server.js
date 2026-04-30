@@ -1224,7 +1224,7 @@ app.post('/api/chat', async function (req, res) {
     'PROIBIDO: NÃO escreva "posso registrar?", NÃO pergunte "quer que eu registre?", NÃO diga "registrado" ou "foi salvo" — o usuário ainda precisa confirmar no app.',
     'Data de HOJE: ' + hoje + '. Use formato YYYY-MM-DD. NUNCA escreva "[data atual]" ou "[data de hoje]" — use a data real.',
     'tipo: "despesa" se gastou/pagou/comprou. "receita" se recebeu/ganhou.',
-    'Categorias: Alimentação, Transporte, Saúde, Educação, Lazer, Moradia, Vestuário, Tecnologia, Serviços, Outros.',
+    'Categorias disponíveis (use SOMENTE estas no campo "categoria" do JSON): ' + (Array.isArray(r.categorias) && r.categorias.length ? r.categorias.join(', ') : 'Alimentação, Transporte, Saúde, Educação, Lazer, Moradia, Vestuário, Tecnologia, Serviços, Outros') + '.',
     '',
     '⚡ REGRA ABSOLUTA #2 — CARTÃO DE CRÉDITO SEM CADASTRO:',
     (Array.isArray(r.cartoes) && r.cartoes.length === 0) ? 'O usuário NÃO tem nenhum cartão de crédito cadastrado no app.' : '',
