@@ -70,6 +70,20 @@ function escapeHTML(str) {
 function salvarConversa() {
   try { sessionStorage.setItem('bud_conversa_ia', JSON.stringify(conversaIA.slice(-24))); } catch (_e) {}
 }
+
+// ─── Normalizar data para YYYY-MM-DD ───────────────────────────────────────────
+function normalizarData(str) {
+  if (!str || str === '—') return new Date().toISOString().slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}T/.test(str)) return str.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  const m = str.match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})$/);
+  if (m) {
+    const [, d, mo, y] = m;
+    const year = y.length === 2 ? '20' + y : y;
+    return `${year}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  }
+  return new Date().toISOString().slice(0, 10);
+}
 function carregarConversa() {
   try { return JSON.parse(sessionStorage.getItem('bud_conversa_ia') || '[]'); } catch { return []; }
 }
@@ -676,6 +690,7 @@ function renderizarCartaoTransacao(dados, afterEl) {
   });
 
   document.getElementById(cardId + '-cancel').addEventListener('click', () => card.remove());
+  return card;
 }
 
 // ─── Histórico persistente (Firestore) ──────────────────────────────────────────
@@ -968,41 +983,82 @@ async function processarArquivoChat(file) {
     }
 
     tipingEl.remove();
-    let mensagem;
+    addMsg('user', `📎 ${escapeHTML(file.name)}`);
 
     if (cupomData) {
-      // Cupom fiscal
+      // Cupom fiscal → card de registro direto + chip para análise
       const { mercado = '', cnpj = '', data = '', itens = [] } = cupomData;
-      const total  = itens.reduce((a, it) => a + (Number(it.valor || 0) * (Number(it.qtd) || 1)), 0);
+      const total = itens.reduce((a, it) => a + (Number(it.valor || 0) * (Number(it.qtd) || 1)), 0);
+      const infoEl = addMsg('bot', formatarMensagemIA(
+        `🧾 Cupom de **${escapeHTML(mercado || 'Estabelecimento')}** — ${itens.length} item(s), total **${fmtBRL(total)}**. Confirme para registrar:`
+      ));
+      renderizarCartaoTransacao({
+        descricao: `Compra em ${(mercado || 'Estabelecimento').substring(0, 80)}`,
+        valor:     total,
+        tipo:      'despesa',
+        categoria: 'Alimentação',
+        data:      normalizarData(data),
+        conta:     '',
+      }, infoEl);
+      // Chip para análise opcional
+      const chipDiv = document.createElement('div');
+      chipDiv.style.cssText = 'margin:0.4rem 0 0 2.625rem;';
+      const chipBtn = document.createElement('button');
+      chipBtn.className = 'sug-btn';
+      chipBtn.textContent = '📊 Analisar essa compra';
       const linhas = itens.slice(0, 40).map(it =>
-        `- ${escapeHTML(it.nome || 'Item')} | Qtd:${it.qtd || 1} | R$${Number(it.valor || 0).toFixed(2)} | ${escapeHTML(it.cat || 'Outros')}`
+        `- ${escapeHTML(it.nome || 'Item')} | Qtd:${it.qtd || 1} | R$${Number(it.valor || 0).toFixed(2)}`
       ).join('\n');
-      mensagem =
-        `Cupom fiscal de **${escapeHTML(mercado)}** (Data: ${escapeHTML(data)}, CNPJ: ${escapeHTML(cnpj)}) ` +
-        `— ${itens.length} item(s), total R$${total.toFixed(2)}\n\n${linhas}\n\n` +
-        `Analise essa compra e sugira como posso economizar.`;
+      const msgAnalise = `Cupom de **${escapeHTML(mercado)}** (${escapeHTML(data)}, CNPJ: ${escapeHTML(cnpj)}) — ${itens.length} item(s), total ${fmtBRL(total)}\n\n${linhas}\n\nAnalise essa compra e dê dicas de como economizar.`;
+      chipBtn.addEventListener('click', () => { chipDiv.remove(); window.enviarPergunta(msgAnalise); });
+      chipDiv.appendChild(chipBtn);
+      chatContainer.appendChild(chipDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    } else if (rows.length > 0) {
+      // Extrato / fatura / planilha → cards de registro direto (máx 5)
+      const exibir   = rows.slice(0, 5);
+      const restante = rows.length - exibir.length;
+      const msgTexto = rows.length === 1
+        ? `📋 **1 transação** encontrada. Confirme para registrar:`
+        : `📋 **${rows.length} transações** encontradas em **${escapeHTML(file.name)}**.` +
+          (restante > 0 ? ` Exibindo as primeiras **${exibir.length}** — para importar todas use **Carteira → Importar**.` : '') +
+          ` Confirme para registrar:`;
+      const infoEl = addMsg('bot', formatarMensagemIA(msgTexto));
+      let lastEl = infoEl;
+      exibir.forEach(r => {
+        const card = renderizarCartaoTransacao({
+          descricao: r.descricao || 'Transação',
+          valor:     r.valor     || 0,
+          tipo:      r.tipo      || 'despesa',
+          categoria: 'Outros',
+          data:      normalizarData(r.data),
+          conta:     '',
+        }, lastEl);
+        if (card) lastEl = card;
+      });
+      // Chip para análise (só se mais de 1 transação)
+      if (rows.length > 1) {
+        const chipDiv = document.createElement('div');
+        chipDiv.style.cssText = 'margin:0.4rem 0 0 2.625rem;';
+        const chipBtn = document.createElement('button');
+        chipBtn.className = 'sug-btn';
+        chipBtn.textContent = '📊 Analisar extrato completo';
+        const recTot  = rows.filter(r => r.tipo === 'receita').reduce((a, r) => a + (r.valor || 0), 0);
+        const despTot = rows.filter(r => r.tipo !== 'receita').reduce((a, r) => a + (r.valor || 0), 0);
+        const linhasA = rows.slice(0, 50).map(r =>
+          `- ${r.data || '—'} | ${escapeHTML(r.descricao || 'Tx')} | ${r.tipo === 'receita' ? '+' : '-'}R$${Number(r.valor || 0).toFixed(2)}`
+        ).join('\n');
+        const msgAn = `Arquivo **${escapeHTML(file.name)}** — ${rows.length} transações\nReceitas: ${fmtBRL(recTot)} | Despesas: ${fmtBRL(despTot)}${ledgerBal != null ? ' | Saldo banco: ' + fmtBRL(ledgerBal) : ''}\n\n${linhasA}\n\nAnalise e dê insights sobre meus gastos.`;
+        chipBtn.addEventListener('click', () => { chipDiv.remove(); window.enviarPergunta(msgAn); });
+        chipDiv.appendChild(chipBtn);
+        chatContainer.appendChild(chipDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
 
     } else {
-      // Extrato / fatura / planilha
-      if (!rows.length) {
-        addMsg('bot', '⚠️ Não encontrei transações neste arquivo. Verifique se é um extrato bancário ou planilha financeira válida.');
-        return;
-      }
-      const recTot  = rows.filter(r => r.tipo === 'receita').reduce((a, r) => a + (r.valor || 0), 0);
-      const despTot = rows.filter(r => r.tipo !== 'receita').reduce((a, r) => a + (r.valor || 0), 0);
-      const linhas  = rows.slice(0, 50).map(r =>
-        `- ${r.data || '—'} | ${escapeHTML(r.descricao || 'Transação')} | ${r.tipo === 'receita' ? '+' : '-'}R$${Number(r.valor || 0).toFixed(2)}`
-      ).join('\n');
-      mensagem =
-        `Arquivo **${escapeHTML(file.name)}** — ${rows.length} transação(ões)\n` +
-        `Receitas: R$${recTot.toFixed(2)} | Despesas: R$${despTot.toFixed(2)}` +
-        (ledgerBal != null ? ` | Saldo banco: R$${ledgerBal.toFixed(2)}` : '') +
-        `\n\n**Transações${rows.length > 50 ? ' (primeiras 50)' : ''}:**\n${linhas}\n\n` +
-        `Analise essas transações e me dê insights sobre meus gastos e padrões financeiros.`;
+      addMsg('bot', '⚠️ Não encontrei transações neste arquivo. Verifique se é um extrato bancário ou planilha financeira válida.');
     }
-
-    addMsg('user', `📎 ${escapeHTML(file.name)}`);
-    await enviarParaIA(mensagem);
 
   } catch (err) {
     tipingEl.remove();
