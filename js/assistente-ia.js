@@ -593,7 +593,10 @@ async function enviarParaIA(mensagem) {
 // ─── Finalizar resposta IA (detectar ações + salvar histórico) ──────────────────
 async function finalizarRespostaIA(fullText, bubbleEl, rowEl) {
   const acao        = detectarAcaoTransacao(fullText);
-  const displayText = fullText.replace(/\[ACTION:TRANSACTION\][\s\S]*?\[\/ACTION\]/g, '').trim();
+  const displayText = fullText
+    .replace(/\[ACTION:TRANSACTION\][\s\S]*?\[\/ACTION\]/g, '')   // bloco completo
+    .replace(/\[ACTION:TRANSACTION\]\s*\{[^{}]*\}\s*/g, '')        // bloco sem [/ACTION] (flat JSON)
+    .trim();
 
   // Atualiza bolha com texto limpo e formatado
   bubbleEl.innerHTML = displayText ? formatarMensagemIA(displayText) : '';
@@ -611,10 +614,19 @@ async function finalizarRespostaIA(fullText, bubbleEl, rowEl) {
 
 // ─── Detectar bloco de ação de transação na resposta da IA ──────────────────────
 function detectarAcaoTransacao(texto) {
-  const match = texto.match(/\[ACTION:TRANSACTION\]([\s\S]*?)\[\/ACTION\]/);
-  if (!match) return null;
+  // Tenta com tag de fechamento (formato correto)
+  let inner = null;
+  const m1 = texto.match(/\[ACTION:TRANSACTION\]([\s\S]*?)\[\/ACTION\]/);
+  if (m1) {
+    inner = m1[1].trim();
+  } else {
+    // Fallback: extrai JSON diretamente após o marcador (IA omitiu [/ACTION])
+    const m2 = texto.match(/\[ACTION:TRANSACTION\]\s*(\{[^{}]*\})/);
+    if (m2) inner = m2[1].trim();
+  }
+  if (!inner) return null;
   try {
-    const dados = JSON.parse(match[1].trim());
+    const dados = JSON.parse(inner);
     if (!dados.descricao || dados.valor == null) return null;
     return dados;
   } catch (_e) { return null; }
