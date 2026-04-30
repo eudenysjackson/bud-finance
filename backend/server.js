@@ -1443,6 +1443,7 @@ app.post('/api/chamado', async function (req, res) {
       nomeUsuario,
       criadoEm:      new Date().toISOString(),
       status:        'aberto',
+      notificadoUser: true,                            // criador já sabe que abriu
       plataforma:    (req.headers['user-agent'] || '').substring(0, 200),
     });
 
@@ -1527,11 +1528,54 @@ app.patch('/api/chamados/:id', async function (req, res) {
   }
 
   try {
-    await db.collection('chamados').doc(chamadoId).update({ status: novoStatus });
+    var update = { status: novoStatus };
+    // Quando resolvido, marcar como não-notificado para o usuário ver no IA
+    if (novoStatus === 'resolvido') update.notificadoUser = false;
+    // Ao reabrir, limpa a flag para não mostrar notificação velha
+    if (novoStatus === 'aberto') update.notificadoUser = true;
+    await db.collection('chamados').doc(chamadoId).update(update);
     return res.json({ success: true });
   } catch (err) {
     console.error('[PATCH /api/chamados]', err.message);
     return res.status(500).json({ error: 'Erro ao atualizar chamado.' });
+  }
+});
+
+// ─── GET /api/meus-chamados ───────────────────────────────────────────
+// Retorna chamados do usuário logado com notificadoUser === false (resolvidos não vistos).
+// Após retornar, marca todos como notificadoUser: true em batch.
+app.get('/api/meus-chamados', async function (req, res) {
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
+
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+
+  try {
+    var snap = await db.collection('chamados')
+      .where('uid', '==', decoded.uid)
+      .where('notificadoUser', '==', false)
+      .get();
+
+    if (snap.empty) return res.json([]);
+
+    var pendentes = snap.docs.map(function (d) {
+      return { id: d.id, status: d.data().status, descricao: (d.data().descricao || '').substring(0, 120) };
+    });
+
+    // Marcar como notificado em batch (fire-and-forget)
+    var batch = db.batch();
+    snap.docs.forEach(function (d) { batch.update(d.ref, { notificadoUser: true }); });
+    batch.commit().catch(function () {});
+
+    return res.json(pendentes);
+  } catch (err) {
+    console.error('[GET /api/meus-chamados]', err.message);
+    return res.status(500).json({ error: 'Erro ao consultar chamados.' });
   }
 });
 

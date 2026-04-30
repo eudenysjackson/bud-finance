@@ -139,19 +139,29 @@ window.carregarChamados = async function() {
       const card = document.createElement('div');
       card.className = 'chamado-card';
       card.id = 'chamado-' + c.id;
-      const tipo    = c.tipo || 'bug';
-      const status  = c.status || 'aberto';
-      const data    = c.criadoEm ? new Date(c.criadoEm).toLocaleString('pt-BR') : '—';
+      const tipo   = c.tipo || 'bug';
+      const status = c.status || 'aberto';
+      const data   = c.criadoEm ? new Date(c.criadoEm).toLocaleString('pt-BR') : '—';
       const statusLabels = { aberto: '🟡 Aberto', em_analise: '🔵 Em análise', resolvido: '✅ Resolvido' };
+      // Botões de ação dependem do status atual
+      let acoes = '';
+      if (status === 'aberto') {
+        acoes = `<button class="chamado-acao" onclick="window.alterarStatusChamado('${esc(c.id)}','em_analise')">→ Em análise</button>
+                 <button class="chamado-acao resolver" onclick="window.alterarStatusChamado('${esc(c.id)}','resolvido')">✓ Resolver</button>`;
+      } else if (status === 'em_analise') {
+        acoes = `<button class="chamado-acao resolver" onclick="window.alterarStatusChamado('${esc(c.id)}','resolvido')">✓ Resolver</button>
+                 <button class="chamado-acao reabrir" onclick="window.alterarStatusChamado('${esc(c.id)}','aberto')">↩ Reabrir</button>`;
+      } else {
+        acoes = `<button class="chamado-acao reabrir" onclick="window.alterarStatusChamado('${esc(c.id)}','aberto')">↩ Reabrir</button>`;
+      }
       card.innerHTML = `
         <div class="chamado-header">
           <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
             <span class="chamado-tipo ${esc(tipo)}">${tipo === 'bug' ? '🐛 Bug' : '💡 Sugestão'}</span>
+            <span class="chamado-status ${esc(status)}">${statusLabels[status] || status}</span>
             <span class="chamado-meta">${esc(c.nomeUsuario || 'Anônimo')} &bull; ${esc(c.emailUsuario || '')} &bull; ${esc(data)}</span>
           </div>
-          <button class="chamado-status ${esc(status)}" onclick="window.alterarStatusChamado('${esc(c.id)}', '${esc(status)}')" title="Clique para mudar o status">
-            ${statusLabels[status] || status}
-          </button>
+          <div style="display:flex;gap:0.375rem;">${acoes}</div>
         </div>
         <div class="chamado-desc">${esc(c.descricao || '—')}</div>
         <div class="chamado-meta">UID: ${esc(c.uid || '—')}</div>

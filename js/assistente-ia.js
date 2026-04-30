@@ -918,6 +918,23 @@ function verificarModoCoach() {
   }, 2000);
 }
 
+// Verifica chamados resolvidos não notificados e mostra mensagem no chat
+async function verificarChamadosResolvidos(user) {
+  if (!BACKEND_URL) return;
+  try {
+    const token = await user.getIdToken();
+    const resp  = await fetch(`${BACKEND_URL}/api/meus-chamados`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!resp.ok) return;
+    const pendentes = await resp.json();
+    if (!Array.isArray(pendentes) || !pendentes.length) return;
+    pendentes.forEach(c => {
+      const preview = c.descricao ? `"${escapeHTML(c.descricao.slice(0, 60))}${c.descricao.length > 60 ? '…' : ''}"` : 'seu chamado';
+      addMsg('bot', formatarMensagemIA(`✅ **Chamado resolvido!** Nossa equipe analisou e resolveu ${preview}. Obrigado pelo feedback! Se tiver mais dúvidas, é só perguntar. 😊`));
+    });
+  } catch (_e) { /* silencia — não crítico */ }
+}
 
 async function enviarChamado(tipo, descricao) {
   addTyping();
@@ -1414,6 +1431,7 @@ onAuthStateChanged(auth, async user => {
       conversaIA.forEach(m => addMsg(m.role === 'user' ? 'user' : 'bot', formatarMensagemIA(m.content)));
       ocultarSplash();
       verificarModoCoach();
+      verificarChamadosResolvidos(user);
     } else {
       // Primeira abertura: carregar contexto + alertas + boas vindas
       const ctx     = await buildContexto(user.uid);
@@ -1423,6 +1441,7 @@ onAuthStateChanged(auth, async user => {
       alertarAutomaticamente(alertas, nome);
       ocultarSplash();
       verificarModoCoach();
+      verificarChamadosResolvidos(user);
     }
 
     chatInput.focus();
