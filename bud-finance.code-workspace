@@ -4,5 +4,17 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"VsCodeTaskButtons.showCounter": false,
+		"VsCodeTaskButtons.tasks": [
+			{
+				"label": "🚀 Go Live",
+				"task": "🚀 Abrir Localhost",
+				"tooltip": "Abre http://localhost:3000 no navegador"
+			}
+		],
+		"liveServer.settings.port": 3000,
+		"liveServer.settings.NoBrowser": false,
+		"liveServer.settings.root": "/"
+	}
 }

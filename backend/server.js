@@ -54,7 +54,9 @@ const ALLOWED_ORIGINS_DEV = [
 ];
 const ALLOWED_ORIGINS_PROD = [
   'https://bud-finance.onrender.com',
-  // Origens locais de desenvolvimento (Live Server) — seguras pois 127.0.0.1 não é acessível externamente.
+  // Origens locais de desenvolvimento — seguras pois localhost/127.0.0.1 não é acessível externamente.
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
   'http://localhost:5500',
   'http://127.0.0.1:5500',
   'http://localhost:5501',
@@ -1212,16 +1214,36 @@ app.post('/api/chat', async function (req, res) {
   var hoje = new Date().toISOString().slice(0, 10);
 
   var systemPrompt = [
-    // ── REGRA ABSOLUTA — lida primeiro pelo modelo ───────────────────────────
+    // ── REGRAS ABSOLUTAS — lidas primeiro pelo modelo ───────────────────────────
     '⚡ REGRA ABSOLUTA #1 — REGISTRAR TRANSAÇÃO (prioridade máxima):',
     'Quando o usuário disser que GASTOU, PAGOU, COMPROU, RECEBEU, GANHOU, TRANSFERIU dinheiro → você DEVE:',
     '  a) Responder em 1-2 frases curtas confirmando o que entendeu.',
     '  b) Incluir IMEDIATAMENTE ao final da resposta o bloco JSON abaixo. SEM perguntar. SEM pedir permissão.',
-    '[ACTION:TRANSACTION]{"descricao":"descrição real do gasto","valor":0.00,"tipo":"despesa","categoria":"Outros","data":"' + hoje + '","conta":"banco ou cartão mencionado"}[/ACTION]',
+    '[ACTION:TRANSACTION]{"descricao":"descrição real do gasto","valor":0.00,"tipo":"despesa","categoria":"Outros","data":"' + hoje + '","conta":"nome exato da conta ou cartão do usuário, ou vazio se não mencionado"}[/ACTION]',
     'PROIBIDO: NÃO escreva "posso registrar?", NÃO pergunte "quer que eu registre?". Apenas confirme e inclua o bloco.',
     'Data de HOJE: ' + hoje + '. Use formato YYYY-MM-DD. NUNCA escreva "[data atual]" ou "[data de hoje]" — use a data real.',
     'tipo: "despesa" se gastou/pagou/comprou. "receita" se recebeu/ganhou.',
     'Categorias: Alimentação, Transporte, Saúde, Educação, Lazer, Moradia, Vestuário, Tecnologia, Serviços, Outros.',
+    '',
+    '⚡ REGRA ABSOLUTA #2 — CARTÃO DE CRÉDITO SEM CADASTRO:',
+    (Array.isArray(r.cartoes) && r.cartoes.length === 0) ? 'O usuário NÃO tem nenhum cartão de crédito cadastrado no app.' : '',
+    (Array.isArray(r.cartoes) && r.cartoes.length === 0) ? 'Se o usuário mencionar gasto no "cartão de crédito" → NÃO emitir [ACTION:TRANSACTION]. Responda informando que ele ainda não tem cartão cadastrado e oriente-o a ir em Cartões (menu lateral) > "Adicionar cartão" para cadastrar antes de registrar gastos. NÃO pergunte detalhes do cartão (limite, saldo, etc.).' : '',
+    '',
+    '⚡ REGRA ABSOLUTA #3 — CONTA BANCÁRIA SEM CADASTRO:',
+    (Array.isArray(r.carteira) && r.carteira.length === 0) ? 'O usuário NÃO tem nenhuma conta bancária cadastrada na Carteira.' : '',
+    (Array.isArray(r.carteira) && r.carteira.length === 0) ? 'Se o usuário mencionar gasto em conta bancária e não há contas → pode registrar a transação sem vincular conta (deixe "conta" vazio no JSON), mas avise que ele pode cadastrar uma conta em Carteira para controle completo.' : '',
+    '',
+    '⚡ REGRA ABSOLUTA #4 — METAS SEM CADASTRO:',
+    (r.metas === 0) ? 'O usuário NÃO tem nenhuma meta cadastrada no app.' : '',
+    (r.metas === 0) ? 'Se o usuário disser que "depositou em uma meta", "guardou para uma meta" ou perguntar sobre progresso de metas → NÃO emitir [ACTION:TRANSACTION]. Oriente-o a ir em Metas (menu lateral) > "Nova meta" para criar antes de registrar aportes.' : '',
+    '',
+    '⚡ REGRA ABSOLUTA #5 — DÍVIDAS SEM CADASTRO:',
+    (r.dividasAtivas === 0) ? 'O usuário NÃO tem nenhuma dívida registrada no app.' : '',
+    (r.dividasAtivas === 0) ? 'Se o usuário disser que "pagou parcela de dívida/financiamento/empréstimo" → registre normalmente como despesa via [ACTION:TRANSACTION], mas adicione um aviso de que a dívida não está cadastrada no app e que ele pode registrá-la em Dívidas (menu lateral) para controle completo das parcelas.' : '',
+    '',
+    '⚡ REGRA ABSOLUTA #6 — INVESTIMENTOS SEM CADASTRO:',
+    (r.investimentos === 0) ? 'O usuário NÃO tem nenhum investimento cadastrado no app.' : '',
+    (r.investimentos === 0) ? 'Se o usuário mencionar compra de ações, CDB, FII, cripto ou qualquer investimento → NÃO registre como despesa comum. Oriente-o a ir em Investimentos (menu lateral) para registrar o ativo corretamente com rentabilidade e acompanhamento. Se ele quiser apenas registrar a saída de dinheiro, esclareça a diferença.' : '',
     '',
     '=== IDENTIDADE ===',
     'Você é o Bud, assistente inteligente do app Bud Finance.',
@@ -1274,8 +1296,8 @@ app.post('/api/chat', async function (req, res) {
     'Resultado: ' + fmtVal((r.receitas||0) - (r.despesas||0)),
     'Saldo total contas: ' + fmtVal(r.saldoContas),
     'Contas: ' + (Array.isArray(r.contas) && r.contas.length ? r.contas.join(' | ') : 'nenhuma cadastrada'),
-    Array.isArray(r.carteira) && r.carteira.length ? 'Contas cadastradas: ' + r.carteira.map(function(c){return c.nome;}).join(', ') : '',
-    Array.isArray(r.cartoes) && r.cartoes.length  ? 'Cartões cadastrados: ' + r.cartoes.map(function(c){return c.nome;}).join(', ') : '',
+    'Contas bancárias cadastradas: ' + (Array.isArray(r.carteira) && r.carteira.length ? r.carteira.map(function(c){return c.nome;}).join(', ') : 'NENHUMA'),
+    'Cartões de crédito cadastrados: ' + (Array.isArray(r.cartoes) && r.cartoes.length ? r.cartoes.map(function(c){return c.nome;}).join(', ') : 'NENHUM'),
     'Top categorias de gasto: ' + (Array.isArray(r.topCats) && r.topCats.length ? r.topCats.join(' | ') : 'sem dados'),
     'Dívidas ativas: ' + (r.dividasAtivas || 0),
     'Metas ativas: ' + (r.metas || 0),
@@ -1514,6 +1536,13 @@ app.post('/api/alerta-financeiro', async function (req, res) {
     console.error('[/api/alerta-financeiro]', err.message);
     return res.json({ success: true, enviado: false }); // não falha o cliente
   }
+});
+
+// ─── GET /api/ping ─────────────────────────────────────────────────
+// Rota leve para acordar o servidor no Render free tier.
+// Chamada silenciosa no carregamento de qualquer página que use o backend.
+app.get('/api/ping', function (_req, res) {
+  res.json({ ok: true, ts: Date.now() });
 });
 
 // ─── Start server ───────────────────────────────────────────────────

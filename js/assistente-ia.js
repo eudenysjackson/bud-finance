@@ -524,12 +524,59 @@ async function enviarParaIA(mensagem) {
   } catch (err) {
     clearTimeout(timeoutId);
     botRow.remove();
-    if (conversaIA.length > 0 && conversaIA[conversaIA.length - 1].role === 'user') conversaIA.pop();
-    if (err.name === 'AbortError') {
-      addMsg('bot', '⏱ A resposta demorou demais. Tente novamente.');
-    } else {
-      addMsg('bot', '❌ Erro ao conectar ao assistente. Verifique sua conexão.');
+    // Recuperar texto da última mensagem do usuário antes de removê-la do histórico
+    const ultimaMsgUsuario = (conversaIA.length > 0 && conversaIA[conversaIA.length - 1].role === 'user')
+      ? conversaIA[conversaIA.length - 1].content : null;
+    if (ultimaMsgUsuario) conversaIA.pop();
+
+    const msgErro = err.name === 'AbortError'
+      ? '⏱ A resposta demorou demais.'
+      : '❌ Erro ao conectar ao assistente.';
+
+    // Exibir erro com botão de retry (evita empilhar mensagens de erro)
+    const errDiv = document.createElement('div');
+    errDiv.className = 'msg msg-bot';
+    errDiv.style.cssText = 'align-items:flex-start;';
+    const errBubble = document.createElement('div');
+    errBubble.className = 'msg-bubble';
+    errBubble.style.cssText = 'display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;';
+    errBubble.innerHTML = `<span>${escapeHTML(msgErro)}</span>`;
+    if (ultimaMsgUsuario) {
+      const btnRetry = document.createElement('button');
+      btnRetry.textContent = '↩ Tentar novamente';
+      btnRetry.style.cssText = 'font-size:0.75rem;padding:0.2rem 0.6rem;border-radius:0.5rem;background:var(--btn-bg);color:#fff;border:none;cursor:pointer;font-family:inherit;white-space:nowrap;';
+      btnRetry.addEventListener('click', () => {
+        errDiv.remove();
+        enviarParaIA(ultimaMsgUsuario);
+      });
+      errBubble.appendChild(btnRetry);
     }
+    const errAvatar = document.createElement('div');
+    errAvatar.className = 'msg-avatar';
+    errAvatar.textContent = '\uD83E\uDD16';
+    errDiv.appendChild(errAvatar);
+    errDiv.appendChild(errBubble);
+    chatContainer.appendChild(errDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    // Cooldown de 4s para evitar spam de retries
+    _enviando = true;
+    if (btnEnviar) btnEnviar.disabled = true;
+    let secs = 4;
+    const origPlaceholder = chatInput.placeholder;
+    chatInput.placeholder = `Aguarde ${secs}s...`;
+    const tick = setInterval(() => {
+      secs--;
+      if (secs > 0) {
+        chatInput.placeholder = `Aguarde ${secs}s...`;
+      } else {
+        clearInterval(tick);
+        _enviando = false;
+        if (btnEnviar) btnEnviar.disabled = false;
+        chatInput.placeholder = origPlaceholder;
+        chatInput.focus();
+      }
+    }, 1000);
   }
 }
 
@@ -1197,6 +1244,14 @@ setupVoz();
 setupArquivos();
 
 // ─── Auth guard + init ──────────────────────────────────────────────────────────────
+// ─── Acordar backend (Render free tier dorme após 15 min) ────────────────────
+// Ping silencioso assim que a página carrega — sem auth, sem bloqueio.
+// Objetivo: evitar cold start de 30-60s na primeira mensagem do usuário.
+(function pingBackend() {
+  if (!BACKEND_URL) return;
+  fetch(BACKEND_URL + '/api/ping', { method: 'GET', cache: 'no-store' }).catch(() => {});
+})();
+
 onAuthStateChanged(auth, async user => {
   if (!user) { window.location.href = 'index.html'; return; }
 
