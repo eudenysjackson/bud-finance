@@ -686,6 +686,12 @@
     @media (max-width: 400px) {
       .inv-widget-grid { grid-template-columns:1fr; }
     }
+    /* ── Quick Actions hover colorido ─────────────────────────── */
+    .quick-btn-receita:hover { background:rgba(22,163,74,0.07) !important; border-color:rgba(22,163,74,0.25) !important; }
+    .quick-btn-receita:hover .quick-btn-icon-green { background:#16a34a; color:#fff; }
+    .quick-btn-despesa:hover { background:rgba(220,38,38,0.07) !important; border-color:rgba(220,38,38,0.25) !important; }
+    .quick-btn-despesa:hover .quick-btn-icon-red { background:#dc2626; color:#fff; }
+    .quick-btn-icon { transition: background .2s, color .2s; }
   </style>
 </head>
 <body>
@@ -816,6 +822,7 @@
           </div>
           <div class="card-value" id="cardSaldo">R$ 0,00</div>
           <div class="card-sub" id="cardSaldoSub">—</div>
+          <div id="cardSaldoVariacao" style="display:none;margin-top:0.375rem;"></div>
         </div>
 
         <!-- Entradas do Mês -->
@@ -826,6 +833,7 @@
           </div>
           <div class="card-value" id="cardEntradas" style="color:#16a34a;">R$ 0,00</div>
           <div class="card-sub" id="cardEntradasSub">—</div>
+          <div id="cardEntradasVariacao" style="display:none;margin-top:0.375rem;"></div>
         </div>
 
         <!-- Saídas do Mês -->
@@ -836,26 +844,39 @@
           </div>
           <div class="card-value" id="cardSaidas" style="color:#dc2626;">R$ 0,00</div>
           <div class="card-sub" id="cardSaidasSub">—</div>
+          <div id="cardSaidasVariacao" style="display:none;margin-top:0.25rem;"></div>
           <div id="cardSaidasOrcamento" style="display:none;margin-top:0.375rem;"></div>
         </div>
       </div>
 
       <!-- Quick Actions -->
       <div class="quick-actions">
-        <button class="quick-btn" id="btnNovaReceita">
+        <button class="quick-btn quick-btn-receita" id="btnNovaReceita">
           <div class="quick-btn-icon quick-btn-icon-green">+</div>
           <div>
             <div class="quick-btn-label">Nova Receita</div>
             <div class="quick-btn-sub">Registrar entrada</div>
           </div>
         </button>
-        <button class="quick-btn" id="btnNovaDespesa">
+        <button class="quick-btn quick-btn-despesa" id="btnNovaDespesa">
           <div class="quick-btn-icon quick-btn-icon-red">−</div>
           <div>
             <div class="quick-btn-label">Nova Despesa</div>
             <div class="quick-btn-sub">Registrar saída</div>
           </div>
         </button>
+      </div>
+
+      <!-- Banner: Receitas Pendentes de Confirmação -->
+      <div id="bannerConfirmarReceitas" style="display:none;background:rgba(234,179,8,0.1);border:1.5px solid rgba(234,179,8,0.35);border-radius:1rem;padding:0.875rem 1rem;margin-bottom:1.25rem;">
+        <div style="display:flex;align-items:center;gap:0.625rem;">
+          <span style="font-size:1.25rem;flex-shrink:0;">&#x23F3;</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:0.8125rem;font-weight:700;color:#b45309;">Receitas aguardando confirmação</div>
+            <div id="bannerConfirmarReceitasTexto" style="font-size:0.75rem;color:#92400e;margin-top:0.125rem;"></div>
+          </div>
+          <button id="btnBannerConfirmarReceitas" style="flex-shrink:0;padding:0.375rem 0.75rem;border:none;border-radius:0.625rem;background:#d97706;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Ver</button>
+        </div>
       </div>
 
       <!-- Comparativo vs Mês Anterior -->
@@ -1017,7 +1038,7 @@
       </div>
 
       <!-- Dica do Dia -->
-      <div class="dash-section" id="secDicaDia" style="background:linear-gradient(135deg,rgba(59,130,246,0.06),rgba(139,92,246,0.06));border:1.5px solid rgba(59,130,246,0.15);">
+      <div class="dash-section" id="secDicaDia" style="background:linear-gradient(135deg,rgba(59,130,246,0.06),rgba(139,92,246,0.06));border-left:4px solid var(--theme-accent);border-top:1px solid rgba(59,130,246,0.12);border-right:1px solid rgba(59,130,246,0.12);border-bottom:1px solid rgba(59,130,246,0.12);">
         <div style="display:flex;align-items:flex-start;gap:0.75rem;">
           <span style="font-size:1.25rem;flex-shrink:0;margin-top:0.125rem;">💬</span>
           <div>

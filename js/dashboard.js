@@ -65,8 +65,10 @@ function formatarDataHoje() {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-function getMesAnoLabel() {
-  var d = new Date(anoVisualizado, mesVisualizado, 1);
+function getMesAnoLabel(ano, mes) {
+  var a = (ano !== undefined) ? ano : anoVisualizado;
+  var m = (mes !== undefined) ? mes : mesVisualizado;
+  var d = new Date(a, m, 1);
   var str = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
@@ -119,9 +121,9 @@ function renderizarDashboard() {
   var cardEntradas = document.getElementById('cardEntradas');
   var cardSaidas = document.getElementById('cardSaidas');
 
-  if (cardSaldo) cardSaldo.textContent = formatarValor(saldo);
-  if (cardEntradas) cardEntradas.textContent = formatarValor(entradas);
-  if (cardSaidas) cardSaidas.textContent = formatarValor(saidas);
+  if (cardSaldo) cardSaldo.textContent = valoresOcultos ? '•••' : formatarValor(saldo);
+  if (cardEntradas) cardEntradas.textContent = valoresOcultos ? '•••' : formatarValor(entradas);
+  if (cardSaidas) cardSaidas.textContent = valoresOcultos ? '•••' : formatarValor(saidas);
 
   // Sub labels
   var cardSaldoSub = document.getElementById('cardSaldoSub');
@@ -133,6 +135,61 @@ function renderizarDashboard() {
   var nDespesas = transacoesDoMes.filter(function (t) { return t.tipo === 'despesa'; }).length;
   if (cardEntradasSub) cardEntradasSub.textContent = nReceitas === 1 ? '1 transação' : nReceitas + ' transações';
   if (cardSaidasSub)   cardSaidasSub.textContent   = nDespesas === 1 ? '1 transação' : nDespesas + ' transações';
+
+  // Variação % em relação ao mês anterior (exibida nos sub dos cards)
+  (function () {
+    var mesPrev = mesAtual - 1;
+    var anoPrev = anoAtual;
+    if (mesPrev < 0) { mesPrev = 11; anoPrev--; }
+    var transPrev = transacoesGlobais.filter(function (t) {
+      if (!t.data) return false;
+      var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
+      return d.getMonth() === mesPrev && d.getFullYear() === anoPrev;
+    });
+    var entPrev = 0, despPrev = 0;
+    transPrev.forEach(function (t) {
+      if (t.tipo === 'receita' && t.confirmado !== false) entPrev += (t.valor || 0);
+      else if (t.tipo === 'despesa' && !(Boolean(t.cartaoId) && !t.pagamentoFatura)) despPrev += (t.valor || 0);
+    });
+    var saldoPrev = entPrev - despPrev;
+    function varBadgeCard(atual, anterior, elId, inverterCor) {
+      var el = document.getElementById(elId);
+      if (!el) return;
+      if (anterior === 0 || valoresOcultos) { el.style.display = 'none'; return; }
+      var v   = (atual - anterior) / Math.abs(anterior) * 100;
+      var pos = inverterCor ? v <= 0 : v >= 0;
+      var cor = pos ? '#16a34a' : '#dc2626';
+      var bg  = pos ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)';
+      var mesLabel = new Date(anoPrev, mesPrev, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.','');
+      el.style.display = '';
+      el.innerHTML = '<span style="display:inline-flex;align-items:center;gap:0.2rem;font-size:0.6875rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:9999px;background:' + bg + ';color:' + cor + ';">' + (v >= 0 ? '▲' : '▼') + ' ' + Math.abs(v).toFixed(1) + '% vs ' + mesLabel + '</span>';
+    }
+    varBadgeCard(entradas, entPrev, 'cardEntradasVariacao', false);
+    varBadgeCard(saidas,   despPrev, 'cardSaidasVariacao',   true);  // despesa menor = verde
+    varBadgeCard(saldo,    saldoPrev,'cardSaldoVariacao',    false);
+  })();
+
+  // Banner de receitas pendentes de confirmação
+  (function () {
+    var banner = document.getElementById('bannerConfirmarReceitas');
+    var texto  = document.getElementById('bannerConfirmarReceitasTexto');
+    var btnB   = document.getElementById('btnBannerConfirmarReceitas');
+    if (!banner) return;
+    var pendentes = transacoesDoMes.filter(function (t) {
+      return t.tipo === 'receita' && t.confirmado === false;
+    });
+    if (pendentes.length === 0) { banner.style.display = 'none'; return; }
+    banner.style.display = '';
+    var totalPend = pendentes.reduce(function (s, t) { return s + (t.valor || 0); }, 0);
+    if (texto) texto.textContent = pendentes.length + ' receita' + (pendentes.length > 1 ? 's' : '') + ' a confirmar' + (!valoresOcultos ? ' · ' + formatarValor(totalPend) : '');
+    if (btnB && !btnB._bannerBound) {
+      btnB._bannerBound = true;
+      btnB.addEventListener('click', function () {
+        var modal = document.getElementById('modalConfirmarPendentes');
+        if (modal && modal.classList) modal.classList.add('open');
+      });
+    }
+  })();
 
   // Color saldo (verde se positivo, vermelho se negativo)
   if (cardSaldo) {
@@ -343,9 +400,18 @@ function atualizarLimitesWidget(transacoesMes, saidasMes) {
   var sub   = document.getElementById('limitesWidgetSub');
   if (!sec || !lista) return;
 
-  // Sem limites configurados → ocultar
+  // Sem limites configurados → mostrar CTA para configurar
   if (limitesGlobaisDash.length === 0) {
-    sec.style.display = 'none';
+    sec.style.display = '';
+    if (sub) { sub.textContent = 'Nenhum limite definido'; sub.style.color = '#94a3b8'; }
+    lista.innerHTML = '';
+    var ctaDiv = document.createElement('div');
+    ctaDiv.style.cssText = 'background:var(--sidebar-link-hover-bg);border:1.5px dashed var(--card-border);border-radius:0.875rem;padding:1rem;text-align:center;';
+    ctaDiv.innerHTML = '<div style="font-size:1.5rem;margin-bottom:0.375rem;">🎯</div>'
+      + '<div style="font-size:0.875rem;font-weight:700;color:var(--card-text);margin-bottom:0.25rem;">Defina limites por categoria</div>'
+      + '<div style="font-size:0.75rem;color:#94a3b8;margin-bottom:0.75rem;">Controle quanto gasta em cada área e receba alertas automáticos</div>'
+      + '<a href="limites.html" style="display:inline-block;padding:0.5rem 1.25rem;border-radius:0.75rem;background:var(--theme-accent);color:#fff;font-size:0.8125rem;font-weight:700;text-decoration:none;">Definir limites</a>';
+    lista.appendChild(ctaDiv);
     return;
   }
 
@@ -577,7 +643,7 @@ function atualizarDividasAtraso() {
     info.style.cssText = 'display:flex;align-items:center;gap:0.625rem;min-width:0;flex:1;';
     info.innerHTML = '<span style="font-size:1.25rem;flex-shrink:0;">🔴</span>'
       + '<div style="min-width:0;">'
-      + '<div style="font-size:0.875rem;font-weight:700;color:#dc2626;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (d.nome || '—').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>'
+      + '<div style="font-size:0.875rem;font-weight:700;color:#dc2626;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (d.nome && d.nome.trim() ? d.nome : 'Dívida sem título').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>'
       + '<div style="font-size:0.75rem;font-weight:600;color:#9f1239;">' + item.atrasadas + ' parcela' + plural + ' em atraso · ' + valorParc + ' · ' + diasAtraso + 'd</div>'
       + '</div>';
 
@@ -722,15 +788,18 @@ function atualizarLembretes7Dias() {
     var icone = l.tipo === 'divida' ? '💸' : (l.tipoTrans === 'receita' ? '📥' : '📅');
     var nomeEsc = l.nome.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     var valorFmt = l.valor ? formatarValor(l.valor) : '';
+    // Pill de urgência: vermelho hoje, laranja amanhã, cinza resto
+    var pillBg  = l.diffDias === 0 ? '#dc2626' : l.diffDias === 1 ? '#d97706' : '#64748b';
+    var pillTxt = l.diffDias === 0 ? 'Hoje' : l.diffDias === 1 ? 'Amanhã' : 'Em ' + l.diffDias + 'd';
     el.innerHTML = '<div style="display:flex;align-items:center;gap:0.625rem;min-width:0;flex:1;">'
       + '<span style="font-size:1.125rem;flex-shrink:0;">' + icone + '</span>'
       + '<div style="min-width:0;">'
-      + '<div style="font-size:0.8125rem;font-weight:700;color:' + textCor + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + nomeEsc + '</div>'
+      + '<div style="font-size:0.8125rem;font-weight:700;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + nomeEsc + '</div>'
       + '<div style="font-size:0.6875rem;font-weight:600;color:#94a3b8;">' + (l.tipo === 'divida' ? 'Parcela de dívida' : (l.tipoTrans === 'receita' ? 'Receita recorrente' : 'Despesa recorrente')) + '</div>'
       + '</div></div>'
-      + '<div style="text-align:right;flex-shrink:0;">'
+      + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;flex-shrink:0;">'
       + (valorFmt ? '<div style="font-size:0.8125rem;font-weight:700;color:' + (l.tipoTrans === 'receita' ? '#16a34a' : '#dc2626') + ';">' + (valoresOcultos ? '•••' : (l.tipoTrans === 'receita' ? '+' : '-') + formatarValor(l.valor)) + '</div>' : '')
-      + '<div style="font-size:0.6875rem;font-weight:700;color:' + (urgente ? '#d97706' : '#94a3b8') + ';">' + dataFmt + '</div>'
+      + '<span style="font-size:0.6875rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:9999px;background:' + pillBg + ';color:#fff;">' + pillTxt + '</span>'
       + '</div>';
     lista.appendChild(el);
   });
