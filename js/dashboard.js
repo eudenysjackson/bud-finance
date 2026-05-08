@@ -241,6 +241,29 @@ function renderizarGraficos(transacoesDoMes) {
   empty.style.display = 'none';
   container.style.display = 'block';
 
+  // Plugin: texto central com total de despesas
+  var _centerTextPlugin = {
+    id: 'centerText',
+    afterDraw: function (chart) {
+      var total = chart.data.datasets[0].data.reduce(function (a, b) { return a + b; }, 0);
+      var ctx2  = chart.ctx;
+      var cx    = chart.chartArea.left + (chart.chartArea.right  - chart.chartArea.left) / 2;
+      var cy    = chart.chartArea.top  + (chart.chartArea.bottom - chart.chartArea.top)  / 2;
+      ctx2.save();
+      ctx2.textAlign = 'center';
+      ctx2.textBaseline = 'middle';
+      var labelColor = getComputedStyle(document.documentElement).getPropertyValue('--card-text').trim() || '#0f172a';
+      var subColor   = getComputedStyle(document.documentElement).getPropertyValue('--card-text-sec').trim() || '#64748b';
+      ctx2.font = '700 0.75rem Inter, sans-serif';
+      ctx2.fillStyle = subColor;
+      ctx2.fillText('DESPESAS', cx, cy - 14);
+      ctx2.font = '800 1rem Inter, sans-serif';
+      ctx2.fillStyle = '#dc2626';
+      ctx2.fillText(valoresOcultos ? '•••' : formatarValor(total), cx, cy + 8);
+      ctx2.restore();
+    }
+  };
+
   _chartInstance = new Chart(canvas, {
     type: 'doughnut',
     data: {
@@ -252,6 +275,7 @@ function renderizarGraficos(transacoesDoMes) {
         hoverOffset: 6
       }]
     },
+    plugins: [_centerTextPlugin],
     options: {
       cutout: '70%',
       responsive: true,
@@ -756,11 +780,11 @@ function atualizarComparativoMesAnterior() {
   var recAtual = 0, despAtual = 0, recAnterior = 0, despAnterior = 0;
   transAtual.forEach(function (t) {
     if (t.tipo === 'receita' && t.confirmado !== false) recAtual += (t.valor || 0);
-    else if (t.tipo === 'despesa' && !(Boolean(t.cartaoId) && !t.pagamentoFatura)) despAtual += (t.valor || 0);
+    else if (t.tipo === 'despesa' && t.pago !== false && !(Boolean(t.cartaoId) && !t.pagamentoFatura)) despAtual += (t.valor || 0);
   });
   transAnterior.forEach(function (t) {
     if (t.tipo === 'receita' && t.confirmado !== false) recAnterior += (t.valor || 0);
-    else if (t.tipo === 'despesa' && !(Boolean(t.cartaoId) && !t.pagamentoFatura)) despAnterior += (t.valor || 0);
+    else if (t.tipo === 'despesa' && t.pago !== false && !(Boolean(t.cartaoId) && !t.pagamentoFatura)) despAnterior += (t.valor || 0);
   });
 
   if (recAnterior === 0 && despAnterior === 0) { el.style.display = 'none'; return; }

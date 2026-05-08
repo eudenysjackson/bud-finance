@@ -930,17 +930,16 @@
 
       <!-- Atividades recentes -->
       <div class="dash-section">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
-          <div>
-            <div class="dash-section-title">Atividades Recentes</div>
-            <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.25rem;" id="atividadesContador">0</div>
-          </div>
-          <!-- Filtro rápido -->
-          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;">
-            <button class="filtro-atividades active" data-filtro="todos" style="padding:0.375rem 0.75rem;border:1px solid transparent;border-radius:0.5rem;background:var(--btn-bg);color:var(--btn-text);font-size:0.75rem;font-weight:600;cursor:pointer;transition:all .15s;">Todos</button>
-            <button class="filtro-atividades" data-filtro="receita" style="padding:0.375rem 0.75rem;border:1px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.75rem;font-weight:600;cursor:pointer;transition:all .15s;">↑ Receitas</button>
-            <button class="filtro-atividades" data-filtro="despesa" style="padding:0.375rem 0.75rem;border:1px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.75rem;font-weight:600;cursor:pointer;transition:all .15s;">↓ Despesas</button>
-          </div>
+        <!-- Linha 1: título + contador -->
+        <div style="display:flex;align-items:baseline;gap:0.5rem;margin-bottom:0.5rem;">
+          <div class="dash-section-title" style="white-space:nowrap;">Atividades Recentes</div>
+          <div style="font-size:0.75rem;color:#94a3b8;font-weight:600;" id="atividadesContador">0</div>
+        </div>
+        <!-- Linha 2: filtro rápido -->
+        <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:nowrap;">
+          <button class="filtro-atividades active" data-filtro="todos" style="padding:0.375rem 0.75rem;border:1px solid transparent;border-radius:0.5rem;background:var(--btn-bg);color:var(--btn-text);font-size:0.75rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;">Todos</button>
+          <button class="filtro-atividades" data-filtro="receita" style="padding:0.375rem 0.75rem;border:1px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.75rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;">↑ Receitas</button>
+          <button class="filtro-atividades" data-filtro="despesa" style="padding:0.375rem 0.75rem;border:1px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.75rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;">↓ Despesas</button>
         </div>
         <div class="dash-empty" id="atividadesLista">
           <div class="dash-empty-icon">📝</div>
