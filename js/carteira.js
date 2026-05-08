@@ -1208,8 +1208,8 @@ async function confirmarImport() {
           carteiraId: currentCarteiraId,
           carteiraNome: currentContaObj.nome,
           carteiraTipo: currentContaObj.tipo,
-          data: r.data,
           dataReferencia: r.data,
+          data: (function(s) { const [y,m,d] = s.split('-').map(Number); return Timestamp.fromDate(new Date(y, m-1, d, 12, 0, 0)); })(r.data),
           dataCriacao: serverTimestamp(),
           origem: 'importacao',                  // BUG #4: não soma ao saldo calculado
           pago: true,
