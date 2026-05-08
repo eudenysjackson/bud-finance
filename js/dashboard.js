@@ -28,10 +28,13 @@ let trialExpirado = false;
 let transacaoEditandoId = null; // null = criando, string = editando
 let filtroAtividadeAtual = 'todos'; // 'todos' | 'receita' | 'despesa'
 let _skipThemeSync = false; // evita escrita circular no Firestore ao aplicar tema vindo do Firestore
-var dividasGlobaisDash = [];  // dívidas do usuário para o widget do dashboard
-var limitesGlobaisDash = [];  // limites por categoria para o widget do dashboard
-var carteiraGlobal = [];      // contas da carteira para o widget do dashboard
-var recorrentesGlobaisDash = []; // recorrentes para o widget de lembretes
+var dividasGlobaisDash = [];        // dívidas do usuário para o widget do dashboard
+var limitesGlobaisDash = [];        // limites por categoria para o widget do dashboard
+var carteiraGlobal = [];            // contas da carteira para o widget do dashboard
+var recorrentesGlobaisDash = [];    // recorrentes para o widget de lembretes
+var metasGlobaisDash = [];          // metas para o widget Meta em Destaque
+var investimentosGlobaisDash = [];  // investimentos para o widget Investimentos
+var _unsubTransacoes = null;        // listener dedicado de transações (re-assinado ao trocar mês)
 // ─── Categorias ──────────────────────────────────────────────────────────
 // Padrão vem de window.BUD_CATEGORIAS_PADRAO (categorias-padrao.js)
 // Personalizadas são carregadas via onSnapshot em setupListeners()
@@ -153,6 +156,15 @@ function renderizarDashboard() {
 
   // Lembretes 7 dias
   atualizarLembretes7Dias();
+
+  // Comparativo mês anterior
+  atualizarComparativoMesAnterior();
+
+  // Meta em destaque
+  atualizarWidgetMetaProxima();
+
+  // Widget investimentos
+  atualizarWidgetInvestimentos();
 
   // Economia potencial
   atualizarEconomiaPotencial(transacoesDoMes);
@@ -718,6 +730,174 @@ function atualizarTudoEmDia() {
   var temAtraso = secAtraso && secAtraso.style.display !== 'none';
   var temLemb   = secLemb  && secLemb.style.display  !== 'none';
   secTudo.style.display = (!temAtraso && !temLemb) ? '' : 'none';
+}
+
+// ─── Comparativo vs Mês Anterior ─────────────────────────────────────────
+function atualizarComparativoMesAnterior() {
+  var el   = document.getElementById('secComparativo');
+  var body = document.getElementById('comparativoBody');
+  if (!el || !body) return;
+
+  var mesPrev = mesVisualizado - 1;
+  var anoPrev = anoVisualizado;
+  if (mesPrev < 0) { mesPrev = 11; anoPrev--; }
+
+  var transAtual = transacoesGlobais.filter(function (t) {
+    if (!t.data) return false;
+    var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
+    return d.getMonth() === mesVisualizado && d.getFullYear() === anoVisualizado;
+  });
+  var transAnterior = transacoesGlobais.filter(function (t) {
+    if (!t.data) return false;
+    var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
+    return d.getMonth() === mesPrev && d.getFullYear() === anoPrev;
+  });
+
+  var recAtual = 0, despAtual = 0, recAnterior = 0, despAnterior = 0;
+  transAtual.forEach(function (t) {
+    if (t.tipo === 'receita' && t.confirmado !== false) recAtual += (t.valor || 0);
+    else if (t.tipo === 'despesa' && !(Boolean(t.cartaoId) && !t.pagamentoFatura)) despAtual += (t.valor || 0);
+  });
+  transAnterior.forEach(function (t) {
+    if (t.tipo === 'receita' && t.confirmado !== false) recAnterior += (t.valor || 0);
+    else if (t.tipo === 'despesa' && !(Boolean(t.cartaoId) && !t.pagamentoFatura)) despAnterior += (t.valor || 0);
+  });
+
+  if (recAnterior === 0 && despAnterior === 0) { el.style.display = 'none'; return; }
+
+  el.style.display = '';
+
+  var mesAnteriorLabel = (function () {
+    var d = new Date(anoPrev, mesPrev, 1);
+    var s = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  })();
+
+  function varBadge(atual, anterior) {
+    if (anterior === 0) return '';
+    var v   = (atual - anterior) / anterior * 100;
+    var pos = v >= 0;
+    var cor = pos ? '#16a34a' : '#dc2626';
+    var bg  = pos ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)';
+    return '<span style="font-size:0.6875rem;font-weight:700;padding:0.1rem 0.375rem;border-radius:9999px;background:' + bg + ';color:' + cor + ';">' + (pos ? '▲' : '▼') + ' ' + Math.abs(v).toFixed(1) + '%</span>';
+  }
+
+  var saldoAtual    = recAtual - despAtual;
+  var saldoAnterior = recAnterior - despAnterior;
+
+  var items = [
+    { label: 'Receitas', atual: recAtual,    anterior: recAnterior,    corAtual: '#16a34a' },
+    { label: 'Despesas', atual: despAtual,   anterior: despAnterior,   corAtual: '#dc2626' },
+    { label: 'Saldo',    atual: saldoAtual,  anterior: saldoAnterior,  corAtual: saldoAtual >= 0 ? '#16a34a' : '#dc2626' }
+  ];
+
+  body.innerHTML = items.map(function (item) {
+    return '<div class="comp-item">' +
+      '<div style="font-size:0.6875rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.375rem;">' + item.label + '</div>' +
+      '<div style="font-size:0.9375rem;font-weight:800;color:' + item.corAtual + ';margin-bottom:0.2rem;">' + (valoresOcultos ? '•••' : formatarValor(item.atual)) + '</div>' +
+      '<div style="font-size:0.6875rem;color:#94a3b8;margin-bottom:0.25rem;">' + (valoresOcultos ? '•••' : formatarValor(item.anterior)) + ' ' + mesAnteriorLabel + '</div>' +
+      (valoresOcultos ? '' : varBadge(item.atual, item.anterior)) +
+      '</div>';
+  }).join('');
+}
+
+// ─── Widget Meta em Destaque ──────────────────────────────────────────────
+function atualizarWidgetMetaProxima() {
+  var el   = document.getElementById('secMetaProxima');
+  var body = document.getElementById('metaProximaBody');
+  if (!el || !body) return;
+
+  var metas = metasGlobaisDash.filter(function (m) {
+    var pct = m.valorAlvo > 0 ? (m.valorAtual || 0) / m.valorAlvo : 0;
+    return pct < 1;
+  });
+
+  if (metas.length === 0) { el.style.display = 'none'; return; }
+
+  metas.sort(function (a, b) {
+    var pa = a.valorAlvo > 0 ? (a.valorAtual || 0) / a.valorAlvo : 0;
+    var pb = b.valorAlvo > 0 ? (b.valorAtual || 0) / b.valorAlvo : 0;
+    return pb - pa;
+  });
+
+  var m   = metas[0];
+  var pct = m.valorAlvo > 0 ? Math.min(100, Math.round(((m.valorAtual || 0) / m.valorAlvo) * 100)) : 0;
+  var falta = Math.max(0, (m.valorAlvo || 0) - (m.valorAtual || 0));
+  var cor = pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#3b82f6';
+  var nomeEsc = (m.nome || 'Meta').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  el.style.display = '';
+  body.innerHTML =
+    '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.875rem;">' +
+      '<span style="font-size:1.75rem;flex-shrink:0;">' + (m.emoji || '🎯') + '</span>' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:0.9375rem;font-weight:700;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + nomeEsc + '</div>' +
+        '<div style="font-size:0.75rem;color:#94a3b8;margin-top:0.125rem;">' +
+          (valoresOcultos ? '••• de •••' : formatarValor(m.valorAtual || 0) + ' de ' + formatarValor(m.valorAlvo || 0)) +
+        '</div>' +
+      '</div>' +
+      '<div style="text-align:right;flex-shrink:0;">' +
+        '<div style="font-size:1.25rem;font-weight:800;color:' + cor + ';">' + pct + '%</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="height:8px;background:var(--card-border);border-radius:999px;overflow:hidden;margin-bottom:0.75rem;">' +
+      '<div style="height:100%;border-radius:999px;background:' + cor + ';width:' + pct + '%;transition:width .6s ease;"></div>' +
+    '</div>' +
+    (falta > 0 && !valoresOcultos
+      ? '<div style="font-size:0.8125rem;color:#94a3b8;text-align:center;">Faltam <span style="font-weight:700;color:var(--card-text);">' + formatarValor(falta) + '</span> para concluir</div>'
+      : '') +
+    (metas.length > 1
+      ? '<div style="font-size:0.75rem;color:#94a3b8;text-align:center;margin-top:0.375rem;">+ ' + (metas.length - 1) + ' outra' + (metas.length - 1 > 1 ? 's' : '') + ' meta' + (metas.length - 1 > 1 ? 's' : '') + ' em andamento</div>'
+      : '');
+}
+
+// ─── Widget Investimentos ─────────────────────────────────────────────────
+function atualizarWidgetInvestimentos() {
+  var el   = document.getElementById('secInvestimentosWidget');
+  var body = document.getElementById('investimentosWidgetBody');
+  if (!el || !body) return;
+
+  if (investimentosGlobaisDash.length === 0) { el.style.display = 'none'; return; }
+
+  var totalInvestido = investimentosGlobaisDash.reduce(function (s, i) { return s + (parseFloat(i.valorInvestido) || 0); }, 0);
+  var totalAtual     = investimentosGlobaisDash.reduce(function (s, i) { return s + (parseFloat(i.valorAtual) || parseFloat(i.valorInvestido) || 0); }, 0);
+  var rendimento  = totalAtual - totalInvestido;
+  var rendPct     = totalInvestido > 0 ? (rendimento / totalInvestido * 100) : 0;
+  var corRend     = rendimento >= 0 ? '#16a34a' : '#dc2626';
+
+  var porTipo = {};
+  investimentosGlobaisDash.forEach(function (i) {
+    var tipo = i.tipo || 'Outro';
+    porTipo[tipo] = (porTipo[tipo] || 0) + (parseFloat(i.valorAtual) || parseFloat(i.valorInvestido) || 0);
+  });
+  var tiposOrd = Object.keys(porTipo).sort(function (a, b) { return porTipo[b] - porTipo[a]; }).slice(0, 3);
+  var outrosTipos = Object.keys(porTipo).length - tiposOrd.length;
+
+  el.style.display = '';
+  body.innerHTML =
+    '<div class="inv-widget-grid">' +
+      '<div style="background:var(--sidebar-link-hover-bg);border-radius:0.875rem;padding:0.75rem;">' +
+        '<div style="font-size:0.6875rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem;">Total Atual</div>' +
+        '<div style="font-size:1rem;font-weight:800;color:var(--card-text);">' + (valoresOcultos ? '•••' : formatarValor(totalAtual)) + '</div>' +
+      '</div>' +
+      '<div style="background:var(--sidebar-link-hover-bg);border-radius:0.875rem;padding:0.75rem;">' +
+        '<div style="font-size:0.6875rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem;">Rendimento</div>' +
+        '<div style="font-size:1rem;font-weight:800;color:' + corRend + ';">' + (valoresOcultos ? '•••' : (rendimento >= 0 ? '+' : '') + formatarValor(rendimento)) + '</div>' +
+        (valoresOcultos ? '' : '<div style="font-size:0.6875rem;font-weight:600;color:' + corRend + ';">' + (rendimento >= 0 ? '+' : '') + rendPct.toFixed(1) + '%</div>') +
+      '</div>' +
+    '</div>' +
+    tiposOrd.map(function (tipo) {
+      var v   = porTipo[tipo];
+      var pct = totalAtual > 0 ? Math.round((v / totalAtual) * 100) : 0;
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0.75rem;background:var(--sidebar-link-hover-bg);border-radius:0.75rem;margin-bottom:0.375rem;">' +
+        '<div style="font-size:0.8125rem;font-weight:600;color:var(--card-text);">' + tipo.replace(/</g,'&lt;') + '</div>' +
+        '<div style="display:flex;align-items:center;gap:0.5rem;">' +
+          '<div style="font-size:0.8125rem;font-weight:700;color:var(--card-text);">' + (valoresOcultos ? '•••' : formatarValor(v)) + '</div>' +
+          '<div style="font-size:0.6875rem;color:#94a3b8;font-weight:600;">' + pct + '%</div>' +
+        '</div>' +
+        '</div>';
+    }).join('') +
+    (outrosTipos > 0 ? '<div style="text-align:center;font-size:0.75rem;color:#94a3b8;font-weight:600;margin-top:0.25rem;">+ ' + outrosTipos + ' tipo(s) de investimento</div>' : '');
 }
 
 // ─── Economia Potencial ───────────────────────────────────────────────────
@@ -1584,6 +1764,27 @@ function setupSidebar() {
 
 }
 
+// ─── Listener de Transações com filtro por data (re-assinado ao trocar mês) ──
+function setupTransacoesListener(uid) {
+  if (_unsubTransacoes) { _unsubTransacoes(); _unsubTransacoes = null; }
+  // Carrega mês anterior (para comparativo) + mês atual + mês seguinte
+  var inicio = new Date(anoVisualizado, mesVisualizado - 2, 1);
+  var fim    = new Date(anoVisualizado, mesVisualizado + 1, 0, 23, 59, 59);
+  var transRef = query(
+    collection(db, 'usuarios', uid, 'transacoes'),
+    where('data', '>=', Timestamp.fromDate(inicio)),
+    where('data', '<=', Timestamp.fromDate(fim)),
+    orderBy('data', 'desc'),
+    limit(600)
+  );
+  _unsubTransacoes = onSnapshot(transRef, function (snapshot) {
+    transacoesGlobais = snapshot.docs.map(function (d) {
+      return Object.assign({}, d.data(), { id: d.id });
+    });
+    renderizarDashboard();
+  }, function () {});
+}
+
 // ─── Setup listeners Firestore ──────────────────────────────────────────
 function setupListeners(uid) {
   // Categorias personalizadas — onSnapshot sem where+orderBy (evita índice composto)
@@ -1600,20 +1801,8 @@ function setupListeners(uid) {
     categoriasPersonalizadas.despesa  = d;
   }, function () {}));
 
-  // Transações — onSnapshot com orderBy (fix BUG 1 do cérebro)
-  var transRef = query(
-    collection(db, 'usuarios', uid, 'transacoes'),
-    orderBy('dataCriacao', 'desc'),
-    limit(1000)
-  );
-  _unsubs.push(onSnapshot(transRef, function (snapshot) {
-    transacoesGlobais = snapshot.docs.map(function (d) {
-      return Object.assign({}, d.data(), { id: d.id });
-    });
-    renderizarDashboard();
-  }, function (_err) {
-    // Listener error handled silently — user sees stale data
-  }));
+  // Transações — listener com filtro de data (setupTransacoesListener)
+  setupTransacoesListener(uid);
 
   // Dívidas — widget "Dívidas em Atraso"
   var dividasRef = query(collection(db, 'usuarios', uid, 'dividas'), limit(500));
@@ -1652,10 +1841,29 @@ function setupListeners(uid) {
     atualizarLembretes7Dias();
     atualizarTudoEmDia();
   }, function () {}));
+
+  // Metas — widget Meta em Destaque
+  var metasRef = query(collection(db, 'usuarios', uid, 'metas'), limit(500));
+  _unsubs.push(onSnapshot(metasRef, function (snapshot) {
+    metasGlobaisDash = snapshot.docs.map(function (d) {
+      return Object.assign({}, d.data(), { id: d.id });
+    });
+    atualizarWidgetMetaProxima();
+  }, function () {}));
+
+  // Investimentos — widget Investimentos
+  var investRef = query(collection(db, 'usuarios', uid, 'investimentos'), limit(500));
+  _unsubs.push(onSnapshot(investRef, function (snapshot) {
+    investimentosGlobaisDash = snapshot.docs.map(function (d) {
+      return Object.assign({}, d.data(), { id: d.id });
+    });
+    atualizarWidgetInvestimentos();
+  }, function () {}));
 }
 
 // ─── Cleanup listeners ─────────────────────────────────────────────────
 function cleanupListeners() {
+  if (_unsubTransacoes) { _unsubTransacoes(); _unsubTransacoes = null; }
   _unsubs.forEach(function (fn) { fn(); });
   _unsubs.length = 0;
 }
@@ -1968,14 +2176,16 @@ if (btnMesAnterior) {
   btnMesAnterior.addEventListener('click', function () {
     mesVisualizado--;
     if (mesVisualizado < 0) { mesVisualizado = 11; anoVisualizado--; }
-    renderizarDashboard();
+    if (usuarioAtualId) setupTransacoesListener(usuarioAtualId);
+    // renderizarDashboard é chamado pelo callback do listener após carregar os dados
   });
 }
 if (btnProximoMes) {
   btnProximoMes.addEventListener('click', function () {
     mesVisualizado++;
     if (mesVisualizado > 11) { mesVisualizado = 0; anoVisualizado++; }
-    renderizarDashboard();
+    if (usuarioAtualId) setupTransacoesListener(usuarioAtualId);
+    // renderizarDashboard é chamado pelo callback do listener após carregar os dados
   });
 }
 

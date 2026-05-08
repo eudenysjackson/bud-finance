@@ -673,6 +673,19 @@
     .modal-submit-despesa { background: linear-gradient(135deg, #dc2626, #b91c1c); }
     .modal-submit:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
     .modal-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    /* ── Comparativo grid ────────────────────────────────────── */
+    .comp-grid { display:flex; gap:0.75rem; }
+    .comp-item { flex:1; min-width:0; background:var(--sidebar-link-hover-bg); border-radius:0.875rem; padding:0.75rem; text-align:center; }
+    @media (max-width: 400px) {
+      .comp-grid { flex-direction:column; }
+      .comp-item { text-align:left; display:flex; align-items:center; justify-content:space-between; gap:0.75rem; }
+    }
+    /* ── Investimentos widget grid ────────────────────────────── */
+    .inv-widget-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:0.875rem; }
+    @media (max-width: 400px) {
+      .inv-widget-grid { grid-template-columns:1fr; }
+    }
   </style>
 </head>
 <body>
@@ -845,6 +858,18 @@
         </button>
       </div>
 
+      <!-- Comparativo vs Mês Anterior -->
+      <div class="dash-section" id="secComparativo" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+          <div>
+            <div class="dash-section-title">📈 Comparativo com Mês Anterior</div>
+            <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.125rem;">Receitas, despesas e saldo</div>
+          </div>
+          <a href="comparativo.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver detalhado →</a>
+        </div>
+        <div class="comp-grid" id="comparativoBody"></div>
+      </div>
+
       <!-- Mini Carteira Widget -->
       <div class="dash-section" id="secCarteiraWidget" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
@@ -935,6 +960,24 @@
         <div id="graficoContainer" style="display:none;position:relative;height:280px;">
           <canvas id="chartCategorias"></canvas>
         </div>
+      </div>
+
+      <!-- Meta em Destaque -->
+      <div class="dash-section" id="secMetaProxima" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.875rem;">
+          <div class="dash-section-title">🎯 Meta em Destaque</div>
+          <a href="metas.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver metas →</a>
+        </div>
+        <div id="metaProximaBody"></div>
+      </div>
+
+      <!-- Investimentos Widget -->
+      <div class="dash-section" id="secInvestimentosWidget" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.875rem;">
+          <div class="dash-section-title">📈 Investimentos</div>
+          <a href="investimentos.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver carteira →</a>
+        </div>
+        <div id="investimentosWidgetBody"></div>
       </div>
 
       <!-- Economia Potencial -->
