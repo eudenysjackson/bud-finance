@@ -9,7 +9,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
   getFirestore, collection, query, orderBy, limit, onSnapshot,
-  addDoc, updateDoc, deleteDoc, getDocs, getDoc, where, doc, writeBatch, serverTimestamp
+  addDoc, updateDoc, deleteDoc, getDocs, getDoc, where, doc, writeBatch, serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
@@ -892,11 +892,13 @@ async function handleSubmitGasto(e) {
 
     // ── Modo Edição ──────────────────────────────────────────────────────────
     if (gastoEditandoId) {
+      const [_ey, _em, _ed] = dataRef.split('-').map(Number);
       await updateDoc(doc(db, 'usuarios', uid, 'transacoes', gastoEditandoId), {
         descricao,
         valor,
         categoria,
         dataReferencia: dataRef,
+        data: Timestamp.fromDate(new Date(_ey, _em - 1, _ed, 12, 0, 0)),
       });
       showToast('Gasto atualizado!', 'ok');
       fecharModalGasto();
@@ -920,10 +922,12 @@ async function handleSubmitGasto(e) {
     };
 
     if (nParcelas === 1) {
+      const [_sy, _sm, _sd] = dataRef.split('-').map(Number);
       await addDoc(collection(db, 'usuarios', uid, 'transacoes'), {
         ...baseData,
         valor,
         dataReferencia: dataRef,
+        data: Timestamp.fromDate(new Date(_sy, _sm - 1, _sd, 12, 0, 0)),
       });
     } else {
       const valorParcela = parseFloat((valor / nParcelas).toFixed(2));
@@ -935,8 +939,8 @@ async function handleSubmitGasto(e) {
         const mesOffset = mesBase - 1 + i;
         const anoParc   = anoBase + Math.floor(mesOffset / 12);
         const mesParc   = (mesOffset % 12) + 1;
-        const diaParc   = String(diaBase).padStart(2, '0');
-        const dataParc  = `${anoParc}-${String(mesParc).padStart(2, '0')}-${diaParc}`;
+        const diaParc   = diaBase;
+        const dataParc  = `${anoParc}-${String(mesParc).padStart(2, '0')}-${String(diaParc).padStart(2, '0')}`;
 
         // Ajuste de centavos na primeira parcela
         const valorParc = i === 0 ? parseFloat((valor - valorParcela * (nParcelas - 1)).toFixed(2)) : valorParcela;
@@ -945,6 +949,7 @@ async function handleSubmitGasto(e) {
           ...baseData,
           valor: valorParc,
           dataReferencia: dataParc,
+          data: Timestamp.fromDate(new Date(anoParc, mesParc - 1, diaParc, 12, 0, 0)),
           parcelado: true,
           parcelaAtual: i + 1,
           totalParcelas: nParcelas,
@@ -1118,6 +1123,7 @@ async function confirmarPagarFatura() {
           categoria: 'Cartão de Crédito',
           valor: fatura,
           dataReferencia: dataRef,
+          data: Timestamp.fromDate(new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), 12, 0, 0)),
           carteiraId: contaParaPagarId,
           pagamentoFatura: true,
           origem: 'pagamento_fatura',
@@ -2027,6 +2033,7 @@ async function salvarTransacoesIA() {
       const batch = writeBatch(db);
 
       for (const item of chunk) {
+        const [_iy, _im, _id] = (item.dataReferencia || '2000-01-01').split('-').map(Number);
         const docData = {
           tipo: 'despesa',
           descricao: budSanitize(item.desc).substring(0, 100),
@@ -2034,6 +2041,7 @@ async function salvarTransacoesIA() {
           categoria: item.categoria.replace(/\p{Emoji}/gu, '').trim() || 'Outros',
           cartaoId: cartaoImportIA,
           dataReferencia: item.dataReferencia,
+          data: Timestamp.fromDate(new Date(_iy, _im - 1, _id, 12, 0, 0)),
           formaPagamento: 'Crédito',
           pagamentoFatura: false,
           origem: 'importacao_ia',

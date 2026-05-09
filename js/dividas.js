@@ -6,7 +6,7 @@ import { initializeApp }          from 'https://www.gstatic.com/firebasejs/10.8.
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
   getFirestore, collection, query, orderBy, limit,
-  onSnapshot, doc, getDoc, addDoc, updateDoc, deleteDoc, serverTimestamp,
+  onSnapshot, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // ─── Firebase init ───────────────────────────────────────────────
@@ -1076,12 +1076,41 @@ window.marcarParcelaPaga = async function(id, indice) {
   const novoValorPago = Math.min(d.valorTotal || 0, pmt * novasParcelasPagas);
 
   try {
-    await updateDoc(doc(db, 'usuarios', currentUser.uid, 'dividas', id), {
+    const batch = writeBatch(db);
+    const dividaRef = doc(db, 'usuarios', currentUser.uid, 'dividas', id);
+
+    // Criar transações para cada parcela recém-paga
+    const novosIds = Object.assign({}, d.transacoesParcelas || {});
+    const dataBase = d.vencimento ? new Date(d.vencimento + 'T12:00:00') : new Date();
+    for (let i = (d.parcelasPagas || 0); i < novasParcelasPagas; i++) {
+      if (novosIds[String(i)]) continue; // já tem txId (evitar duplicata)
+      const dataParcela = addMonthsSafe(dataBase, i);
+      const txRef = doc(collection(db, 'usuarios', currentUser.uid, 'transacoes'));
+      const dataStr = dataParcela.getFullYear() + '-' + String(dataParcela.getMonth() + 1).padStart(2, '0') + '-' + String(dataParcela.getDate()).padStart(2, '0');
+      batch.set(txRef, {
+        tipo: 'despesa',
+        descricao: 'Parcela ' + (i + 1) + '/' + (d.parcelas || 1) + ' — ' + (d.nome || 'Dívida'),
+        valor: parseFloat(pmt.toFixed(2)),
+        data: Timestamp.fromDate(dataParcela),
+        dataReferencia: dataStr,
+        categoria: d.categoria || 'Dívidas',
+        origem: 'divida_parcela',
+        dividaId: id,
+        parcelaIndice: i,
+        status: 'ativa',
+        dataCriacao: serverTimestamp(),
+      });
+      novosIds[String(i)] = txRef.id;
+    }
+
+    batch.update(dividaRef, {
       parcelasPagas: novasParcelasPagas,
       valorPago:     novoValorPago,
       jurosPagos:    jurosPagosCalc,
       atualizadoEm:  serverTimestamp(),
+      transacoesParcelas: novosIds,
     });
+    await batch.commit();
     // Bug #24: reabrir na aba parcelas
     setTimeout(() => window.abrirDetalhes(id, 'parcelas'), 300);
   } catch (err) {
@@ -1124,12 +1153,25 @@ window.desmarcarParcela = async function(id, indice) {
   const novoValorPago = Math.max(0, pmt * novasParcelasPagas);
 
   try {
-    await updateDoc(doc(db, 'usuarios', currentUser.uid, 'dividas', id), {
+    const batch = writeBatch(db);
+    const dividaRef = doc(db, 'usuarios', currentUser.uid, 'dividas', id);
+
+    // Deletar transação da parcela desmarcada (se existir)
+    const novosIds = Object.assign({}, d.transacoesParcelas || {});
+    const txId = novosIds[String(indice)];
+    if (txId) {
+      batch.delete(doc(db, 'usuarios', currentUser.uid, 'transacoes', txId));
+      delete novosIds[String(indice)];
+    }
+
+    batch.update(dividaRef, {
       parcelasPagas: novasParcelasPagas,
       valorPago:     novoValorPago,
       jurosPagos:    jurosPagosCalc,
       atualizadoEm:  serverTimestamp(),
+      transacoesParcelas: novosIds,
     });
+    await batch.commit();
     setTimeout(() => window.abrirDetalhes(id, 'parcelas'), 300);
   } catch (err) {
     (window.budError||console.error)('[Dividas] desmarcarParcela:', err);
@@ -1562,6 +1604,71 @@ function setupSidebar() {
 // ─────────────────────────────────────────────────────────────────
 //  AUTH & INICIALIZAÇÃO
 // ─────────────────────────────────────────────────────────────────
+// ─── Migração: criar transações para parcelas já pagas sem txId ──
+async function migrarTransacoesDividas(uid) {
+  const KEY = 'bud_migr_div_tx_v1_' + uid;
+  if (localStorage.getItem(KEY)) return;
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'usuarios', uid, 'dividas'),
+      orderBy('criadoEm', 'desc'), limit(500)
+    ));
+    const CHUNK = 400;
+    const opsPendentes = [];
+    for (const docSnap of snap.docs) {
+      const d  = { id: docSnap.id, ...docSnap.data() };
+      const np = d.parcelasPagas || 0;
+      if (np === 0) continue;
+      const taxaMensal = (d.juros || 0) / 100;
+      const n          = d.parcelas || 1;
+      const pmt        = d.valorParcela || calcPMT(d.valorTotal || 0, taxaMensal, n);
+      const ids        = Object.assign({}, d.transacoesParcelas || {});
+      const dataBase   = d.vencimento ? new Date(d.vencimento + 'T12:00:00') : null;
+      let criou = false;
+      for (let i = 0; i < np; i++) {
+        if (ids[String(i)]) continue; // já tem txId
+        if (!dataBase) continue;
+        const dataParcela = addMonthsSafe(dataBase, i);
+        const dataStr = dataParcela.getFullYear() + '-' +
+          String(dataParcela.getMonth() + 1).padStart(2, '0') + '-' +
+          String(dataParcela.getDate()).padStart(2, '0');
+        const txRef = doc(collection(db, 'usuarios', uid, 'transacoes'));
+        opsPendentes.push({ type: 'setTx', ref: txRef, data: {
+          tipo: 'despesa',
+          descricao: 'Parcela ' + (i + 1) + '/' + (d.parcelas || 1) + ' \u2014 ' + (d.nome || 'D\u00edvida'),
+          valor: parseFloat(pmt.toFixed(2)),
+          data: Timestamp.fromDate(dataParcela),
+          dataReferencia: dataStr,
+          categoria: d.categoria || 'D\u00edvidas',
+          origem: 'divida_parcela',
+          dividaId: d.id,
+          parcelaIndice: i,
+          status: 'ativa',
+          dataCriacao: serverTimestamp(),
+        }});
+        ids[String(i)] = txRef.id;
+        criou = true;
+      }
+      if (criou) {
+        opsPendentes.push({ type: 'updateDiv', ref: docSnap.ref, data: { transacoesParcelas: ids } });
+      }
+    }
+    // Processar em chunks de até 400 ops
+    for (let ci = 0; ci < opsPendentes.length; ci += CHUNK) {
+      const chunk = opsPendentes.slice(ci, ci + CHUNK);
+      const batch = writeBatch(db);
+      for (const op of chunk) {
+        if (op.type === 'setTx') batch.set(op.ref, op.data);
+        else batch.update(op.ref, op.data);
+      }
+      await batch.commit();
+    }
+    localStorage.setItem(KEY, '1');
+  } catch (err) {
+    (window.budError||console.error)('[Dividas] migrarTransacoesDividas:', err);
+  }
+}
+
 onAuthStateChanged(auth, async (user) => {
   // Bug #7: limpar unsubs em toda troca de estado de autenticação
   _unsubs.forEach(u => u && u());
@@ -1576,7 +1683,8 @@ onAuthStateChanged(auth, async (user) => {
 
   currentUser = user;
 
-  // Carregar dados do usuário
+  // Migração: criar transações para parcelas já pagas (roda 1x por conta)
+  migrarTransacoesDividas(user.uid);
   let userData = {};
   try {
     const snap = await getDoc(doc(db, 'usuarios', user.uid));
