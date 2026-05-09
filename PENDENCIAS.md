@@ -2,7 +2,7 @@
 
 **Projeto**: Bud Finance
 **Criado em**: 23/04/2026
-**Última atualização**: 27/04/2026 (Mercado IA concluído; Balanço Mensal criado — Fase 2 iniciada)
+**Última atualização**: 01/05/2026 (Teste real de uso — bugs de importação registrados)
 
 > Documento único de consulta antes de qualquer sprint. Consolida:
 > - Features descritas no `cérebro/` que ainda não foram implementadas no Bud
@@ -213,6 +213,36 @@ _Sem pendências ativas._
 
 ---
 
+## 💳 Cartões — Importação Fatura IA (Refinamento Pós-Uso Real)
+
+> Problemas identificados em teste real de uso em 01/05/2026.
+> PEND-054 e PEND-055 foram **parcialmente corrigidos** neste mesmo dia (commits de 01/05/2026).
+
+| ID | Descrição | Prioridade | Notas |
+|----|-----------|------------|-------|
+| ~~PEND-054~~ | ~~**Mês padrão errado na Fatura IA**~~ ✅ **RESOLVIDO 01/05/2026** — modal de importação IA agora pré-preenche com o **próximo mês** (mês de pagamento da fatura), não o mês visualizado. Correção em `js/cartoes.js` → `abrirModalImportIA()`. | ✅ Resolvido | Compras de abril devem cair em maio (fatura vence em maio). |
+| ~~PEND-055~~ | ~~**`dataReferencia` usava data literal da compra em vez do mês da fatura**~~ ✅ **RESOLVIDO 01/05/2026** — `salvarTransacoesIA` agora usa YYYY-MM do campo "Mês da Fatura" e preserva apenas o DIA do parser. Compras de 14/04 numa fatura de maio → `2026-05-14`. | ✅ Resolvido | Correção em `js/cartoes.js` → `salvarTransacoesIA()`. |
+| PEND-056 | **Parser de fatura multi-cartão (Bradesco)** — `parseBankStatementText` não detecta a separação por portador ("Cartão 6504 XXXX XXXX 9793" / "Cartão 6504 XXXX XXXX 7129") na mesma fatura PDF. Resultado: transações duplicadas ou omitidas. Solução: identificar blocos de portador e tagged cada transação com o sufixo do cartão. | 🔴 Alta | Bradesco e Itaú emitem faturas com múltiplos cartões adicionais. |
+| PEND-057 | **Prompt da IA (`extractWithAI`) não filtra IOF, juros e tarifas bancárias** — "CUSTO TRANS. EXTERIOR-IOF" é importado como compra. Solução: adicionar ao prompt instrução para ignorar linhas de IOF, encargos, tarifas e taxas. | 🟡 Média | Afeta faturas com compras internacionais ou parcelamentos com juros. |
+| PEND-058 | **Review IA não exibe mês/ano da fatura de forma destacada** — usuário não tem feedback visual claro de qual mês vai salvar. Sugestão: adicionar banner/pill colorido no topo do modal de review mostrando "💾 Salvando em: Maio 2026". | 🟢 Baixa | UX: evitar que usuário salve no mês errado sem perceber. |
+
+---
+
+## 🏦 Carteira — Importar Extrato OFX/PDF (Refinamento Pós-Uso Real)
+
+> Problemas identificados em teste real de uso em 01/05/2026.
+> PEND-059 foi **parcialmente corrigido** neste mesmo dia.
+
+| ID | Descrição | Prioridade | Notas |
+|----|-----------|------------|-------|
+| ~~PEND-059~~ | ~~**OFX importa movimentos internos inflando balanço**~~ ✅ **RESOLVIDO 01/05/2026** — adicionada função `detectarMovimentoInterno()` em `js/carteira.js`. Itens como "Aplicação RDB", "Resgate RDB", "Pagamento de fatura", "Resgate de empréstimo" são desmarcados automaticamente no review com badge azul explicativo. Usuário ainda pode marcar manualmente se quiser. | ✅ Resolvido | RDB, CDB, LCI, LCA, Tesouro, Poupança, Pgto Fatura CC, Parcela Emp. |
+| PEND-060 | **OFX — Transferências entre contas do próprio usuário não são filtradas** — ex: "Transferência recebida de Daniel Penha Silva + R$ 65,00" seguida de "Transferência enviada para Daniel de Abreu − R$ 65,00" no mesmo dia. São compensações internas que não representam gasto/receita. Proposta: detectar pares de entrada/saída com mesmo valor no mesmo dia e pré-desmarcar ambos com badge "Transfer. interna". | 🟡 Média | Requer heurística de pareamento — pode ter falsos positivos. |
+| PEND-061 | **OFX — "Resgate de empréstimo" Nubank aparece como receita** — `detectarTipo` tem a keyword mas a regex `emprestimo` sem acento não casa com "empréstimo" (com acento) vindo do MEMO do OFX. Revisar regex para normalizar NFD antes de testar. | 🔴 Alta | Fix simples: o `detectarTipo` já normaliza NFD, mas a keyword é "resgate de emprestimo" — confirmar se o MEMO real tem acento. |
+| PEND-062 | **OFX — Ausência de tela/fluxo para importar contrato de empréstimo** — ao importar extrato com "Resgate de empréstimo" (parcela consignada C6, por exemplo), não há fluxo para criar a dívida associada em `Dívidas`. O item é desmarcado do extrato, mas o usuário precisa ir em Dívidas → Adicionar manualmente. Proposta: exibir toast/sugestão ao detectar `Parcela Emp.` no review: "💡 Detectamos uma parcela de empréstimo. Deseja cadastrá-la em Dívidas?" | 🟡 Média | Melhoria de UX sobre PEND-035. |
+| PEND-063 | **Assistente IA (`assistente-ia.html`) — Reconhecimento inteligente de documentos anexados** — o Bud Finance não é manual, tem que ser dinâmico. Ao anexar qualquer documento (PDF, imagem), a IA deve: (1) identificar automaticamente o tipo (fatura cartão, extrato bancário, contrato de empréstimo/consignado, nota fiscal, cupom, boleto, contrato de investimento, etc.); (2) extrair os dados relevantes sem perguntar o que é; (3) redirecionar para o fluxo correto ou criar o lançamento direto — ex.: contrato de empréstimo consignado C6 (17x R$ 465,45) → detectar "empréstimo consignado", total de parcelas, valor, credor → criar dívida em `Dívidas` com parcelas automáticas via `[ACTION:DEBT]{...}[/ACTION]`; fatura de cartão → importar transações; extrato OFX/PDF → importar extrato; cupom fiscal → registrar despesa. A IA nunca deve pedir ao usuário para definir manualmente o que está sendo enviado. | 🔴 Alta | Solicitado 01/05/2026. Afeta `backend/server.js` (prompt `/api/chat` + novo endpoint ou lógica de visão multi-documento) e `js/assistente-ia.js` (parsear blocos `[ACTION:DEBT]`, `[ACTION:IMPORT_FATURA]`, `[ACTION:IMPORT_EXTRATO]`). Depende de PEND-049 (function calling já implementado para `ACTION:TRANSACTION`). |
+
+---
+
 ## �📜 Histórico de Atualizações
 
 - **23/04/2026** — Documento criado. Consolida itens 21-28 do `ROADMAP.md` (expansões de Configurações) + DT-001/002/003 da memória do repo. Origem: auditoria de paridade Cérebro→Bud em Cartões / Metas / Configurações.
@@ -228,6 +258,7 @@ _Sem pendências ativas._
 - **29/04/2026** — Sidebar consolidada: Extrato movido para sub-nav dentro de Carteira (renomeada para **Contas**); Limites movido para sub-nav dentro de Recorrentes; Investimentos movido para sub-nav dentro de Metas. Sub-nav Análises agrupou Gráficos, Balanço, Comparativo, Relatórios e Insights. PEND-017 resolvido: gráfico comparativo de faturas de cartão implementado em `graficos.html`/`js/graficos.js`.
 - **29/04/2026** — PEND-009 e PEND-011 resolvidos em Cartões: (1) PEND-009: badge de status da fatura com countdown de dias ("Fecha em Xd"/"Vence em Xd"/"Fecha hoje"/"Vence hoje"); (2) PEND-011: modal Pagar Fatura integrado com Carteira — carrega contas de débito, cria transação `pagamento_fatura`, decrementa saldo via writeBatch, e permite desfazer restaurando saldo + deletando transação.
 - **28/04/2026** — Tela Relatórios implementada (`relatorios.html` + `js/relatorios.js`). Fase 2 · Item 4. 15 bugs do cérebro/relatorios.md corrigidos preventivamente. Interface 3 abas (Resumo / Gráficos / Detalhamento). Feature gate `advancedDashboard`. Tendência 6 meses em single-pass (BUG 13). Sidebar atualizada em 14 páginas com link 📑 Relatórios. ROADMAP: Gráficos → CONCLUÍDO; Relatórios → CONCLUÍDO.
+- **01/05/2026** — Teste real de uso. Identificados 9 problemas nas telas Cartões (Fatura IA) e Carteira (Importar Extrato OFX). PEND-054 e PEND-055 (mês errado na fatura), PEND-059 (movimentos internos RDB/fatura no OFX) resolvidos no mesmo dia. PEND-056 a PEND-058 e PEND-060 a PEND-062 registradas para refinamento tela a tela. PEND-063 registrada: Assistente IA deve reconhecer e processar documentos de forma totalmente autônoma (empréstimo consignado, fatura, extrato, cupom) sem intervenção manual. Dashboard expandida: (1) filtro de mês agora usa dataReferencia/mesReferencia (transações Fatura IA e recorrentes agora visíveis); (2) CC despesas incluídas nas saídas; (3) toggle ativa corrigido nos lembretes; (4) widget Investimentos adicionado; (5) widget Metas adicionado; (6) labels "previsto" nos cards Entradas/Saídas mostrando recorrentes mensais ainda não processadas no mês.
 - **30/04/2026** — Corrigido ERR-032: splash do onboarding travava após Reset de conta. 5 fixes aplicados em `js/onboarding.js` e `js/configuracoes.js`. Pendências imediatas PEND-IMM-01 e PEND-IMM-02 abertas.
 - **27/04/2026** — Fase 1 concluída. Mercado IA implementado com Groq meta-llama/llama-4-scout. Balanço Mensal (`balanco-mensal.html` + `js/balanco-mensal.js`) criado — Fase 2 iniciada. Sidebars de 11 telas atualizadas com link "Balanço Mensal (Plus)". PEND-MER-11 reclassificada (verificar se backend ainda usa Gemini ou Groq). PEND-044/045/046 adicionadas (Cloud Function processarRecorrentes, Feature Flags, FCM Push).
 

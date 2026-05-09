@@ -1426,11 +1426,14 @@ function abrirModalImportIA(cartaoId, manterArquivo = false) {
     if (btnEnviar) { btnEnviar.textContent = 'Analisar com IA'; btnEnviar.disabled = true; }
   }
 
-  // Preencher mês/ano com o mês visualizado
+  // Preencher mês/ano com o PRÓXIMO mês (mês de pagamento da fatura)
+  // A fatura que você importa hoje vence no mês seguinte, não no atual
   const mesEl = document.getElementById('iaMes');
   const anoEl = document.getElementById('iaAno');
-  if (mesEl) mesEl.value = String(mesVisualizando + 1).padStart(2, '0');
-  if (anoEl) anoEl.value = String(anoVisualizando);
+  const proxMes = mesVisualizando === 11 ? 0 : mesVisualizando + 1;
+  const proxAno = mesVisualizando === 11 ? anoVisualizando + 1 : anoVisualizando;
+  if (mesEl) mesEl.value = String(proxMes + 1).padStart(2, '0');
+  if (anoEl) anoEl.value = String(proxAno);
 
   document.getElementById('modalImportIA').classList.add('open');
 }
@@ -1984,12 +1987,15 @@ async function salvarTransacoesIA() {
     const itensExpandidos = [];
     for (const item of itensSelecionados) {
       // Derivar dataReferencia base para este item
+      // SEMPRE usa o mês de faturamento (anoMes) como YYYY-MM.
+      // Apenas o DIA vem do dataRaw para preservar a ordem cronológica dentro da fatura.
+      // Isso garante que compras de abril numa fatura de maio apareçam em maio.
       let dataBase = `${anoMes}-15`;
       if (item.dataRaw) {
         const m  = item.dataRaw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
         const m2 = item.dataRaw.match(/^(\d{1,2})[\/\-](\d{1,2})/);
         const m3 = item.dataRaw.match(/^(\d{1,2})$/);
-        if (m)       dataBase = item.dataRaw;
+        if (m)       dataBase = `${anoMes}-${m[3]}`; // usa só o DIA, força YYYY-MM da fatura
         else if (m2) dataBase = `${anoMes}-${m2[1].padStart(2, '0')}`;
         else if (m3) dataBase = `${anoMes}-${m3[1].padStart(2, '0')}`;
       }

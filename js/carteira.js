@@ -853,12 +853,29 @@ function parseOFX(text) {
   return { rows, ledgerBal };
 }
 
+// ── Detectar Movimentos Internos ──────────────────────────
+// Retorna string com motivo se for investimento/transferência interna, null se for gasto real.
+// Esses itens são desmarcados automaticamente no review para evitar dupla contagem.
+function detectarMovimentoInterno(desc) {
+  if (!desc) return null;
+  const d = desc.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  // Investimentos: RDB, CDB, LCI, LCA, Tesouro, Poupança
+  if (/\brdb\b/.test(d)) return 'Investimento';
+  if (/\bcdb\b|\blci\b|\blca\b|tesouro direto|poupanca/.test(d)) return 'Investimento';
+  // Pagamento de fatura de cartão (já contabilizado pelas transações do cartão)
+  if (/pagamento de fatura/.test(d)) return 'Pgto Fatura CC';
+  // Parcela/resgate de empréstimo Nubank (registrar em Dívidas para controle completo)
+  if (/resgate de emprestimo/.test(d)) return 'Parcela Emp.';
+  return null;
+}
+
 // ── Mapear Transações ─────────────────────────────────────
 function mapearTransacoes(rows) {
   return rows.map((r, idx) => {
     // BUG #1 fix: detectarTipo nunca retorna 'Transferência' como tipo
     const tipo = detectarTipo(r.descricao, r.tipoOrigem);
     const categoria = r.categoria || detectarCategoria(r.descricao, tipo);
+    const _avisoIgnorar = detectarMovimentoInterno(r.descricao);
     return {
       _idx: idx,
       data: r.data,
@@ -867,8 +884,9 @@ function mapearTransacoes(rows) {
       tipo,
       categoria,
       fitId: r.fitId || null,
-      selecionado: true,
+      selecionado: !_avisoIgnorar, // desmarca automaticamente movimentos internos/investimentos
       duplicata: false,
+      _avisoIgnorar,               // string com motivo ou null
     };
   });
 }
@@ -1076,15 +1094,18 @@ function renderPreview() {
     const globalIdx = start + i;
     const tipoClass = r.tipo === 'receita' ? 'tipo-pill-receita' : 'tipo-pill-despesa';
     const tipoLabel = r.tipo === 'receita' ? '↑ Receita' : '↓ Despesa';
-    const trClass = r.duplicata ? 'style="opacity:0.5;"' : '';
+    const rowOpacity = (r.duplicata || r._avisoIgnorar) ? 'style="opacity:0.55;"' : '';
     const dupBadge = r.duplicata
       ? '<span title="Transação já existe no período — desmarcada automaticamente" style="font-size:0.6rem;background:#fef9c3;color:#854d0e;padding:0.1rem 0.3rem;border-radius:3px;font-weight:700;margin-left:4px;cursor:help;">DUP ⚠️</span>'
       : '';
+    const ignorarBadge = r._avisoIgnorar
+      ? `<span title="${r._avisoIgnorar === 'Pgto Fatura CC' ? 'Pagamento de fatura do cartão — já contabilizado nas transações do cartão' : r._avisoIgnorar === 'Parcela Emp.' ? 'Parcela de empréstimo — use a tela Dívidas para controle' : 'Investimento/aplicacao — não é gasto corrente'}" style="font-size:0.6rem;background:#dbeafe;color:#1e40af;padding:0.1rem 0.3rem;border-radius:3px;font-weight:700;margin-left:4px;cursor:help;">${r._avisoIgnorar}</span>`
+      : '';
 
-    return `<tr ${trClass}>
+    return `<tr ${rowOpacity}>
       <td><input type="checkbox" data-idx="${globalIdx}" ${r.selecionado ? 'checked' : ''} onchange="toggleRowSelect(${globalIdx}, this.checked)"></td>
       <td style="white-space:nowrap;font-size:0.75rem;">${r.data}</td>
-      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(r.descricao)}">${escapeHtml(r.descricao)}${dupBadge}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(r.descricao)}">${escapeHtml(r.descricao)}${dupBadge}${ignorarBadge}</td>
       <td><button class="tipo-pill ${tipoClass}" onclick="toggleRowTipo(${globalIdx})">${tipoLabel}</button></td>
       <td style="text-align:right;font-weight:700;white-space:nowrap;color:${r.tipo === 'receita' ? '#16a34a' : '#dc2626'};">${fmtBRL(r.valor)}</td>
       <td><button class="row-cat-btn" id="rowcatbtn-${globalIdx}" onclick="toggleRowCatDd(${globalIdx}, this)">${getCatDisplay(r.categoria)}</button></td>

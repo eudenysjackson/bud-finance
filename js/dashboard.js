@@ -32,6 +32,8 @@ var dividasGlobaisDash = [];  // dívidas do usuário para o widget do dashboard
 var limitesGlobaisDash = [];  // limites por categoria para o widget do dashboard
 var carteiraGlobal = [];      // contas da carteira para o widget do dashboard
 var recorrentesGlobaisDash = []; // recorrentes para o widget de lembretes
+var investimentosGlobalDash = []; // investimentos para widget dashboard
+var metasGlobalDash = [];         // metas para widget dashboard
 // ─── Categorias ──────────────────────────────────────────────────────────
 // Padrão vem de window.BUD_CATEGORIAS_PADRAO (categorias-padrao.js)
 // Personalizadas são carregadas via onSnapshot em setupListeners()
@@ -81,6 +83,23 @@ function atualizarVisibilidadeValores() {
   if (btn) btn.textContent = valoresOcultos ? '🙈' : '👁️';
 }
 
+// ─── Normaliza a data de uma transação para { ano, mes } ────────────────────
+// Prioriza dataReferencia (string "YYYY-MM-DD") para transações importadas/IA/recorrentes.
+// Fallback para mesReferencia ("YYYY-MM") e por último data (Firestore Timestamp).
+function getTxDate(t) {
+  if (t.dataReferencia && typeof t.dataReferencia === 'string') {
+    var parts = t.dataReferencia.split('-');
+    if (parts.length >= 2) return { ano: parseInt(parts[0], 10), mes: parseInt(parts[1], 10) - 1 };
+  }
+  if (t.mesReferencia && typeof t.mesReferencia === 'string') {
+    var mp = t.mesReferencia.split('-');
+    if (mp.length >= 2) return { ano: parseInt(mp[0], 10), mes: parseInt(mp[1], 10) - 1 };
+  }
+  if (!t.data) return null;
+  var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
+  return { ano: d.getFullYear(), mes: d.getMonth() };
+}
+
 // ─── Renderizar dashboard ───────────────────────────────────────────────
 function renderizarDashboard() {
   var mesAtual = mesVisualizado;
@@ -90,10 +109,13 @@ function renderizarDashboard() {
   var navLabel = document.getElementById('navMesAno');
   if (navLabel) navLabel.textContent = getMesAnoLabel();
 
+  // Normalizar data de uma transação para comparação de mês/ano.
+  // Usa função getTxDate definida no escopo do módulo.
+
   var transacoesDoMes = transacoesGlobais.filter(function (t) {
-    if (!t.data) return false;
-    var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
-    return d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
+    var dt = getTxDate(t);
+    if (!dt) return false;
+    return dt.mes === mesAtual && dt.ano === anoAtual;
   });
 
   var entradas = 0;
@@ -104,12 +126,40 @@ function renderizarDashboard() {
     if (t.tipo === 'receita' && t.confirmado !== false) {
       entradas += valor;
     } else if (t.tipo === 'despesa') {
-      var ehCC = Boolean(t.cartaoId) && !t.pagamentoFatura;
-      if (!ehCC) saidas += valor;
+      // Inclui compras no CC (cartaoId) mas exclui pagamentos de fatura (pagamentoFatura: true)
+      // para evitar dupla contagem: as compras já contam como saída no mês em que foram feitas
+      if (!t.pagamentoFatura) saidas += valor;
     }
   });
 
   var saldo = entradas - saidas;
+
+  // ── Previsto: recorrentes mensais ativas ainda não processadas este mês ──
+  // Só exibe quando visualizando o mês corrente
+  var hojeAgora = new Date();
+  var ehMesAtual = (mesAtual === hojeAgora.getMonth() && anoAtual === hojeAgora.getFullYear());
+  var mesRefStr = anoAtual + '-' + String(mesAtual + 1).padStart(2, '0');
+  var previstoEntradas = 0;
+  var previstoDespesas = 0;
+  if (ehMesAtual) {
+    recorrentesGlobaisDash.forEach(function(r) {
+      if (r.ativa === false) return;
+      // Só mensais têm lógica simples de 1 por mês; diária/semanal ignoradas no previsto
+      var periodo = r.periodicidade || 'mensal';
+      if (periodo !== 'mensal') return;
+      // Verificar se já foi processada este mês (existe transação com recorrenteId = r.id neste mês)
+      var jaProcessada = transacoesGlobais.some(function(t) {
+        if (!t.recorrenteId || t.recorrenteId !== r.id) return false;
+        if (t.mesReferencia === mesRefStr) return true;
+        var dt = getTxDate(t);
+        return dt && dt.mes === mesAtual && dt.ano === anoAtual;
+      });
+      if (jaProcessada) return;
+      var valor = Number(r.valor) || 0;
+      if (r.tipo === 'receita') previstoEntradas += valor;
+      else previstoDespesas += valor;
+    });
+  }
 
   // Update cards
   var cardSaldo = document.getElementById('cardSaldo');
@@ -131,6 +181,26 @@ function renderizarDashboard() {
   if (cardEntradasSub) cardEntradasSub.textContent = nReceitas === 1 ? '1 transação' : nReceitas + ' transações';
   if (cardSaidasSub)   cardSaidasSub.textContent   = nDespesas === 1 ? '1 transação' : nDespesas + ' transações';
 
+  // Labels de previsto (recorrentes não processadas)
+  var elPrevEnt = document.getElementById('cardPrevistoEntradas');
+  var elPrevDes = document.getElementById('cardPrevistoDespesas');
+  if (elPrevEnt) {
+    if (previstoEntradas > 0) {
+      elPrevEnt.textContent = '+ ' + (valoresOcultos ? '•••' : formatarValor(previstoEntradas)) + ' previsto';
+      elPrevEnt.style.display = '';
+    } else {
+      elPrevEnt.style.display = 'none';
+    }
+  }
+  if (elPrevDes) {
+    if (previstoDespesas > 0) {
+      elPrevDes.textContent = '+ ' + (valoresOcultos ? '•••' : formatarValor(previstoDespesas)) + ' previsto';
+      elPrevDes.style.display = '';
+    } else {
+      elPrevDes.style.display = 'none';
+    }
+  }
+
   // Color saldo (verde se positivo, vermelho se negativo)
   if (cardSaldo) {
     cardSaldo.style.color = saldo >= 0 ? '#16a34a' : '#dc2626';
@@ -150,6 +220,12 @@ function renderizarDashboard() {
 
   // Mini widget carteira
   atualizarWidgetCarteira();
+
+  // Widget investimentos
+  atualizarWidgetInvestimentos();
+
+  // Widget metas
+  atualizarWidgetMetas();
 
   // Lembretes 7 dias
   atualizarLembretes7Dias();
@@ -446,9 +522,9 @@ function verificarAlerteLimite(categoria, valorNovo) {
   var gastoAtual = transacoesGlobais
     .filter(function(t) {
       if (t.tipo !== 'despesa') return false;
-      if (!t.data) return false;
-      var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
-      return d.getMonth() === mesAtual && d.getFullYear() === anoAtual
+      var dt = getTxDate(t);
+      if (!dt) return false;
+      return dt.mes === mesAtual && dt.ano === anoAtual
         && normalizeCategoriaDash(t.categoria) === catNorm
         && !t.cartaoId;
     })
@@ -458,9 +534,9 @@ function verificarAlerteLimite(categoria, valorNovo) {
   var receitaMes = transacoesGlobais
     .filter(function(t) {
       if (t.tipo !== 'receita') return false;
-      if (!t.data) return false;
-      var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
-      return d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
+      var dt = getTxDate(t);
+      if (!dt) return false;
+      return dt.mes === mesAtual && dt.ano === anoAtual;
     })
     .reduce(function(s, t) { return s + (parseFloat(t.valor) || 0); }, 0);
 
@@ -607,6 +683,137 @@ function atualizarWidgetCarteira() {
   }
 }
 
+// ─── Widget Investimentos ────────────────────────────────────────────────
+function atualizarWidgetInvestimentos() {
+  var sec   = document.getElementById('secInvestimentosDash');
+  var body  = document.getElementById('investDashBody');
+  var total = document.getElementById('investDashTotal');
+  if (!sec || !body) return;
+
+  if (investimentosGlobalDash.length === 0) {
+    sec.style.display = 'none';
+    return;
+  }
+
+  sec.style.display = '';
+  var valorInvestido = investimentosGlobalDash.reduce(function(s, i) { return s + (Number(i.valor) || 0); }, 0);
+  var valorAtual     = investimentosGlobalDash.reduce(function(s, i) { return s + (Number(i.valorAtual) || 0); }, 0);
+  var rendimento     = valorAtual - valorInvestido;
+  var rendPct        = valorInvestido > 0 ? ((rendimento / valorInvestido) * 100) : 0;
+
+  if (total) total.textContent = valoresOcultos ? '•••' : formatarValor(valorAtual);
+
+  // Agrupar por tipo
+  var porTipo = {};
+  investimentosGlobalDash.forEach(function(i) {
+    porTipo[i.tipo || 'Outro'] = (porTipo[i.tipo || 'Outro'] || 0) + (Number(i.valorAtual) || 0);
+  });
+
+  body.innerHTML = '';
+
+  // Cards de resumo: patrimônio atual + rendimento
+  var resumo = document.createElement('div');
+  resumo.style.cssText = 'display:flex;gap:0.625rem;margin-bottom:0.625rem;';
+  var corRend = rendimento >= 0 ? '#16a34a' : '#dc2626';
+  var sinalRend = rendimento >= 0 ? '▲' : '▼';
+  resumo.innerHTML = '<div style="flex:1;padding:0.625rem 0.75rem;background:var(--sidebar-link-hover-bg);border-radius:0.75rem;">'
+    + '<div style="font-size:0.6875rem;color:#94a3b8;font-weight:600;margin-bottom:0.2rem;">INVESTIDO</div>'
+    + '<div style="font-size:0.9375rem;font-weight:700;color:var(--card-text);">' + (valoresOcultos ? '•••' : formatarValor(valorInvestido)) + '</div>'
+    + '</div>'
+    + '<div style="flex:1;padding:0.625rem 0.75rem;background:var(--sidebar-link-hover-bg);border-radius:0.75rem;">'
+    + '<div style="font-size:0.6875rem;color:#94a3b8;font-weight:600;margin-bottom:0.2rem;">RENDIMENTO</div>'
+    + '<div style="font-size:0.9375rem;font-weight:700;color:' + corRend + ';">'
+    + (valoresOcultos ? '•••' : sinalRend + ' ' + formatarValor(Math.abs(rendimento)))
+    + ' <span style="font-size:0.6875rem;">(' + (rendPct >= 0 ? '+' : '') + rendPct.toFixed(1) + '%)</span>'
+    + '</div></div>';
+  body.appendChild(resumo);
+
+  // Lista dos tipos com maior alocação (máx 3)
+  var tiposOrdenados = Object.keys(porTipo).sort(function(a, b) { return porTipo[b] - porTipo[a]; });
+  tiposOrdenados.slice(0, 3).forEach(function(tipo) {
+    var val = porTipo[tipo];
+    var pct = valorAtual > 0 ? Math.round((val / valorAtual) * 100) : 0;
+    var el = document.createElement('div');
+    el.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--card-border);';
+    var nomeEsc = tipo.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    el.innerHTML = '<span style="font-size:0.8125rem;color:var(--card-text);font-weight:500;">' + nomeEsc + '</span>'
+      + '<div style="display:flex;align-items:center;gap:0.5rem;">'
+      + '<div style="width:60px;height:5px;background:var(--card-border);border-radius:9999px;overflow:hidden;">'
+      + '<div style="height:100%;background:var(--theme-accent);width:' + pct + '%;border-radius:9999px;"></div></div>'
+      + '<span style="font-size:0.75rem;font-weight:700;color:var(--card-text);min-width:36px;text-align:right;">' + pct + '%</span>'
+      + '</div>';
+    body.appendChild(el);
+  });
+
+  if (tiposOrdenados.length > 3) {
+    var mais = document.createElement('div');
+    mais.style.cssText = 'text-align:center;font-size:0.75rem;font-weight:600;color:#94a3b8;padding-top:0.375rem;';
+    mais.textContent = '+ ' + (investimentosGlobalDash.length - 3) + ' investimento' + (investimentosGlobalDash.length - 3 > 1 ? 's' : '');
+    body.appendChild(mais);
+  }
+}
+
+// ─── Widget Metas ────────────────────────────────────────────────────────
+function atualizarWidgetMetas() {
+  var sec  = document.getElementById('secMetasDash');
+  var body = document.getElementById('metasDashBody');
+  var sub  = document.getElementById('metasDashSub');
+  if (!sec || !body) return;
+
+  var ativas = metasGlobalDash.filter(function(m) {
+    return (Number(m.valorAtual) || 0) < (Number(m.valorAlvo) || 0);
+  });
+
+  if (ativas.length === 0) {
+    sec.style.display = 'none';
+    return;
+  }
+
+  sec.style.display = '';
+  if (sub) sub.textContent = ativas.length + ' meta' + (ativas.length !== 1 ? 's' : '') + ' em andamento';
+
+  // Ordenar por % mais próximo de concluir (desc)
+  ativas.sort(function(a, b) {
+    var pctA = Number(a.valorAlvo) > 0 ? (Number(a.valorAtual) || 0) / Number(a.valorAlvo) : 0;
+    var pctB = Number(b.valorAlvo) > 0 ? (Number(b.valorAtual) || 0) / Number(b.valorAlvo) : 0;
+    return pctB - pctA;
+  });
+
+  body.innerHTML = '';
+  ativas.slice(0, 3).forEach(function(m) {
+    var alvo    = Number(m.valorAlvo)   || 0;
+    var atual   = Number(m.valorAtual)  || 0;
+    var pct     = alvo > 0 ? Math.min(Math.round((atual / alvo) * 100), 100) : 0;
+    var corBar  = pct >= 80 ? '#16a34a' : pct >= 50 ? '#f59e0b' : 'var(--theme-accent)';
+    var nomeEsc = (m.nome || 'Meta').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    var emoji   = m.emoji || '🎯';
+    var el = document.createElement('div');
+    el.style.cssText = 'margin-bottom:0.625rem;';
+    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem;">'
+      + '<div style="display:flex;align-items:center;gap:0.375rem;">'
+      + '<span>' + emoji + '</span>'
+      + '<span style="font-size:0.8125rem;font-weight:600;color:var(--card-text);">' + nomeEsc + '</span>'
+      + '</div>'
+      + '<span style="font-size:0.75rem;font-weight:700;color:' + corBar + ';">' + pct + '%</span>'
+      + '</div>'
+      + '<div style="width:100%;height:6px;background:var(--card-border);border-radius:9999px;overflow:hidden;">'
+      + '<div style="height:100%;background:' + corBar + ';width:' + pct + '%;border-radius:9999px;transition:width .4s ease;"></div>'
+      + '</div>'
+      + '<div style="display:flex;justify-content:space-between;margin-top:0.2rem;">'
+      + '<span style="font-size:0.6875rem;color:#94a3b8;">' + (valoresOcultos ? '•••' : formatarValor(atual)) + ' de ' + (valoresOcultos ? '•••' : formatarValor(alvo)) + '</span>'
+      + (m.prazo ? '<span style="font-size:0.6875rem;color:#94a3b8;">Prazo: ' + new Date(m.prazo + 'T00:00:00').toLocaleDateString('pt-BR', {month:'short',year:'numeric'}) + '</span>' : '')
+      + '</div>';
+    body.appendChild(el);
+  });
+
+  if (ativas.length > 3) {
+    var mais = document.createElement('div');
+    mais.style.cssText = 'text-align:center;font-size:0.75rem;font-weight:600;color:#94a3b8;padding-top:0.25rem;';
+    mais.textContent = '+ ' + (ativas.length - 3) + ' meta' + (ativas.length - 3 > 1 ? 's' : '');
+    body.appendChild(mais);
+  }
+}
+
 // ─── Lembretes 7 dias ─────────────────────────────────────────────────────
 function atualizarLembretes7Dias() {
   var sec   = document.getElementById('secLembretes7Dias');
@@ -620,7 +827,7 @@ function atualizarLembretes7Dias() {
 
   // Recorrentes com diaVencimento nos próximos 7 dias
   recorrentesGlobaisDash.forEach(function (r) {
-    if (r.ativo === false) return;
+    if (r.ativa === false) return;
     var dia = parseInt(r.diaVencimento, 10);
     if (!dia) return;
 
@@ -632,8 +839,9 @@ function atualizarLembretes7Dias() {
       var anoVenc = d.getFullYear();
       var jaLancado = transacoesGlobais.some(function (t) {
         if (!t.recorrenteId || t.recorrenteId !== r.id) return false;
-        var dt = t.data && t.data.toDate ? t.data.toDate() : new Date(t.data || 0);
-        return dt.getMonth() === mesVenc && dt.getFullYear() === anoVenc;
+        var txDate = getTxDate(t);
+        if (!txDate) return false;
+        return txDate.mes === mesVenc && txDate.ano === anoVenc;
       });
       if (!jaLancado) {
         lembretes.push({
@@ -984,9 +1192,18 @@ function renderizarAtividades(transacoesDoMes) {
 
     var dataRowEl = document.createElement('div');
     dataRowEl.style.cssText = 'font-size:0.6875rem;color:var(--card-text-sec);margin-top:0.125rem;';
-    if (t.data) {
-      var dtRow = t.data.toDate ? t.data.toDate() : new Date(t.data);
-      dataRowEl.textContent = String(dtRow.getDate()).padStart(2, '0') + '/' + String(dtRow.getMonth() + 1).padStart(2, '0');
+    var txDtDisp = getTxDate(t);
+    if (txDtDisp) {
+      // Usar dataReferencia para exibição se disponível (mais precisa para transações importadas)
+      if (t.dataReferencia && typeof t.dataReferencia === 'string') {
+        var drParts = t.dataReferencia.split('-');
+        if (drParts.length === 3) {
+          dataRowEl.textContent = drParts[2] + '/' + drParts[1];
+        }
+      } else if (t.data) {
+        var dtRow = t.data.toDate ? t.data.toDate() : new Date(t.data);
+        dataRowEl.textContent = String(dtRow.getDate()).padStart(2, '0') + '/' + String(dtRow.getMonth() + 1).padStart(2, '0');
+      }
     }
 
     right.appendChild(valorEl);
@@ -1308,6 +1525,8 @@ function abrirModalEditar(transacaoId) {
     var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
     var ds = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     selecionarData(ds);
+  } else if (t.dataReferencia && typeof t.dataReferencia === 'string') {
+    selecionarData(t.dataReferencia);
   }
 
   // Mostrar botão excluir no modo edição
@@ -1643,7 +1862,7 @@ function setupListeners(uid) {
     atualizarWidgetCarteira();
   }, function () {}));
 
-  // Recorrentes — widget lembretes 7 dias
+  // Recorrentes — widget lembretes 7 dias + previsto do mês
   var recorrentesRef = query(collection(db, 'usuarios', uid, 'recorrentes'), limit(500));
   _unsubs.push(onSnapshot(recorrentesRef, function (snapshot) {
     recorrentesGlobaisDash = snapshot.docs.map(function (d) {
@@ -1651,6 +1870,25 @@ function setupListeners(uid) {
     });
     atualizarLembretes7Dias();
     atualizarTudoEmDia();
+    renderizarDashboard(); // atualiza previsto do mês nos cards
+  }, function () {}));
+
+  // Investimentos — widget patrimônio
+  var investRef = query(collection(db, 'usuarios', uid, 'investimentos'), limit(500));
+  _unsubs.push(onSnapshot(investRef, function (snapshot) {
+    investimentosGlobalDash = snapshot.docs.map(function (d) {
+      return Object.assign({}, d.data(), { id: d.id });
+    });
+    atualizarWidgetInvestimentos();
+  }, function () {}));
+
+  // Metas — widget progresso
+  var metasRef = query(collection(db, 'usuarios', uid, 'metas'), limit(500));
+  _unsubs.push(onSnapshot(metasRef, function (snapshot) {
+    metasGlobalDash = snapshot.docs.map(function (d) {
+      return Object.assign({}, d.data(), { id: d.id });
+    });
+    atualizarWidgetMetas();
   }, function () {}));
 }
 
