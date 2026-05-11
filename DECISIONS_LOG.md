@@ -485,7 +485,27 @@
   3. **reCAPTCHA Enterprise** (App Check) bloqueia bots
   4. **Email/senha + verifica��o** controlada pelo Auth
 - **Consequ�ncias**: N�o h� a��o a tomar para ocultar a key. Foco de seguran�a permanece nas Rules + Authorized Domains + reCAPTCHA.
-- **Quando revisar**: Se o Google mudar o modelo (improv�vel); ou se o app migrar para outro backend.
+- **Quando revisar**: Se o Google mudar o modelo (improvável); ou se o app migrar para outro backend.
+---
+
+### DEC-040 — Botão "Pago ✓" no widget Próximos Vencimentos + auto-cron no login
+- **Data**: 09/05/2026
+- **O que foi decidido**:
+  1. Cada item do widget "Próximos Vencimentos" no dashboard agora tem um botão "Pago ✓".
+  2. Ao clicar, um overlay de confirmação exibe nome, valor e um select de conta debitada.
+  3. Confirmar cria uma transação em Firestore (`origem: 'recorrente'`, `recorrenteId` vinculado) — o item some do widget automaticamente via `onSnapshot`.
+  4. Para dívidas: além da transação, incrementa `parcelasPagas` no documento da dívida.
+  5. O endpoint `/api/processar-recorrentes` é chamado automaticamente no login do usuário (1x por dia por browser, controlado por chave `bud_cron_YYYY-MM-DD` no localStorage).
+- **Por quê**:
+  - Usuário não conseguia informar que já pagou sem ir à tela de Recorrentes.
+  - O botão "Processar Hoje" em Recorrentes era a única forma de acionar o cron, o que não era óbvio.
+  - A transação gerada pelo botão inclui `recorrenteId`, garantindo que o widget some e a lógica de deduplicação do backend funcione corretamente.
+- **Consequências**:
+  - O auto-cron no login garante que, em qualquer dia que o usuário abra o app, as recorrentes do dia são lançadas automaticamente (sem depender de cron externo ou ação manual).
+  - Se o usuário usar "Pago ✓" antes do cron rodar, a transação manual tem `recorrenteId` → o cron é idempotente e não duplica.
+  - Campos incluídos na transação: `tipo`, `descricao`, `valor`, `categoria`, `data` (Timestamp), `dataReferencia`, `mesReferencia`, `formaPagamento`, `origem:'recorrente'`, `recorrente:true`, `recorrenteId`, `contaId`, `contaNome`, `dataCriacao`.
+- **Quando revisar**: Se o endpoint `/api/processar-recorrentes` for substituído por um cron real (Render Cron Jobs, GCP Cloud Scheduler etc.).
+
 ---
 
 ### DEC-040 - window.BUD_CATEGORIAS_PADRAO como SSOT (fonte unica de verdade)

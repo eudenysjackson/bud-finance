@@ -185,15 +185,14 @@ function renderizarDashboard() {
     if (btnB && !btnB._bannerBound) {
       btnB._bannerBound = true;
       btnB.addEventListener('click', function () {
-        var modal = document.getElementById('modalConfirmarPendentes');
-        if (modal && modal.classList) modal.classList.add('open');
+        abrirModalConfirmarPendentes(pendentes);
       });
     }
   })();
 
-  // Color saldo (verde se positivo, vermelho se negativo)
+  // Color saldo (verde se positivo, vermelho se negativo — só quando valores visíveis)
   if (cardSaldo) {
-    cardSaldo.style.color = saldo >= 0 ? '#16a34a' : '#dc2626';
+    cardSaldo.style.color = valoresOcultos ? 'var(--card-text)' : (saldo >= 0 ? '#16a34a' : '#dc2626');
   }
 
   // Atividades recentes (últimas 5)
@@ -742,7 +741,10 @@ function atualizarLembretes7Dias() {
           tipo: 'recorrente', nome: r.nome || r.descricao || 'Recorrente',
           valor: r.valor, dataVenc: d,
           diffDias: Math.round((d - hoje) / 86400000),
-          tipoTrans: r.tipo || 'despesa'
+          tipoTrans: r.tipo || 'despesa',
+          recorrenteId: r.id,
+          categoria: r.categoria || 'Outros',
+          formaPagamento: r.formaPagamento || 'Débito'
         });
       }
     }
@@ -761,7 +763,10 @@ function atualizarLembretes7Dias() {
         tipo: 'divida', nome: d.nome || 'Dívida',
         valor: d.valorParcela, dataVenc: proxVenc,
         diffDias: Math.round((proxVenc - hoje) / 86400000),
-        tipoTrans: 'despesa'
+        tipoTrans: 'despesa',
+        dividaId: d.id,
+        categoria: 'Dívidas',
+        formaPagamento: 'Débito'
       });
     }
   });
@@ -799,8 +804,13 @@ function atualizarLembretes7Dias() {
       + '</div></div>'
       + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;flex-shrink:0;">'
       + (valorFmt ? '<div style="font-size:0.8125rem;font-weight:700;color:' + (l.tipoTrans === 'receita' ? '#16a34a' : '#dc2626') + ';">' + (valoresOcultos ? '•••' : (l.tipoTrans === 'receita' ? '+' : '-') + formatarValor(l.valor)) + '</div>' : '')
+      + '<div style="display:flex;align-items:center;gap:0.375rem;">'
       + '<span style="font-size:0.6875rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:9999px;background:' + pillBg + ';color:#fff;">' + pillTxt + '</span>'
+      + '<button class="pmg-btn" data-idx="' + (lista.children.length) + '" style="font-size:0.6875rem;font-weight:800;padding:0.15rem 0.5rem;border-radius:9999px;background:#16a34a;color:#fff;border:none;cursor:pointer;font-family:inherit;white-space:nowrap;">Pago ✓</button>'
+      + '</div>'
       + '</div>';
+    // Guardar referência do lembrete no elemento para o click
+    el._lembrete = l;
     lista.appendChild(el);
   });
 
@@ -811,7 +821,215 @@ function atualizarLembretes7Dias() {
     lista.appendChild(mais);
   }
 
+  // Delegar click nos botões Pago ✓
+  lista.addEventListener('click', function (e) {
+    var btn = e.target.closest('.pmg-btn');
+    if (!btn) return;
+    var item = btn.parentElement;
+    while (item && !item._lembrete) item = item.parentElement;
+    if (!item || !item._lembrete) return;
+    marcarLembretePago(item._lembrete);
+  });
+
   atualizarTudoEmDia();
+}
+
+// ─── Marcar lembrete como pago ────────────────────────────────────────────
+function marcarLembretePago(lembrete) {
+  var existente = document.getElementById('overlayMarcarPago');
+  if (existente) existente.remove();
+
+  var contas = carteiraGlobal.filter(function (c) { return c.tipo !== 'credito'; });
+
+  var overlay = document.createElement('div');
+  overlay.id = 'overlayMarcarPago';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);backdrop-filter:blur(4px);z-index:80;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+  var card = document.createElement('div');
+  card.style.cssText = 'background:var(--card-bg);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.5rem;max-width:360px;width:100%;box-shadow:0 20px 60px -10px rgba(0,0,0,0.25);';
+
+  var icone = lembrete.tipo === 'divida' ? '💸' : (lembrete.tipoTrans === 'receita' ? '📥' : '✅');
+  var nomeEsc = lembrete.nome.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  var valorNum = parseFloat(lembrete.valor) || 0;
+  var valorFmtOv = valoresOcultos ? '•••••' : formatarValor(valorNum);
+  var corValor = lembrete.tipoTrans === 'receita' ? '#16a34a' : '#dc2626';
+  var prefixo = lembrete.tipoTrans === 'receita' ? '+' : '-';
+  var subtituloTipo = lembrete.tipo === 'divida' ? 'Parcela de dívida' : (lembrete.tipoTrans === 'receita' ? 'Receita recorrente' : 'Despesa recorrente');
+
+  var optionsHtml = '<option value="">Nenhuma (sem conta vinculada)</option>';
+  contas.forEach(function (c) {
+    var nomeC = (c.nome || c.banco || 'Conta').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    optionsHtml += '<option value="' + c.id + '">' + nomeC + '</option>';
+  });
+
+  card.innerHTML = ''
+    + '<div style="font-size:1rem;font-weight:800;color:var(--card-text);margin-bottom:0.2rem;">' + icone + ' ' + nomeEsc + '</div>'
+    + '<div style="font-size:0.75rem;font-weight:600;color:#94a3b8;margin-bottom:0.625rem;">' + subtituloTipo + '</div>'
+    + '<div style="font-size:1.375rem;font-weight:800;color:' + corValor + ';margin-bottom:1.25rem;">' + prefixo + valorFmtOv + '</div>'
+    + '<div style="margin-bottom:1.125rem;">'
+    + '<div style="font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.375rem;">Conta debitada</div>'
+    + '<select id="pmgContaSel" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid var(--input-border);border-radius:0.75rem;background:var(--input-bg);font-size:0.875rem;font-weight:600;color:var(--card-text);font-family:inherit;">' + optionsHtml + '</select>'
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.625rem;">'
+    + '<button id="pmgBtnCancelar" style="padding:0.625rem;border:1.5px solid var(--input-border);border-radius:0.75rem;background:var(--input-bg);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--card-text-sec);">Cancelar</button>'
+    + '<button id="pmgBtnConfirmar" style="padding:0.625rem;border:none;border-radius:0.75rem;background:#16a34a;color:#fff;font-size:0.875rem;font-weight:800;cursor:pointer;font-family:inherit;">Confirmar ✓</button>'
+    + '</div>';
+
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  document.getElementById('pmgBtnCancelar').addEventListener('click', function () { overlay.remove(); });
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
+
+  document.getElementById('pmgBtnConfirmar').addEventListener('click', async function () {
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Salvando…';
+
+    var contaId   = document.getElementById('pmgContaSel').value || null;
+    var contaNome = null;
+    if (contaId) {
+      var contaObj = carteiraGlobal.find(function (c) { return c.id === contaId; });
+      if (contaObj) contaNome = contaObj.nome || contaObj.banco || null;
+    }
+
+    try {
+      var hoje2 = new Date();
+      hoje2.setHours(12, 0, 0, 0);
+      var mes2    = hoje2.getMonth() + 1;
+      var mesRef2 = hoje2.getFullYear() + '-' + String(mes2).padStart(2, '0');
+      var dataRef2 = mesRef2 + '-' + String(hoje2.getDate()).padStart(2, '0');
+
+      var nomeDesc = window.budSanitize ? window.budSanitize(lembrete.nome) : lembrete.nome;
+
+      var tx = {
+        tipo:           lembrete.tipoTrans || 'despesa',
+        descricao:      nomeDesc,
+        valor:          valorNum,
+        categoria:      lembrete.categoria || (lembrete.tipo === 'divida' ? 'Dívidas' : 'Outros'),
+        data:           Timestamp.fromDate(hoje2),
+        dataReferencia: dataRef2,
+        mesReferencia:  mesRef2,
+        formaPagamento: lembrete.formaPagamento || 'Débito',
+        origem:         'recorrente',
+        recorrente:     true,
+        dataCriacao:    serverTimestamp()
+      };
+      if (lembrete.recorrenteId) tx.recorrenteId = lembrete.recorrenteId;
+      if (lembrete.dividaId)     tx.dividaId     = lembrete.dividaId;
+      if (contaId)   tx.contaId   = contaId;
+      if (contaNome) tx.contaNome = contaNome;
+
+      await addDoc(collection(db, 'usuarios', usuarioAtualId, 'transacoes'), tx);
+
+      // Se dívida: incrementar parcelasPagas no documento da dívida
+      if (lembrete.dividaId) {
+        var divObj = dividasGlobaisDash.find(function (d) { return d.id === lembrete.dividaId; });
+        var pagas = (divObj ? (divObj.parcelasPagas || 0) : 0) + 1;
+        await updateDoc(doc(db, 'usuarios', usuarioAtualId, 'dividas', lembrete.dividaId), { parcelasPagas: pagas });
+      }
+
+      overlay.remove();
+      if (window.budShowToast) window.budShowToast('Pagamento registrado!', 'success');
+    } catch (_err) {
+      btn.disabled = false;
+      btn.textContent = 'Confirmar ✓';
+      if (window.budShowToast) window.budShowToast('Erro ao registrar. Tente novamente.', 'error');
+    }
+  });
+}
+
+// ─── Modal: Confirmar Receitas Pendentes ─────────────────────────────────
+function abrirModalConfirmarPendentes(pendentes) {
+  var modal   = document.getElementById('modalConfirmarPendentes');
+  var lista   = document.getElementById('confirmarPendentesLista');
+  var btnTodas = document.getElementById('btnConfirmarTodasReceitas');
+  if (!modal || !lista) return;
+
+  // Repopula a lista a cada abertura
+  lista.innerHTML = '';
+
+  function confirmarUma(txId, btnEl, itemEl) {
+    btnEl.disabled = true;
+    btnEl.textContent = 'Salvando…';
+    updateDoc(doc(db, 'usuarios', usuarioAtualId, 'transacoes', txId), { confirmado: true })
+      .then(function () {
+        itemEl.style.opacity = '0.4';
+        itemEl.style.pointerEvents = 'none';
+        btnEl.textContent = 'Confirmado ✓';
+        btnEl.style.background = '#15803d';
+      })
+      .catch(function () {
+        btnEl.disabled = false;
+        btnEl.textContent = 'Confirmar ✓';
+        if (window.budShowToast) window.budShowToast('Erro ao confirmar. Tente novamente.', 'error');
+      });
+  }
+
+  pendentes.forEach(function (t) {
+    var descEsc = (t.descricao || 'Receita').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    var dataStr = '';
+    if (t.data) {
+      var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
+      dataStr = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+    }
+    var valorFmt = valoresOcultos ? '•••' : formatarValor(t.valor || 0);
+    var item = document.createElement('div');
+    item.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.75rem;background:var(--sidebar-user-bg);border:1px solid var(--card-border);border-radius:0.875rem;';
+    item.innerHTML = ''
+      + '<div style="flex:1;min-width:0;">'
+      + '<div style="font-size:0.875rem;font-weight:700;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + descEsc + '</div>'
+      + '<div style="font-size:0.75rem;color:var(--card-text-sec);">' + dataStr + ' · <span style="color:#16a34a;font-weight:700;">' + valorFmt + '</span></div>'
+      + '</div>'
+      + '<button class="cpr-btn" style="flex-shrink:0;padding:0.375rem 0.75rem;border:none;border-radius:0.625rem;background:#16a34a;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Confirmar ✓</button>';
+    var btn = item.querySelector('.cpr-btn');
+    (function (txId, btnEl, itemEl) {
+      btnEl.addEventListener('click', function () { confirmarUma(txId, btnEl, itemEl); });
+    })(t.id, btn, item);
+    lista.appendChild(item);
+  });
+
+  // Fechar (bind único)
+  var btnFechar = document.getElementById('btnFecharConfirmarPendentes');
+  if (btnFechar && !btnFechar._cpBound) {
+    btnFechar._cpBound = true;
+    btnFechar.addEventListener('click', function () { modal.classList.remove('open'); });
+    modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.remove('open'); });
+  }
+
+  // Confirmar todas (bind único; handler lê o DOM vivo na hora do clique)
+  if (btnTodas && !btnTodas._cpBound) {
+    btnTodas._cpBound = true;
+    btnTodas.addEventListener('click', function () {
+      lista.querySelectorAll('.cpr-btn:not([disabled])').forEach(function (b) { b.click(); });
+      setTimeout(function () { modal.classList.remove('open'); }, 800);
+    });
+  }
+
+  modal.classList.add('open');
+}
+
+// ─── Auto-processar recorrentes (1x/dia, background silencioso) ───────────
+var _dashCurrentUser = null;
+async function _autoProcessarRecorrentesHoje() {
+  if (!_dashCurrentUser) return;
+  var chave = 'bud_cron_' + new Date().toISOString().slice(0, 10);
+  if (localStorage.getItem(chave)) return; // já rodou hoje neste browser
+  try {
+    var token = await _dashCurrentUser.getIdToken(false);
+    var backendUrl = window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com';
+    var resp = await fetch(backendUrl + '/api/processar-recorrentes', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+    });
+    if (resp.ok) {
+      localStorage.setItem(chave, '1');
+      // Limpar chaves antigas (> 3 dias)
+      Object.keys(localStorage)
+        .filter(function (k) { return k.startsWith('bud_cron_') && k < 'bud_cron_' + new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10); })
+        .forEach(function (k) { localStorage.removeItem(k); });
+    }
+  } catch (_e) { /* silencioso */ }
 }
 
 // ─── Tudo em dia ──────────────────────────────────────────────────────────
@@ -1042,6 +1260,14 @@ function atualizarSaudeFinanceira(transacoesDoMes, entradas, saidas) {
   var descEl  = document.getElementById('saudeDesc');
   var arcEl   = document.getElementById('saudeArc');
   if (!scoreEl) return;
+
+  // Sem transações no mês: ocultar seção (evita score 0 enganoso para usuário novo)
+  var sec = document.getElementById('secSaudeFinanceira');
+  if (transacoesDoMes.length === 0) {
+    if (sec) sec.style.display = 'none';
+    return;
+  }
+  if (sec) sec.style.display = '';
 
   var score = 0;
 
@@ -1744,8 +1970,8 @@ function renderizarHistorico() {
     return d.getMonth() === mesVisualizado && d.getFullYear() === anoVisualizado;
   });
   filtradas.sort(function (a, b) {
-    var da = a.dataCriacao && a.dataCriacao.toDate ? a.dataCriacao.toDate() : new Date(0);
-    var db2 = b.dataCriacao && b.dataCriacao.toDate ? b.dataCriacao.toDate() : new Date(0);
+    var da = a.data ? (a.data.toDate ? a.data.toDate() : new Date(a.data)) : new Date(0);
+    var db2 = b.data ? (b.data.toDate ? b.data.toDate() : new Date(b.data)) : new Date(0);
     return db2 - da;
   });
 
@@ -1970,6 +2196,7 @@ onAuthStateChanged(auth, async function (user) {
   }
 
   usuarioAtualId = user.uid;
+  _dashCurrentUser = user; // armazena para auto-processar recorrentes
 
   // ── Forçar refresh do token para evitar "Missing permissions" ────
   try {
@@ -2050,6 +2277,9 @@ onAuthStateChanged(auth, async function (user) {
     // ── Setup listeners de dados (limpar anteriores para evitar duplicatas) ──
     cleanupListeners();
     setupListeners(user.uid);
+
+    // Auto-processar recorrentes de hoje (silencioso, 1x por dia via localStorage)
+    _autoProcessarRecorrentesHoje();
 
   } catch (err) {
     // Erro de permissão → sessão pode estar inválida
@@ -2306,7 +2536,13 @@ document.querySelectorAll('.filtro-atividades').forEach(function (btn) {
     btn.style.borderColor = 'transparent';
     
     filtroAtividadeAtual = novoFiltro;
-    renderizarDashboard();
+    // Re-renderiza apenas a lista de atividades (evita blink no gráfico)
+    var transDoMes = transacoesGlobais.filter(function (t) {
+      if (!t.data) return false;
+      var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
+      return d.getMonth() === mesVisualizado && d.getFullYear() === anoVisualizado;
+    });
+    renderizarAtividades(transDoMes);
   });
 });
 

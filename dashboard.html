@@ -625,7 +625,7 @@
       border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.1);
     }
     .dp-dropdown {
-      display: none; position: absolute; bottom: calc(100% + 4px); left: 0;
+      display: none; position: absolute; top: calc(100% + 4px); left: 0;
       background: var(--bg-page); border: 1.5px solid var(--card-border); border-radius: 0.75rem;
       box-shadow: 0 8px 24px rgba(0,0,0,0.14); z-index: 200;
       padding: 0.75rem; min-width: 272px; box-sizing: border-box;
@@ -673,6 +673,11 @@
     .modal-submit-despesa { background: linear-gradient(135deg, #dc2626, #b91c1c); }
     .modal-submit:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
     .modal-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    /* ── Scrollbar modal histórico ──────────────────────────────── */
+    #historicoLista::-webkit-scrollbar { width: 5px; }
+    #historicoLista::-webkit-scrollbar-track { background: transparent; margin-top: 1rem; margin-bottom: 1rem; }
+    #historicoLista::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 999px; }
 
     /* ── Comparativo grid ────────────────────────────────────── */
     .comp-grid { display:flex; gap:0.75rem; }
@@ -750,7 +755,7 @@
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
         <a href="graficos.html" class="sidebar-link">
-          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
+          <span class="sidebar-link-icon">�</span><span class="sidebar-link-text"> Análises</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <a href="assistente-ia.html" class="sidebar-link">
@@ -1168,6 +1173,19 @@
         <button class="modal-close" id="btnFecharHistorico" aria-label="Fechar">✕</button>
       </div>
       <div id="historicoLista" style="overflow-y:auto;flex:1;padding:0 0.25rem;"></div>
+    </div>
+  </div>
+
+  <!-- ═══ Modal Confirmar Receitas Pendentes ═══════════════════════ -->
+  <div id="modalConfirmarPendentes" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal-card" style="max-height:85vh;display:flex;flex-direction:column;">
+      <div class="modal-title">
+        <span>⏳ Receitas a Confirmar</span>
+        <button class="modal-close" id="btnFecharConfirmarPendentes" aria-label="Fechar">✕</button>
+      </div>
+      <p style="font-size:0.8125rem;color:var(--text-sec);margin:0 0 1rem;">Confirme as receitas que já foram recebidas para que entrem no seu saldo.</p>
+      <div id="confirmarPendentesLista" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:0.75rem;padding:0 0.25rem;margin-bottom:1rem;"></div>
+      <button id="btnConfirmarTodasReceitas" style="width:100%;padding:0.75rem;border:none;border-radius:0.875rem;background:#16a34a;color:#fff;font-size:0.875rem;font-weight:800;cursor:pointer;font-family:inherit;">Confirmar todas ✓</button>
     </div>
   </div>
 
