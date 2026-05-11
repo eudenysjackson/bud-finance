@@ -1645,7 +1645,7 @@ function selecionarData(dateStr) {
 function fecharDatepicker() {
   var dd = document.getElementById('datepickerDropdown');
   var btn = document.getElementById('datepickerBtn');
-  if (dd) dd.classList.remove('open');
+  if (dd) dd.classList.remove('open', 'open-up');
   if (btn) { btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
 }
 
@@ -2369,11 +2369,6 @@ if (btnFecharModal) {
   btnFecharModal.addEventListener('click', fecharModal);
 }
 var modalOverlay = document.getElementById('modalLancamento');
-if (modalOverlay) {
-  modalOverlay.addEventListener('click', function (e) {
-    if (e.target === modalOverlay) fecharModal();
-  });
-}
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') {
     // Fechar na ordem: confirmação > histórico > modal lançamento
@@ -2382,6 +2377,19 @@ document.addEventListener('keydown', function (e) {
     var histModal = document.getElementById('modalHistorico');
     if (histModal && histModal.classList.contains('open')) { fecharHistorico(); return; }
     fecharModal();
+  }
+  if (e.key === 'Enter') {
+    // Submeter modal de lançamento ao pressionar Enter (exceto em textarea)
+    var modalLanc = document.getElementById('modalLancamento');
+    if (modalLanc && modalLanc.classList.contains('open') && e.target && e.target.tagName !== 'TEXTAREA') {
+      // Não submeter se estiver com dropdown aberto
+      var catDd = document.getElementById('categoriaDropdown');
+      var dpDd  = document.getElementById('datepickerDropdown');
+      if ((catDd && catDd.classList.contains('open')) || (dpDd && dpDd.classList.contains('open'))) return;
+      e.preventDefault();
+      var form = document.getElementById('formLancamento');
+      if (form) form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    }
   }
 });
 
@@ -2393,11 +2401,17 @@ if (categoriaBtn) {
     var dd = document.getElementById('categoriaDropdown');
     var isOpen = dd && dd.classList.contains('open');
     if (isOpen) {
-      dd.classList.remove('open');
+      dd.classList.remove('open', 'open-up');
       categoriaBtn.classList.remove('open');
       categoriaBtn.setAttribute('aria-expanded', 'false');
     } else {
-      if (dd) dd.classList.add('open');
+      if (dd) {
+        dd.classList.remove('open-up');
+        var rect = categoriaBtn.getBoundingClientRect();
+        var spaceBelow = window.innerHeight - rect.bottom;
+        if (spaceBelow < 220) dd.classList.add('open-up');
+        dd.classList.add('open');
+      }
       categoriaBtn.classList.add('open');
       categoriaBtn.setAttribute('aria-expanded', 'true');
     }
@@ -2410,7 +2424,7 @@ if (categoriaBtn) {
 document.addEventListener('click', function () {
   var dd = document.getElementById('categoriaDropdown');
   var btn = document.getElementById('categoriaBtn');
-  if (dd) dd.classList.remove('open');
+  if (dd) dd.classList.remove('open', 'open-up');
   if (btn) { btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
   fecharDatepicker();
 });
@@ -2437,7 +2451,13 @@ if (datepickerBtn) {
         dpViewMonth = now.getMonth();
       }
       renderCalendar();
-      if (dd) dd.classList.add('open');
+      if (dd) {
+        dd.classList.remove('open-up');
+        var rect = datepickerBtn.getBoundingClientRect();
+        var spaceBelow = window.innerHeight - rect.bottom;
+        if (spaceBelow < 320) dd.classList.add('open-up');
+        dd.classList.add('open');
+      }
       datepickerBtn.classList.add('open');
       datepickerBtn.setAttribute('aria-expanded', 'true');
     }

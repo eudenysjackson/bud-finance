@@ -1087,11 +1087,12 @@ window.marcarParcelaPaga = async function(id, indice) {
       const dataParcela = addMonthsSafe(dataBase, i);
       const txRef = doc(collection(db, 'usuarios', currentUser.uid, 'transacoes'));
       const dataStr = dataParcela.getFullYear() + '-' + String(dataParcela.getMonth() + 1).padStart(2, '0') + '-' + String(dataParcela.getDate()).padStart(2, '0');
+      const dataPagamento = new Date();
       batch.set(txRef, {
         tipo: 'despesa',
         descricao: 'Parcela ' + (i + 1) + '/' + (d.parcelas || 1) + ' — ' + (d.nome || 'Dívida'),
         valor: parseFloat(pmt.toFixed(2)),
-        data: Timestamp.fromDate(dataParcela),
+        data: Timestamp.fromDate(dataPagamento),
         dataReferencia: dataStr,
         categoria: d.categoria || 'Dívidas',
         origem: 'divida_parcela',
