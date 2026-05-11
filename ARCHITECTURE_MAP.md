@@ -37,6 +37,7 @@
 | **UserBadge** | Iniciais + nome + matrícula do usuário logado | `trocar-senha.html` |
 | **StateUnauthorized** | Tela de acesso não autorizado + link login | `trocar-senha.html` |
 | **DashSidebar** | Sidebar fixa (desktop) / hambúrguer (mobile) com nav + user info | `dashboard.html`, `configuracoes.html` |
+| **DashMesNav** | Navegação de mês (‹ / Maio de 2026 ▾ / ›). Picker (`#mesPicker`) é appended ao `document.body` com `position:fixed` e z-index:9999, posicionado via `getBoundingClientRect()`. Fecha ao scroll. | `dashboard.html` — IIFE `mesPicker` em `dashboard.js` |
 | **DashSummaryCards** | 3 cards glassmorphic: Saldo Total, Entradas, Saídas | `dashboard.html` |
 | **DashTrialBanner** | Banner condicional trial/free/expirado | `dashboard.html` |
 | **DashQuickActions** | Botões rápidos: Nova Receita, Nova Despesa | `dashboard.html` |
@@ -46,7 +47,7 @@
 | **SubNavMetasInvestimentos** | Sub-barra: Metas (ativo em metas.html) e Investimentos (ativo em investimentos.html). Sidebar aponta para Metas. | `metas.html`, `investimentos.html` |
 | **SubNavAnalises** | Sub-barra com 5 abas de análise: Gráficos, Balanço, Comparativo, Relatórios, Insights. Sidebar aponta para Gráficos. | `graficos.html`, `balanco-mensal.html`, `comparativo.html`, `relatorios.html`, `insights.html` |
 | **DashCarteiraWidget** | Mini-widget contas da carteira (saldo total + lista até 3, exclui crédito) | `dashboard.html` — `atualizarWidgetCarteira()` |
-| **DashLimitesWidget** | Widget limites por categoria com alertas visuais (já existia) | `dashboard.html` — `atualizarLimitesWidget()` |
+| **DashLimitesWidget** | Widget limites por categoria com alertas visuais. Mostra `⚠️ Gastos acima do orçamento` (laranja) quando `pctTotal > 100` mesmo sem categoria crítica individualmente. Mostra `✅ Orçamento sob controle` (verde) quando `pctTotal ≤ 100` e nenhuma categoria ≥ 80%. | `dashboard.html` — `atualizarLimitesWidget()` |
 | **DashDividasAtraso** | Widget dívidas vencidas com botão "Ver" (já existia) | `dashboard.html` — `atualizarDividasAtraso()` |
 | **DashLembretes7Dias** | Próximas contas a vencer em 7 dias (recorrentes + parcelas de dívidas) | `dashboard.html` — `atualizarLembretes7Dias()` |
 | **DashTudoEmDia** | Aparece quando não há dívidas em atraso nem lembretes pendentes | `dashboard.html` — `atualizarTudoEmDia()` |

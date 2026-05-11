@@ -475,15 +475,25 @@ function atualizarLimitesWidget(transacoesMes, saidasMes) {
 
   lista.innerHTML = '';
 
-  // Se nenhum crítico, mostrar card “Orçamento OK” compacto
+  // Se nenhum crítico, mostrar card de status geral
   if (criticos.length === 0) {
     var ok = document.createElement('div');
-    ok.style.cssText = 'background:rgba(240,253,244,0.8);border:1.5px solid rgba(134,239,172,0.4);border-radius:0.875rem;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.625rem;';
-    ok.innerHTML = '<span style="font-size:1.25rem;">\u2705</span>'
-      + '<div>'
-      + '<div style="font-size:0.875rem;font-weight:700;color:#16a34a;">Orçamento sob controle</div>'
-      + '<div style="font-size:0.75rem;font-weight:600;color:#15803d;">' + limitesGlobaisDash.length + ' limite' + (limitesGlobaisDash.length > 1 ? 's' : '') + ' definido' + (limitesGlobaisDash.length > 1 ? 's' : '') + ' · ' + pctTotal + '% utilizado</div>'
-      + '</div>';
+    var limNome = limitesGlobaisDash.length + ' limite' + (limitesGlobaisDash.length > 1 ? 's' : '') + ' definido' + (limitesGlobaisDash.length > 1 ? 's' : '');
+    if (pctTotal > 100) {
+      ok.style.cssText = 'background:rgba(255,251,235,0.8);border:1.5px solid rgba(253,211,77,0.4);border-radius:0.875rem;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.625rem;';
+      ok.innerHTML = '<span style="font-size:1.25rem;">\u26A0\uFE0F</span>'
+        + '<div>'
+        + '<div style="font-size:0.875rem;font-weight:700;color:#d97706;">Gastos acima do orçamento</div>'
+        + '<div style="font-size:0.75rem;font-weight:600;color:#92400e;">' + limNome + ' · ' + pctTotal + '% utilizado</div>'
+        + '</div>';
+    } else {
+      ok.style.cssText = 'background:rgba(240,253,244,0.8);border:1.5px solid rgba(134,239,172,0.4);border-radius:0.875rem;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.625rem;';
+      ok.innerHTML = '<span style="font-size:1.25rem;">\u2705</span>'
+        + '<div>'
+        + '<div style="font-size:0.875rem;font-weight:700;color:#16a34a;">Orçamento sob controle</div>'
+        + '<div style="font-size:0.75rem;font-weight:600;color:#15803d;">' + limNome + ' · ' + pctTotal + '% utilizado</div>'
+        + '</div>';
+    }
     lista.appendChild(ok);
     return;
   }
@@ -775,6 +785,7 @@ function atualizarLembretes7Dias() {
 
   if (lembretes.length === 0) {
     sec.style.display = 'none';
+    lista.innerHTML = '';
     atualizarTudoEmDia();
     return;
   }
@@ -880,6 +891,7 @@ function marcarLembretePago(lembrete) {
 
   document.getElementById('pmgBtnCancelar').addEventListener('click', function () { overlay.remove(); });
   overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
+  setTimeout(function () { var c = document.getElementById('pmgBtnCancelar'); if (c) c.focus(); }, 60);
 
   document.getElementById('pmgBtnConfirmar').addEventListener('click', async function () {
     var btn = this;
@@ -958,6 +970,7 @@ function abrirModalConfirmarPendentes(pendentes) {
         itemEl.style.pointerEvents = 'none';
         btnEl.textContent = 'Confirmado ✓';
         btnEl.style.background = '#15803d';
+        if (window.budShowToast) window.budShowToast('Receita confirmada! ✓', 'success');
       })
       .catch(function () {
         btnEl.disabled = false;
@@ -1001,12 +1014,18 @@ function abrirModalConfirmarPendentes(pendentes) {
   if (btnTodas && !btnTodas._cpBound) {
     btnTodas._cpBound = true;
     btnTodas.addEventListener('click', function () {
+      var qtd = lista.querySelectorAll('.cpr-btn:not([disabled])').length;
       lista.querySelectorAll('.cpr-btn:not([disabled])').forEach(function (b) { b.click(); });
+      if (qtd > 0 && window.budShowToast) window.budShowToast('Todas as receitas confirmadas!', 'success');
       setTimeout(function () { modal.classList.remove('open'); }, 800);
     });
   }
 
   modal.classList.add('open');
+  setTimeout(function () {
+    var bf = document.getElementById('btnFecharConfirmarPendentes');
+    if (bf) bf.focus();
+  }, 60);
 }
 
 // ─── Auto-processar recorrentes (1x/dia, background silencioso) ───────────
@@ -1112,7 +1131,7 @@ function atualizarComparativoMesAnterior() {
   }).join('');
 }
 
-// ─── Widget Meta em Destaque ──────────────────────────────────────────────
+// ─── Widget Metas em Andamento ────────────────────────────────────────────
 function atualizarWidgetMetaProxima() {
   var el   = document.getElementById('secMetaProxima');
   var body = document.getElementById('metaProximaBody');
@@ -1131,35 +1150,42 @@ function atualizarWidgetMetaProxima() {
     return pb - pa;
   });
 
-  var m   = metas[0];
-  var pct = m.valorAlvo > 0 ? Math.min(100, Math.round(((m.valorAtual || 0) / m.valorAlvo) * 100)) : 0;
-  var falta = Math.max(0, (m.valorAlvo || 0) - (m.valorAtual || 0));
-  var cor = pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#3b82f6';
-  var nomeEsc = (m.nome || 'Meta').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
   el.style.display = '';
-  body.innerHTML =
-    '<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.875rem;">' +
-      '<span style="font-size:1.75rem;flex-shrink:0;">' + (m.emoji || '🎯') + '</span>' +
-      '<div style="flex:1;min-width:0;">' +
-        '<div style="font-size:0.9375rem;font-weight:700;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + nomeEsc + '</div>' +
-        '<div style="font-size:0.75rem;color:#94a3b8;margin-top:0.125rem;">' +
-          (valoresOcultos ? '••• de •••' : formatarValor(m.valorAtual || 0) + ' de ' + formatarValor(m.valorAlvo || 0)) +
+
+  var VISIVEIS = Math.min(3, metas.length);
+  var itens = '';
+  for (var i = 0; i < VISIVEIS; i++) {
+    var m   = metas[i];
+    var pct = m.valorAlvo > 0 ? Math.min(100, Math.round(((m.valorAtual || 0) / m.valorAlvo) * 100)) : 0;
+    var cor = pct >= 80 ? '#16a34a' : pct >= 50 ? '#d97706' : '#3b82f6';
+    var nomeEsc = (m.nome || 'Meta').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    var falta = Math.max(0, (m.valorAlvo || 0) - (m.valorAtual || 0));
+    itens +=
+      '<div style="' + (i > 0 ? 'margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid var(--card-border);' : '') + '">' +
+        '<div style="display:flex;align-items:center;gap:0.625rem;margin-bottom:0.375rem;">' +
+          '<span style="font-size:1.25rem;flex-shrink:0;">' + (m.emoji || '🎯') + '</span>' +
+          '<div style="flex:1;min-width:0;">' +
+            '<div style="font-size:0.875rem;font-weight:700;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + nomeEsc + '</div>' +
+            '<div style="font-size:0.7rem;color:#94a3b8;">' + (valoresOcultos ? '•••' : formatarValor(m.valorAtual || 0)) + ' de ' + (valoresOcultos ? '•••' : formatarValor(m.valorAlvo || 0)) + '</div>' +
+          '</div>' +
+          '<div style="font-size:1rem;font-weight:800;color:' + cor + ';flex-shrink:0;">' + pct + '%</div>' +
         '</div>' +
-      '</div>' +
-      '<div style="text-align:right;flex-shrink:0;">' +
-        '<div style="font-size:1.25rem;font-weight:800;color:' + cor + ';">' + pct + '%</div>' +
-      '</div>' +
-    '</div>' +
-    '<div style="height:8px;background:var(--card-border);border-radius:999px;overflow:hidden;margin-bottom:0.75rem;">' +
-      '<div style="height:100%;border-radius:999px;background:' + cor + ';width:' + pct + '%;transition:width .6s ease;"></div>' +
-    '</div>' +
-    (falta > 0 && !valoresOcultos
-      ? '<div style="font-size:0.8125rem;color:#94a3b8;text-align:center;">Faltam <span style="font-weight:700;color:var(--card-text);">' + formatarValor(falta) + '</span> para concluir</div>'
-      : '') +
-    (metas.length > 1
-      ? '<div style="font-size:0.75rem;color:#94a3b8;text-align:center;margin-top:0.375rem;">+ ' + (metas.length - 1) + ' outra' + (metas.length - 1 > 1 ? 's' : '') + ' meta' + (metas.length - 1 > 1 ? 's' : '') + ' em andamento</div>'
-      : '');
+        '<div style="height:6px;background:var(--card-border);border-radius:999px;overflow:hidden;">' +
+          '<div style="height:100%;border-radius:999px;background:' + cor + ';width:' + pct + '%;transition:width .6s ease;"></div>' +
+        '</div>' +
+        (i === 0 && falta > 0 && !valoresOcultos
+          ? '<div style="font-size:0.75rem;color:#94a3b8;margin-top:0.25rem;">Faltam <span style="font-weight:700;color:var(--card-text);">' + formatarValor(falta) + '</span></div>'
+          : '') +
+      '</div>';
+  }
+
+  var rodape = '';
+  if (metas.length > VISIVEIS) {
+    var extras = metas.length - VISIVEIS;
+    rodape = '<div style="font-size:0.75rem;color:#94a3b8;text-align:center;margin-top:0.75rem;">+ ' + extras + ' outra' + (extras > 1 ? 's' : '') + ' meta' + (extras > 1 ? 's' : '') + ' em andamento</div>';
+  }
+
+  body.innerHTML = itens + rodape;
 }
 
 // ─── Widget Investimentos ─────────────────────────────────────────────────
@@ -2553,6 +2579,84 @@ setupSidebar();
 atualizarVisibilidadeValores();
 
 // ─── Sync tema com Firestore quando usuário troca pelo seletor ───────────
+// ─── Acessibilidade: Escape fecha qualquer modal/overlay aberto ────────────
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return;
+  var ovPago = document.getElementById('overlayMarcarPago');
+  if (ovPago) { ovPago.remove(); return; }
+  var aberto = document.querySelector('.modal-overlay.open');
+  if (aberto) { aberto.classList.remove('open'); return; }
+});
+
+// ─── Month Picker (clique no label de mês para saltar a qualquer mês) ───────
+(function () {
+  var label = document.getElementById('navMesAno');
+  var nav   = label && label.parentElement;
+  if (!label || !nav) return;
+  nav.style.position = 'relative';
+  label.setAttribute('role', 'button');
+  label.setAttribute('tabindex', '0');
+  label.setAttribute('aria-haspopup', 'true');
+  label.setAttribute('aria-label', 'Selecionar mês e ano');
+
+  var picker = document.createElement('div');
+  picker.id = 'mesPicker';
+  picker.setAttribute('role', 'dialog');
+  picker.setAttribute('aria-label', 'Seletor de mês');
+  picker.style.cssText = 'display:none;position:fixed;background:var(--bg-page);border:1.5px solid var(--card-border);border-radius:1rem;box-shadow:0 8px 24px rgba(0,0,0,0.16);padding:0.875rem;z-index:9999;min-width:220px;';
+  document.body.appendChild(picker);
+
+  var MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var pickerAno = new Date().getFullYear();
+
+  function renderPicker() {
+    picker.innerHTML = ''
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.625rem;">'
+      + '<button id="mpBtnAnoPrev" style="width:1.75rem;height:1.75rem;border:none;border-radius:0.5rem;background:var(--sidebar-user-bg);cursor:pointer;font-size:1rem;color:var(--card-text);font-family:inherit;">‹</button>'
+      + '<span style="font-weight:700;font-size:0.9375rem;color:var(--card-text);">' + pickerAno + '</span>'
+      + '<button id="mpBtnAnoNext" style="width:1.75rem;height:1.75rem;border:none;border-radius:0.5rem;background:var(--sidebar-user-bg);cursor:pointer;font-size:1rem;color:var(--card-text);font-family:inherit;">›</button>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.375rem;">'
+      + MESES.map(function (m, i) {
+          var ativo = i === mesVisualizado && pickerAno === anoVisualizado;
+          return '<button class="mp-mes-btn" data-mes="' + i + '" style="padding:0.4rem 0;border-radius:0.5rem;border:none;cursor:pointer;font-size:0.8125rem;font-weight:700;font-family:inherit;background:' + (ativo ? 'var(--theme-accent)' : 'var(--sidebar-user-bg)') + ';color:' + (ativo ? '#fff' : 'var(--card-text)') + ';">' + m + '</button>';
+        }).join('')
+      + '</div>';
+
+    picker.querySelector('#mpBtnAnoPrev').addEventListener('click', function (e) { e.stopPropagation(); pickerAno--; renderPicker(); });
+    picker.querySelector('#mpBtnAnoNext').addEventListener('click', function (e) { e.stopPropagation(); pickerAno++; renderPicker(); });
+    picker.querySelectorAll('.mp-mes-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        mesVisualizado = parseInt(btn.getAttribute('data-mes'));
+        anoVisualizado = pickerAno;
+        closePicker();
+        if (usuarioAtualId) setupTransacoesListener(usuarioAtualId);
+      });
+    });
+  }
+
+  function openPicker() {
+    pickerAno = anoVisualizado;
+    renderPicker();
+    var rect = label.getBoundingClientRect();
+    var pw = 220;
+    var left = rect.left + rect.width / 2 - pw / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+    picker.style.top  = (rect.bottom + 8) + 'px';
+    picker.style.left = left + 'px';
+    picker.style.display = 'block';
+    label.setAttribute('aria-expanded', 'true');
+  }
+  function closePicker() { picker.style.display = 'none'; label.setAttribute('aria-expanded', 'false'); }
+
+  label.addEventListener('click', function (e) { e.stopPropagation(); picker.style.display === 'block' ? closePicker() : openPicker(); });
+  label.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); picker.style.display === 'block' ? closePicker() : openPicker(); } });
+  document.addEventListener('click', function () { closePicker(); });
+  picker.addEventListener('click', function (e) { e.stopPropagation(); });
+  document.addEventListener('scroll', function () { closePicker(); }, true);
+})();
+
 document.addEventListener('bud:themechange', function (e) {
   if (!usuarioAtualId || _skipThemeSync) return;
   var name = e.detail && typeof e.detail.name === 'string' ? e.detail.name : 'padrao';

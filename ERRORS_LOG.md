@@ -317,3 +317,25 @@
 - **Causa raiz**: `app.use(cors(...))` em `backend/server.js` declarava `allowedHeaders: ['Content-Type']` � quando o frontend enviou `Authorization: Bearer <idToken>`, o navegador disparou preflight OPTIONS e o backend respondeu sem permitir o header.
 - **Solu��o aplicada**: `allowedHeaders: ['Content-Type', 'Authorization']` + `methods: ['POST', 'GET', 'OPTIONS']`. Tamb�m adicionadas portas 5502 (live-server alternativa) em ALLOWED_ORIGINS dev/prod.
 - **Regra de preven��o**: SEMPRE que um endpoint do backend exigir `Authorization` (Bearer token Firebase), o `cors()` precisa listar esse header em `allowedHeaders`. Validar no DevTools ? Network ? preflight OPTIONS. Lembrar: backend em produ��o (Render) precisa de redeploy para mudan�as no CORS surtirem efeito.
+
+---
+
+### ERR-033 — Month picker do dashboard inacessível (coberto pelas cards)
+- **Data**: 10/05/2026
+- **Arquivo**: js/dashboard.js — IIFE do mesPicker
+- **Descrição**: Ao clicar em "Maio de 2026 ▾" na nav do dashboard, o dropdown do month picker abria mas ficava invisível/inacessível. Playwright confirmou: pointer events interceptados pelas .summary-card do .cards-grid.
+- **Causa raiz**: O picker era criado com position:absolute e era filho de .mes-nav, que vive dentro de #dashMain (position:relative, z-index:1). As .summary-card vêm depois na DOM e ficam por cima do picker independentemente do z-index do picker.
+- **Solução aplicada**: Picker movido para document.body.appendChild(picker). Style alterado de position:absolute para position:fixed. Função openPicker() agora calcula posição via getBoundingClientRect() com clamping de viewport. Adicionado listener scroll para fechar o picker ao rolar.
+- **Regra de prevenção**: Dropdowns e tooltips que precisam flutuar sobre outros elementos SEMPRE devem ser filhos do <body> com position:fixed. Nunca criar overlays/pickers como filhos de containers com position:relative.
+- **Status**: ✅ Resolvido em 10/05/2026.
+
+---
+
+### ERR-034 — Widget Limites mostra "✅ Orçamento sob controle" com 2038% utilizado
+- **Data**: 10/05/2026
+- **Arquivo**: js/dashboard.js — função tualizarLimitesWidget
+- **Descrição**: Widget de Limites exibia "✅ Orçamento sob controle" mesmo quando pctTotal > 100 (total de saídas vs. soma dos limites definidos). No caso de teste: 1 limite de R\ (Alimentação), total de saídas R\.075 → 2038% utilizado, mas o widget mostrava "tudo ok".
+- **Causa raiz**: O bloco if (criticos.length === 0) verificava apenas alertas por-categoria (≥80%), sem checar o percentual total geral.
+- **Solução aplicada**: Dentro do bloco if (criticos.length === 0), adicionado if (pctTotal > 100) para exibir card laranja "⚠️ Gastos acima do orçamento" ao invés do card verde quando o total supera 100%.
+- **Regra de prevenção**: Ao implementar widgets de alerta com múltiplas métricas, sempre garantir que o "estado OK" só seja mostrado se TODAS as métricas estiverem dentro dos limites — não apenas a métrica principal.
+- **Status**: ✅ Resolvido em 10/05/2026.

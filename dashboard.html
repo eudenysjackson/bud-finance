@@ -331,7 +331,11 @@
       text-align: center;
       min-width: 10rem;
       transition: color 0.35s ease;
+      cursor: pointer; user-select: none;
     }
+    .mes-nav-label::after { content: ' ▾'; font-size: 0.75em; opacity: 0.55; }
+    .mes-nav-label:hover { opacity: 0.75; }
+    #mesPicker .mp-mes-btn:hover { opacity: 0.8; }
     /* ── Cards grid ───────────────────────────────────────────────── */
     .cards-grid {
       display: grid;
@@ -990,7 +994,7 @@
       <!-- Meta em Destaque -->
       <div class="dash-section" id="secMetaProxima" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.875rem;">
-          <div class="dash-section-title">🎯 Meta em Destaque</div>
+          <div class="dash-section-title">🎯 Metas em Andamento</div>
           <a href="metas.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver metas →</a>
         </div>
         <div id="metaProximaBody"></div>
