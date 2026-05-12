@@ -27,6 +27,10 @@ let userData = null;
 let contasGlobal = [];
 let valoresOcultos = false;
 let parsedRows = [];       // rows after parse + map
+let _importSourceType = null; // 'ofx' | 'csv' | 'pdf' | 'imagem'
+let _importMeta = null;       // {totalEntradas, totalSaidas, saldoFinal} do PDF — para barra de confiança
+let _importFileHash = null;   // SHA-256 do arquivo importado — para detectar reimportação do mesmo arquivo
+let _importFileName = null;   // nome do arquivo (para gravação no histórico)
 let currentCarteiraId = null;
 let currentContaObj = null;
 let previewPage = 0;
@@ -634,12 +638,46 @@ async function processarArquivo() {
 
   try {
     const ext = file.name.split('.').pop().toLowerCase();
+    _importMeta = null;
+    _importFileName = file.name;
+
+    // ── Hash SHA-256 do arquivo — para detectar reimportação do mesmo arquivo
+    try {
+      const buf = await file.arrayBuffer();
+      const hashBuf = await crypto.subtle.digest('SHA-256', buf);
+      _importFileHash = Array.from(new Uint8Array(hashBuf))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (_hashErr) {
+      _importFileHash = null;
+    }
+
+    // Se o mesmo arquivo já foi importado nesta carteira, avisa o usuário
+    if (_importFileHash && currentContaObj) {
+      const historico = currentContaObj.arquivosImportados || {};
+      const previo = historico[_importFileHash];
+      if (previo) {
+        const dataPrev = previo.data ? new Date(previo.data).toLocaleDateString('pt-BR') : 'data desconhecida';
+        const ok = window.confirm(
+          `⚠️ Esse arquivo já foi importado nessa conta em ${dataPrev}` +
+          (previo.totalTransacoes ? ` (${previo.totalTransacoes} transações).` : '.') +
+          `\n\nImportar novamente vai criar duplicatas. Continuar mesmo assim?`
+        );
+        if (!ok) {
+          btn.disabled = false;
+          btn.textContent = 'Continuar →';
+          return;
+        }
+      }
+    }
+
     let rows = [];
 
     if (ext === 'csv' || ext === 'txt') {
+      _importSourceType = 'csv';
       const text = await readFileAsText(file);
       rows = parseCSV(text);
     } else if (ext === 'ofx' || ext === 'qfx') {
+      _importSourceType = 'ofx';
       const text = await readFileAsText(file);
       const ofxResult = parseOFX(text);
       rows = ofxResult.rows;
@@ -647,9 +685,49 @@ async function processarArquivo() {
       if (ofxResult.ledgerBal != null) window._ofxLedgerBal = ofxResult.ledgerBal;
       else window._ofxLedgerBal = null;
     } else if (ext === 'pdf' || ['jpg', 'jpeg', 'png'].includes(ext)) {
-      // Backend: mostrar feedback de progressão
-      btn.textContent = '🤖 Analisando com IA… pode levar até 2 min';
-      rows = await processarViaBackend(file);
+      _importSourceType = ['jpg', 'jpeg', 'png'].includes(ext) ? 'imagem' : 'pdf';
+
+      // ── PDF: extrai LOCALMENTE com pdf.js — sem depender do backend
+      let processadoLocalmente = false;
+      if (ext === 'pdf') {
+        // Aguarda pdf.js ficar disponível (UMD carrega síncrono mas garante)
+        if (!window.pdfjsLib) {
+          await new Promise(r => setTimeout(r, 500));
+        }
+        if (window.pdfjsLib) {
+          btn.textContent = '📄 Lendo PDF localmente…';
+          try {
+            const pdfText = await extractPDFTextLocal(file);
+            console.log('[PDF local] texto extraído:', pdfText.length, 'chars');
+            console.log('[PDF local] === TEXTO BRUTO (copie e me envie) ===\n' + pdfText + '\n=== FIM ===');
+            window.__lastPdfText = pdfText; // disponível em window pra inspeção
+            if (pdfText && pdfText.length > 100) {
+              const localRows = parseBankStatementTextLocal(pdfText);
+              const metaLocal = extractMetaFromTextLocal(pdfText);
+              console.log('[PDF local] meta:', metaLocal, 'transações:', localRows.length);
+              console.table(localRows.map(r => ({ data: r.data, tipo: r.tipoOrigem, valor: r.valor, desc: r.descricao.substring(0, 60) })));
+              const score = computeScoreLocal(localRows, metaLocal);
+              console.log('[PDF local] score:', score);
+              if (localRows.length >= 2) {
+                rows = localRows;
+                if (metaLocal) _importMeta = metaLocal;
+                processadoLocalmente = true;
+                console.log('[PDF local] ✅ USANDO parser local (score=' + (score !== null ? Math.round(score*100)+'%' : 'sem meta') + ')');
+              }
+            }
+          } catch (pdfErr) {
+            console.warn('[PDF local] FALHOU:', pdfErr);
+          }
+        } else {
+          console.warn('[PDF local] window.pdfjsLib indisponível — cairá no backend');
+        }
+      }
+
+      // Fallback: backend (PDF protegido por senha, imagem, ou local falhou)
+      if (!processadoLocalmente) {
+        btn.textContent = '🤖 Analisando com IA… pode levar até 2 min';
+        rows = await processarViaBackend(file);
+      }
     }
 
     if (!rows || !rows.length) {
@@ -695,7 +773,8 @@ async function processarViaBackend(file) {
 
     if (!resp.ok) throw new Error(`Servidor retornou ${resp.status}`);
     const data = await resp.json();
-    // Backend retorna array direto [{desc, valor, data, tipo}] — normalizar para {descricao, tipoOrigem}
+    // Backend retorna {transacoes:[...], meta:{...}} — guardar meta para barra de confiança
+    _importMeta = (data && !Array.isArray(data) && data.meta) ? data.meta : null;
     const raw = Array.isArray(data) ? data : (data.transacoes || data.rows || []);
     return raw.map(r => ({
       descricao: r.descricao || r.desc || '',
@@ -985,26 +1064,33 @@ async function verificarDuplicatas() {
     );
     const snap = await getDocs(q);
 
-    // BUG #3 fix: dedup por data + valor + carteiraId + desc normalizada (30 chars)
-    const existentes = new Set(
-      snap.docs.map(d => {
-        const tx = d.data();
-        const desc30 = normDesc(tx.descricao || '');
-        return `${tx.dataReferencia}|${tx.valor}|${desc30}`;
-      })
-    );
+    // Dedup primário: data|valor|normDesc(30) → duplicata certa (desmarcada automaticamente)
+    // Dedup secundário: data|valor → possível duplicata (mesma data+valor, desc diferente — ex: OFX vs PDF)
+    const existentesExatos = new Set();
+    const existentesValorData = new Set();
+    snap.docs.forEach(d => {
+      const tx = d.data();
+      existentesExatos.add(`${tx.dataReferencia}|${tx.valor}|${normDesc(tx.descricao || '')}`);
+      existentesValorData.add(`${tx.dataReferencia}|${tx.valor}`);
+    });
 
     parsedRows.forEach(r => {
-      const key = `${r.data}|${r.valor}|${normDesc(r.descricao)}`;
-      r.duplicata = existentes.has(key);
-      if (r.duplicata) r.selecionado = false; // deselect duplicatas
+      const keyExato   = `${r.data}|${r.valor}|${normDesc(r.descricao)}`;
+      const keyParcial = `${r.data}|${r.valor}`;
+      r.duplicata        = existentesExatos.has(keyExato);
+      r.duplicataPossivel = !r.duplicata && existentesValorData.has(keyParcial);
+      if (r.duplicata) r.selecionado = false;
     });
 
     const qtdDupl = parsedRows.filter(r => r.duplicata).length;
+    const qtdPoss = parsedRows.filter(r => r.duplicataPossivel).length;
     const badge = document.getElementById('previewDedupBadge');
     if (badge) {
-      if (qtdDupl > 0) {
-        badge.textContent = `⚠️ ${qtdDupl} prováve${qtdDupl > 1 ? 'is duplicatas' : 'l duplicata'}`;
+      if (qtdDupl > 0 || qtdPoss > 0) {
+        const parts = [];
+        if (qtdDupl > 0) parts.push(`${qtdDupl} duplicata${qtdDupl > 1 ? 's' : ''}`);
+        if (qtdPoss > 0) parts.push(`${qtdPoss} possível${qtdPoss > 1 ? 'is' : ''}`);
+        badge.textContent = `⚠️ ${parts.join(' · ')}`;
         badge.style.display = 'inline-flex';
       } else {
         badge.style.display = 'none';
@@ -1094,9 +1180,12 @@ function renderPreview() {
     const globalIdx = start + i;
     const tipoClass = r.tipo === 'receita' ? 'tipo-pill-receita' : 'tipo-pill-despesa';
     const tipoLabel = r.tipo === 'receita' ? '↑ Receita' : '↓ Despesa';
-    const rowOpacity = (r.duplicata || r._avisoIgnorar) ? 'style="opacity:0.55;"' : '';
+    const rowOpacity = (r.duplicata || r._avisoIgnorar) ? 'style="opacity:0.55;"' : (r.duplicataPossivel ? 'style="opacity:0.8;"' : '');
     const dupBadge = r.duplicata
       ? '<span title="Transação já existe no período — desmarcada automaticamente" style="font-size:0.6rem;background:#fef9c3;color:#854d0e;padding:0.1rem 0.3rem;border-radius:3px;font-weight:700;margin-left:4px;cursor:help;">DUP ⚠️</span>'
+      : '';
+    const dupPossBadge = r.duplicataPossivel
+      ? '<span title="Mesmo valor e data já existem com outra descrição — verifique se é duplicata" style="font-size:0.6rem;background:#fff7ed;color:#c2410c;padding:0.1rem 0.3rem;border-radius:3px;font-weight:700;margin-left:4px;cursor:help;">~DUP?</span>'
       : '';
     const ignorarBadge = r._avisoIgnorar
       ? `<span title="${r._avisoIgnorar === 'Pgto Fatura CC' ? 'Pagamento de fatura do cartão — já contabilizado nas transações do cartão' : r._avisoIgnorar === 'Parcela Emp.' ? 'Parcela de empréstimo — use a tela Dívidas para controle' : 'Investimento/aplicacao — não é gasto corrente'}" style="font-size:0.6rem;background:#dbeafe;color:#1e40af;padding:0.1rem 0.3rem;border-radius:3px;font-weight:700;margin-left:4px;cursor:help;">${r._avisoIgnorar}</span>`
@@ -1105,7 +1194,7 @@ function renderPreview() {
     return `<tr ${rowOpacity}>
       <td><input type="checkbox" data-idx="${globalIdx}" ${r.selecionado ? 'checked' : ''} onchange="toggleRowSelect(${globalIdx}, this.checked)"></td>
       <td style="white-space:nowrap;font-size:0.75rem;">${r.data}</td>
-      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(r.descricao)}">${escapeHtml(r.descricao)}${dupBadge}${ignorarBadge}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(r.descricao)}">${escapeHtml(r.descricao)}${dupBadge}${dupPossBadge}${ignorarBadge}</td>
       <td><button class="tipo-pill ${tipoClass}" onclick="toggleRowTipo(${globalIdx})">${tipoLabel}</button></td>
       <td style="text-align:right;font-weight:700;white-space:nowrap;color:${r.tipo === 'receita' ? '#16a34a' : '#dc2626'};">${fmtBRL(r.valor)}</td>
       <td><button class="row-cat-btn" id="rowcatbtn-${globalIdx}" onclick="toggleRowCatDd(${globalIdx}, this)">${getCatDisplay(r.categoria)}</button></td>
@@ -1130,6 +1219,62 @@ function renderPreview() {
     const allSel = parsedRows.every(r => r.selecionado);
     chkAll.checked = allSel;
     chkAll.indeterminate = !allSel && parsedRows.some(r => r.selecionado);
+  }
+
+  // Barra de confiabilidade
+  const confiaBadge = document.getElementById('importConfiabilidadeBadge');
+  if (confiaBadge) {
+    let badgeBg, badgeColor, badgeText;
+    const isPdfIa = (_importSourceType === 'pdf' || _importSourceType === 'imagem');
+
+    if (isPdfIa) {
+      const meta = _importMeta;
+      const temMeta = meta && (meta.totalEntradas || meta.totalSaidas);
+
+      if (temMeta) {
+        const somaRec = parsedRows.filter(r => r.tipo === 'receita').reduce((s, r) => s + r.valor, 0);
+        const somaDes = parsedRows.filter(r => r.tipo === 'despesa').reduce((s, r) => s + r.valor, 0);
+        const pctE = meta.totalEntradas > 0 ? Math.min(somaRec / meta.totalEntradas, 1.05) : null;
+        const pctS = meta.totalSaidas  > 0 ? Math.min(somaDes / meta.totalSaidas,  1.05) : null;
+        const scores = [pctE, pctS].filter(x => x !== null);
+        const score  = scores.length ? Math.min(...scores) : null;
+
+        const fmt    = v => v != null ? 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '?';
+        const pctStr = v => v != null ? Math.round(v * 100) + '%' : '?';
+
+        const linhas = [];
+        if (meta.totalEntradas) linhas.push(`entradas: ${fmt(somaRec)} de ${fmt(meta.totalEntradas)} (${pctStr(pctE)})`);
+        if (meta.totalSaidas)   linhas.push(`saídas: ${fmt(somaDes)} de ${fmt(meta.totalSaidas)} (${pctStr(pctS)})`);
+
+        if (score === null || score < 0.70) {
+          badgeBg = '#fee2e2'; badgeColor = '#b91c1c';
+          badgeText = `❌ Resultado NÃO confiável — IA capturou ${pctStr(score)} · ${linhas.join(' · ')}`;
+        } else if (score < 0.90) {
+          badgeBg = '#fff7ed'; badgeColor = '#c2410c';
+          badgeText = `⚠️ Precisão parcial — IA capturou ${pctStr(score)} · ${linhas.join(' · ')}`;
+        } else {
+          badgeBg = '#dcfce7'; badgeColor = '#15803d';
+          badgeText = `✅ Alta precisão — ${pctStr(score)} capturado · ${linhas.join(' · ')}`;
+        }
+      } else {
+        // PDF mas sem totais declarados visíveis no documento
+        badgeBg = '#fee2e2'; badgeColor = '#b91c1c';
+        badgeText = '⚠️ PDF/IA — precisão não verificável · confira cada linha manualmente';
+      }
+    } else if (_importSourceType === 'csv') {
+      badgeBg = '#fef9c3'; badgeColor = '#854d0e';
+      badgeText = '⚡ Média confiabilidade — CSV';
+    } else if (_importSourceType === 'ofx') {
+      badgeBg = '#dcfce7'; badgeColor = '#15803d';
+      badgeText = '🔒 Alta confiabilidade — OFX';
+    }
+
+    if (badgeText) {
+      confiaBadge.style.cssText = `display:inline-block;font-size:0.7rem;font-weight:700;padding:0.3rem 0.7rem;border-radius:8px;white-space:normal;line-height:1.5;background:${badgeBg};color:${badgeColor};margin-top:4px;`;
+      confiaBadge.textContent = badgeText;
+    } else {
+      confiaBadge.style.display = 'none';
+    }
   }
 }
 
@@ -1245,15 +1390,41 @@ async function confirmarImport() {
       document.getElementById('importResultSub').textContent = `Salvando... ${salvos} de ${selecionados.length}`;
     }
 
+    // Registrar o hash do arquivo importado no doc da carteira (para detectar reimportação)
+    if (_importFileHash) {
+      try {
+        await updateDoc(doc(db, 'usuarios', uid, 'carteira', currentCarteiraId), {
+          [`arquivosImportados.${_importFileHash}`]: {
+            nome: _importFileName || 'arquivo',
+            data: new Date().toISOString(),
+            totalTransacoes: salvos,
+            origem: _importSourceType || 'desconhecido',
+          }
+        });
+      } catch (_e) {
+        console.warn('Não foi possível registrar hash do arquivo:', _e);
+      }
+    }
+
     // Atualizar ultimaConfirmacao no carteira document (snapshot)
     const ultimaData = selecionados.map(r => r.data).sort().reverse()[0];
     const receitas = selecionados.filter(r => r.tipo === 'receita').reduce((s, r) => s + r.valor, 0);
     const despesas = selecionados.filter(r => r.tipo === 'despesa').reduce((s, r) => s + r.valor, 0);
     const netDelta = receitas - despesas;
+
+    // Movimentos internos (foram desmarcados no review — não somam ao extrato pessoal mas constam no PDF)
+    const ignorados = parsedRows.filter(r => !r.selecionado && r._avisoIgnorar);
+    const ignReceitas = ignorados.filter(r => r.tipo === 'receita').reduce((s, r) => s + r.valor, 0);
+    const ignDespesas = ignorados.filter(r => r.tipo === 'despesa').reduce((s, r) => s + r.valor, 0);
+    const totalReceitasBruto = receitas + ignReceitas;
+    const totalDespesasBruto = despesas + ignDespesas;
+
     const saldoAtual = getSaldoExibido(currentContaObj);
     const saldoSugerido = window._ofxLedgerBal != null
-      ? window._ofxLedgerBal           // OFX com LEDGERBAL: usar saldo real do banco
-      : saldoAtual + netDelta;          // sem LEDGERBAL: saldo atual + delta desta importação
+      ? window._ofxLedgerBal                            // OFX com LEDGERBAL: saldo real do banco
+      : (_importMeta && _importMeta.saldoFinal != null)
+        ? _importMeta.saldoFinal                        // PDF/extrato com saldo declarado no documento
+        : saldoAtual + netDelta;                        // fallback: saldo atual + delta desta importação
     const novoSaldo = saldoSugerido;
 
     // NÃO salvar saldo aqui — será salvo no clique do Concluído após confirmação do usuário
@@ -1263,11 +1434,37 @@ async function confirmarImport() {
     document.getElementById('importResultTitle').textContent = `${salvos} transações importadas!`;
     document.getElementById('importResultSub').textContent = `Saldo calculado: ${fmtBRL(novoSaldo)}`;
     document.getElementById('importResultDetails').style.display = 'block';
+
+    let ignoradosHtml = '';
+    if (ignorados.length) {
+      // Agrupa por motivo pra explicar o que foi ignorado
+      const grupos = {};
+      ignorados.forEach(r => {
+        const m = r._avisoIgnorar;
+        if (!grupos[m]) grupos[m] = { qtd: 0, valor: 0 };
+        grupos[m].qtd += 1;
+        grupos[m].valor += r.valor;
+      });
+      const partes = Object.entries(grupos).map(([m, g]) => `${g.qtd}× ${m} (${fmtBRL(g.valor)})`);
+      ignoradosHtml = `
+        <div style="margin-top:8px;padding:8px;background:#fef3c7;border-radius:6px;font-size:0.85em;color:#92400e;">
+          <div style="font-weight:600;margin-bottom:4px;">ℹ️ ${ignorados.length} movimento(s) interno(s) ignorado(s):</div>
+          <div>${partes.join(' · ')}</div>
+          <div style="margin-top:4px;font-size:0.85em;opacity:0.85;">São movimentações que já estão contabilizadas em outro lugar (cartão, dívidas, investimentos) — incluí-las dobraria sua contagem.</div>
+        </div>`;
+    }
+
+    const totalLine = (ignorados.length)
+      ? `<div style="font-size:0.85em;color:#64748b;margin-top:4px;">Total no extrato: <strong>${fmtBRL(totalReceitasBruto)}</strong> entradas · <strong>${fmtBRL(totalDespesasBruto)}</strong> saídas (com movimentos internos)</div>`
+      : '';
+
     document.getElementById('importResultDetails').innerHTML = `
       <div>📈 Receitas: <strong style="color:#16a34a;">${fmtBRL(receitas)}</strong></div>
       <div>📉 Despesas: <strong style="color:#dc2626;">${fmtBRL(despesas)}</strong></div>
       <div>💰 Delta: <strong style="color:${netDelta >= 0 ? '#16a34a' : '#dc2626'};">${netDelta >= 0 ? '+' : ''}${fmtBRL(netDelta)}</strong></div>
       <div>📅 Última data: <strong>${fmtDataBR(ultimaData)}</strong></div>
+      ${totalLine}
+      ${ignoradosHtml}
     `;
 
     // Mostrar campo de confirmação de saldo
@@ -1411,3 +1608,174 @@ function budToast(msg, type) {
   document.body.appendChild(d);
   setTimeout(() => { d.style.opacity = '0'; setTimeout(() => d.remove(), 400); }, 3000);
 }
+
+// =============================================================================
+// PDF LOCAL — extração de texto via pdf.js + parser idêntico ao backend
+// Cura para a dependência do backend; precisão equivalente ao OFX.
+// =============================================================================
+
+async function extractPDFTextLocal(file) {
+  if (!window.pdfjsLib) throw new Error('pdf.js não carregado');
+  const buf = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+  let fullText = '';
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    // Reconstrói linhas usando coordenada Y dos itens
+    const items = content.items;
+    const lines = {};
+    items.forEach(it => {
+      const y = Math.round(it.transform[5]);
+      if (!lines[y]) lines[y] = [];
+      lines[y].push({ x: it.transform[4], str: it.str });
+    });
+    const ys = Object.keys(lines).map(Number).sort((a, b) => b - a);
+    ys.forEach(y => {
+      const line = lines[y].sort((a, b) => a.x - b.x).map(i => i.str).join(' ').replace(/\s+/g, ' ').trim();
+      if (line) fullText += line + '\n';
+    });
+    fullText += '\n';
+  }
+  return fullText;
+}
+
+const _MESES_PT = { jan:1, fev:2, mar:3, abr:4, mai:5, jun:6, jul:7, ago:8, set:9, out:10, nov:11, dez:12 };
+
+function _parseValorBRL(str) {
+  if (!str) return 0;
+  const s = String(str).trim();
+  if (/^\d{1,3}(\.\d{3})*,\d{2}$/.test(s)) return parseFloat(s.replace(/\./g, '').replace(',', '.'));
+  if (/^\d+,\d{2}$/.test(s)) return parseFloat(s.replace(',', '.'));
+  return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+}
+
+function extractMetaFromTextLocal(text) {
+  const meta = { totalEntradas: null, totalSaidas: null, saldoFinal: null };
+  const mE = text.match(/total\s+d[eo]?\s*entradas?[\s\S]{0,40}?(\d[\d\.]*,\d{2})/i);
+  if (mE) meta.totalEntradas = _parseValorBRL(mE[1]);
+  const mS = text.match(/total\s+d[eo]?\s*sa[ií]das?[\s\S]{0,40}?(\d[\d\.]*,\d{2})/i);
+  if (mS) meta.totalSaidas = _parseValorBRL(mS[1]);
+  // Saldo: busca INLINE na mesma linha (tabela direita "Saldo final do período  218,65")
+  // [^\n\r]+ impede capturar número de linha diferente (caixa esquerda tem label e valor em linhas separadas)
+  const mSaldo = text.match(/saldo\s+(?:final|do\s+per[ií]odo)[^\n\r]+?(\d[\d\.]*,\d{2})/i);
+  if (mSaldo) meta.saldoFinal = _parseValorBRL(mSaldo[1]);
+  // Fallback: calcula saldo_inicial + entradas - saídas se não achou inline
+  if (meta.saldoFinal === null && meta.totalEntradas !== null && meta.totalSaidas !== null) {
+    const mIni = text.match(/saldo\s+inicial[^\n\r]*?(\d[\d\.]*,\d{2})/i);
+    if (mIni) meta.saldoFinal = Math.round(((_parseValorBRL(mIni[1]) + meta.totalEntradas - meta.totalSaidas) * 100)) / 100;
+  }
+  if (meta.totalEntradas === null && meta.totalSaidas === null && meta.saldoFinal === null) return null;
+  return meta;
+}
+
+function computeScoreLocal(transacoes, meta) {
+  if (!meta) return null;
+  let cre = 0, deb = 0;
+  (transacoes || []).forEach(t => {
+    const v = parseFloat(t.valor) || 0;
+    if (t.tipo === 'credito' || t.tipoOrigem === 'credito') cre += v;
+    else if (t.tipo === 'debito' || t.tipoOrigem === 'debito') deb += v;
+  });
+  const scores = [];
+  if (meta.totalEntradas > 0) scores.push(Math.min(cre / meta.totalEntradas, 1.05));
+  if (meta.totalSaidas  > 0) scores.push(Math.min(deb / meta.totalSaidas,  1.05));
+  return scores.length ? Math.min(...scores) : null;
+}
+
+// Parser principal — adaptado da Estratégia 6 do backend (Nubank conta corrente)
+// Formato Nubank: data isolada → "Total de saídas/entradas" → linhas de descrição → valor
+function parseBankStatementTextLocal(rawText) {
+  const normalized = rawText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = normalized.split('\n').map(l => l.trim()).filter(Boolean);
+
+  const results = [];
+  const seen = new Set();
+  function addTx(desc, valor, data, tipo) {
+    if (!desc || valor <= 0 || valor > 999999) return;
+    const key = desc.toLowerCase() + '|' + valor + '|' + data;
+    if (seen.has(key)) return;
+    seen.add(key);
+    results.push({ descricao: desc, valor: valor, data: data, tipoOrigem: tipo || null });
+  }
+
+  // ── Estratégia Nubank conta corrente (formato vertical) ───────────
+  const RE_HDR  = /^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\s+(\d{4})$/i;
+  const RE_SUB  = /Total de (sa[ií]das?|entradas?)/i;
+  const RE_VAL  = /^[\d\.]+,\d{2}$/;
+  const RE_SKIP = /^(saldo\b|rendimento\b|movimenta|cpf\b|tem alguma|caso a\b|extrato gerado|asseguramos|nu (financeira|pagamentos)|cnpj:|o saldo l[ií]quido|n[ãa]o nos|valores em|•••|p[áa]gina|de \d|\d+ de \d+$|idenilson|ag[êe]ncia\s+\d|conta\s*\d)/i;
+  const RE_ONLYNUMS = /^[\d\.\-]+$/;
+  const RE_PERIODO  = /^\d{1,2}\s+de\s+\w+\s+de\s+\d{4}\s+a\s+\d{1,2}\s+de\s+\w+\s+de\s+\d{4}$/i;
+
+  let curData = null;
+  let curTipo = null;
+  let descBuf = [];
+
+  function flushTx(valor) {
+    if (descBuf.length > 0 && curData && curTipo) {
+      const desc = descBuf.join(' ').replace(/\s+/g, ' ').trim();
+      addTx(desc, valor, curData, curTipo);
+    }
+    descBuf = [];
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Linha de data isolada: "01 MAI 2026"
+    const hm = line.match(RE_HDR);
+    if (hm) {
+      descBuf = [];
+      const mes = _MESES_PT[hm[2].toLowerCase()];
+      if (mes) {
+        curData = hm[3] + '-' + String(mes).padStart(2, '0') + '-' + String(parseInt(hm[1])).padStart(2, '0');
+        curTipo = null;
+      }
+      continue;
+    }
+
+    // "01 MAI 2026 Total de saídas - 116,88" ou "Total de saídas - 116,88"
+    if (RE_SUB.test(line)) {
+      descBuf = [];
+      curTipo = /sa[ií]da/i.test(line) ? 'debito' : 'credito';
+      // Caso o cabeçalho de data esteja na MESMA linha do "Total de saídas"
+      const hmInline = line.match(/^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\s+(\d{4})/i);
+      if (hmInline) {
+        const mes = _MESES_PT[hmInline[2].toLowerCase()];
+        if (mes) curData = hmInline[3] + '-' + String(mes).padStart(2, '0') + '-' + String(parseInt(hmInline[1])).padStart(2, '0');
+      }
+      continue;
+    }
+
+    if (RE_PERIODO.test(line) || RE_SKIP.test(line)) { continue; }
+    if (!curData || !curTipo) { continue; }
+
+    // Linha de valor puro → fecha transação
+    if (RE_VAL.test(line)) {
+      const valor = _parseValorBRL(line);
+      flushTx(valor);
+      continue;
+    }
+
+    // Linha que termina com valor: "Resgate RDB 711,16" ou "DescriçãoR$ 1.234,56"
+    const inlineVal = line.match(/^(.+?)\s*R?\$?\s*([\d\.]+,\d{2})\s*$/);
+    if (inlineVal && inlineVal[1].length >= 2) {
+      const descPart = inlineVal[1].replace(/R\$$/, '').trim();
+      const valor = _parseValorBRL(inlineVal[2]);
+      // Acumula a descrição inline e fecha
+      if (descPart && !RE_SKIP.test(descPart) && !RE_ONLYNUMS.test(descPart)) {
+        descBuf.push(descPart);
+      }
+      flushTx(valor);
+      continue;
+    }
+
+    // Acumula descrição
+    if (line.length >= 2 && line.length <= 200 && !RE_ONLYNUMS.test(line)) {
+      descBuf.push(line);
+    }
+  }
+
+  return results;
+}
+

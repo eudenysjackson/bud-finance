@@ -17,6 +17,17 @@
   <link rel="stylesheet" href="css/tailwind.css">
   <script src="js/theme-manager.js"></script>
 
+  <!-- pdf.js UMD LOCAL (funciona em file:// sem depender de CDN/CORS) -->
+  <script src="js/vendor/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'js/vendor/pdf.worker.min.js';
+      console.log('[pdf.js] carregado v' + window.pdfjsLib.version + ' (local)');
+    } else {
+      console.error('[pdf.js] NÃO carregou — PDF cairá no backend e perderá precisão');
+    }
+  </script>
+
   <style>
     :root {
       --bg-page:#f4f7fb; --text-main:#1e293b; --text-sec:#475569;
@@ -498,6 +509,7 @@
           <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
             <span id="previewCount" class="dedup-badge dedup-badge-ok">0 transações</span>
             <span id="previewDedupBadge" class="dedup-badge dedup-badge-warn" style="display:none;">⚠️ 0 duplicatas</span>
+            <span id="importConfiabilidadeBadge" style="display:none;"></span>
           </div>
         </div>
 

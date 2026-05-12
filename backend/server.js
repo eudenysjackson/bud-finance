@@ -574,9 +574,8 @@ function parseBankStatementText(rawText) {
       if (line6.length >= 2 && line6.length <= 200 && !RE_ONLYNUMS6.test(line6)) {
         // Remove valores embutidos no final da linha (ex: "Resgate RDB1.592,47")
         var cleanLine6 = line6.replace(/[\d\.]+,\d{2}$/, '').trim();
-        // Ignora rótulos de resumo que aparecem sem valor separado (ex: "Pagamento de fatura", "Resgate RDB")
-        var isLabel6 = /^(resgate rdb|pagamento de fatura|compra no débito|compra no debito)\b/i.test(cleanLine6);
-        if (!isLabel6 && cleanLine6.length >= 2) descBuf6.push(cleanLine6);
+        // "Resgate RDB", "Pagamento de fatura" SÃO transações válidas — não filtrar.
+        if (cleanLine6.length >= 2) descBuf6.push(cleanLine6);
       }
     }
   }
@@ -588,13 +587,137 @@ function parseBankStatementText(rawText) {
  * Extrai transações de imagem ou PDF complexo usando Groq (llama-4-scout vision).
  * Requer GROQ_API_KEY no ambiente.
  */
-async function extractWithAI(buffer, mimeType) {
+// Extrai totais declarados no próprio texto do PDF (sem IA)
+function extractMetaFromText(text) {
+  function parseVal(str) { return parseFloat(str.replace(/\./g, '').replace(',', '.')); }
+  var meta = { totalEntradas: null, totalSaidas: null, saldoFinal: null };
+
+  // "Total entradas +4.035,65" / "Total de entradas\n+R$ 4.035,65"
+  var mE = text.match(/total\s+d[eo]?\s*entradas?[\s\S]{0,40}?(\d[\d\.]*,\d{2})/i);
+  if (mE) meta.totalEntradas = parseVal(mE[1]);
+
+  // "Total saídas -3.939,32" / "Total de saídas\n-R$ 3.939,32"
+  var mS = text.match(/total\s+d[eo]?\s*sa[\u00ed\u0069]das?[\s\S]{0,40}?(\d[\d\.]*,\d{2})/i);
+  if (mS) meta.totalSaidas = parseVal(mS[1]);
+
+  // "Saldo final do período\nR$ 218,65" / "Saldo final R$ 218,65"
+  var mSaldo = text.match(/saldo\s+(?:final|do\s+per[\u00ed\u0069]odo|l[\u00ed\u0069]quido)[\s\S]{0,60}?(\d[\d\.]*,\d{2})/i);
+  if (mSaldo) meta.saldoFinal = parseVal(mSaldo[1]);
+
+  if (meta.totalEntradas === null && meta.totalSaidas === null && meta.saldoFinal === null) return null;
+  return meta;
+}
+
+// ===================================================================
+// Extração por IA usando TEXTO (mais preciso e rápido que visão p/ PDFs)
+// ===================================================================
+async function extractWithAIFromText(text, tipo) {
+  var key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error('GROQ_API_KEY não configurada no servidor.');
+
+  var isExtrato = (tipo === 'extrato');
+  var promptInstrucoes = isExtrato ? [
+    'Você é um extrator preciso de extratos bancários brasileiros.',
+    'OBJETIVO: extrair TODAS as movimentações do texto abaixo, sem omitir NENHUMA linha de transação.',
+    'Inclua: Pix enviado/recebido, TED/DOC, transferências, pagamentos, compras no débito, salário, depósitos, tarifas, rendimentos, juros, IOF.',
+    'IGNORE: linhas de saldo, totais diários ("Total de saídas", "Total de entradas"), cabeçalhos, rodapés, números de página, CPF, CNPJ.',
+    'TIPO: "debito" para saídas/despesas (sinal -), "credito" para entradas/receitas (sinal +). VALOR sempre positivo.',
+    'NUNCA invente valores. Se uma linha estiver ambígua, copie a descrição exatamente como está.',
+    'TAREFA EXTRA: capture os totais declarados ("Total entradas", "Total saídas", "Saldo final") em "meta".',
+    'Retorne SOMENTE JSON válido neste formato exato:',
+    '{"transacoes":[{"desc":"PIX recebido - João","valor":150.00,"data":"2026-04-15","tipo":"credito"}],"meta":{"totalEntradas":4035.65,"totalSaidas":3939.32,"saldoFinal":218.65}}',
+    'Use null em campos meta não visíveis. SEM markdown, SEM comentários.'
+  ].join(' ') : [
+    'Você é um extrator preciso de faturas de cartão de crédito brasileiras.',
+    'Extraia TODAS as compras/débitos. IGNORE pagamentos de fatura, créditos, totais, saldos.',
+    'Retorne SOMENTE JSON válido: {"transacoes":[{"desc":"Loja","valor":50.00,"data":"2026-04-01"}],"meta":null}'
+  ].join(' ');
+
+  // Limita texto a 30k chars para não estourar contexto
+  var textoLimitado = text.length > 30000 ? text.substring(0, 30000) : text;
+
+  var body = JSON.stringify({
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    messages: [
+      { role: 'system', content: promptInstrucoes },
+      { role: 'user', content: 'Texto do extrato:\n\n' + textoLimitado }
+    ],
+    temperature: 0.0,
+    max_tokens: 8192,
+    response_format: { type: 'json_object' }
+  });
+
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function(){ controller.abort(); }, 60000);
+
+  try {
+    var resp = await fetch(
+      'https://api.groq.com/openai/v1/chat/completions',
+      { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: body, signal: controller.signal }
+    );
+    clearTimeout(timeoutId);
+    if (!resp.ok) {
+      var errText = await resp.text().catch(function(){ return resp.status; });
+      throw new Error('Groq API: ' + errText);
+    }
+    var data = await resp.json();
+    var content = (data.choices || [])[0]?.message?.content || '{}';
+    var parsed;
+    try { parsed = JSON.parse(content); }
+    catch (_e) {
+      var objMatch = content.match(/\{[\s\S]*\}/);
+      try { parsed = objMatch ? JSON.parse(objMatch[0]) : null; } catch(_e2) { parsed = null; }
+    }
+    var txArr   = (parsed && Array.isArray(parsed.transacoes)) ? parsed.transacoes : (Array.isArray(parsed) ? parsed : []);
+    var metaObj = (parsed && parsed.meta) ? parsed.meta : null;
+    return {
+      transacoes: txArr.filter(function(t){ return t.desc && parseFloat(t.valor) > 0; }),
+      meta: metaObj
+    };
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+// Soma transações por tipo para validar contra meta declarada
+function sumByType(transacoes) {
+  var creditos = 0, debitos = 0;
+  (transacoes || []).forEach(function(t){
+    var v = parseFloat(t.valor) || 0;
+    if (t.tipo === 'credito') creditos += v;
+    else if (t.tipo === 'debito') debitos += v;
+  });
+  return { creditos: creditos, debitos: debitos };
+}
+
+// Calcula score de captura: mínimo entre %entradas e %saídas (1.0 = perfeito)
+function captureScore(transacoes, meta) {
+  if (!meta) return null;
+  var sums = sumByType(transacoes);
+  var scores = [];
+  if (meta.totalEntradas > 0) scores.push(Math.min(sums.creditos / meta.totalEntradas, 1.05));
+  if (meta.totalSaidas  > 0) scores.push(Math.min(sums.debitos  / meta.totalSaidas,  1.05));
+  return scores.length ? Math.min.apply(null, scores) : null;
+}
+
+async function extractWithAI(buffer, mimeType, tipo) {
   var key = process.env.GROQ_API_KEY;
   if (!key) throw new Error('GROQ_API_KEY não configurada no servidor.');
 
   var base64 = buffer.toString('base64');
-  var prompt = [
-    'Você está analisando um extrato/fatura de cartão de crédito brasileiro.',
+  var isExtrato = (tipo === 'extrato');
+  var prompt = isExtrato ? [
+    'Você está analisando um extrato de conta corrente/bancária brasileiro.',
+    'TAREFA 1 — Extraia TODAS as movimentações: débitos (saídas: Pix enviado, pagamentos, compras no débito, transferências enviadas, tarifas) E créditos (entradas: Pix recebido, salário, depósitos, transferências recebidas, rendimentos).',
+    'Campo "tipo": "debito" para saídas, "credito" para entradas. valor sempre positivo. data em YYYY-MM-DD.',
+    'NÃO omita nenhuma transação visível no extrato.',
+    'TAREFA 2 — Procure no documento os totais declarados (ex: "Total entradas", "Total saídas", "Saldo final") e inclua no campo "meta".',
+    'Retorne SOMENTE um JSON válido no formato:',
+    '{"transacoes":[{"desc":"...","valor":50.00,"data":"2026-04-01","tipo":"debito"}],"meta":{"totalEntradas":4035.65,"totalSaidas":3939.32,"saldoFinal":218.65}}',
+    'Se algum campo de meta não estiver visível no documento, use null. Responda APENAS com o JSON, sem explicações ou markdown.'
+  ].join(' ') : [
+    'Você está analisando uma fatura de cartão de crédito brasileiro.',
     'Extraia TODAS as transações de COMPRA/DÉBITO. Ignore pagamentos de fatura, créditos, totais e saldos.',
     'Retorne SOMENTE um array JSON válido com objetos no formato:',
     '[{"desc":"nome do estabelecimento","valor":50.00,"data":"2026-04-01"}]',
@@ -619,12 +742,13 @@ async function extractWithAI(buffer, mimeType) {
   var body = JSON.stringify({
     model: 'meta-llama/llama-4-scout-17b-16e-instruct',
     messages: messages,
-    temperature: 0.1,
-    max_tokens: 2048
+    temperature: 0.0,
+    max_tokens: 8192,
+    response_format: { type: 'json_object' }
   });
 
   var controller = new AbortController();
-  var timeoutId = setTimeout(function(){ controller.abort(); }, 30000);
+  var timeoutId = setTimeout(function(){ controller.abort(); }, 60000);
 
   try {
     var resp = await fetch(
@@ -641,17 +765,26 @@ async function extractWithAI(buffer, mimeType) {
     var data = await resp.json();
     var content = (data.choices || [])[0]?.message?.content || '[]';
 
-    // Tenta extrair JSON válido da resposta
+    // Tenta extrair JSON válido da resposta (objeto {transacoes,meta} ou array)
     var parsed;
     try {
       parsed = JSON.parse(content);
     } catch (_e) {
+      var objMatch = content.match(/\{[\s\S]*\}/);
       var arrMatch = content.match(/\[[\s\S]*\]/);
-      parsed = arrMatch ? JSON.parse(arrMatch[0]) : [];
+      try { parsed = objMatch ? JSON.parse(objMatch[0]) : (arrMatch ? JSON.parse(arrMatch[0]) : null); }
+      catch (_e2) { parsed = null; }
     }
 
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(function(t){ return t.desc && parseFloat(t.valor) > 0; });
+    if (isExtrato) {
+      // Formato esperado: {"transacoes":[...], "meta":{...}}
+      var txArr   = Array.isArray(parsed) ? parsed : ((parsed && parsed.transacoes) || []);
+      var metaObj = (!Array.isArray(parsed) && parsed && parsed.meta) ? parsed.meta : null;
+      return { transacoes: txArr.filter(function(t){ return t.desc && parseFloat(t.valor) > 0; }), meta: metaObj };
+    } else {
+      var arr = Array.isArray(parsed) ? parsed : [];
+      return { transacoes: arr.filter(function(t){ return t.desc && parseFloat(t.valor) > 0; }), meta: null };
+    }
 
   } catch (err) {
     clearTimeout(timeoutId);
@@ -670,7 +803,10 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
 
     var buffer   = req.file.buffer;
     var mimeType = req.file.mimetype;
+    var tipo     = req.body.tipo || 'extrato';
     var transacoes = [];
+    var aiMeta = null;
+    var textMeta = null;
 
     if (mimeType === 'application/pdf') {
       // ── 1) Extrair texto do PDF com pdf-parse ──────────────────────
@@ -678,9 +814,11 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
       try {
         pdfData = await pdfParse(buffer, { max: 0 });
       } catch (pdfErr) {
-        // PDF ilegível ou criptografado → tentar IA se disponível
+        // PDF ilegível ou criptografado → tentar IA-visão se disponível
         if (process.env.GROQ_API_KEY) {
-          transacoes = await extractWithAI(buffer, mimeType);
+          var fallResult = await extractWithAI(buffer, mimeType, tipo);
+          transacoes = fallResult.transacoes;
+          aiMeta = fallResult.meta;
         } else {
           return res.status(422).json({
             error: 'Não foi possível ler o PDF. O arquivo pode estar protegido por senha. Tente exportar como imagem ou use um arquivo OFX.'
@@ -689,40 +827,71 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
       }
 
       if (pdfData) {
-        // ── 2) Tentar parser de texto (rápido, sem IA) ─────────────
+        // ── 2) Parser de texto rápido (sem IA) ─────────────────────
         transacoes = parseBankStatementText(pdfData.text || '');
+        textMeta = extractMetaFromText(pdfData.text || '');
 
-        // ── 3) Fallback IA se parser encontrou poucos resultados
-        if (transacoes.length < 2 && process.env.GROQ_API_KEY) {
+        // ── 3) IA texto-mode se parser perdeu transações ─────────
+        // Score do parser baseado nos totais declarados no PDF.
+        var parserScore = captureScore(transacoes, textMeta);
+        var precisaIA = (transacoes.length < 2) || (parserScore !== null && parserScore < 0.90);
+
+        if (precisaIA && process.env.GROQ_API_KEY && pdfData.text) {
           try {
-            var gemResult = await extractWithAI(buffer, mimeType);
-            if (gemResult.length > transacoes.length) transacoes = gemResult;
+            var aiTextResult = await extractWithAIFromText(pdfData.text, tipo);
+            if (!aiMeta && aiTextResult.meta) aiMeta = aiTextResult.meta;
+            var bestMeta = aiMeta || textMeta;
+            var aiScore     = captureScore(aiTextResult.transacoes, bestMeta);
+            var parserScore2 = captureScore(transacoes, bestMeta);
+            // Adota IA se capturou mais transações ou se score é maior
+            if (aiTextResult.transacoes.length > transacoes.length ||
+                (aiScore !== null && (parserScore2 === null || aiScore > parserScore2))) {
+              transacoes = aiTextResult.transacoes;
+            }
           } catch (_aiErr) {
-            // Ignora — mantém o resultado do parser de texto
+            console.warn('[AI text-mode falhou]', _aiErr.message);
+          }
+        }
+
+        // ── 4) Último recurso: IA-visão se ainda < 70% e PDF < 5MB ───
+        var bestMeta2 = aiMeta || textMeta;
+        var currentScore = captureScore(transacoes, bestMeta2);
+        if (currentScore !== null && currentScore < 0.70 && buffer.length < 5_000_000 && process.env.GROQ_API_KEY) {
+          try {
+            var visionResult = await extractWithAI(buffer, mimeType, tipo);
+            var visionScore = captureScore(visionResult.transacoes, bestMeta2);
+            if (visionScore !== null && (currentScore === null || visionScore > currentScore)) {
+              transacoes = visionResult.transacoes;
+              if (!aiMeta && visionResult.meta) aiMeta = visionResult.meta;
+            }
+          } catch (_visErr) {
+            console.warn('[AI vision-mode falhou]', _visErr.message);
           }
         }
       }
 
     } else {
-      // ── Imagem: requer IA ────────────────────────────────────────
+      // ── Imagem: IA-visão obrigatória ─────────────────────────────
       if (!process.env.GROQ_API_KEY) {
         return res.status(503).json({
           error: 'Extração de imagens requer configuração do servidor (GROQ_API_KEY). Use PDF ou OFX.'
         });
       }
-      transacoes = await extractWithAI(buffer, mimeType);
+      var imgResult = await extractWithAI(buffer, mimeType, tipo);
+      transacoes = imgResult.transacoes;
+      aiMeta = imgResult.meta;
     }
 
     if (!transacoes || transacoes.length === 0) {
       return res.status(422).json({
-        error: 'Nenhuma transação encontrada. Verifique se o arquivo é um extrato de cartão de crédito válido e tente novamente.'
+        error: 'Nenhuma transação encontrada. Verifique se o arquivo é um extrato válido e tente novamente.'
       });
     }
 
-    return res.json(transacoes);
+    var meta = aiMeta || textMeta || null;
+    return res.json({ transacoes: transacoes, meta: meta });
 
   } catch (err) {
-    // Não vazar detalhes internos
     var safeMsg = (err.message || '').replace(/(key=)[^\s&]+/, '$1***');
     console.error('[extrair-fatura]', safeMsg);
     return res.status(500).json({ error: 'Erro ao processar arquivo. Tente novamente.' });
