@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -9,6 +9,11 @@
 
   <link rel="icon" type="image/png" href="logo.png">
   <link rel="apple-touch-icon" href="logo.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Bud Finance">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -140,8 +145,7 @@
     /* ── Modal ───────────────────────────────────────────── */
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:80;align-items:center;justify-content:center;padding:1rem;}
     .modal-overlay.open{display:flex;}
-    .modal-card{background:var(--bg-page);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.75rem;width:100%;max-width:440px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.2);animation:modal-in .25s ease;max-height:90vh;overflow-y:auto;}
-    /* Fix: barra de scroll não vaza além do border-radius */
+    .modal-card{background:var(--bg-page);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.75rem;width:100%;max-width:440px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.2);animation:modal-in .25s ease;max-height:90vh;overflow-y:auto;}      .nova-conta-text{display:inline;}    /* Fix: barra de scroll não vaza além do border-radius */
     .modal-card::-webkit-scrollbar{width:5px;}
     .modal-card::-webkit-scrollbar-track{background:transparent;margin-top:1.5rem;margin-bottom:1.5rem;}
     .modal-card::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.15);border-radius:999px;}
@@ -241,6 +245,9 @@
       .contas-grid{grid-template-columns:1fr;}
       .modal-grid2{grid-template-columns:1fr;}
       .modal-card-lg{max-width:100%;}
+      .dash-welcome h1{font-size:1.125rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .dash-welcome p{display:none;}
+      .nova-conta-text{display:none;}
     }
     @media(min-width:769px){.sidebar-collapse-btn{display:flex;}}
     @media(min-width:769px) and (max-width:1024px){.cards-grid{grid-template-columns:repeat(2,1fr);}}
@@ -346,7 +353,7 @@
         <div style="display:flex;align-items:center;gap:0.5rem;">
           <button id="btnToggleValues" style="width:2.25rem;height:2.25rem;border-radius:0.625rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);display:flex;align-items:center;justify-content:center;font-size:1rem;cursor:pointer;color:var(--card-text-sec);transition:all .2s;" title="Ocultar/Mostrar valores">👁️</button>
           <button id="btnSync" style="width:2.25rem;height:2.25rem;border-radius:0.625rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);display:flex;align-items:center;justify-content:center;font-size:1rem;cursor:pointer;color:var(--card-text-sec);transition:all .2s;" title="Sincronizar">🔄</button>
-          <button id="btnNovaConta" style="display:flex;align-items:center;gap:0.375rem;padding:0.5rem 1rem;border-radius:0.75rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);border:none;color:#fff;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Nova conta">+ Nova Conta</button>
+          <button id="btnNovaConta" style="display:flex;align-items:center;gap:0.375rem;padding:0.5rem 1rem;border-radius:0.75rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);border:none;color:#fff;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Nova conta">+ <span class="nova-conta-text">Nova Conta</span></button>
         </div>
       </div>
 

@@ -167,27 +167,14 @@ function initToggles() {
 // ── Carregar Contas ───────────────────────────────────────
 async function carregarContas() {
   try {
-    const q = query(
-      collection(db, 'usuarios', currentUser.uid, 'carteira'),
-      where('tipo', '!=', 'credito'),
-      orderBy('tipo'),
-      orderBy('criadaEm')
-    );
-    const snap = await getDocs(q);
-    contasGlobal = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const snap = await getDocs(collection(db, 'usuarios', currentUser.uid, 'carteira'));
+    contasGlobal = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(c => c.tipo !== 'credito')
+      .sort((a, b) => (a.criadaEm?.toMillis?.() ?? 0) - (b.criadaEm?.toMillis?.() ?? 0));
   } catch (err) {
     console.error('Erro ao carregar contas:', err);
-    // Se índice não existir, fallback sem orderBy
-    try {
-      const q2 = query(collection(db, 'usuarios', currentUser.uid, 'carteira'));
-      const snap2 = await getDocs(q2);
-      contasGlobal = snap2.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(c => c.tipo !== 'credito');
-    } catch (err2) {
-      console.error('Fallback também falhou:', err2);
-      contasGlobal = [];
-    }
+    contasGlobal = [];
   }
   renderContas();
   renderKPIs();
