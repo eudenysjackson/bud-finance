@@ -49,6 +49,7 @@ let _unsubTransacoes   = null;
 let _unsubMesAnt       = null;
 let _excluirId         = null;         // id da transação a excluir
 let _buscaTimer        = null;         // debounce
+let _txPaginaSize      = 50;           // transações exibidas por vez (paginação)
 
 // Datepicker do modal de edição
 let _dpMes = new Date().getMonth();
@@ -156,6 +157,7 @@ function atualizarTextosData() {
 window.mudarMes = function(dir) {
   if (modoFiltro !== 'mes') return;
   dataFiltro = new Date(dataFiltro.getFullYear(), dataFiltro.getMonth() + dir, 1);
+  _txPaginaSize = 50;
   atualizarTextosData();
   if (usuarioAtualId) subscribeTransacoes(usuarioAtualId);
 };
@@ -197,6 +199,7 @@ window.aplicarIntervalo = function() {
   filtroDataFim = fim;
   const lbl = document.getElementById('labelIntervalo');
   if (lbl) lbl.textContent = `📅 ${iniStr.split('-').reverse().join('/')} → ${fimStr.split('-').reverse().join('/')}`;
+  _txPaginaSize = 50;
   if (usuarioAtualId) subscribeTransacoes(usuarioAtualId);
 };
 
@@ -210,6 +213,7 @@ window.limparIntervalo = function() {
   if (bar) bar.style.display = 'none';
   const lbl = document.getElementById('labelIntervalo');
   if (lbl) lbl.textContent = '';
+  _txPaginaSize = 50;
   if (usuarioAtualId) subscribeTransacoes(usuarioAtualId);
 };
 
@@ -236,6 +240,7 @@ window.setFiltroTipo = function(tipo) {
       if (!isActive) el.className = 'filter-pill';
     }
   });
+  _txPaginaSize = 50;
   renderizarExtrato();
 };
 
@@ -244,6 +249,7 @@ window.onBuscaInput = function() {
   clearTimeout(_buscaTimer);
   _buscaTimer = setTimeout(() => {
     buscaQuery = (document.getElementById('inputBusca')?.value || '').toLowerCase().trim();
+    _txPaginaSize = 50;
     renderizarExtrato();
   }, 200);
 };
@@ -275,6 +281,7 @@ window.setCatFiltro = function(valor, label) {
   });
   document.getElementById('catFiltroDropdown')?.classList.remove('open');
   btn?.classList.remove('open');
+  _txPaginaSize = 50;
   renderizarExtrato();
 };
 
@@ -410,9 +417,10 @@ function renderizarExtrato() {
     return;
   }
 
-  // ─ Agrupar por dia
+  // ─ Agrupar por dia (apenas os itens desta página)
+  const paginadas = filtradas.slice(0, _txPaginaSize);
   const grupos = {};
-  filtradas.forEach(t => {
+  paginadas.forEach(t => {
     const d = tsToDate(t.data);
     if (!d) return;
     const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -516,6 +524,16 @@ function renderizarExtrato() {
       frag.appendChild(row);
     });
   });
+
+  // ─ Botão "Ver mais" se há itens além desta página
+  if (filtradas.length > _txPaginaSize) {
+    const restante = filtradas.length - _txPaginaSize;
+    const btnVerMais = document.createElement('button');
+    btnVerMais.style.cssText = 'display:block;width:100%;margin-top:1rem;padding:0.75rem;border:1.5px solid var(--input-border);border-radius:0.75rem;background:var(--input-bg);font-size:0.875rem;font-weight:700;color:var(--card-text-sec);cursor:pointer;font-family:inherit;';
+    btnVerMais.textContent = `Ver mais ${Math.min(50, restante)} transações  (mostrando ${_txPaginaSize} de ${filtradas.length})`;
+    btnVerMais.addEventListener('click', function() { _txPaginaSize += 50; renderizarExtrato(); });
+    frag.appendChild(btnVerMais);
+  }
 
   container.innerHTML = '';
   container.appendChild(frag);

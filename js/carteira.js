@@ -7,7 +7,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
-  getFirestore, collection, query, where, orderBy, getDocs,
+  getFirestore, collection, query, where, orderBy, getDocs, limit,
   getDoc, addDoc, updateDoc, deleteDoc, doc, writeBatch,
   serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
@@ -79,6 +79,7 @@ onAuthStateChanged(auth, async (user) => {
   initSidebarToggle();
   initToggles();
   await carregarContas();
+  await carregarHistoricoImportacoes();
   ocultarSplash();
 });
 
@@ -152,6 +153,7 @@ function initToggles() {
       btnSync.style.opacity = '0.5';
       btnSync.style.pointerEvents = 'none';
       await carregarContas();
+      await carregarHistoricoImportacoes();
       btnSync.style.opacity = '';
       btnSync.style.pointerEvents = '';
     });
@@ -189,6 +191,115 @@ async function carregarContas() {
   }
   renderContas();
   renderKPIs();
+}
+
+// ── Histórico de Importações ──────────────────────────────
+async function carregarHistoricoImportacoes() {
+  const section = document.getElementById('sectionHistoricoImport');
+  if (!section) return;
+  try {
+    const q = query(
+      collection(db, 'usuarios', currentUser.uid, 'importacoes'),
+      orderBy('dataImportacao', 'desc'),
+      limit(20)
+    );
+    const snap = await getDocs(q);
+    let items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Migrar dados legados de arquivosImportados (campo do doc da conta) para a sub-coleção
+    if (items.length === 0) {
+      items = await _migrarArquivosImportados();
+    }
+
+    renderHistoricoImportacoes(items);
+  } catch (err) {
+    console.warn('[histórico] Erro ao carregar:', err);
+    renderHistoricoImportacoes([]);
+  }
+}
+
+async function _migrarArquivosImportados() {
+  const migrados = [];
+  for (const conta of contasGlobal) {
+    const arqs = conta.arquivosImportados;
+    if (!arqs) continue;
+    for (const [, info] of Object.entries(arqs)) {
+      if (!info || !info.data) continue;
+      try {
+        const ref = await addDoc(collection(db, 'usuarios', currentUser.uid, 'importacoes'), {
+          contaId:        conta.id,
+          contaNome:      conta.nome || '',
+          nomeArquivo:    info.nome || 'arquivo',
+          origem:         info.origem || 'desconhecido',
+          qtdTransacoes:  info.totalTransacoes || 0,
+          receitas:       0,
+          despesas:       0,
+          periodoInicio:  null,
+          periodoFim:     null,
+          dataImportacao: Timestamp.fromDate(new Date(info.data)),
+        });
+        migrados.push({ id: ref.id, contaId: conta.id, contaNome: conta.nome, nomeArquivo: info.nome, origem: info.origem, qtdTransacoes: info.totalTransacoes, dataImportacao: { toDate: () => new Date(info.data) } });
+      } catch (_) { /* silencioso */ }
+    }
+  }
+  // Ordena mais recente primeiro
+  migrados.sort((a, b) => b.dataImportacao.toDate() - a.dataImportacao.toDate());
+  return migrados;
+}
+
+function renderHistoricoImportacoes(items) {
+  const section = document.getElementById('sectionHistoricoImport');
+  const lista   = document.getElementById('historicoImportLista');
+  const vazio   = document.getElementById('historicoImportVazio');
+  if (!section || !lista) return;
+
+  if (!items.length) {
+    lista.style.display = 'none';
+    if (vazio) vazio.style.display = 'block';
+    return;
+  }
+
+  lista.style.display = 'block';
+  if (vazio) vazio.style.display = 'none';
+
+  const ORIGEM_LABEL = { pdf: 'PDF', ofx: 'OFX', csv: 'CSV', imagem: 'Imagem', desconhecido: '—' };
+
+  lista.innerHTML = '';
+  items.forEach(item => {
+    let dataStr = '—';
+    if (item.dataImportacao?.toDate) {
+      const d = item.dataImportacao.toDate();
+      dataStr = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+    let periodoStr = '—';
+    if (item.periodoInicio && item.periodoFim) {
+      const [yi, mi, di] = item.periodoInicio.split('-');
+      const [yf, mf, df] = item.periodoFim.split('-');
+      periodoStr = `${di}/${mi}/${yi} → ${df}/${mf}/${yf}`;
+    } else if (item.periodoInicio) {
+      const [yi, mi, di] = item.periodoInicio.split('-');
+      periodoStr = `${di}/${mi}/${yi}`;
+    }
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.75rem 0;border-top:1px solid var(--input-border);flex-wrap:wrap;';
+
+    const origemLabel = ORIGEM_LABEL[item.origem] || item.origem || '—';
+    const origemBg = item.origem === 'pdf' ? '#ede9fe' : item.origem === 'ofx' ? '#dbeafe' : item.origem === 'csv' ? '#dcfce7' : '#f1f5f9';
+    const origemColor = item.origem === 'pdf' ? '#5b21b6' : item.origem === 'ofx' ? '#1d4ed8' : item.origem === 'csv' ? '#15803d' : '#475569';
+
+    row.innerHTML = `
+      <div style="width:2.25rem;height:2.25rem;border-radius:0.625rem;background:${origemBg};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.75rem;font-weight:800;color:${origemColor};">${origemLabel}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:0.8125rem;font-weight:700;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(item.nomeArquivo || '')}">${escapeHtml(item.nomeArquivo || 'arquivo')}</div>
+        <div style="font-size:0.75rem;color:var(--card-text-sec);margin-top:0.125rem;">${escapeHtml(item.contaNome || '—')} · Período: ${periodoStr}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:0.8125rem;font-weight:700;color:var(--card-text);">${item.qtdTransacoes || 0} transações</div>
+        <div style="font-size:0.6875rem;color:var(--card-text-sec);">${dataStr}</div>
+      </div>`;
+    lista.appendChild(row);
+  });
 }
 
 // ── Render KPIs ───────────────────────────────────────────
@@ -554,6 +665,7 @@ function abrirModalImport(contaId) {
     modal.classList.remove('open');
     window._ofxLedgerBal = null;
     carregarContas();
+    carregarHistoricoImportacoes();
   };
 
   // chkAll
@@ -1404,6 +1516,26 @@ async function confirmarImport() {
       } catch (_e) {
         console.warn('Não foi possível registrar hash do arquivo:', _e);
       }
+    }
+
+    // Salvar na sub-coleção 'importacoes' para o histórico
+    try {
+      const periodoInicio = selecionados.map(r => r.data).sort()[0] || null;
+      const periodoFim    = selecionados.map(r => r.data).sort().reverse()[0] || null;
+      await addDoc(collection(db, 'usuarios', uid, 'importacoes'), {
+        contaId:         currentCarteiraId,
+        contaNome:       budSanitize(currentContaObj.nome || ''),
+        nomeArquivo:     budSanitize(_importFileName || 'arquivo'),
+        origem:          _importSourceType || 'desconhecido',
+        qtdTransacoes:   salvos,
+        receitas:        receitas,
+        despesas:        despesas,
+        periodoInicio:   periodoInicio,
+        periodoFim:      periodoFim,
+        dataImportacao:  serverTimestamp(),
+      });
+    } catch (_e) {
+      console.warn('Não foi possível salvar histórico de importação:', _e);
     }
 
     // Atualizar ultimaConfirmacao no carteira document (snapshot)
