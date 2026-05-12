@@ -41,6 +41,7 @@ let excluirContaId = null;
 let contaCorSelecionada = 'sem_cor';
 let _rowCatDdTargetIdx = null;
 let _rowCatDdBtn = null;
+let _contaTipoClickHandler = null;
 
 // ── Cores map ─────────────────────────────────────────────
 const CORES_MAP = {
@@ -199,6 +200,13 @@ async function carregarHistoricoImportacoes() {
     }
 
     renderHistoricoImportacoes(items);
+    // Melhoria C: atualizar KPI com a importação mais recente da sub-coleção
+    if (items.length > 0 && items[0].dataImportacao?.toDate) {
+      const kpiImport = document.getElementById('kpiUltImport');
+      const kpiImportSub = document.getElementById('kpiUltImportSub');
+      if (kpiImport) kpiImport.textContent = items[0].dataImportacao.toDate().toLocaleDateString('pt-BR');
+      if (kpiImportSub) kpiImportSub.textContent = items[0].nomeArquivo || 'Último extrato importado';
+    }
   } catch (err) {
     console.warn('[histórico] Erro ao carregar:', err);
     renderHistoricoImportacoes([]);
@@ -275,6 +283,9 @@ function renderHistoricoImportacoes(items) {
     const origemBg = item.origem === 'pdf' ? '#ede9fe' : item.origem === 'ofx' ? '#dbeafe' : item.origem === 'csv' ? '#dcfce7' : '#f1f5f9';
     const origemColor = item.origem === 'pdf' ? '#5b21b6' : item.origem === 'ofx' ? '#1d4ed8' : item.origem === 'csv' ? '#15803d' : '#475569';
 
+    const recStr = (item.receitas > 0 || item.despesas > 0)
+      ? `<div style="font-size:0.6875rem;font-weight:600;margin-top:2px;"><span style="color:#16a34a;">↑ ${fmtBRL(item.receitas||0)}</span>&nbsp;&nbsp;<span style="color:#dc2626;">↓ ${fmtBRL(item.despesas||0)}</span></div>`
+      : '';
     row.innerHTML = `
       <div style="width:2.25rem;height:2.25rem;border-radius:0.625rem;background:${origemBg};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.75rem;font-weight:800;color:${origemColor};">${origemLabel}</div>
       <div style="flex:1;min-width:0;">
@@ -283,8 +294,16 @@ function renderHistoricoImportacoes(items) {
       </div>
       <div style="text-align:right;flex-shrink:0;">
         <div style="font-size:0.8125rem;font-weight:700;color:var(--card-text);">${item.qtdTransacoes || 0} transações</div>
+        ${recStr}
         <div style="font-size:0.6875rem;color:var(--card-text-sec);">${dataStr}</div>
       </div>`;
+    if (item.periodoInicio && item.periodoFim) {
+      const linkEl = document.createElement('a');
+      linkEl.href = `extrato.html?inicio=${item.periodoInicio}&fim=${item.periodoFim}`;
+      linkEl.style.cssText = 'font-size:0.75rem;color:#2563eb;font-weight:600;padding:0.25rem 0.625rem;border-radius:0.375rem;border:1px solid #bfdbfe;background:#eff6ff;text-decoration:none;white-space:nowrap;flex-shrink:0;align-self:center;';
+      linkEl.textContent = '📋 Ver';
+      row.appendChild(linkEl);
+    }
     lista.appendChild(row);
   });
 }
@@ -386,7 +405,10 @@ function buildContaCard(conta) {
       </div>
       <div class="conta-saldo" style="color:${saldoColor};">${saldoStr}</div>
       <div class="conta-confirmacao">${confirmacao}</div>
-      <button class="conta-import-btn" id="btnImport_${conta.id}">📥 Importar Extrato</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+        <button class="conta-import-btn" id="btnImport_${conta.id}">📥 Importar</button>
+        <a href="extrato.html" class="conta-import-btn" style="text-decoration:none;text-align:center;">📋 Extrato</a>
+      </div>
     </div>`;
 }
 
@@ -448,7 +470,7 @@ function abrirModalConta(id) {
 
   // Saldo format
   const inputSaldo = document.getElementById('contaSaldoInicial');
-  inputSaldo.addEventListener('input', function() { formatarInputValor(this); }, { once: false });
+  inputSaldo.oninput = function() { formatarInputValor(this); };
 
   document.getElementById('btnSalvarConta').onclick = salvarConta;
   document.getElementById('btnCancelarConta').onclick = () => modal.classList.remove('open');
@@ -489,14 +511,19 @@ function initContaTipoSelect() {
     };
   });
 
-  // Close on outside click
-  document.addEventListener('click', function handler(e) {
+  // Close on outside click (remove handler anterior para evitar acumulação)
+  if (_contaTipoClickHandler) {
+    document.removeEventListener('click', _contaTipoClickHandler);
+  }
+  _contaTipoClickHandler = function(e) {
     if (!btn.contains(e.target) && !dd.contains(e.target)) {
       btn.classList.remove('open');
       dd.classList.remove('open');
-      document.removeEventListener('click', handler);
+      document.removeEventListener('click', _contaTipoClickHandler);
+      _contaTipoClickHandler = null;
     }
-  });
+  };
+  document.addEventListener('click', _contaTipoClickHandler);
 }
 
 async function salvarConta() {
@@ -1505,6 +1532,10 @@ async function confirmarImport() {
       }
     }
 
+    // Calcular receitas/despesas antes do addDoc (evita TDZ ReferenceError)
+    const receitas = selecionados.filter(r => r.tipo === 'receita').reduce((s, r) => s + r.valor, 0);
+    const despesas = selecionados.filter(r => r.tipo === 'despesa').reduce((s, r) => s + r.valor, 0);
+
     // Salvar na sub-coleção 'importacoes' para o histórico
     try {
       const periodoInicio = selecionados.map(r => r.data).sort()[0] || null;
@@ -1527,8 +1558,6 @@ async function confirmarImport() {
 
     // Atualizar ultimaConfirmacao no carteira document (snapshot)
     const ultimaData = selecionados.map(r => r.data).sort().reverse()[0];
-    const receitas = selecionados.filter(r => r.tipo === 'receita').reduce((s, r) => s + r.valor, 0);
-    const despesas = selecionados.filter(r => r.tipo === 'despesa').reduce((s, r) => s + r.valor, 0);
     const netDelta = receitas - despesas;
 
     // Movimentos internos (foram desmarcados no review — não somam ao extrato pessoal mas constam no PDF)

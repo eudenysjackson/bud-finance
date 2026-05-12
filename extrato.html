@@ -240,7 +240,7 @@
       .sidebar.open{transform:translateX(0);}
       .sidebar.collapsed{width:260px;padding-left:1rem;padding-right:1rem;align-items:flex-start;}
       .sidebar-overlay.open{display:block;}
-      .dash-main{margin-left:0 !important;padding:1rem;}
+      .dash-main{margin-left:0 !important;padding:1rem;overflow-x:clip;}
       .hamburger-btn{display:flex;}
       .sidebar-collapse-btn{display:none !important;}
       .cards-grid{grid-template-columns:1fr;}
@@ -249,6 +249,7 @@
       .modal-grid2{grid-template-columns:1fr;}
       /* B2: hit-area mínima 44px em touch (WCAG 2.5.5) */
       .filter-pill{min-height:44px;padding:0.625rem 1rem;}
+      #filterStickyWrap{position:sticky;top:0;z-index:20;background:var(--card-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);margin:-1.5rem -1.5rem 0.75rem;padding:1rem 1.5rem 0.75rem;border-radius:1.5rem 1.5rem 0 0;border-bottom:1px solid var(--input-border);}
     }
     @media(min-width:769px){.sidebar-collapse-btn{display:flex;}}
     @media(min-width:769px) and (max-width:1024px){.cards-grid{grid-template-columns:repeat(2,1fr);}}
@@ -362,6 +363,7 @@
         <span class="mes-nav-label" id="navMesAno" aria-live="polite">Carregando...</span>
         <button class="mes-nav-btn" id="btnProximoMes" aria-label="Próximo mês">›</button>
         <button onclick="ativarModoIntervalo()" title="Filtrar por intervalo de datas" style="margin-left:0.5rem;padding:0.25rem 0.625rem;border-radius:0.5rem;border:1.5px solid var(--card-border);background:var(--card-bg);color:var(--text-sec);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;" id="btnAtivarIntervalo">📅 Intervalo</button>
+        <button onclick="irParaHoje()" title="Voltar ao mês atual" style="padding:0.25rem 0.625rem;border-radius:0.5rem;border:1.5px solid var(--card-border);background:var(--card-bg);color:var(--text-sec);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;" id="btnHoje">Hoje</button>
       </nav>
 
       <!-- Barra de intervalo de datas (hidden por padrão) -->
@@ -418,6 +420,8 @@
       <!-- Seção principal -->
       <div class="section-card">
 
+        <!-- Sticky wrapper para filtros no mobile -->
+        <div id="filterStickyWrap">
         <!-- Título + pills tipo -->
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;margin-bottom:1.25rem;">
           <div>
@@ -462,6 +466,7 @@
             </div>
           </div>
         </div>
+        </div><!-- /filterStickyWrap -->
 
         <!-- Lista de transações -->
         <div id="listaExtrato">

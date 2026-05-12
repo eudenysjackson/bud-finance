@@ -162,6 +162,19 @@ window.mudarMes = function(dir) {
   if (usuarioAtualId) subscribeTransacoes(usuarioAtualId);
 };
 
+window.irParaHoje = function() {
+  if (modoFiltro === 'intervalo') {
+    limparIntervalo();
+    return;
+  }
+  const hoje = new Date();
+  if (dataFiltro.getFullYear() === hoje.getFullYear() && dataFiltro.getMonth() === hoje.getMonth()) return;
+  dataFiltro = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  _txPaginaSize = 50;
+  atualizarTextosData();
+  if (usuarioAtualId) subscribeTransacoes(usuarioAtualId);
+};
+
 // ─── Modo Intervalo ────────────────────────────────────────────────────────
 window.ativarModoIntervalo = function() {
   const mesNav = document.getElementById('mesNavBar');
@@ -557,8 +570,11 @@ function renderBreakdown() {
     porCat[c] = (porCat[c] || 0) + t.valor;
   });
 
-  const entries = Object.entries(porCat).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const allEntries = Object.entries(porCat).sort((a, b) => b[1] - a[1]);
+  const entries = allEntries.slice(0, 5);
   if (entries.length === 0) { section.style.display = 'none'; return; }
+  const outrosEntries = allEntries.slice(5);
+  const outrosTotal = outrosEntries.reduce((s, [, v]) => s + v, 0);
 
   const maximo = entries[0][1];
   const totalDes = Object.values(porCat).reduce((s, v) => s + v, 0);
@@ -620,9 +636,49 @@ function renderBreakdown() {
     rowEl.appendChild(infoEl);
     lista.appendChild(rowEl);
   });
-}
 
-// ─── Excluir ───────────────────────────────────────────────────────────────
+  // Linha “Outros” para categorias além do top 5
+  if (outrosEntries.length > 0) {
+    const pct = maximo > 0 ? (outrosTotal / maximo) * 100 : 0;
+    const pctTotal = totalDes > 0 ? ((outrosTotal / totalDes) * 100).toFixed(1) : '0';
+    const rowEl = document.createElement('div');
+    rowEl.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-top:1px dashed var(--input-border);';
+    const emojiEl = document.createElement('div');
+    emojiEl.className = 'breakdown-emoji';
+    emojiEl.textContent = '📦';
+    const infoEl = document.createElement('div');
+    infoEl.className = 'breakdown-info';
+    infoEl.style.cssText = 'flex:1;min-width:0;';
+    const nomeRow = document.createElement('div');
+    nomeRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;';
+    const nomeEl = document.createElement('span');
+    nomeEl.className = 'breakdown-nome';
+    nomeEl.style.cssText = 'opacity:0.7;font-style:italic;';
+    nomeEl.textContent = `Outros (${outrosEntries.length} ${outrosEntries.length === 1 ? 'categoria' : 'categorias'})`;
+    const valEl = document.createElement('span');
+    valEl.className = 'breakdown-valor';
+    valEl.style.cssText = 'opacity:0.7;';
+    valEl.textContent = fmtBRL(outrosTotal);
+    nomeRow.appendChild(nomeEl);
+    nomeRow.appendChild(valEl);
+    const pctEl = document.createElement('div');
+    pctEl.className = 'breakdown-pct';
+    pctEl.textContent = pctTotal + '% do total de despesas';
+    const barBg = document.createElement('div');
+    barBg.className = 'breakdown-bar-bg';
+    const barFill = document.createElement('div');
+    barFill.className = 'breakdown-bar-fill';
+    barFill.style.cssText = 'width:0%;background:#94a3b8;';
+    barBg.appendChild(barFill);
+    setTimeout(() => { barFill.style.width = pct + '%'; }, 50 + 5 * 80);
+    infoEl.appendChild(nomeRow);
+    infoEl.appendChild(pctEl);
+    infoEl.appendChild(barBg);
+    rowEl.appendChild(emojiEl);
+    rowEl.appendChild(infoEl);
+    lista.appendChild(rowEl);
+  }
+} ───────────────────────────────────────────────────────────────
 function pedirExclusao(id) {
   _excluirId = id;
   document.getElementById('modalExcluir')?.classList.add('open');
@@ -1016,13 +1072,13 @@ function subscribeTransacoes(uid) {
   _dadosCarregados.transacoes = false;
   _dadosCarregados.mesAnterior = false;
 
+  const ano = dataFiltro.getFullYear();
+  const mes = dataFiltro.getMonth();
   let inicio, fim;
   if (modoFiltro === 'intervalo' && filtroDataInicio && filtroDataFim) {
     inicio = Timestamp.fromDate(filtroDataInicio);
     fim    = Timestamp.fromDate(filtroDataFim);
   } else {
-    const ano = dataFiltro.getFullYear();
-    const mes = dataFiltro.getMonth();
     inicio = Timestamp.fromDate(new Date(ano, mes, 1, 0, 0, 0));
     fim    = Timestamp.fromDate(new Date(ano, mes + 1, 0, 23, 59, 59));
   }
@@ -1127,6 +1183,28 @@ function setupSidebar(user, userData) {
 }
 
 // ─── Inicialização ─────────────────────────────────────────────────────────
+// Melhoria G: aplicar filtro de intervalo via URL params (?inicio=2025-01-01&fim=2025-01-31)
+(function() {
+  const p = new URLSearchParams(window.location.search);
+  const pIni = p.get('inicio');
+  const pFim = p.get('fim');
+  if (pIni && pFim && /^\d{4}-\d{2}-\d{2}$/.test(pIni) && /^\d{4}-\d{2}-\d{2}$/.test(pFim)) {
+    modoFiltro = 'intervalo';
+    filtroDataInicio = new Date(pIni + 'T00:00:00');
+    filtroDataFim    = new Date(pFim + 'T23:59:59');
+    const ini = document.getElementById('filtroDataInicio');
+    const fim = document.getElementById('filtroDataFim');
+    if (ini) ini.value = pIni;
+    if (fim) fim.value = pFim;
+    const mesNav = document.getElementById('mesNavBar');
+    const bar = document.getElementById('intervaloBar');
+    if (mesNav) mesNav.style.display = 'none';
+    if (bar) bar.style.display = 'flex';
+    const lbl = document.getElementById('labelIntervalo');
+    if (lbl) lbl.textContent = `📅 ${pIni.split('-').reverse().join('/')} → ${pFim.split('-').reverse().join('/')}`;
+  }
+})();
+
 atualizarTextosData();
 
 document.getElementById('btnMesAnterior')?.addEventListener('click', function() { window.mudarMes(-1); });
@@ -1136,6 +1214,12 @@ document.getElementById('btnToggleValues')?.addEventListener('click', window.tog
 // Fechar modais ao clicar fora
 document.getElementById('modalEditar')?.addEventListener('click', window.fecharModalEditar);
 document.getElementById('modalExcluir')?.addEventListener('click', window.fecharModalExcluir);
+
+window.addEventListener('beforeunload', function() {
+  if (_unsubTransacoes) _unsubTransacoes();
+  if (_unsubMesAnt)     _unsubMesAnt();
+  if (_unsubCategorias) _unsubCategorias();
+});
 
 onAuthStateChanged(auth, async function(user) {
   if (!user) { window.location.href = 'index.html'; return; }
