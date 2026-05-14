@@ -94,7 +94,7 @@
     .sidebar-user-id{font-size:0.6875rem;font-weight:500;color:var(--text-sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
 
     /* ── Main ────────────────────────────────────────────── */
-    .dash-main{flex:1;margin-left:260px;padding:1.5rem;position:relative;z-index:1;transition:margin-left .3s ease;}
+    .dash-main{flex:1;min-width:0;margin-left:260px;padding:1.5rem;position:relative;z-index:1;transition:margin-left .3s ease;}
     .dash-main.sidebar-collapsed{margin-left:64px;}
     .dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;}
     .dash-welcome h1{font-size:1.5rem;font-weight:800;color:var(--text-main);letter-spacing:-0.025em;transition:color 0.35s ease;}
@@ -232,6 +232,14 @@
     .dedup-badge-warn{background:#fef9c3;color:#854d0e;}
     .dedup-badge-ok{background:#dcfce7;color:#14532d;}
 
+    /* ── Filter pills ─────────────────────────────────────── */
+    .conta-filter-pills{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:0.5rem;margin-bottom:1rem;padding-bottom:0.125rem;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+    .conta-filter-pills::-webkit-scrollbar{display:none;}
+    .conta-filter-pill{padding:0.3125rem 0.75rem;border-radius:999px;font-size:0.75rem;font-weight:700;cursor:pointer;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--card-text-sec);font-family:inherit;transition:all .15s;white-space:nowrap;flex-shrink:0;}
+    .conta-filter-pill.active{background:var(--sidebar-link-active-bg);border-color:var(--theme-accent,#3b82f6);color:var(--sidebar-link-active-color);}
+    /* ── Card buttons grid ───────────────────────────────── */
+    .conta-btns-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;}
+
     /* ── Responsive ──────────────────────────────────────── */
     @media(max-width:768px){
       .sidebar{transform:translateX(-100%);}
@@ -241,15 +249,20 @@
       .dash-main{margin-left:0 !important;padding:1rem;}
       .hamburger-btn{display:flex;}
       .sidebar-collapse-btn{display:none !important;}
-      .cards-grid{grid-template-columns:1fr;}
+      .cards-grid{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:0.5rem;scrollbar-width:none;margin-bottom:1.5rem;}
+      .cards-grid::-webkit-scrollbar{display:none;}
+      .cards-grid>.summary-card{min-width:220px;flex:0 0 220px;scroll-snap-align:start;}
       .contas-grid{grid-template-columns:1fr;}
+      .conta-action-btn{width:1.875rem;height:1.875rem;font-size:0.875rem;}
+      .conta-btns-grid{grid-template-columns:1fr;}
+      .conta-import-btn{min-height:48px;}
       .modal-grid2{grid-template-columns:1fr;}
       .modal-card-lg{max-width:100%;}
       .dash-welcome h1{font-size:1.125rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
       .dash-welcome p{display:none;}
       .nova-conta-text{display:none;}
     }
-    @media(min-width:480px) and (max-width:768px){.cards-grid{grid-template-columns:1fr 1fr;}}
+    @media(min-width:480px) and (max-width:768px){.cards-grid>.summary-card{min-width:240px;flex:0 0 240px;}}
     @media(min-width:769px){.sidebar-collapse-btn{display:flex;}}
     @media(min-width:769px) and (max-width:1024px){.cards-grid{grid-template-columns:repeat(2,1fr);}}
   </style>
@@ -388,9 +401,20 @@
 
       <!-- Contas Grid -->
       <div class="section-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem;">
           <div style="font-size:1rem;font-weight:800;color:var(--card-text);">Suas Contas</div>
-          <div style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);" id="contasContador">—</div>
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <div style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);" id="contasContador">—</div>
+            <button id="btnSortContas" style="padding:0.25rem 0.625rem;border:1.5px solid var(--input-border);border-radius:0.5rem;background:var(--input-bg);font-size:0.75rem;font-weight:700;color:var(--card-text-sec);cursor:pointer;font-family:inherit;transition:all .15s;" title="Ordenar contas">↕ Criação</button>
+            <button id="btnTransferencia" style="padding:0.25rem 0.625rem;border:1.5px solid var(--input-border);border-radius:0.5rem;background:var(--input-bg);font-size:0.75rem;font-weight:700;color:var(--card-text-sec);cursor:pointer;font-family:inherit;transition:all .15s;" title="Transferência entre contas">↔️ Transferir</button>
+          </div>
+        </div>
+        <div class="conta-filter-pills" id="contaFilterPills">
+          <button class="conta-filter-pill active" data-tipo="todos">Todas</button>
+          <button class="conta-filter-pill" data-tipo="debito">🏦 Débito</button>
+          <button class="conta-filter-pill" data-tipo="dinheiro">💵 Dinheiro</button>
+          <button class="conta-filter-pill" data-tipo="beneficio">🍽️ Benefícios</button>
+          <button class="conta-filter-pill" data-tipo="transporte">🚌 Transporte</button>
         </div>
         <div class="contas-grid" id="contasGrid">
           <div class="empty-state">
@@ -417,6 +441,72 @@
       </div>
 
     </main>
+  </div>
+
+  <!-- ═ Modal Transferência entre Contas ════════════════ -->
+  <div class="modal-overlay" id="modalTransferencia" role="dialog" aria-modal="true" aria-labelledby="tituloTransferencia">
+    <div class="modal-card" onclick="event.stopPropagation()" style="max-width:400px;">
+      <div class="modal-title">
+        <span id="tituloTransferencia">↔️ Transferência entre Contas</span>
+        <button class="modal-close" id="btnFecharTransferencia" aria-label="Fechar">✕</button>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">De (Origem)</label>
+        <div class="custom-select">
+          <button class="custom-select-trigger" id="btnOrigemTrigger" type="button">
+            <span id="textoContaOrigem">Selecione a conta de origem...</span>
+            <svg class="custom-select-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <input type="hidden" id="hiddenContaOrigem">
+          <div class="custom-select-dropdown" id="dropdownOrigem"></div>
+        </div>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Para (Destino)</label>
+        <div class="custom-select">
+          <button class="custom-select-trigger" id="btnDestinoTrigger" type="button">
+            <span id="textoContaDestino">Selecione a conta de destino...</span>
+            <svg class="custom-select-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <input type="hidden" id="hiddenContaDestino">
+          <div class="custom-select-dropdown" id="dropdownDestino"></div>
+        </div>
+      </div>
+      <div class="modal-grid2">
+        <div class="modal-field">
+          <label class="modal-label">Valor</label>
+          <input type="tel" class="modal-input" id="inputValorTransf" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">Data</label>
+          <input type="date" class="modal-input" id="inputDataTransf">
+        </div>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Descrição (opcional)</label>
+        <input type="text" class="modal-input" id="inputDescTransf" placeholder="Ex: transferência para reserva" maxlength="120" autocomplete="off">
+      </div>
+      <button class="modal-submit" id="btnConfirmarTransferencia">↔️ Transferir</button>
+      <button class="modal-cancel" id="btnCancelarTransferencia">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- ═ Modal Confirmar Saldo Rápido ══════════════════════ -->
+  <div class="modal-overlay" id="modalSaldoRapido" role="dialog" aria-modal="true">
+    <div class="modal-card" onclick="event.stopPropagation()" style="max-width:360px;">
+      <div class="modal-title">
+        <span>💰 Confirmar Saldo</span>
+        <button class="modal-close" id="btnFecharSaldoRapido" aria-label="Fechar">✕</button>
+      </div>
+      <div style="font-size:0.8125rem;font-weight:600;color:var(--card-text-sec);margin-bottom:1rem;padding:0.625rem 0.875rem;background:var(--input-bg);border-radius:0.75rem;border:1px solid var(--input-border);" id="saldoRapidoContaNome">—</div>
+      <input type="hidden" id="saldoRapidoContaId">
+      <div class="modal-field">
+        <label class="modal-label">Saldo atual (conforme extrato ou app do banco)</label>
+        <input type="tel" class="modal-input" id="inputSaldoRapido" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
+      </div>
+      <button class="modal-submit" id="btnConfirmarSaldoRapido">✅ Confirmar Saldo</button>
+      <button class="modal-cancel" id="btnCancelarSaldoRapido">Cancelar</button>
+    </div>
   </div>
 
   <!-- ═ Modal Nova / Editar Conta ═════════════════════════ -->

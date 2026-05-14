@@ -1,7 +1,7 @@
 # DECISIONS_LOG.md — Registro de Decisões Arquiteturais
 
 **Projeto**: Bud Finance  
-**Última atualização**: 21/04/2026
+**Última atualização**: 14/05/2026
 
 > **REGRA**: Antes de refatorar qualquer padrão, ler este doc primeiro.  
 > Toda decisão não-óbvia deve ser registrada aqui.
@@ -535,6 +535,26 @@ unTransaction. Sem atomicidade, falha parcial corromperia dados.
 - **Por que**: Date.setMonth aplica overflow de dias automaticamente; fixar dia=1 antes garante comportamento previsivel.
 - **Consequencias**: Padrao obrigatorio em qualquer funcao de navegacao de mes: mudarMes(), selecionarMes() e equivalentes em Extrato, Dashboard, Balanco Mensal.
 - **Registrado originalmente como**: BUG-2 em cerebro/balanco-mensal.md.
+
+---
+
+### DEC-044 — Identidade visual de bancos em `carteira.html`: `BANCOS_LOOKUP` + `detectarBanco()`
+
+- **Data**: 14/05/2026
+- **O que foi decidido**: Os cards de conta detectam o banco pelo nome (regex case-insensitive) e aplicam identidade visual da marca: (1) gradiente de fundo na cor do banco; (2) ícone como abreviação estilizada ("Nu", "Itaú", "BB" etc.) no lugar do ícone genérico; (3) faixa lateral `border-left` colorida; (4) botões Importar/Extrato com `border-color` e `color` do banco.
+- **Por quê**: Reconhecimento visual imediato da conta. UX significativamente mais rica sem adicionar dependência externa (sem API de logos).
+- **Consequências**: 21 bancos mapeados em `BANCOS_LOOKUP` (constante top-level em `carteira.js`). `detectarBanco(nome)` retorna `{ bg, text, abbrev }` ou `null`. Contas sem banco reconhecido usam fallback com cor configurada pelo usuário (`conta.cor`). NUNCA usar imagens/SVGs externos para logos de banco — usar abreviação em CSS puro.
+- **Quando revisar**: Ao adicionar novos bancos ao sistema.
+
+---
+
+### DEC-045 — `min-width:0` obrigatório em flex items que são containers de conteúdo
+
+- **Data**: 14/05/2026
+- **O que foi decidido**: Todo flex item que serve como container principal de conteúdo (`.dash-main`, `.main-content` e equivalentes) deve ter `min-width:0` explícito na regra CSS base.
+- **Por quê**: O padrão CSS para `min-width` em flex items é `auto` (= `min-content`). Sem `min-width:0`, o item não encolhe abaixo do tamanho intrínseco do seu conteúdo, causando overflow horizontal em viewports estreitos — mesmo com `flex:1`, `flex-shrink:1` e `margin-left:0 !important` corretamente aplicados no breakpoint mobile. O `body{overflow-x:hidden}` esconde o scroll mas não corrige o layout (elementos continuam renderizados fora do viewport).
+- **Consequências**: Regra de prevenção permanente: ao criar qualquer layout flex onde um item deve preencher apenas o espaço disponível, adicionar `min-width:0`. Especialmente crítico para sidebars collapsíveis com `position:fixed` (o único flex filho do container é o `.dash-main`).
+- **Quando revisar**: Se migrar para CSS Grid no layout principal (o comportamento padrão do Grid é `min-width:auto` também, mas `grid-template-columns:1fr` já implica `minmax(0,1fr)` na maioria dos browsers modernos).
 
 ---
 

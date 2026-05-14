@@ -43,6 +43,13 @@ let _rowCatDdTargetIdx = null;
 let _rowCatDdBtn = null;
 let _contaTipoClickHandler = null;
 
+// ── Sort / Filter state ───────────────────────────────────
+let _contasSortBy = 'criado';   // 'criado' | 'nome' | 'saldo' | 'atualizado'
+let _contasFiltroTipo = 'todos'; // 'todos' | 'debito' | 'dinheiro' | 'beneficio' | 'transporte'
+
+const _SORT_LABELS = { criado: '↕ Criação', nome: '↕ Nome A-Z', saldo: '↕ Maior Saldo', atualizado: '↕ Recente' };
+const _SORT_CYCLE  = ['criado', 'nome', 'saldo', 'atualizado'];
+
 // ── Cores map ─────────────────────────────────────────────
 const CORES_MAP = {
   sem_cor:  null,
@@ -66,6 +73,36 @@ const TIPO_CONFIG = {
   vale_alimentacao:{ icon: '🛒', label: 'Vale Alimentação',    color: '#16a34a', bg: '#f0fdf4' },
   transporte:      { icon: '🚌', label: 'Transporte / VT',     color: '#7c3aed', bg: '#f5f3ff' },
 };
+
+// ── Bancos (logo + cor de marca) ──────────────────────────
+const BANCOS_LOOKUP = [
+  { match: /nubank|nu\b/i,                     abbrev: 'Nu',     bg: '#820AD1', text: '#fff', label: 'Nubank' },
+  { match: /ita[uú]|iti\b/i,                   abbrev: 'Itaú',   bg: '#EC7000', text: '#fff', label: 'Itaú' },
+  { match: /bradesco/i,                         abbrev: 'Brad',   bg: '#CC092F', text: '#fff', label: 'Bradesco' },
+  { match: /santander/i,                        abbrev: 'Sant',   bg: '#EC0000', text: '#fff', label: 'Santander' },
+  { match: /banco do brasil|bb\b|cartao bb/i,   abbrev: 'BB',     bg: '#F7B801', text: '#1a1a1a', label: 'Banco do Brasil' },
+  { match: /caixa|cef\b/i,                      abbrev: 'CEF',    bg: '#0070AF', text: '#fff', label: 'Caixa' },
+  { match: /inter\b|banco inter/i,              abbrev: 'Inter',  bg: '#FF7A00', text: '#fff', label: 'Inter' },
+  { match: /c6\b|c6 bank/i,                     abbrev: 'C6',     bg: '#242424', text: '#fff', label: 'C6 Bank' },
+  { match: /xp\b|xp invest/i,                   abbrev: 'XP',     bg: '#1A1A1A', text: '#fff', label: 'XP Investimentos' },
+  { match: /sicoob/i,                           abbrev: 'Sic',    bg: '#005EA6', text: '#fff', label: 'Sicoob' },
+  { match: /sicredi/i,                          abbrev: 'Scr',    bg: '#009E44', text: '#fff', label: 'Sicredi' },
+  { match: /picpay/i,                           abbrev: 'PP',     bg: '#21C25E', text: '#fff', label: 'PicPay' },
+  { match: /btg/i,                              abbrev: 'BTG',    bg: '#003087', text: '#fff', label: 'BTG Pactual' },
+  { match: /neon/i,                             abbrev: 'Neon',   bg: '#00B7DC', text: '#fff', label: 'Neon' },
+  { match: /original/i,                         abbrev: 'Orig',   bg: '#00B050', text: '#fff', label: 'Banco Original' },
+  { match: /mercado pago|pagbank|pag\b/i,        abbrev: 'MP',     bg: '#009EE3', text: '#fff', label: 'Mercado Pago' },
+  { match: /next\b/i,                           abbrev: 'Next',   bg: '#00CF72', text: '#fff', label: 'Next' },
+  { match: /pan\b|banco pan/i,                  abbrev: 'Pan',    bg: '#0070B8', text: '#fff', label: 'Banco Pan' },
+  { match: /agi\b|agibank/i,                    abbrev: 'Agi',    bg: '#FF4500', text: '#fff', label: 'Agibank' },
+  { match: /will bank/i,                        abbrev: 'Will',   bg: '#4B0082', text: '#fff', label: 'Will Bank' },
+  { match: /votorantim|bv\b/i,                  abbrev: 'BV',     bg: '#005BAC', text: '#fff', label: 'Banco BV' },
+];
+
+function detectarBanco(nome) {
+  if (!nome) return null;
+  return BANCOS_LOOKUP.find(b => b.match.test(nome)) || null;
+}
 
 // ── Auth guard ────────────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
@@ -163,6 +200,39 @@ function initToggles() {
   // Nova conta
   const btnNova = document.getElementById('btnNovaConta');
   if (btnNova) btnNova.addEventListener('click', () => abrirModalConta(null));
+
+  // Botão transferência no header
+  const btnTransfHeader = document.getElementById('btnTransferencia');
+  if (btnTransfHeader) btnTransfHeader.addEventListener('click', () => abrirModalTransferencia(null));
+
+  initFiltroOrdem();
+}
+
+// ── Filtro e Ordenação de Contas ──────────────────────────
+function initFiltroOrdem() {
+  // Filter pills
+  const pillsContainer = document.getElementById('contaFilterPills');
+  if (pillsContainer) {
+    pillsContainer.addEventListener('click', e => {
+      const pill = e.target.closest('.conta-filter-pill');
+      if (!pill) return;
+      pillsContainer.querySelectorAll('.conta-filter-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      _contasFiltroTipo = pill.dataset.tipo;
+      renderContas();
+    });
+  }
+
+  // Sort button — cycles through sort modes
+  const btnSort = document.getElementById('btnSortContas');
+  if (btnSort) {
+    btnSort.addEventListener('click', () => {
+      const idx = _SORT_CYCLE.indexOf(_contasSortBy);
+      _contasSortBy = _SORT_CYCLE[(idx + 1) % _SORT_CYCLE.length];
+      btnSort.textContent = _SORT_LABELS[_contasSortBy];
+      renderContas();
+    });
+  }
 }
 
 // ── Carregar Contas ───────────────────────────────────────
@@ -200,12 +270,24 @@ async function carregarHistoricoImportacoes() {
     }
 
     renderHistoricoImportacoes(items);
-    // Melhoria C: atualizar KPI com a importação mais recente da sub-coleção
+    // Melhoria: atualizar KPI com a importação mais recente da sub-coleção
     if (items.length > 0 && items[0].dataImportacao?.toDate) {
       const kpiImport = document.getElementById('kpiUltImport');
       const kpiImportSub = document.getElementById('kpiUltImportSub');
       if (kpiImport) kpiImport.textContent = items[0].dataImportacao.toDate().toLocaleDateString('pt-BR');
-      if (kpiImportSub) kpiImportSub.textContent = items[0].nomeArquivo || 'Último extrato importado';
+      if (kpiImportSub) {
+        const banco = items[0].contaNome || '';
+        let subText = banco;
+        if (items[0].periodoInicio && items[0].periodoFim) {
+          const [, mi, di] = items[0].periodoInicio.split('-');
+          const [, mf, df] = items[0].periodoFim.split('-');
+          subText += ` · ${di}/${mi} – ${df}/${mf}`;
+        } else if (items[0].periodoInicio) {
+          const [, mi, di] = items[0].periodoInicio.split('-');
+          subText += ` · a partir de ${di}/${mi}`;
+        }
+        kpiImportSub.textContent = subText || 'Último extrato importado';
+      }
     }
   } catch (err) {
     console.warn('[histórico] Erro ao carregar:', err);
@@ -346,6 +428,36 @@ function renderKPIs() {
 }
 
 // ── Render Contas Grid ────────────────────────────────────
+function getContasFiltradas() {
+  let lista = [...contasGlobal];
+
+  // Filtro por tipo
+  if (_contasFiltroTipo !== 'todos') {
+    if (_contasFiltroTipo === 'beneficio') {
+      lista = lista.filter(c => c.tipo === 'vale_refeicao' || c.tipo === 'vale_alimentacao');
+    } else {
+      lista = lista.filter(c => c.tipo === _contasFiltroTipo);
+    }
+  }
+
+  // Ordenação
+  if (_contasSortBy === 'nome') {
+    lista.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
+  } else if (_contasSortBy === 'saldo') {
+    lista.sort((a, b) => getSaldoExibido(b) - getSaldoExibido(a));
+  } else if (_contasSortBy === 'atualizado') {
+    lista.sort((a, b) => {
+      const da = a.ultimaConfirmacao?.data ? new Date(a.ultimaConfirmacao.data).getTime() : 0;
+      const db_ = b.ultimaConfirmacao?.data ? new Date(b.ultimaConfirmacao.data).getTime() : 0;
+      return db_ - da;
+    });
+  } else {
+    // criado — preserva a ordem original (já ordenada por criadaEm)
+  }
+
+  return lista;
+}
+
 function renderContas() {
   const grid = document.getElementById('contasGrid');
   const contador = document.getElementById('contasContador');
@@ -362,18 +474,35 @@ function renderContas() {
     return;
   }
 
-  if (contador) contador.textContent = `${contasGlobal.length} conta${contasGlobal.length !== 1 ? 's' : ''}`;
+  const filtradas = getContasFiltradas();
 
-  grid.innerHTML = contasGlobal.map(conta => buildContaCard(conta)).join('');
+  if (contador) {
+    const n = filtradas.length;
+    const total = contasGlobal.length;
+    contador.textContent = n === total
+      ? `${n} conta${n !== 1 ? 's' : ''}`
+      : `${n} de ${total} conta${total !== 1 ? 's' : ''}`;
+  }
+
+  if (!filtradas.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">🔍</div><div class="empty-state-title">Nenhuma conta neste tipo</div></div>`;
+    return;
+  }
+
+  grid.innerHTML = filtradas.map(conta => buildContaCard(conta)).join('');
 
   // Attach event listeners
-  contasGlobal.forEach(conta => {
-    const btnEdit = document.getElementById(`btnEdit_${conta.id}`);
-    const btnImport = document.getElementById(`btnImport_${conta.id}`);
-    const btnDel = document.getElementById(`btnDel_${conta.id}`);
-    if (btnEdit) btnEdit.addEventListener('click', () => abrirModalConta(conta.id));
-    if (btnImport) btnImport.addEventListener('click', () => abrirModalImport(conta.id));
-    if (btnDel) btnDel.addEventListener('click', () => abrirModalExcluir(conta.id));
+  filtradas.forEach(conta => {
+    const btnEdit    = document.getElementById(`btnEdit_${conta.id}`);
+    const btnImport  = document.getElementById(`btnImport_${conta.id}`);
+    const btnDel     = document.getElementById(`btnDel_${conta.id}`);
+    const btnConfirm = document.getElementById(`btnConfirm_${conta.id}`);
+    const btnTransf  = document.getElementById(`btnTransf_${conta.id}`);
+    if (btnEdit)    btnEdit.addEventListener('click', () => abrirModalConta(conta.id));
+    if (btnImport)  btnImport.addEventListener('click', () => abrirModalImport(conta.id));
+    if (btnDel)     btnDel.addEventListener('click', () => abrirModalExcluir(conta.id));
+    if (btnConfirm) btnConfirm.addEventListener('click', () => abrirSaldoRapido(conta.id));
+    if (btnTransf)  btnTransf.addEventListener('click', () => abrirModalTransferencia(conta.id));
   });
 }
 
@@ -381,33 +510,64 @@ function buildContaCard(conta) {
   const cfg = TIPO_CONFIG[conta.tipo] || { icon: '💳', label: conta.tipo, color: '#64748b', bg: '#f8fafc' };
   const saldo = getSaldoExibido(conta);
   const saldoStr  = valoresOcultos ? '••••••' : fmtBRL(saldo);
-  const saldoColor = saldo < 0 ? '#dc2626' : 'var(--card-text)'; // vermelho se negativo
-  const confirmacao = conta.ultimaConfirmacao?.data
-    ? `Última confirmação: ${fmtDataBR(conta.ultimaConfirmacao.data)}`
-    : 'Sem confirmação — saldo inicial';
+  const saldoColor = saldo < 0 ? '#dc2626' : 'var(--card-text)';
+
+  // ── Linha de confirmação + badge de dias sem atualizar ────
+  let confirmacaoHtml;
+  const dataConf = conta.ultimaConfirmacao?.data;
+  if (dataConf) {
+    const dateObj = new Date(typeof dataConf === 'string' ? dataConf + (dataConf.length === 10 ? 'T12:00:00' : '') : dataConf);
+    const dias = Math.floor((Date.now() - dateObj.getTime()) / 86400000);
+    let badgeHtml = '';
+    if (dias > 30) {
+      badgeHtml = `&nbsp;<span style="display:inline-block;background:#fee2e2;color:#dc2626;font-size:0.625rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:999px;">⚠️ ${dias}d sem atualizar</span>`;
+    } else if (dias > 7) {
+      badgeHtml = `&nbsp;<span style="display:inline-block;background:#fef9c3;color:#854d0e;font-size:0.625rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:999px;">• ${dias}d sem atualizar</span>`;
+    }
+    confirmacaoHtml = `<div class="conta-confirmacao">Última confirmação: ${fmtDataBR(dataConf)}${badgeHtml}</div>`;
+  } else {
+    confirmacaoHtml = `<div class="conta-confirmacao"><span style="display:inline-block;background:#f1f5f9;color:#64748b;font-size:0.625rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:999px;">• sem dados de extrato</span></div>`;
+  }
 
   const corHex = CORES_MAP[conta.cor] || null;
-  const faixaStyle = corHex ? `border-left:4px solid ${corHex};` : '';
-  const iconBg = corHex ? `background:${corHex}18;` : `background:${cfg.bg};`;
+  const banco = detectarBanco(conta.nome);
+
+  let cardStyle, iconHtml, badgeStyle, btnStyle;
+
+  if (banco) {
+    cardStyle = `background:linear-gradient(145deg,${banco.bg}77 0%,${banco.bg}33 100%),var(--card-bg);border:1px solid ${banco.bg}66;border-left:4px solid ${banco.bg};box-shadow:0 4px 24px -6px ${banco.bg}55;`;
+    iconHtml = `<div style="width:44px;height:44px;border-radius:10px;background:${banco.bg};display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:800;color:${banco.text};letter-spacing:-0.5px;flex-shrink:0;box-shadow:0 2px 8px ${banco.bg}66;">${banco.abbrev}</div>`;
+    badgeStyle = `background:rgba(255,255,255,0.22);color:var(--card-text);`;
+    btnStyle = `border-color:${banco.bg};color:${banco.bg};`;
+  } else {
+    const bordaCor = corHex;
+    cardStyle = bordaCor ? `border-left:4px solid ${bordaCor};` : '';
+    const iconBg = corHex ? `background:${corHex}18;` : `background:${cfg.bg};`;
+    iconHtml = `<div class="conta-tipo-icon" style="${iconBg}">${cfg.icon}</div>`;
+    badgeStyle = `background:${cfg.bg};color:${cfg.color};`;
+    btnStyle = '';
+  }
 
   return `
-    <div class="conta-card" style="${faixaStyle}">
+    <div class="conta-card" style="${cardStyle}">
       <div class="conta-card-header">
-        <div class="conta-tipo-icon" style="${iconBg}">${cfg.icon}</div>
+        ${iconHtml}
         <div style="flex:1;padding-left:0.625rem;">
           <div class="conta-tipo-nome">${escapeHtml(conta.nome)}</div>
-          <span class="conta-tipo-badge" style="background:${cfg.bg};color:${cfg.color};">${cfg.label}</span>
+          <span class="conta-tipo-badge" style="${badgeStyle}">${cfg.label}</span>
         </div>
         <div class="conta-card-actions">
+          <button class="conta-action-btn" id="btnConfirm_${conta.id}" title="Confirmar saldo rápido">💰</button>
+          <button class="conta-action-btn" id="btnTransf_${conta.id}" title="Transferir">↔️</button>
           <button class="conta-action-btn" id="btnEdit_${conta.id}" title="Editar conta">✏️</button>
           <button class="conta-action-btn danger" id="btnDel_${conta.id}" title="Excluir conta">🗑️</button>
         </div>
       </div>
       <div class="conta-saldo" style="color:${saldoColor};">${saldoStr}</div>
-      <div class="conta-confirmacao">${confirmacao}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
-        <button class="conta-import-btn" id="btnImport_${conta.id}">📥 Importar</button>
-        <a href="extrato.html" class="conta-import-btn" style="text-decoration:none;text-align:center;">📋 Extrato</a>
+      ${confirmacaoHtml}
+      <div class="conta-btns-grid">
+        <button class="conta-import-btn" id="btnImport_${conta.id}" style="${btnStyle}">📥 Importar</button>
+        <a href="extrato.html" class="conta-import-btn" style="text-decoration:none;text-align:center;${btnStyle}">📋 Extrato</a>
       </div>
     </div>`;
 }
@@ -415,6 +575,190 @@ function buildContaCard(conta) {
 function getSaldoExibido(conta) {
   if (conta.ultimaConfirmacao?.saldo != null) return conta.ultimaConfirmacao.saldo;
   return conta.saldoInicial ?? conta.saldo ?? 0;
+}
+
+// ══ CONFIRMAR SALDO RÁPIDO ════════════════════════════════
+
+function abrirSaldoRapido(contaId) {
+  const conta = contasGlobal.find(c => c.id === contaId);
+  if (!conta) return;
+  const modal = document.getElementById('modalSaldoRapido');
+  if (!modal) return;
+
+  document.getElementById('saldoRapidoContaId').value = contaId;
+  document.getElementById('saldoRapidoContaNome').textContent = conta.nome || 'Conta';
+  const inputSaldo = document.getElementById('inputSaldoRapido');
+  inputSaldo.value = fmtBRLInput(getSaldoExibido(conta));
+  inputSaldo.oninput = function() { formatarInputValor(this); };
+
+  document.getElementById('btnConfirmarSaldoRapido').onclick = confirmarSaldoRapido;
+  document.getElementById('btnCancelarSaldoRapido').onclick = () => modal.classList.remove('open');
+  document.getElementById('btnFecharSaldoRapido').onclick = () => modal.classList.remove('open');
+
+  modal.classList.add('open');
+  setTimeout(() => inputSaldo.focus(), 80);
+}
+
+async function confirmarSaldoRapido() {
+  const contaId = document.getElementById('saldoRapidoContaId').value;
+  const raw = document.getElementById('inputSaldoRapido').value;
+  const saldo = parseValorBR(raw);
+  const btn = document.getElementById('btnConfirmarSaldoRapido');
+
+  if (!contaId) return;
+  if (isNaN(saldo)) { budToast('Valor inválido.', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  try {
+    const hojeISO = new Date().toISOString().slice(0, 10);
+    await updateDoc(doc(db, 'usuarios', currentUser.uid, 'carteira', contaId), {
+      ultimaConfirmacao: { data: hojeISO, saldo, origem: 'manual' },
+    });
+    // Atualizar local
+    const idx = contasGlobal.findIndex(c => c.id === contaId);
+    if (idx !== -1) contasGlobal[idx].ultimaConfirmacao = { data: hojeISO, saldo, origem: 'manual' };
+    document.getElementById('modalSaldoRapido').classList.remove('open');
+    budToast('Saldo confirmado! ✓', 'success');
+    renderContas();
+    renderKPIs();
+  } catch (err) {
+    console.error('[saldo rápido]', err);
+    budToast('Erro ao salvar. Tente novamente.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✅ Confirmar Saldo';
+  }
+}
+
+// ══ TRANSFERÊNCIA ENTRE CONTAS ════════════════════════════
+
+function abrirModalTransferencia(contaOrigemId) {
+  const modal = document.getElementById('modalTransferencia');
+  if (!modal) return;
+
+  // Resetar estado dos selects
+  const hidO = document.getElementById('hiddenContaOrigem');
+  const hidD = document.getElementById('hiddenContaDestino');
+  const txtO = document.getElementById('textoContaOrigem');
+  const txtD = document.getElementById('textoContaDestino');
+  const btnO = document.getElementById('btnOrigemTrigger');
+  const btnD = document.getElementById('btnDestinoTrigger');
+  const ddO  = document.getElementById('dropdownOrigem');
+  const ddD  = document.getElementById('dropdownDestino');
+
+  hidO.value = ''; hidD.value = '';
+  txtO.textContent = 'Selecione a conta de origem...';
+  txtD.textContent = 'Selecione a conta de destino...';
+  btnO.classList.remove('has-value', 'open');
+  btnD.classList.remove('has-value', 'open');
+  ddO.classList.remove('open');
+  ddD.classList.remove('open');
+
+  // Preencher dropdowns
+  const optsHtml = contasGlobal.map(c =>
+    `<div class="custom-select-option" data-id="${c.id}" data-nome="${escapeHtml(c.nome)}">${escapeHtml(c.nome)}</div>`
+  ).join('');
+  ddO.innerHTML = optsHtml;
+  ddD.innerHTML = optsHtml;
+
+  // Se chamado com conta de origem pré-selecionada
+  if (contaOrigemId) {
+    const conta = contasGlobal.find(c => c.id === contaOrigemId);
+    if (conta) {
+      hidO.value = contaOrigemId;
+      txtO.textContent = conta.nome;
+      btnO.classList.add('has-value');
+      ddO.querySelectorAll('.custom-select-option').forEach(o => o.classList.toggle('selected', o.dataset.id === contaOrigemId));
+    }
+  }
+
+  // Data padrão = hoje
+  document.getElementById('inputDataTransf').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('inputValorTransf').value = '';
+  document.getElementById('inputDescTransf').value = '';
+  const valInput = document.getElementById('inputValorTransf');
+  valInput.oninput = function() { formatarInputValor(this); };
+
+  // Listeners dos selects
+  btnO.onclick = () => { btnO.classList.toggle('open'); ddO.classList.toggle('open'); };
+  btnD.onclick = () => { btnD.classList.toggle('open'); ddD.classList.toggle('open'); };
+
+  ddO.onclick = e => {
+    const opt = e.target.closest('.custom-select-option');
+    if (!opt) return;
+    hidO.value = opt.dataset.id;
+    txtO.textContent = opt.dataset.nome;
+    btnO.classList.add('has-value');
+    btnO.classList.remove('open');
+    ddO.classList.remove('open');
+    ddO.querySelectorAll('.custom-select-option').forEach(o => o.classList.toggle('selected', o === opt));
+  };
+  ddD.onclick = e => {
+    const opt = e.target.closest('.custom-select-option');
+    if (!opt) return;
+    hidD.value = opt.dataset.id;
+    txtD.textContent = opt.dataset.nome;
+    btnD.classList.add('has-value');
+    btnD.classList.remove('open');
+    ddD.classList.remove('open');
+    ddD.querySelectorAll('.custom-select-option').forEach(o => o.classList.toggle('selected', o === opt));
+  };
+
+  document.getElementById('btnConfirmarTransferencia').onclick = confirmarTransferencia;
+  document.getElementById('btnCancelarTransferencia').onclick = () => modal.classList.remove('open');
+  document.getElementById('btnFecharTransferencia').onclick = () => modal.classList.remove('open');
+
+  modal.classList.add('open');
+}
+
+async function confirmarTransferencia() {
+  const origemId  = document.getElementById('hiddenContaOrigem').value;
+  const destinoId = document.getElementById('hiddenContaDestino').value;
+  const valorRaw  = document.getElementById('inputValorTransf').value;
+  const dataStr   = document.getElementById('inputDataTransf').value;
+  const descRaw   = document.getElementById('inputDescTransf').value.trim();
+  const desc      = budSanitize(descRaw) || 'Transferência entre contas';
+
+  const valor = parseValorBR(valorRaw);
+
+  if (!origemId || !destinoId) { budToast('Selecione as contas de origem e destino.', 'error'); return; }
+  if (origemId === destinoId) { budToast('A conta de origem e destino devem ser diferentes.', 'error'); return; }
+  if (isNaN(valor) || valor <= 0) { budToast('Informe um valor válido.', 'error'); return; }
+  if (!dataStr) { budToast('Informe a data da transferência.', 'error'); return; }
+
+  const btn = document.getElementById('btnConfirmarTransferencia');
+  btn.disabled = true;
+  btn.textContent = 'Transferindo...';
+
+  try {
+    const uid = currentUser.uid;
+    const dataTS = Timestamp.fromDate(new Date(dataStr + 'T12:00:00'));
+    const batch = writeBatch(db);
+
+    // Saída na conta de origem
+    batch.set(doc(collection(db, 'usuarios', uid, 'transacoes')), {
+      descricao: desc, valor, tipo: 'despesa', categoria: 'Transferência',
+      data: dataTS, carteiraId: origemId, transferencia: true,
+      dataCriacao: serverTimestamp(), pago: true, confirmado: true, pagamentoFatura: false,
+    });
+    // Entrada na conta de destino
+    batch.set(doc(collection(db, 'usuarios', uid, 'transacoes')), {
+      descricao: desc, valor, tipo: 'receita', categoria: 'Transferência',
+      data: dataTS, carteiraId: destinoId, transferencia: true,
+      dataCriacao: serverTimestamp(), pago: true, confirmado: true, pagamentoFatura: false,
+    });
+
+    await batch.commit();
+    document.getElementById('modalTransferencia').classList.remove('open');
+    budToast(`Transferência de ${fmtBRL(valor)} realizada! ✓`, 'success');
+  } catch (err) {
+    console.error('[transferência]', err);
+    budToast('Erro ao transferir. Tente novamente.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↔️ Transferir';
+  }
 }
 
 // ══ MODAL NOVA / EDITAR CONTA ════════════════════════════

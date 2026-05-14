@@ -1,7 +1,7 @@
 # ERRORS_LOG.md — Memória de Cura
 
 **Projeto**: Bud Finance  
-**Última atualização**: 21/04/2026
+**Última atualização**: 14/05/2026
 
 > **REGRA**: Antes de resolver um bug, verificar se já foi resolvido aqui.  
 > Todo erro encontrado deve ser registrado neste doc.
@@ -328,7 +328,27 @@
 - **Solução aplicada**: Picker movido para document.body.appendChild(picker). Style alterado de position:absolute para position:fixed. Função openPicker() agora calcula posição via getBoundingClientRect() com clamping de viewport. Adicionado listener scroll para fechar o picker ao rolar.
 - **Regra de prevenção**: Dropdowns e tooltips que precisam flutuar sobre outros elementos SEMPRE devem ser filhos do <body> com position:fixed. Nunca criar overlays/pickers como filhos de containers com position:relative.
 - **Status**: ✅ Resolvido em 10/05/2026.
+---
 
+### ERR-036 — `confirmarTransferencia()` usava schema errado: tipo `'saida'`/`'entrada'`, campo `contaId` e `criadaEm`
+- **Data**: 14/05/2026
+- **Arquivo**: `js/carteira.js` — `confirmarTransferencia()`
+- **Descrição**: Transferências entre contas eram salvas no Firestore mas não apareciam no extrato. As transações geradas apareciam como "tipo desconhecido" e eram ignoradas na query do extrato.
+- **Causa raiz**: Três erros de schema simultâneos: (1) `tipo: 'saida'`/`'entrada'` — o extrato só reconhece `'despesa'`/`'receita'`; (2) campo `contaId` em vez de `carteiraId`; (3) campo `criadaEm` em vez de `dataCriacao`. Além disso, faltavam os campos `pago`, `confirmado` e `pagamentoFatura` que o extrato filtra.
+- **Solução aplicada**: Corrigidos os três campos para o schema padrão: `tipo:'despesa'`/`'receita'`, `carteiraId`, `dataCriacao: serverTimestamp()`, `pago:true`, `confirmado:true`, `pagamentoFatura:false`, `transferencia:true`.
+- **Regra de prevenção**: Schema de transação obrigatório: `{ descricao, valor, categoria, data:Timestamp, tipo:'receita'|'despesa', dataCriacao:serverTimestamp(), carteiraId, pago:true, confirmado:true, pagamentoFatura:false }`. NUNCA usar `tipo:'entrada'/'saida'`, `contaId` ou `criadaEm`.
+- **Status**: ✅ Resolvido em 14/05/2026.
+
+---
+
+### ERR-037 — Layout mobile expandia além do viewport (`min-width` implícito em flex item)
+- **Data**: 14/05/2026
+- **Arquivo**: `carteira.html` — CSS `.dash-main`
+- **Descrição**: Em telas mobile (< 768px), toda a página expandia horizontalmente causando scroll lateral indesejado. KPI cards, filter pills e conta cards extrapolavam o viewport mesmo com `overflow-x:hidden` no `body`.
+- **Causa raiz**: `.dash-main{flex:1;margin-left:260px}` não tinha `min-width:0`. Em CSS Flexbox, o valor padrão de `min-width` para flex items é `auto` (equivale a `min-content`). O conteúdo interno (3 KPI cards × 240px = 752px) forçava o flex item a ser 784px, mesmo com `flex:1` e `margin-left:0 !important` corretos no breakpoint mobile. O `body{overflow-x:hidden}` escondia o scroll mas os elementos continuavam sendo renderizados fora do viewport (corpo clipa, mas scrollWidth = clientWidth ilusoriamente).
+- **Solução aplicada**: Adicionado `min-width:0` ao `.dash-main`. Com isso, o flex item pode encolher ao tamanho real do flex container. Confirmado: `body.scrollWidth === body.clientWidth` após o fix.
+- **Regra de prevenção**: **Todo flex item que serve como container de conteúdo deve ter `min-width:0`** (ou `overflow:hidden`). Sem isso, o item não encolhe abaixo do seu `min-content`, quebrando o layout em viewports estreitos. Padrão aplicável a `.dash-main`, `.main-content` e qualquer wrapper de conteúdo em layouts flex.
+- **Status**: ✅ Resolvido em 14/05/2026.
 ---
 
 ### ERR-034 — Widget Limites mostra "✅ Orçamento sob controle" com 2038% utilizado
@@ -339,3 +359,14 @@
 - **Solução aplicada**: Dentro do bloco if (criticos.length === 0), adicionado if (pctTotal > 100) para exibir card laranja "⚠️ Gastos acima do orçamento" ao invés do card verde quando o total supera 100%.
 - **Regra de prevenção**: Ao implementar widgets de alerta com múltiplas métricas, sempre garantir que o "estado OK" só seja mostrado se TODAS as métricas estiverem dentro dos limites — não apenas a métrica principal.
 - **Status**: ✅ Resolvido em 10/05/2026.
+
+---
+
+### ERR-035 � extrato.html com carregamento infinito (splash nunca some)
+- **Data**: 14/05/2026
+- **Arquivo**: js/extrato.js � linha 681
+- **Descri��o**: A tela de Extrato ficava presa na splash de "Carregando..." indefinidamente. O m�dulo JS n�o executava nenhuma linha (zero logs de console, `#navMesAno` permanecia "Carregando...").
+- **Causa raiz**: Na linha 681 havia um separador decorativo unicode sem prefixo de coment�rio `//`: `} ---------------------------------------------------------------`. O caractere `-` (U+2500 Box Drawing Light Horizontal) n�o � v�lido em identificadores JavaScript, causando um `SyntaxError` fatal que impedia o m�dulo ES inteiro de ser parseado/executado.
+- **Solu��o aplicada**: Substitu�do por um separador corretamente dentro de coment�rio `//`.
+- **Regra de preven��o**: Separadores decorativos unicode (-, -, +, etc.) em JS SEMPRE devem estar dentro de coment�rios `//` ou `/* */`. Um �nico caractere inv�lido fora de coment�rio/string causa falha silenciosa do m�dulo inteiro.
+- **Status**: ? Resolvido em 14/05/2026.

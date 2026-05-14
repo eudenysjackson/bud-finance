@@ -678,7 +678,9 @@ function renderBreakdown() {
     rowEl.appendChild(infoEl);
     lista.appendChild(rowEl);
   }
-} ───────────────────────────────────────────────────────────────
+}
+
+// ─── Exclusão ────────────────────────────────────────────────────────────────
 function pedirExclusao(id) {
   _excluirId = id;
   document.getElementById('modalExcluir')?.classList.add('open');
