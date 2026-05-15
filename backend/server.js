@@ -29,9 +29,10 @@ try {
 // ─── EmailJS config (env vars — set on Render) ─────────────────────
 const EMAILJS_PUBLIC_KEY  = process.env.EMAILJS_PUBLIC_KEY  || '';
 const EMAILJS_SERVICE_ID  = process.env.EMAILJS_SERVICE_ID  || '';
-const EMAILJS_TEMPLATE_ID        = process.env.EMAILJS_TEMPLATE_RECUPERAR_SENHA || '';
-const EMAILJS_TEMPLATE_CHAMADO   = process.env.EMAILJS_TEMPLATE_CHAMADO || '';
-const FRONTEND_URL               = process.env.FRONTEND_URL || 'https://bud-finance.onrender.com';
+const EMAILJS_TEMPLATE_ID           = process.env.EMAILJS_TEMPLATE_RECUPERAR_SENHA || '';
+const EMAILJS_TEMPLATE_CHAMADO      = process.env.EMAILJS_TEMPLATE_CHAMADO || '';
+const EMAILJS_TEMPLATE_BOAS_VINDAS  = process.env.EMAILJS_TEMPLATE_BOAS_VINDAS || '';
+const FRONTEND_URL                  = process.env.FRONTEND_URL || 'https://bud-finance.onrender.com';
 
 // ─── WhatsApp config (env vars — set on Render) ─────────────────────
 const WA_PHONE_NUMBER_ID  = process.env.WA_PHONE_NUMBER_ID  || '';
@@ -154,6 +155,52 @@ async function sendEmailViaEmailJS(templateParams, templateId) {
     throw new Error('EmailJS HTTP ' + response.status);
   }
 }
+
+// ─── POST /api/boas-vindas ────────────────────────────────────────
+// Gera o link de verificação de e-mail (Firebase Admin) e envia o
+// email de boas-vindas com o link via EmailJS (server-side).
+// O link completo de verificação nunca é exposto ao cliente.
+app.post('/api/boas-vindas', async function (req, res) {
+  try {
+    if (!auth) return res.status(503).json({ success: false, message: 'Serviço indisponível.' });
+
+    var email     = (req.body.email    || '').trim().toLowerCase();
+    var nome      = (req.body.nome     || 'Usuário').substring(0, 100);
+    var matricula = (req.body.matricula || '').substring(0, 20);
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false });
+    }
+
+    // Gera o link de verificação de e-mail via Admin SDK
+    var verifyLink;
+    try {
+      verifyLink = await auth.generateEmailVerificationLink(email, {
+        url: FRONTEND_URL + '/index.html'
+      });
+    } catch (_linkErr) {
+      // Conta pode não existir ainda ou outro erro — não bloquear o cadastro
+      verifyLink = FRONTEND_URL + '/index.html';
+    }
+
+    // Envia email de boas-vindas com o link de verificação
+    try {
+      await sendEmailViaEmailJS({
+        to_email:   email,
+        to_name:    nome,
+        matricula:  matricula,
+        verify_url: verifyLink,
+        app_url:    FRONTEND_URL + '/index.html'
+      }, EMAILJS_TEMPLATE_BOAS_VINDAS);
+    } catch (_emailErr) {
+      // Falha de email não bloqueia o cadastro
+    }
+
+    return res.json({ success: true });
+  } catch (_err) {
+    return res.json({ success: true });
+  }
+});
 
 // ─── POST /reset-senha ─────────────────────────────────────────────
 // Generates a password reset link and sends the email SERVER-SIDE.

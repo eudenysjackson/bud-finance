@@ -95,20 +95,14 @@ function resetBtn() {
   btn.disabled = false;
 }
 
-// ─── Send welcome email (non-blocking, async fire-and-forget) ───────
+// ─── Send welcome email via backend (fire-and-forget) ──────────────
+// Backend gera o link de verificação Firebase + envia via EmailJS.
 function enviarEmailBoasVindas(email, nome, matricula) {
-  var cfg = window.BUD_EMAILJS_CONFIG;
-  if (!cfg || cfg.publicKey.startsWith('__') || typeof emailjs === 'undefined') {
-    return;
-  }
-  // Initialize EmailJS SDK before sending
-  emailjs.init(cfg.publicKey);
-  // Fire-and-forget — does NOT block UI
-  emailjs.send(cfg.serviceId, cfg.templates.boasVindas, {
-    to_email: email,
-    to_name: nome,
-    matricula: matricula,
-    app_url: window.location.origin + '/index.html'
+  var backendUrl = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\/$/, '');
+  fetch(backendUrl + '/api/boas-vindas', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email, nome: nome, matricula: matricula })
   }).catch(function () {
     // Fire-and-forget — email failure is non-critical
   });
