@@ -1495,31 +1495,51 @@ function _renderConfiabilidadeBadge() {
   if (!badge) return;
 
   const meta = _importMetaIA;
+  const fmt = v => 'R$ ' + Number(v).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+  // 1) Exibe linha de "Total da fatura (PDF)" — referência fixa do documento
+  const refBox = document.getElementById('iaFaturaTotalPdf');
+  const refVal = document.getElementById('iaFaturaTotalPdfValor');
+  // Alvo prioritário: totalAPagar (valor real cobrado). Fallback: totalCompras.
+  const alvoPdf = meta && meta.totalAPagar > 0 ? meta.totalAPagar
+                : meta && meta.totalCompras > 0 ? meta.totalCompras
+                : null;
+  if (refBox && refVal) {
+    if (alvoPdf !== null) {
+      refVal.textContent = fmt(alvoPdf) +
+        (meta.totalAPagar > 0 ? ' (Total a pagar)' : ' (Total de compras)');
+      refBox.style.display = 'flex';
+    } else {
+      refBox.style.display = 'none';
+    }
+  }
+
   let badgeBg, badgeColor, badgeText;
 
-  if (meta && meta.totalCompras > 0) {
+  if (alvoPdf !== null && alvoPdf > 0) {
     // Soma TODOS os itens ativos extraídos (independente de seleção)
     // para mostrar quanto a IA capturou vs o total declarado no PDF
     const somaAtivos = itensIAExtraidos
       .filter(i => i.status === 'ativa')
       .reduce((s, i) => s + i.valor, 0);
-    const pct    = Math.min(somaAtivos / meta.totalCompras, 1.05);
+    const pct    = Math.min(somaAtivos / alvoPdf, 1.05);
     const pctStr = Math.round(pct * 100) + '%';
-    const fmt    = v => 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    const det    = `compras: ${fmt(somaAtivos)} de ${fmt(meta.totalCompras)} (${pctStr})`;
+    const diff   = somaAtivos - alvoPdf;
+    const diffStr = (diff >= 0 ? '+' : '−') + fmt(Math.abs(diff));
+    const det    = `IA: ${fmt(somaAtivos)} · PDF: ${fmt(alvoPdf)} · dif ${diffStr}`;
 
     if (pct < 0.70) {
       badgeBg = '#fee2e2'; badgeColor = '#b91c1c';
-      badgeText = `❌ Resultado NÃO confiável — IA capturou ${pctStr} · ${det}`;
-    } else if (pct < 0.90) {
+      badgeText = `❌ Resultado NÃO confiável — ${pctStr} capturado · ${det}`;
+    } else if (pct < 0.95 || pct > 1.05) {
       badgeBg = '#fff7ed'; badgeColor = '#c2410c';
-      badgeText = `⚠️ Precisão parcial — IA capturou ${pctStr} · ${det}`;
+      badgeText = `⚠️ Precisão parcial — ${pctStr} · ${det} · revise antes de salvar`;
     } else {
       badgeBg = '#dcfce7'; badgeColor = '#15803d';
-      badgeText = `✅ Alta precisão — ${pctStr} capturado · ${det}`;
+      badgeText = `✅ Valores batem com a fatura — ${pctStr} · ${det}`;
     }
   } else {
-    // Sem totalCompras → não verificável
+    // Sem totais detectados no PDF
     badgeBg = '#fef3c7'; badgeColor = '#92400e';
     badgeText = '⚠️ PDF/IA — precisão não verificável · confira cada linha manualmente';
   }

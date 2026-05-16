@@ -637,7 +637,7 @@ function parseBankStatementText(rawText) {
 // Extrai totais declarados no próprio texto do PDF (sem IA)
 function extractMetaFromText(text) {
   function parseVal(str) { return parseFloat(str.replace(/\./g, '').replace(',', '.')); }
-  var meta = { totalEntradas: null, totalSaidas: null, saldoFinal: null, totalCompras: null };
+  var meta = { totalEntradas: null, totalSaidas: null, saldoFinal: null, totalCompras: null, totalAPagar: null };
 
   // "Total entradas +4.035,65" / "Total de entradas\n+R$ 4.035,65"
   var mE = text.match(/total\s+d[eo]?\s*entradas?[\s\S]{0,40}?(\d[\d\.]*,\d{2})/i);
@@ -652,19 +652,21 @@ function extractMetaFromText(text) {
   if (mSaldo) meta.saldoFinal = parseVal(mSaldo[1]);
 
   // Fatura cartão: "Total de compras de todos os cartões\nR$ 908,47"
-  // Ignora caso encontre "Total de compras" DEPOIS de já ter capturado totalEntradas (extrato normal)
+  // (só novas compras — sem saldo anterior, parcelas futuras, IOF)
   // Janela ampliada (300 chars) porque PDFs com colunas separam label/valor no texto extraído
   if (meta.totalEntradas === null) {
     var mC = text.match(/total\s+d[eo]?\s*compras?[\s\S]{0,300}?(\d[\d\.]*,\d{2})/i);
     if (mC) meta.totalCompras = parseVal(mC[1]);
-    // Fallback: "Idenilson .{2,40} 1.042,83" — subtotal por portador (inclui IOF/financiamentos, mas melhor que nada)
-    if (!mC) {
-      var mT = text.match(/total\s+a\s+pagar[\s\S]{0,100}?(\d[\d\.]*,\d{2})/i);
-      if (mT) meta.totalCompras = parseVal(mT[1]);
-    }
+
+    // Fatura cartão: "Total a pagar" = valor que será efetivamente cobrado
+    // (inclui saldo anterior, parcelas de compras antigas, IOF, encargos, novas compras)
+    // É o número que o usuário espera ver bater com a soma das transações importadas.
+    var mAP = text.match(/total\s+a\s+pagar[\s\S]{0,300}?(\d[\d\.]*,\d{2})/i);
+    if (mAP) meta.totalAPagar = parseVal(mAP[1]);
   }
 
-  if (meta.totalEntradas === null && meta.totalSaidas === null && meta.saldoFinal === null && meta.totalCompras === null) return null;
+  if (meta.totalEntradas === null && meta.totalSaidas === null && meta.saldoFinal === null &&
+      meta.totalCompras === null && meta.totalAPagar === null) return null;
   return meta;
 }
 
@@ -689,9 +691,12 @@ async function extractWithAIFromText(text, tipo) {
     'Use null em campos meta não visíveis. SEM markdown, SEM comentários.'
   ].join(' ') : [
     'Você é um extrator preciso de faturas de cartão de crédito brasileiras.',
-    'Extraia TODAS as transações de COMPRA/DÉBITO. IGNORE: pagamento de fatura, créditos, estornos sem compra associada, IOF avulso, totais, saldos e cabeçalhos.',
-    'TAREFA EXTRA: capture o total de compras declarado no documento (ex: "Total de compras", "Total de compras e tarifas", "Total de compras de todos os cartões") em "meta.totalCompras". Se não visível, use null.',
-    'Retorne SOMENTE JSON válido: {"transacoes":[{"desc":"Loja","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47}}'
+    'OBJETIVO: extrair TODAS as linhas que compõem o "Total a pagar" da fatura.',
+    'INCLUA: compras à vista, parcelas de compras antigas (ex: "3/10 LOJA X"), IOF, encargos, juros, anuidade, saldo remanescente, ajustes a débito.',
+    'IGNORE APENAS: linhas de pagamento da fatura anterior ("Pagamento recebido"), créditos/estornos com sinal negativo, totais e cabeçalhos.',
+    'A soma dos valores extraídos deve bater (ou ficar muito próxima) do "Total a pagar" do documento.',
+    'TAREFA EXTRA: capture em "meta" DOIS totais: "totalCompras" ("Total de compras", só novas compras) E "totalAPagar" ("Total a pagar", valor cobrado).',
+    'Retorne SOMENTE JSON válido: {"transacoes":[{"desc":"Loja","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47,"totalAPagar":1242.36}}'
   ].join(' ');
 
   // Limita texto a 30k chars para não estourar contexto
@@ -755,10 +760,12 @@ function sumByType(transacoes) {
 // Calcula score de captura: mínimo entre %entradas e %saídas (1.0 = perfeito)
 function captureScore(transacoes, meta) {
   if (!meta) return null;
-  // Fatura de cartão: compara soma total de compras contra totalCompras declarado
-  if (meta.totalCompras > 0) {
+  // Fatura de cartão: alvo é o "Total a pagar" (inclui parcelas/IOF/encargos).
+  // Fallback: totalCompras (só novas compras, mais restritivo).
+  var alvo = meta.totalAPagar > 0 ? meta.totalAPagar : (meta.totalCompras > 0 ? meta.totalCompras : 0);
+  if (alvo > 0) {
     var total = (transacoes || []).reduce(function(s, t){ return s + (parseFloat(t.valor) || 0); }, 0);
-    return Math.min(total / meta.totalCompras, 1.05);
+    return Math.min(total / alvo, 1.05);
   }
   var sums = sumByType(transacoes);
   var scores = [];
@@ -784,12 +791,15 @@ async function extractWithAI(buffer, mimeType, tipo) {
     'Se algum campo de meta não estiver visível no documento, use null. Responda APENAS com o JSON, sem explicações ou markdown.'
   ].join(' ') : [
     'Você está analisando uma fatura de cartão de crédito brasileiro.',
-    'Extraia TODAS as transações de COMPRA/DÉBITO. Ignore pagamentos de fatura, créditos, totais e saldos.',
-    'TAREFA EXTRA: procure e capture o total de compras declarado no documento (ex: "Total de compras", "Total de compras e tarifas", "Total de compras de todos os cartões") em "meta.totalCompras". Se não visível, use null.',
+    'OBJETIVO: extrair TODAS as linhas que compõem o "Total a pagar" da fatura.',
+    'INCLUA: compras à vista, parcelas de compras antigas (ex: "3/10 LOJA X"), IOF, encargos, juros, anuidade, saldo remanescente, ajustes a débito.',
+    'IGNORE APENAS: linhas de pagamento da fatura anterior ("Pagamento recebido"), créditos/estornos negativos, totais e cabeçalhos.',
+    'A soma dos valores extraídos deve bater (ou ficar muito próxima) do "Total a pagar".',
+    'TAREFA EXTRA: capture em "meta" DOIS totais: "totalCompras" (só novas compras) E "totalAPagar" (valor cobrado).',
     'Retorne SOMENTE um JSON válido no formato:',
-    '{"transacoes":[{"desc":"nome do estabelecimento","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47}}',
+    '{"transacoes":[{"desc":"nome do estabelecimento","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47,"totalAPagar":1242.36}}',
     'Regras: valor deve ser número positivo em reais (float). data em YYYY-MM-DD.',
-    'Se não houver transações de compra, retorne {"transacoes":[],"meta":null}.',
+    'Se não houver transações, retorne {"transacoes":[],"meta":null}.',
     'Responda APENAS com o JSON, sem explicações ou markdown.'
   ].join(' ');
 
