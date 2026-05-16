@@ -1725,6 +1725,27 @@ function atualizarModalTipo(tipo) {
     submit.className = 'modal-submit modal-submit-' + tipo;
   }
   try { preencherCategorias(tipo); } catch (_e) {}
+  try { _preencherSelectConta(tipo); } catch (_e) {}
+}
+
+// Popula o select de conta/cartão conforme o tipo da transação
+function _preencherSelectConta(tipo) {
+  var sel = document.getElementById('selectConta');
+  if (!sel) return;
+  var prev = sel.value;
+  sel.innerHTML = '<option value="">— Sem vincular —</option>';
+  carteiraGlobal.forEach(function (c) {
+    var isCredito = c.tipo === 'credito';
+    // Receita: não faz sentido entrar em cartão de crédito
+    if (tipo === 'receita' && isCredito) return;
+    var icone = c.icone || (isCredito ? '💳' : c.tipo === 'poupanca' ? '🏦' : c.tipo === 'investimento' ? '📈' : '🏦');
+    var opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = icone + ' ' + (c.nome || c.tipo || 'Conta') + (isCredito ? ' (cartão)' : '');
+    sel.appendChild(opt);
+  });
+  // Restaurar seleção anterior (modo edição ao trocar tipo)
+  if (prev) sel.value = prev;
 }
 
 function aplicarMascaraValor(input) {
@@ -1790,6 +1811,12 @@ function abrirModalEditar(transacaoId) {
 
   // Preencher tipo
   atualizarModalTipo(t.tipo || 'despesa');
+
+  // Preencher conta/cartão vinculado
+  if (t.carteiraId) {
+    var selEd = document.getElementById('selectConta');
+    if (selEd) selEd.value = t.carteiraId;
+  }
 
   // Preencher descrição
   var inputDesc = document.getElementById('inputDescricao');
@@ -1899,6 +1926,11 @@ async function handleSubmitLancamento(e) {
     return;
   }
 
+  // Conta/cartão vinculado
+  var novoCarteiraId = (document.getElementById('selectConta') && document.getElementById('selectConta').value) || '';
+  var novaContaObj   = novoCarteiraId ? carteiraGlobal.find(function (c) { return c.id === novoCarteiraId; }) : null;
+  var novaIsCredito  = novaContaObj ? novaContaObj.tipo === 'credito' : false;
+
   // Sanitização + limite de comprimento
   var descricao = window.budSanitize ? window.budSanitize(descricaoRaw) : descricaoRaw;
   descricao = descricao.substring(0, 100);
@@ -1911,26 +1943,77 @@ async function handleSubmitLancamento(e) {
 
   try {
     if (transacaoEditandoId) {
-      // Modo edição — updateDoc
-      await updateDoc(doc(db, 'usuarios', usuarioAtualId, 'transacoes', transacaoEditandoId), {
-        descricao: descricao,
-        valor: valor,
-        categoria: categoria,
-        data: dataTimestamp,
-        tipo: tipoAtual
-      });
+      // Modo edição — reverter saldo antigo, aplicar novo
+      var txAntiga = transacoesGlobais.find(function (tx) { return tx.id === transacaoEditandoId; }) || {};
+      var antigoCarteiraId = txAntiga.carteiraId || '';
+      var antigoContaObj   = antigoCarteiraId ? carteiraGlobal.find(function (c) { return c.id === antigoCarteiraId; }) : null;
+      var antigoIsCredito  = antigoContaObj ? antigoContaObj.tipo === 'credito' : false;
+      var antigoValor      = parseFloat(txAntiga.valor) || 0;
+      var antigoTipo       = txAntiga.tipo || tipoAtual;
+
+      var txUpdate = {
+        descricao:  descricao,
+        valor:      valor,
+        categoria:  categoria,
+        data:       dataTimestamp,
+        tipo:       tipoAtual,
+        carteiraId: novoCarteiraId || null,
+      };
+      await updateDoc(doc(db, 'usuarios', usuarioAtualId, 'transacoes', transacaoEditandoId), txUpdate);
+
+      // Ajustar saldos se algo relevante mudou
+      var mudouConta       = antigoCarteiraId !== novoCarteiraId;
+      var mudouValorOuTipo = antigoValor !== valor || antigoTipo !== tipoAtual;
+      if (mudouConta || mudouValorOuTipo) {
+        try {
+          // 1) Reverter efeito da transação antiga
+          if (antigoCarteiraId && !antigoIsCredito) {
+            var refAnt  = doc(db, 'usuarios', usuarioAtualId, 'carteira', antigoCarteiraId);
+            var snapAnt = await getDoc(refAnt);
+            if (snapAnt.exists()) {
+              var reverter = antigoTipo === 'receita' ? -antigoValor : antigoValor;
+              await updateDoc(refAnt, { saldo: (snapAnt.data().saldo || 0) + reverter });
+            }
+          }
+          // 2) Aplicar efeito da nova conta
+          if (novoCarteiraId && !novaIsCredito) {
+            var refNov  = doc(db, 'usuarios', usuarioAtualId, 'carteira', novoCarteiraId);
+            var snapNov = await getDoc(refNov);
+            if (snapNov.exists()) {
+              var aplicar = tipoAtual === 'receita' ? valor : -valor;
+              await updateDoc(refNov, { saldo: (snapNov.data().saldo || 0) + aplicar });
+            }
+          }
+        } catch (_eS) { /* saldo não bloqueia */ }
+      }
+
       fecharModal();
       if (window.budShowToast) window.budShowToast('Transação atualizada!', 'success');
     } else {
       // Modo criação — addDoc
-      await addDoc(collection(db, 'usuarios', usuarioAtualId, 'transacoes'), {
-        descricao: descricao,
-        valor: valor,           // float (ex: 1500.50) — DEC-016
-        categoria: categoria,
-        data: dataTimestamp,
-        tipo: tipoAtual,
-        dataCriacao: serverTimestamp()
-      });
+      var novasTx = {
+        descricao:    descricao,
+        valor:        valor,
+        categoria:    categoria,
+        data:         dataTimestamp,
+        tipo:         tipoAtual,
+        dataCriacao:  serverTimestamp(),
+      };
+      if (novoCarteiraId) novasTx.carteiraId = novoCarteiraId;
+      await addDoc(collection(db, 'usuarios', usuarioAtualId, 'transacoes'), novasTx);
+
+      // Ajustar saldo da conta (não para cartão de crédito)
+      if (novoCarteiraId && !novaIsCredito) {
+        try {
+          var cRef  = doc(db, 'usuarios', usuarioAtualId, 'carteira', novoCarteiraId);
+          var cSnap = await getDoc(cRef);
+          if (cSnap.exists()) {
+            var delta = tipoAtual === 'receita' ? valor : -valor;
+            await updateDoc(cRef, { saldo: (cSnap.data().saldo || 0) + delta });
+          }
+        } catch (_eS) { /* saldo não bloqueia */ }
+      }
+
       fecharModal();
       if (window.budShowToast) window.budShowToast(
         tipoAtual === 'receita' ? 'Receita registrada!' : 'Despesa registrada!',
