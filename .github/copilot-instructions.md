@@ -26,3 +26,4 @@ Os 6 documentos abaixo governam este projeto. **Consulte-os antes de agir.**
 - Todo erro encontrado deve ser registrado no `ERRORS_LOG.md`
 - Toda decisão não-óbvia deve ser registrada no `DECISIONS_LOG.md`
 - Toda pendência identificada (feature ausente, débito técnico, melhoria futura) deve ser registrada no `PENDENCIAS.md`
+- **NUNCA usar `<select>` nativo** — Todo campo de seleção usa o padrão custom dropdown da identidade visual: `.custom-select` > `.custom-select-trigger` + `.custom-select-dropdown` > `.custom-select-option` + `<input type="hidden">`. Implementar smart positioning com `getBoundingClientRect()` (classe `open-up` quando espaço abaixo insuficiente). Referência: campo Categoria/Conta em `dashboard.html`.

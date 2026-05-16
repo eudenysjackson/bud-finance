@@ -1778,10 +1778,30 @@ function _preencherSelectConta(tipo) {
       e.stopPropagation();
       var isOpen = dropdown.classList.contains('open');
       // Fechar outros dropdowns do modal
-      document.getElementById('categoriaDropdown')?.classList.remove('open');
-      document.getElementById('categoriaBtn')?.classList.remove('open');
+      var catDd  = document.getElementById('categoriaDropdown');
+      var catBtn = document.getElementById('categoriaBtn');
+      if (catDd)  catDd.classList.remove('open', 'open-up');
+      if (catBtn) catBtn.classList.remove('open');
       if (isOpen) { _fecharContaDropdown(); }
       else {
+        // Smart positioning: abre pra cima ou pra baixo conforme espaço disponível
+        dropdown.classList.remove('open-up');
+        var rect       = btn.getBoundingClientRect();
+        var spaceBelow = window.innerHeight - rect.bottom;
+        var spaceAbove = rect.top;
+        var ddHeight   = Math.min(dropdown.scrollHeight || 220, 220);
+        if (spaceBelow < ddHeight && spaceAbove > spaceBelow) {
+          dropdown.classList.add('open-up');
+        }
+        // Responsividade mobile: garantir que o dropdown não ultrapasse a viewport
+        dropdown.style.maxWidth = '';
+        dropdown.style.left = '';
+        dropdown.style.right = '';
+        var wrapRect = dropdown.parentElement.getBoundingClientRect();
+        if (wrapRect.right > window.innerWidth - 8) {
+          dropdown.style.right = '0';
+          dropdown.style.left  = 'auto';
+        }
         dropdown.classList.add('open');
         btn.classList.add('open');
         btn.setAttribute('aria-expanded', 'true');
@@ -1797,7 +1817,7 @@ function _preencherSelectConta(tipo) {
 function _fecharContaDropdown() {
   var dropdown = document.getElementById('contaDropdown');
   var btn      = document.getElementById('contaBtn');
-  if (dropdown) dropdown.classList.remove('open');
+  if (dropdown) dropdown.classList.remove('open', 'open-up');
   if (btn)      { btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
 }
 
