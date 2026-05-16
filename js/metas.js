@@ -151,7 +151,7 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
   try {
-    await user.getIdToken(true);  // DEC-019
+    await user.getIdToken();  // DEC-019 — usa cache; Firebase renova automaticamente quando expirado
   } catch {
     window.location.href = 'index.html';
     return;

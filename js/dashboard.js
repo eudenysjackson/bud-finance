@@ -2397,9 +2397,9 @@ onAuthStateChanged(auth, async function (user) {
   usuarioAtualId = user.uid;
   _dashCurrentUser = user; // armazena para auto-processar recorrentes
 
-  // ── Forçar refresh do token para evitar "Missing permissions" ────
+  // ── Validar token (usa cache; Firebase renova automaticamente quando expirado) ──
   try {
-    await user.getIdToken(true);
+    await user.getIdToken();
   } catch (_tokenErr) {
     // Token inválido / sessão expirada → redirecionar para login
     window.location.href = 'index.html';

@@ -84,7 +84,7 @@ let unsubs = [];
         return;
       }
       try {
-        await user.getIdToken(true);
+        await user.getIdToken(); // usa cache; Firebase renova quando expirado
       } catch {
         window.location.href = 'index.html';
         return;

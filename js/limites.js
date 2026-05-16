@@ -733,7 +733,7 @@ onAuthStateChanged(auth, async user => {
   if (!user) { window.location.href = 'index.html'; return; }
   if (!user.emailVerified) { window.location.href = 'index.html'; return; }
 
-  try { await user.getIdToken(true); } catch { window.location.href = 'index.html'; return; }
+  try { await user.getIdToken(); } catch { window.location.href = 'index.html'; return; } // usa cache; Firebase renova quando expirado
 
   currentUser = user;
 

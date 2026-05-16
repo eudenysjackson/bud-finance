@@ -290,11 +290,11 @@
       var splash = document.getElementById('splash');
       if (!splash) return;
       // Dismiss after fonts + firebase module loads (min 700ms, max 6s)
-      var minTime = 700;
+      var minTime = 0; // sem espera mínima artificial
       var start = Date.now();
       window.addEventListener('load', function () {
         var elapsed = Date.now() - start;
-        var remaining = Math.max(0, minTime - elapsed);
+        var remaining = Math.max(0, 0 - elapsed); // sem espera mínima artificial
         setTimeout(function () {
           splash.classList.add('hide');
           setTimeout(function () { splash.remove(); }, 600);

@@ -16,6 +16,24 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Bud Finance">
 
+  <!-- Preconnect: estabelece TCP antes dos scripts Firebase/CDN carregarem -->
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com">
+
+  <!-- Prefetch das páginas da sidebar: carregadas em idle para navegação instantânea -->
+  <link rel="prefetch" href="cartoes.html">
+  <link rel="prefetch" href="extrato.html">
+  <link rel="prefetch" href="metas.html">
+  <link rel="prefetch" href="dividas.html">
+  <link rel="prefetch" href="carteira.html">
+  <link rel="prefetch" href="graficos.html">
+  <link rel="prefetch" href="recorrentes.html">
+  <link rel="prefetch" href="insights.html">
+  <link rel="prefetch" href="categorias.html">
+  <link rel="prefetch" href="limites.html">
+  <link rel="prefetch" href="configuracoes.html">
+
   <!-- Google Fonts — Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1228,11 +1246,11 @@
     (function () {
       var splash = document.getElementById('splash');
       if (!splash) return;
-      var minTime = 700;
+      var minTime = 0; // sem espera mínima artificial
       var start = Date.now();
       window.addEventListener('load', function () {
         var elapsed = Date.now() - start;
-        var remaining = Math.max(0, minTime - elapsed);
+        var remaining = Math.max(0, 0 - elapsed); // sem espera mínima artificial
         setTimeout(function () {
           splash.classList.add('hide');
           setTimeout(function () { splash.remove(); }, 600);

@@ -1680,7 +1680,7 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  try { await user.getIdToken(true); } catch (_) { /* ignora */ }
+  try { await user.getIdToken(); } catch (_) { /* ignora */ } // usa cache; Firebase renova quando expirado
 
   currentUser = user;
 
