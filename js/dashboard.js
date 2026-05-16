@@ -1730,23 +1730,81 @@ function atualizarModalTipo(tipo) {
 
 // Popula o select de conta/cartão conforme o tipo da transação
 function _preencherSelectConta(tipo) {
-  var sel = document.getElementById('selectConta');
-  if (!sel) return;
-  var prev = sel.value;
-  sel.innerHTML = '<option value="">— Sem vincular —</option>';
+  var dropdown = document.getElementById('contaDropdown');
+  var hidden   = document.getElementById('inputConta');
+  var texto    = document.getElementById('contaTexto');
+  var btn      = document.getElementById('contaBtn');
+  if (!dropdown) return;
+
+  var prevId = hidden ? hidden.value : '';
+
+  // Montar lista de opções
+  var opcoes = [{ id: '', label: '— Sem vincular —', icone: '' }];
   carteiraGlobal.forEach(function (c) {
     var isCredito = c.tipo === 'credito';
-    // Receita: não faz sentido entrar em cartão de crédito
     if (tipo === 'receita' && isCredito) return;
     var icone = c.icone || (isCredito ? '💳' : c.tipo === 'poupanca' ? '🏦' : c.tipo === 'investimento' ? '📈' : '🏦');
-    var opt = document.createElement('option');
-    opt.value = c.id;
-    opt.textContent = icone + ' ' + (c.nome || c.tipo || 'Conta') + (isCredito ? ' (cartão)' : '');
-    sel.appendChild(opt);
+    opcoes.push({ id: c.id, label: icone + ' ' + (c.nome || c.tipo || 'Conta') + (isCredito ? ' (cartão)' : ''), icone: icone });
   });
-  // Restaurar seleção anterior (modo edição ao trocar tipo)
-  if (prev) sel.value = prev;
+
+  dropdown.innerHTML = '';
+  opcoes.forEach(function (op) {
+    var el = document.createElement('div');
+    el.className = 'custom-select-option' + (op.id === prevId ? ' selected' : '');
+    el.setAttribute('role', 'option');
+    el.setAttribute('data-value', op.id);
+    el.textContent = op.label || '— Sem vincular —';
+    el.addEventListener('click', function () {
+      if (hidden) hidden.value = op.id;
+      if (texto) { texto.textContent = op.label || '— Sem vincular —'; }
+      if (btn)   { btn.classList.toggle('has-value', !!op.id); }
+      dropdown.querySelectorAll('.custom-select-option').forEach(function (o) {
+        o.classList.toggle('selected', o.getAttribute('data-value') === op.id);
+      });
+      _fecharContaDropdown();
+    });
+    dropdown.appendChild(el);
+  });
+
+  // Restaurar seleção anterior
+  var selOp = opcoes.find(function (o) { return o.id === prevId; });
+  if (selOp && texto) texto.textContent = selOp.label || '— Sem vincular —';
+  if (btn) btn.classList.toggle('has-value', !!prevId);
+
+  // Montar listener de toggle (uma só vez)
+  if (!btn._contaListenerAdded) {
+    btn._contaListenerAdded = true;
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var isOpen = dropdown.classList.contains('open');
+      // Fechar outros dropdowns do modal
+      document.getElementById('categoriaDropdown')?.classList.remove('open');
+      document.getElementById('categoriaBtn')?.classList.remove('open');
+      if (isOpen) { _fecharContaDropdown(); }
+      else {
+        dropdown.classList.add('open');
+        btn.classList.add('open');
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    });
+    btn.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click(); }
+      if (e.key === 'Escape') _fecharContaDropdown();
+    });
+  }
 }
+
+function _fecharContaDropdown() {
+  var dropdown = document.getElementById('contaDropdown');
+  var btn      = document.getElementById('contaBtn');
+  if (dropdown) dropdown.classList.remove('open');
+  if (btn)      { btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+}
+
+// Fechar dropdown de conta ao clicar fora
+document.addEventListener('click', function (e) {
+  if (!document.getElementById('contaWrapper')?.contains(e.target)) _fecharContaDropdown();
+});
 
 function aplicarMascaraValor(input) {
   var raw = input.value.replace(/\D/g, '');
@@ -1773,6 +1831,15 @@ function abrirModal(tipo) {
   if (catBtn) catBtn.classList.remove('has-value', 'open', 'error');
   var catDropdown = document.getElementById('categoriaDropdown');
   if (catDropdown) catDropdown.classList.remove('open');
+  // Resetar custom dropdown de conta
+  var contaHidden = document.getElementById('inputConta');
+  if (contaHidden) contaHidden.value = '';
+  var contaTexto = document.getElementById('contaTexto');
+  if (contaTexto) contaTexto.textContent = '— Sem vincular —';
+  var contaBtnReset = document.getElementById('contaBtn');
+  if (contaBtnReset) contaBtnReset.classList.remove('has-value', 'open');
+  var contaDropdownReset = document.getElementById('contaDropdown');
+  if (contaDropdownReset) contaDropdownReset.classList.remove('open');
   document.querySelectorAll('.modal-input').forEach(function (el) {
     el.classList.remove('error');
   });
@@ -1814,8 +1881,11 @@ function abrirModalEditar(transacaoId) {
 
   // Preencher conta/cartão vinculado
   if (t.carteiraId) {
-    var selEd = document.getElementById('selectConta');
-    if (selEd) selEd.value = t.carteiraId;
+    var hidEd = document.getElementById('inputConta');
+    if (hidEd) {
+      hidEd.value = t.carteiraId;
+      // Texto do trigger será atualizado pelo _preencherSelectConta chamado via atualizarModalTipo
+    }
   }
 
   // Preencher descrição
@@ -1927,7 +1997,7 @@ async function handleSubmitLancamento(e) {
   }
 
   // Conta/cartão vinculado
-  var novoCarteiraId = (document.getElementById('selectConta') && document.getElementById('selectConta').value) || '';
+  var novoCarteiraId = (document.getElementById('inputConta') && document.getElementById('inputConta').value) || '';
   var novaContaObj   = novoCarteiraId ? carteiraGlobal.find(function (c) { return c.id === novoCarteiraId; }) : null;
   var novaIsCredito  = novaContaObj ? novaContaObj.tipo === 'credito' : false;
 

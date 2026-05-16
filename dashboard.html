@@ -1145,10 +1145,18 @@
 
         <!-- Conta / Cartão -->
         <div class="modal-field" id="fieldConta">
-          <label class="modal-label" for="selectConta">Conta / Cartão</label>
-          <select class="modal-input" id="selectConta" style="padding-right:2.5rem;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6L8 10L12 6' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 0.875rem center;cursor:pointer;">
-            <option value="">— Sem vincular —</option>
-          </select>
+          <label class="modal-label" for="contaBtn">Conta / Cartão</label>
+          <div class="custom-select" id="contaWrapper">
+            <div class="custom-select-trigger" id="contaBtn" tabindex="0"
+              role="combobox" aria-haspopup="listbox" aria-expanded="false">
+              <span id="contaTexto">— Sem vincular —</span>
+              <svg class="custom-select-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M4 6L8 10L12 6" stroke="#64748b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="custom-select-dropdown" id="contaDropdown" role="listbox"></div>
+          </div>
+          <input type="hidden" id="inputConta" name="conta">
         </div>
 
         <button class="modal-submit modal-submit-receita" id="btnSubmitLancamento" type="submit">
