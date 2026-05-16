@@ -1730,6 +1730,20 @@ async function _extrairMetaPdfClientSide(file) {
     );
 
     if (meta.totalAPagar === null && meta.totalCompras === null) return null;
+
+    // Extrai valores de estorno/crédito do texto do PDF.
+    // O Nubank marca estornos com "Estorno de X −R$ Y,ZZ" — extraímos os valores
+    // para que processarItensIA possa identificar quais itens da IA são estornos
+    // (a IA frequentemente perde o prefixo "Estorno de" e retorna valor positivo).
+    const estornos = [];
+    const reEstorno = /estorno[^0-9,]{0,60}?(\d{1,3}(?:\.\d{3})*,\d{2})/gi;
+    let em;
+    while ((em = reEstorno.exec(texto)) !== null) {
+      const ev = parseVal(em[1]);
+      if (!isNaN(ev) && ev > 0) estornos.push(ev);
+    }
+    if (estornos.length) meta.estornos = estornos;
+
     return meta;
   } catch (err) {
     console.warn('[pdf.js client-side] falhou:', err.message);
@@ -1827,6 +1841,10 @@ async function enviarParaIA() {
         if (!_importMetaIA.totalCompras && metaCliente.totalCompras) {
           _importMetaIA.totalCompras = metaCliente.totalCompras;
         }
+        // Sempre mescla estornos detectados no PDF (sobrescreve — PDF é autoritativo)
+        if (metaCliente.estornos && metaCliente.estornos.length) {
+          _importMetaIA.estornos = metaCliente.estornos;
+        }
       }
     }
 
@@ -1866,7 +1884,28 @@ function _addMesesData(dateStr, n) {
 }
 
 function processarItensIA(itens) {
-  return itens.map((item) => {
+  // Valores de estorno extraídos do PDF (determinístico — independente da IA).
+  // Dois-passes: primeiro mapeia qual ÍNDICE de item (na lista da IA) será o estorno,
+  // escolhendo o ÚLTIMO item com aquele valor — a IA segue a ordem do PDF, onde
+  // a compra original vem antes do "Estorno de X" no mesmo dia.
+  const estornosParaMarcar = new Set();
+  const pendingEstornos = (_importMetaIA?.estornos || []).map(v => +v);
+  if (pendingEstornos.length > 0) {
+    // Para cada valor de estorno, encontra o ÚLTIMO índice na lista com aquele valor
+    const remaining = [...pendingEstornos];
+    // Percorre de trás pra frente para pegar a última ocorrência
+    for (let i = itens.length - 1; i >= 0; i--) {
+      const v = Math.abs(parseFloat(String(itens[i].valor || itens[i].value || itens[i].amount || 0).replace(',', '.')) || 0);
+      const idx = remaining.findIndex(ev => Math.abs(v - ev) < 0.02);
+      if (idx >= 0) {
+        estornosParaMarcar.add(i);
+        remaining.splice(idx, 1);
+        if (!remaining.length) break;
+      }
+    }
+  }
+
+  return itens.map((item, itemIdx) => {
     const desc = String(item.desc || item.descricao || item.description || '').trim();
     const valor = Math.abs(parseFloat(String(item.valor || item.value || item.amount || 0).replace(',', '.')) || 0);
     const dataRaw = String(item.data || item.date || '').trim();
@@ -1898,6 +1937,13 @@ function processarItensIA(itens) {
     if (/^(OUTROS\s+LAN[CÇ]AMENTOS?|FATURA\s+ANTERIOR|SALDO\s+RESTANTE|PAGAMENTOS\s+E\s+FINANCIAMENTOS?|TOTAL\s+D[EO]\s+COMPRAS|TOTAL\s+A\s+PAGAR|PAGAMENTO\s+MINIMO|PAGAMENTO\s+M[ÍI]NIMO|RESUMO\s+DA\s+FATURA|FATURA\s+ATUAL|PROXIMO\s+FATURA|PR[ÓO]XIMA\s+FATURA|SALDO\s+EM\s+ABERTO|LIMITE|FECHAMENTO)/.test(descUpper)) {
       status = 'estornado';
     }
+    // Detecção por valor: se o PDF declarou um estorno com este valor exato,
+    // e este item foi pré-selecionado como estorno (último com aquele valor na lista),
+    // marca como estornado.
+    if (status === 'ativa' && estornosParaMarcar.has(itemIdx)) {
+      status = 'estornado';
+    }
+
     // Cancelamento (só se não for estorno — else if)
     if (!/ESTORNO|DEVOLUC|DEVOLUCAO|REEMBOLSO|CHARGEBACK/.test(descUpper)) {
       if (/CANCELAD|CANCELAMENTO/.test(descUpper)) {
