@@ -435,7 +435,7 @@ function buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey, 
     : `<div style="padding:0.625rem;font-size:0.8125rem;font-weight:500;color:var(--card-text-sec);text-align:center;">Nenhum gasto neste mês</div>`;
 
   const maisGastos = gastos.length > 10
-    ? `<div style="padding:0.375rem 0.75rem;font-size:0.75rem;font-weight:600;color:var(--card-text-sec);text-align:center;">+${gastos.length - 10} gastos não exibidos</div>`
+    ? `<div style="padding:0.375rem 0.75rem;font-size:0.75rem;font-weight:600;color:var(--card-text-sec);text-align:center;">+${gastos.length - 10} gastos não exibidos — <a href="${extURL}&cartaoId=${cartao.id}" style="color:var(--btn-bg);text-decoration:none;font-weight:700;">ver todos no Extrato →</a></div>`
     : '';
 
   wrapper.innerHTML = `
@@ -607,9 +607,36 @@ function setupModais() {
   document.getElementById('btnEnviarImportIA')?.addEventListener('click', enviarParaIA);
   document.getElementById('inputArquivoIA')?.addEventListener('change', onArquivoIAChange);
 
+  // Drag-and-drop na área de upload
+  const uploadArea = document.getElementById('importIA-upload-area');
+  uploadArea?.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.style.borderColor = 'var(--btn-bg)';
+    uploadArea.style.background = 'rgba(37,99,235,0.04)';
+  });
+  uploadArea?.addEventListener('dragleave', () => {
+    uploadArea.style.borderColor = 'var(--input-border)';
+    uploadArea.style.background = '';
+  });
+  uploadArea?.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.style.borderColor = 'var(--input-border)';
+    uploadArea.style.background = '';
+    const file = e.dataTransfer?.files?.[0];
+    if (file) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      const input = document.getElementById('inputArquivoIA');
+      if (input) {
+        input.files = dt.files;
+        onArquivoIAChange({ target: { files: dt.files } });
+      }
+    }
+  });
+
   // Modal Review IA
   document.getElementById('btnFecharModalReviewIA')?.addEventListener('click', fecharModalReviewIA);
-  document.getElementById('btnVoltarReviewIA')?.addEventListener('click', () => { fecharModalReviewIA(); abrirModalImportIA(cartaoImportIA, true); });
+  document.getElementById('btnVoltarReviewIA')?.addEventListener('click', () => { const cid = cartaoImportIA; fecharModalReviewIA(); abrirModalImportIA(cid, true); });
   document.getElementById('btnSalvarTransacoesIA')?.addEventListener('click', salvarTransacoesIA);
 
   // Month dropdown: iaMes
@@ -1499,8 +1526,20 @@ function _renderConfiabilidadeBadge() {
 
   // Label dinâmico baseado na fonte do import
   const fonte = meta?.fonte || 'ia';
-  const labelFonte = fonte === 'pdf' ? 'PDF' : fonte === 'imagem' ? 'Imagem' : 'Fatura';
-  const iconeFonte = fonte === 'imagem' ? '🖼️' : '📄';
+  const labelFonte = fonte === 'pdf' ? 'PDF' : fonte === 'imagem' ? 'Imagem' : fonte === 'ofx' ? 'OFX' : 'Fatura';
+  const iconeFonte = fonte === 'imagem' ? '🖼️' : fonte === 'ofx' ? '📋' : '📄';
+
+  // OFX é dado estruturado — precisão garantida, sem necessidade de validação
+  if (fonte === 'ofx') {
+    document.getElementById('iaFaturaTotalPdf')?.style?.setProperty('display', 'none');
+    const totalOFX = itensIAExtraidos.length;
+    const ativosOFX = itensIAExtraidos.filter(i => i.status === 'ativa').length;
+    const estornosOFX = itensIAExtraidos.filter(i => i.status === 'estornado').length;
+    const detOFX = estornosOFX > 0 ? ` · ${estornosOFX} estorno${estornosOFX > 1 ? 's' : ''}` : '';
+    badge.style.cssText = 'display:block;font-size:0.7rem;font-weight:700;padding:0.35rem 0.75rem;border-radius:8px;white-space:normal;line-height:1.5;background:#dcfce7;color:#15803d;margin-bottom:0.75rem;';
+    badge.textContent = `✅ OFX — ${totalOFX} transações lidas (${ativosOFX} ativas${detOFX}) · dados estruturados, precisão 100%`;
+    return;
+  }
 
   // 1) Exibe linha de referência do total declarado na fatura
   const refBox   = document.getElementById('iaFaturaTotalPdf');
@@ -1553,9 +1592,14 @@ function _renderConfiabilidadeBadge() {
       badgeText = `✅ Valores batem com a fatura — ${pctStr} · ${det}`;
     }
   } else {
-    // Sem totais detectados — não é possível validar automaticamente
+    // Sem total de referência — mostra contagem real extraída
+    const totalSemMeta = itensIAExtraidos.length;
+    const ativosSemMeta = itensIAExtraidos.filter(i => i.status === 'ativa').length;
+    const somaExtraida = itensIAExtraidos
+      .filter(i => i.status === 'ativa')
+      .reduce((s, i) => s + i.valor, 0);
     badgeBg = '#fef3c7'; badgeColor = '#92400e';
-    badgeText = `⚠️ ${labelFonte}/IA — precisão não verificável · confira cada linha manualmente`;
+    badgeText = `⚠️ ${labelFonte} — ${ativosSemMeta} de ${totalSemMeta} itens ativos · total extraído: ${fmt(somaExtraida)} · sem total de fatura para validar automaticamente`;
   }
 
   badge.style.cssText = `display:block;font-size:0.7rem;font-weight:700;padding:0.35rem 0.75rem;border-radius:8px;white-space:normal;line-height:1.5;background:${badgeBg};color:${badgeColor};margin-bottom:0.75rem;`;
@@ -1604,6 +1648,9 @@ function fecharModalImportIA() {
 
 function fecharModalReviewIA() {
   document.getElementById('modalReviewIA')?.classList.remove('open');
+  itensIAExtraidos = [];
+  _importMetaIA = null;
+  cartaoImportIA = null;
 }
 
 function onArquivoIAChange(e) {
@@ -1675,7 +1722,12 @@ function parseOFXLocal(text) {
 }
 
 async function processarOFXLocal(file) {
-  const text = await file.text();
+  // OFX brasileiro pode usar Windows-1252 — detectar e decodificar corretamente
+  const buf = await file.arrayBuffer();
+  let text = new TextDecoder('utf-8').decode(buf);
+  if (/CHARSET\s*[=:]\s*(1252|iso-?8859)/i.test(text.substring(0, 600))) {
+    try { text = new TextDecoder('windows-1252').decode(buf); } catch (_e) { /* mantém utf-8 */ }
+  }
   const raw = parseOFXLocal(text);
   if (raw.length === 0) throw new Error('Nenhuma transação encontrada no arquivo OFX.');
 
@@ -1800,7 +1852,7 @@ async function enviarParaIA() {
     if (uploadArea) uploadArea.style.display = 'none';
     if (progress) { progress.style.display = 'block'; }
     if (progressText) progressText.textContent = 'Lendo arquivo OFX...';
-    _importMetaIA = null; // OFX não tem meta
+    _importMetaIA = { fonte: 'ofx' }; // dados estruturados, precisão garantida
     try {
       await processarOFXLocal(file);
     } catch (err) {
@@ -2443,6 +2495,13 @@ function setupDatepickerGasto() {
 
   trigger?.addEventListener('click', (e) => {
     e.stopPropagation();
+    const willOpen = !calendar.classList.contains('open');
+    if (willOpen) {
+      // Smart positioning: abrir para cima se espaço abaixo insuficiente
+      calendar.classList.remove('open-up');
+      const rect = trigger.getBoundingClientRect();
+      if (window.innerHeight - rect.bottom < 280) calendar.classList.add('open-up');
+    }
     calendar.classList.toggle('open');
     trigger.classList.toggle('open', calendar.classList.contains('open'));
   });
@@ -2545,7 +2604,9 @@ function formatBRL(val) {
 
 function formatData(dateStr) {
   if (!dateStr) return '—';
-  const [, m, d] = dateStr.split('-');
+  const parts = dateStr.split('-');
+  if (parts.length < 3) return dateStr; // formato inválido — retorna como veio
+  const [, m, d] = parts;
   return `${d}/${m}`;
 }
 

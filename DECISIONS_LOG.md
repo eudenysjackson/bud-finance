@@ -1,7 +1,7 @@
 # DECISIONS_LOG.md — Registro de Decisões Arquiteturais
 
 **Projeto**: Bud Finance  
-**Última atualização**: 14/05/2026
+**Última atualização**: 16/05/2026
 
 > **REGRA**: Antes de refatorar qualquer padrão, ler este doc primeiro.  
 > Toda decisão não-óbvia deve ser registrada aqui.
@@ -555,6 +555,19 @@ unTransaction. Sem atomicidade, falha parcial corromperia dados.
 - **Por quê**: O padrão CSS para `min-width` em flex items é `auto` (= `min-content`). Sem `min-width:0`, o item não encolhe abaixo do tamanho intrínseco do seu conteúdo, causando overflow horizontal em viewports estreitos — mesmo com `flex:1`, `flex-shrink:1` e `margin-left:0 !important` corretamente aplicados no breakpoint mobile. O `body{overflow-x:hidden}` esconde o scroll mas não corrige o layout (elementos continuam renderizados fora do viewport).
 - **Consequências**: Regra de prevenção permanente: ao criar qualquer layout flex onde um item deve preencher apenas o espaço disponível, adicionar `min-width:0`. Especialmente crítico para sidebars collapsíveis com `position:fixed` (o único flex filho do container é o `.dash-main`).
 - **Quando revisar**: Se migrar para CSS Grid no layout principal (o comportamento padrão do Grid é `min-width:auto` também, mas `grid-template-columns:1fr` já implica `minmax(0,1fr)` na maioria dos browsers modernos).
+
+---
+
+### DEC-046 — Badge de confiabilidade do import: dados reais por fonte, sem mensagens genéricas
+
+- **Data**: 16/05/2026
+- **O que foi decidido**: `_renderConfiabilidadeBadge()` em `cartoes.js` não deve usar texto genérico em nenhum caso. Cada fonte tem sua mensagem baseada no que foi efetivamente extraído.
+  - **OFX**: `✅ OFX — {N} transações lidas ({K} ativas) · dados estruturados, precisão 100%` (contagens reais de `itensIAExtraidos`)
+  - **PDF/Imagem sem total de fatura detectado**: `⚠️ {fonte} — {K} de {N} itens ativos · total extraído: R$ X · sem total de fatura para validar automaticamente`
+  - **PDF/Imagem COM total**: fórmula percentual existente (`✅ Valores batem` / `⚠️ Precisão parcial` / `❌ Não confiável`)
+- **Por quê**: O usuário importou OFX (dados perfeitos) e viu "precisão não verificável", o que era UX enganosa. Para PDF sem meta, o texto genérico não ajudava — mostrar o total extraído e a contagem real dá informação útil para o usuário decidir.
+- **Consequências**: O badge nunca mais é um aviso genérico; sempre reflete o estado real da extração.
+- **Quando revisar**: Se adicionarmos novos formatos de import (ex: CSV, XLSX).
 
 ---
 

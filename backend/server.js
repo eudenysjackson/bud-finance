@@ -734,13 +734,21 @@ async function extractWithAIFromText(text, tipo) {
   });
 
   var controller = new AbortController();
-  var timeoutId = setTimeout(function(){ controller.abort(); }, 60000);
+  var timeoutId = setTimeout(function(){ controller.abort(); }, 40000);
 
   try {
     var resp = await fetch(
       'https://api.groq.com/openai/v1/chat/completions',
       { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: body, signal: controller.signal }
     );
+    // Retry once on rate limit
+    if (resp.status === 429) {
+      await new Promise(function(r){ setTimeout(r, 1500); });
+      resp = await fetch(
+        'https://api.groq.com/openai/v1/chat/completions',
+        { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: body, signal: controller.signal }
+      );
+    }
     clearTimeout(timeoutId);
     if (!resp.ok) {
       var errText = await resp.text().catch(function(){ return resp.status; });
@@ -757,7 +765,7 @@ async function extractWithAIFromText(text, tipo) {
     var txArr   = (parsed && Array.isArray(parsed.transacoes)) ? parsed.transacoes : (Array.isArray(parsed) ? parsed : []);
     var metaObj = (parsed && parsed.meta) ? parsed.meta : null;
     return {
-      transacoes: txArr.filter(function(t){ return t.desc && parseFloat(t.valor) > 0; }),
+      transacoes: txArr.filter(function(t){ return t.desc && parseFloat(t.valor) !== 0; }),
       meta: metaObj
     };
   } catch (err) {
@@ -847,13 +855,21 @@ async function extractWithAI(buffer, mimeType, tipo) {
   });
 
   var controller = new AbortController();
-  var timeoutId = setTimeout(function(){ controller.abort(); }, 60000);
+  var timeoutId = setTimeout(function(){ controller.abort(); }, 40000);
 
   try {
     var resp = await fetch(
       'https://api.groq.com/openai/v1/chat/completions',
       { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: body, signal: controller.signal }
     );
+    // Retry once on rate limit
+    if (resp.status === 429) {
+      await new Promise(function(r){ setTimeout(r, 1500); });
+      resp = await fetch(
+        'https://api.groq.com/openai/v1/chat/completions',
+        { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: body, signal: controller.signal }
+      );
+    }
     clearTimeout(timeoutId);
 
     if (!resp.ok) {
@@ -878,7 +894,7 @@ async function extractWithAI(buffer, mimeType, tipo) {
     // Formato esperado: {"transacoes":[...], "meta":{...}} — tanto extrato como fatura
     var txArr   = Array.isArray(parsed) ? parsed : ((parsed && parsed.transacoes) || []);
     var metaObj = (!Array.isArray(parsed) && parsed && parsed.meta) ? parsed.meta : null;
-    return { transacoes: txArr.filter(function(t){ return t.desc && parseFloat(t.valor) > 0; }), meta: metaObj };
+    return { transacoes: txArr.filter(function(t){ return t.desc && parseFloat(t.valor) !== 0; }), meta: metaObj };
 
   } catch (err) {
     clearTimeout(timeoutId);
@@ -906,18 +922,12 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
       // ── 1) Extrair texto do PDF com pdf-parse ──────────────────────
       var pdfData;
       try {
-        pdfData = await pdfParse(buffer, { max: 0 });
+        pdfData = await pdfParse(buffer, { max: 20 });
       } catch (pdfErr) {
-        // PDF ilegível ou criptografado → tentar IA-visão se disponível
-        if (process.env.GROQ_API_KEY) {
-          var fallResult = await extractWithAI(buffer, mimeType, tipo);
-          transacoes = fallResult.transacoes;
-          aiMeta = fallResult.meta;
-        } else {
-          return res.status(422).json({
-            error: 'Não foi possível ler o PDF. O arquivo pode estar protegido por senha. Tente exportar como imagem ou use um arquivo OFX.'
-          });
-        }
+        // PDF ilegível ou criptografado — retornar erro direto (visão IA não lê PDFs binários)
+        return res.status(422).json({
+          error: 'Não foi possível ler o PDF. O arquivo pode estar protegido por senha ou corrompido. Tente exportar o extrato como imagem ou use um arquivo OFX.'
+        });
       }
 
       if (pdfData) {
@@ -953,21 +963,8 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
           }
         }
 
-        // ── 4) Último recurso: IA-visão se ainda < 70% e PDF < 5MB ───
-        var bestMeta2 = aiMeta || textMeta;
-        var currentScore = captureScore(transacoes, bestMeta2);
-        if (currentScore !== null && currentScore < 0.70 && buffer.length < 5_000_000 && process.env.GROQ_API_KEY) {
-          try {
-            var visionResult = await extractWithAI(buffer, mimeType, tipo);
-            var visionScore = captureScore(visionResult.transacoes, bestMeta2);
-            if (visionScore !== null && (currentScore === null || visionScore > currentScore)) {
-              transacoes = visionResult.transacoes;
-              if (!aiMeta && visionResult.meta) aiMeta = visionResult.meta;
-            }
-          } catch (_visErr) {
-            console.warn('[AI vision-mode falhou]', _visErr.message);
-          }
-        }
+        // Nota: IA-visão removida para PDFs — modelos de visão não processam PDF binário.
+        // Somente imagens (JPEG/PNG/WEBP/HEIC) são enviadas para extractWithAI.
       }
 
     } else {

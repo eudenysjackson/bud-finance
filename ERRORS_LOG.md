@@ -1,7 +1,7 @@
 # ERRORS_LOG.md — Memória de Cura
 
 **Projeto**: Bud Finance  
-**Última atualização**: 14/05/2026
+**Última atualização**: 16/05/2026
 
 > **REGRA**: Antes de resolver um bug, verificar se já foi resolvido aqui.  
 > Todo erro encontrado deve ser registrado neste doc.
@@ -405,7 +405,27 @@
 - **Status**: ✅ Resolvido em 15/05/2026.
 
 ---
+### ERR-042 — `_importMetaIA = null` em `enviarParaIA()` zerava fonte OFX antes do badge renderizar
+- **Data**: 16/05/2026
+- **Arquivo**: `js/cartoes.js` — `enviarParaIA()` + `_renderConfiabilidadeBadge()`
+- **Sintoma**: Import de arquivo OFX sempre mostrava `⚠️ Fatura/IA — precisão não verificável · confira cada linha manualmente` mesmo sendo dados 100% estruturados.
+- **Causa raiz**: Em `enviarParaIA()`, a linha `_importMetaIA = null; // OFX não tem meta` executava ANTES da chamada `await processarOFXLocal(file)`. Embora `processarOFXLocal` sobrescrevesse para `{ fonte: 'ofx' }` internamente, o comentado sugeria que era intencional e criava confusão. A causa direta era que `_renderConfiabilidadeBadge` recebia `meta.fonte` correto somente se `processarOFXLocal` fosse a última a escrever antes do render — qualquer caminho alternativo que chamasse `fecharModalReviewIA` resetaria `_importMetaIA` de volta a `null`.
+- **Solução aplicada**: Substituiu `_importMetaIA = null` por `_importMetaIA = { fonte: 'ofx' }` diretamente em `enviarParaIA()` antes de chamar `processarOFXLocal`. A atribuição dentro de `processarOFXLocal` foi mantida como segunda camada de garantia.
+- **Regra de prevenção**: Nunca setar `_importMetaIA = null` como "limpeza preventiva" antes de uma função que sabe mais sobre a fonte. Delegar a responsabilidade à função especializada, ou setar o valor correto direto no site da chamada.
+- **Status**: ✅ Resolvido em 16/05/2026.
 
+---
+
+### ERR-043 — `parseFloat(t.valor) > 0` descartava estornos silenciosamente no backend
+- **Data**: 16/05/2026
+- **Arquivo**: `backend/server.js` — `extractWithAIFromText()` e `extractWithAI()`
+- **Sintoma**: Estornos (valores negativos) nunca apareciam no modal Review IA após import via PDF/imagem. O total extraído sempre ficava maior que o real.
+- **Causa raiz**: Ambos os handlers filtravam `transacoes.filter(t => parseFloat(t.valor) > 0)`. O filtro era um guard contra strings vazias/zeros, mas descartava todos os valores negativos (estornos).
+- **Solução aplicada**: Alterado para `parseFloat(t.valor) !== 0` nos dois handlers, preservando estornos e descartando apenas zeros/nan.
+- **Regra de prevenção**: Ao filtrar lixo (valores sem sentido), usar `!== 0` ou `isNaN` — nunca `> 0` em contexto financeiro onde negativos são semanticamente válidos.
+- **Status**: ✅ Resolvido em 16/05/2026.
+
+---
 ### ERR-041 — Badge "precisão não verificável" persistia mesmo após backend ler totais
 - **Data**: 15/05/2026
 - **Arquivo**: `js/cartoes.js` — `enviarParaIA()` + `cartoes.html` (CDN pdf.js)
