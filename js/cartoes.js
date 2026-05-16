@@ -1735,13 +1735,31 @@ async function _extrairMetaPdfClientSide(file) {
     // O Nubank marca estornos com "Estorno de X −R$ Y,ZZ" — extraímos os valores
     // para que processarItensIA possa identificar quais itens da IA são estornos
     // (a IA frequentemente perde o prefixo "Estorno de" e retorna valor positivo).
+    // ── Extração dupla de estornos/créditos ─────────────────────────────────
+    // Método 1 — keyword: captura valor após "Estorno de X..."
+    // [\ s\S] permite cruzar vírgulas/aspas em nomes como "Mp *Duxnutrition,"
     const estornos = [];
-    const reEstorno = /estorno[^0-9,]{0,60}?(\d{1,3}(?:\.\d{3})*,\d{2})/gi;
+    const reEstorno = /estorno[\s\S]{0,300}?(\d{1,3}(?:\.\d{3})*,\d{2})/gi;
     let em;
     while ((em = reEstorno.exec(texto)) !== null) {
       const ev = parseVal(em[1]);
       if (!isNaN(ev) && ev > 0) estornos.push(ev);
     }
+
+    // Método 2 — sinal negativo: captura QUALQUER "-R$ X,XX" no PDF
+    // Complementar ao método 1: apanha estornos sem prefixo "Estorno de"
+    // e também serve de fallback para casos onde o keyword não foi detectado
+    const reNegativo = /[\u2212\-]\s*R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})/g;
+    while ((em = reNegativo.exec(texto)) !== null) {
+      const cv = parseVal(em[1]);
+      // Filtrar: ignora se já está na lista ou se é maior que totalAPagar (evita capturar o próprio total)
+      const jaPresente = estornos.some(e => Math.abs(e - cv) < 0.02);
+      const ehTotalOuGrande = meta.totalAPagar && cv >= meta.totalAPagar * 0.8;
+      if (!isNaN(cv) && cv > 0 && !jaPresente && !ehTotalOuGrande) {
+        estornos.push(cv);
+      }
+    }
+
     if (estornos.length) meta.estornos = estornos;
 
     return meta;
@@ -1905,7 +1923,7 @@ function processarItensIA(itens) {
     }
   }
 
-  return itens.map((item, itemIdx) => {
+  const itensProcessados = itens.map((item, itemIdx) => {
     const desc = String(item.desc || item.descricao || item.description || '').trim();
     const valor = Math.abs(parseFloat(String(item.valor || item.value || item.amount || 0).replace(',', '.')) || 0);
     const dataRaw = String(item.data || item.date || '').trim();
@@ -1995,6 +2013,33 @@ function processarItensIA(itens) {
       selecionado: status === 'ativa',  // estornados/cancelados vêm desmarcados
     };
   }).filter(item => item.valor > 0 || item.status !== 'ativa'); // remove itens com valor 0 que não são especiais
+
+  // ── Auto-correção de discrepância ─────────────────────────────────────────
+  // Se o total calculado dos itens ativos divergir do totalAPagar do PDF,
+  // tenta encontrar o(s) item(s) que explicam a diferença e marcá-los como estorno.
+  // Cobre casos onde nem keyword nem sinal negativo capturaram o estorno.
+  const totalAPagarRef = _importMetaIA?.totalAPagar;
+  if (totalAPagarRef) {
+    const computado = itensProcessados
+      .filter(i => i.status === 'ativa')
+      .reduce((s, i) => s + i.valor, 0);
+    let diff = Math.round((computado - totalAPagarRef) * 100) / 100;
+    if (diff > 0.01) {
+      // Tenta 1 item de cada vez (do fim para o início)
+      for (let i = itensProcessados.length - 1; i >= 0 && diff > 0.01; i--) {
+        const it = itensProcessados[i];
+        if (it.status !== 'ativa') continue;
+        if (Math.abs(it.valor - diff) < 0.02) {
+          it.status = 'estornado';
+          it.selecionado = false;
+          diff = 0;
+          console.warn(`[BudAI] Auto-correção: "${it.desc}" R$ ${it.valor.toFixed(2)} → estorno (diff R$ ${(computado - totalAPagarRef).toFixed(2)})`);
+        }
+      }
+    }
+  }
+
+  return itensProcessados;
 }
 
 // ─── Auto-categorização ───────────────────────────────────────────────────────
@@ -2237,7 +2282,16 @@ function atualizarResumoReviewIA() {
   const countEl = document.getElementById('iaResumoCount');
   const totalEl = document.getElementById('iaResumoTotal');
   if (countEl) countEl.textContent = `${totalTx} transa${totalTx !== 1 ? 'ções' : 'ção'}`;
-  if (totalEl) totalEl.textContent = `Total: ${formatBRL(total)}`;
+  if (totalEl) {
+    // Para importação de fatura PDF, o total relevante é o declarado pela fatura,
+    // não a soma calculada das transações (que pode divergir por detecção imprecisa de estornos)
+    const totalFatura = _importMetaIA?.totalAPagar;
+    if (totalFatura) {
+      totalEl.textContent = `Total da fatura: ${formatBRL(totalFatura)}`;
+    } else {
+      totalEl.textContent = `Total: ${formatBRL(total)}`;
+    }
+  }
 }
 
 async function salvarTransacoesIA() {
