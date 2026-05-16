@@ -831,7 +831,7 @@ async function extractWithAI(buffer, mimeType, tipo) {
       content: [
         {
           type: 'image_url',
-          image_url: { url: 'data:' + mimeType + ';base64,' + base64, detail: 'high' }
+          image_url: { url: 'data:' + mimeType + ';base64,' + base64 }
         },
         { type: 'text', text: prompt }
       ]
@@ -839,7 +839,7 @@ async function extractWithAI(buffer, mimeType, tipo) {
   ];
 
   var body = JSON.stringify({
-    model: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
     messages: messages,
     temperature: 0.0,
     max_tokens: 8192,
