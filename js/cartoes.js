@@ -1506,15 +1506,22 @@ function _renderConfiabilidadeBadge() {
   const refBox   = document.getElementById('iaFaturaTotalPdf');
   const refVal   = document.getElementById('iaFaturaTotalPdfValor');
   const refLabel = document.getElementById('iaFaturaTotalPdfLabel');
-  // Alvo prioritário: totalAPagar (valor real cobrado). Fallback: totalCompras.
-  const alvoPdf = meta && meta.totalAPagar > 0 ? meta.totalAPagar
-                : meta && meta.totalCompras > 0 ? meta.totalCompras
-                : null;
+  // Para imagem: usar totalCompras (compras brutas) como referência primária,
+  // pois totalAPagar inclui saldo anterior/juros que distorcem a comparação.
+  // Para PDF/OFX: totalAPagar é o valor cobrado real, preferível.
+  const isImagem = fonte === 'imagem';
+  const alvoPdf = isImagem
+    ? (meta && meta.totalCompras > 0 ? meta.totalCompras
+       : meta && meta.totalAPagar > 0 ? meta.totalAPagar : null)
+    : (meta && meta.totalAPagar > 0 ? meta.totalAPagar
+       : meta && meta.totalCompras > 0 ? meta.totalCompras : null);
   if (refBox && refVal) {
     if (alvoPdf !== null) {
       if (refLabel) refLabel.textContent = `${iconeFonte} Total da fatura (${labelFonte})`;
-      refVal.textContent = fmt(alvoPdf) +
-        (meta.totalAPagar > 0 ? ' (Total a pagar)' : ' (Total de compras)');
+      const labelAlvo = isImagem
+        ? (meta.totalCompras > 0 ? ' (Total de compras)' : ' (Total a pagar)')
+        : (meta.totalAPagar > 0 ? ' (Total a pagar)' : ' (Total de compras)');
+      refVal.textContent = fmt(alvoPdf) + labelAlvo;
       refBox.style.display = 'flex';
     } else {
       refBox.style.display = 'none';
@@ -2029,10 +2036,12 @@ function processarItensIA(itens) {
   }).filter(item => item.valor > 0 || item.status !== 'ativa'); // remove itens com valor 0 que não são especiais
 
   // ── Auto-correção de discrepância ─────────────────────────────────────────
-  // Se o total calculado dos itens ativos divergir do totalAPagar do PDF,
-  // tenta encontrar o(s) item(s) que explicam a diferença e marcá-los como estorno.
-  // Cobre casos onde nem keyword nem sinal negativo capturaram o estorno.
-  const totalAPagarRef = _importMetaIA?.totalAPagar;
+  // Para imagem: usa totalCompras como ref (compras brutas, sem juros/saldo ant.).
+  // Para PDF/OFX: usa totalAPagar (valor real cobrado).
+  const _fonte = _importMetaIA?.fonte || 'ia';
+  const totalAPagarRef = _fonte === 'imagem'
+    ? (_importMetaIA?.totalCompras || _importMetaIA?.totalAPagar)
+    : (_importMetaIA?.totalAPagar || _importMetaIA?.totalCompras);
   if (totalAPagarRef) {
     const computado = itensProcessados
       .filter(i => i.status === 'ativa')
