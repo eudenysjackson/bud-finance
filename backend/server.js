@@ -810,18 +810,19 @@ async function extractWithAI(buffer, mimeType, tipo) {
     '{"transacoes":[{"desc":"...","valor":50.00,"data":"2026-04-01","tipo":"debito"}],"meta":{"totalEntradas":4035.65,"totalSaidas":3939.32,"saldoFinal":218.65}}',
     'Se algum campo de meta não estiver visível no documento, use null. Responda APENAS com o JSON, sem explicações ou markdown.'
   ].join(' ') : [
-    'Você está analisando uma fatura de cartão de crédito brasileiro.',
-    'OBJETIVO: extrair cada LINHA DE COMPRA/COBRANÇA individual present no detalhamento de transações.',
-    'INCLUA: compras à vista, parcelas de compras antigas (ex: "3/10 LOJA X"), IOF individual, juros de financiamento de compra específica, anuidade, ajustes a débito.',
+    'Você está analisando uma IMAGEM de fatura de cartão de crédito brasileiro.',
+    'LEIA A IMAGEM LINHA POR LINHA, do topo ao final. Cada linha com data + descrição + valor = UMA transação no JSON.',
+    'REGRA CRÍTICA — FIDELIDADE: copie o valor EXATAMENTE como escrito na imagem (ex: R$ 150,00 → 150.00). NÃO arredonde, NÃO some, NÃO invente valores.',
+    'REGRA CRÍTICA — COMPLETUDE: inclua TODAS as linhas de compra visíveis, sem pular nenhuma, mesmo que pareçam repetidas ou tenham valores similares.',
+    'REGRA CRÍTICA — SEM DUPLICATAS: cada linha da imagem gera EXATAMENTE UMA entrada no JSON. NÃO duplique nenhuma linha.',
+    'INCLUA: compras à vista, parcelas (ex: "Cobasi 1/2" → inclua só a parcela visível, não invente as demais), IOF, anuidade, ajustes a débito.',
     'INCLUA ESTORNOS com valor NEGATIVO (ex: "Estorno de Uber" → valor: -11.93). Eles compensam compras e fazem parte da soma final.',
-    'IGNORE ESTRITAMENTE: "Pagamento recebido", "Pagamento em DD MMM", subtotais de seção ("Outros lançamentos R$ X", "Total de compras R$ X", "Pagamentos e Financiamentos R$ X"), subtotais por portador (nome de pessoa + valor antes das transações), saldos ("Saldo restante", "Saldo em aberto", "Pagamento mínimo"), cabeçalhos e rodapés.',
-    'TAREFA EXTRA: capture em "meta" DOIS totais: "totalCompras" ("Total de compras") E "totalAPagar" ("Pagamento total da fatura" ou "Total a pagar").',
-    'Retorne SOMENTE um JSON válido no formato:',
-    '{"transacoes":[{"desc":"nome do estabelecimento","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47,"totalAPagar":1242.36}}',
-    'A soma dos valores extraídos (positivos + negativos) deve bater com totalAPagar do documento.',
-    'Regras: valor é float em reais, negativo para estornos/créditos. data em YYYY-MM-DD.',
-    'Se não houver transações, retorne {"transacoes":[],"meta":null}.',
-    'Responda APENAS com o JSON, sem explicações ou markdown.'
+    'IGNORE ESTRITAMENTE: linhas de "Pagamento recebido", "Pagamento em DD MMM", subtotais de seção (ex: "Outros lançamentos R$ X", "Total de compras R$ X"), nome de portador seguido de valor sem data, saldos, cabeçalhos, rodapés.',
+    'TAREFA EXTRA: capture em "meta": "totalCompras" ("Total de compras") e "totalAPagar" ("Pagamento total" ou "Total a pagar").',
+    'Formato de resposta — SOMENTE este JSON, sem markdown, sem explicação:',
+    '{"transacoes":[{"desc":"nome exato do estabelecimento","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47,"totalAPagar":1242.36}}',
+    'Regras: valor é float, negativo para estornos/créditos. data em YYYY-MM-DD. Se data ilegível use "2000-01-01".',
+    'Se não houver transações visíveis: {"transacoes":[],"meta":null}'
   ].join(' ');
 
   var messages = [
