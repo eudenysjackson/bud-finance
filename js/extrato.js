@@ -18,18 +18,19 @@
  *   { descricao, valor, categoria, data: Timestamp, tipo, dataCriacao: Timestamp }
  */
 
-import { initializeApp }    from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { initializeApp, getApps }    from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
-  getFirestore, collection, query, where, orderBy,
+  getFirestore, initializeFirestore, persistentLocalCache,
+  collection, query, where, orderBy,
   onSnapshot, doc, getDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // ─── Firebase ──────────────────────────────────────────────────────────────
-const app = initializeApp(window.BUD_FIREBASE_CONFIG);
+const app = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
-const db   = getFirestore(app);
+const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
 
 // ─── Estado ────────────────────────────────────────────────────────────────
 let usuarioAtualId     = null;

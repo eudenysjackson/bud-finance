@@ -1,18 +1,18 @@
 // js/index.js — Bud Finance Login Logic (ES Module)
 // Uses Firebase SDK Modular v10.8.1 — NO compat layer.
 
-import { initializeApp }
+import { initializeApp, getApps }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, sendEmailVerification }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, collection, query, where, getDocs }
+import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, collection, query, where, getDocs }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 // ─── Firebase init ──────────────────────────────────────────────────
 const firebaseConfig = window.BUD_FIREBASE_CONFIG;
-const app  = initializeApp(firebaseConfig);
+const app  = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db   = getFirestore(app);
+const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
 
 // ─── DOM refs ───────────────────────────────────────────────────────
 const formLogin          = document.getElementById('formLogin');

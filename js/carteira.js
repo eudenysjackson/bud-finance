@@ -4,18 +4,19 @@
  * Firebase SDK Modular v10.8.1 | ES Module
  */
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
-  getFirestore, collection, query, where, orderBy, getDocs, limit,
+  getFirestore, initializeFirestore, persistentLocalCache,
+  collection, query, where, orderBy, getDocs, limit,
   getDoc, addDoc, updateDoc, deleteDoc, doc, writeBatch,
   serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // ── Init Firebase ─────────────────────────────────────────
-const app = initializeApp(window.BUD_FIREBASE_CONFIG);
+const app = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
 
 const BACKEND_URL = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com');
 const PER_PAGE = 25;

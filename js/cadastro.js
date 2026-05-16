@@ -2,19 +2,20 @@
 // Firebase SDK Modular v10.8.1 — NO compat layer.
 // User chooses their own password (no temp password sent via email).
 
-import { initializeApp }
+import { initializeApp, getApps }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
-  getFirestore, doc, setDoc, getDoc, collection, query, where, getDocs,
+  getFirestore, initializeFirestore, persistentLocalCache,
+  doc, setDoc, getDoc, collection, query, where, getDocs,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 // ─── Firebase init ──────────────────────────────────────────────────
-const app  = initializeApp(window.BUD_FIREBASE_CONFIG);
+const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
-const db   = getFirestore(app);
+const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
 
 // ─── DOM refs ───────────────────────────────────────────────────────
 const formSection       = document.getElementById('formSection');

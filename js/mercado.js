@@ -30,18 +30,19 @@
  *  - usuarios/{uid}/cartoes     (lê para chip "Crédito")
  */
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
-  getFirestore, collection, query, orderBy, limit, where,
+  getFirestore, initializeFirestore, persistentLocalCache,
+  collection, query, orderBy, limit, where,
   onSnapshot, doc, addDoc, updateDoc, deleteDoc, getDocs,
   writeBatch, serverTimestamp, getDoc, setDoc, increment,
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // ─── Firebase init ───────────────────────────────────────────────
-const app  = initializeApp(window.BUD_FIREBASE_CONFIG);
+const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
-const db   = getFirestore(app);
+const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
 
 // ─── Constantes ──────────────────────────────────────────────────
 const QUERY_LIMIT = 100;         // BUG 18: limite único

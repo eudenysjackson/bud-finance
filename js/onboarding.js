@@ -18,11 +18,12 @@
  * Firebase SDK Modular v10.8.1 | ES Module
  */
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import { getAuth, onAuthStateChanged, updateProfile }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
-  getFirestore, doc, getDoc, updateDoc, addDoc, getDocs,
+  getFirestore, initializeFirestore, persistentLocalCache,
+  doc, getDoc, updateDoc, addDoc, getDocs,
   collection, serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
@@ -40,9 +41,9 @@ if (_previewMode) {
 }
 
 // ─── Firebase ──────────────────────────────────────────────────────────────
-const app  = initializeApp(window.BUD_FIREBASE_CONFIG);
+const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
-const db   = getFirestore(app);
+const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
 
 // ─── Estado ────────────────────────────────────────────────────────────────
 let currentUser = null;

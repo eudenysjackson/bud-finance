@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><title>Debug Estornos</title></head>
+<body>
+<input type="file" id="f" accept=".pdf"><br><pre id="out">Selecione o PDF da fatura...</pre>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+document.getElementById('f').onchange = async function(e) {
+  const file = e.target.files[0];
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let texto = '';
+  for (let p = 1; p <= Math.min(pdf.numPages, 15); p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    texto += content.items.map(it => it.str).join(' ') + '\n';
+  }
+
+  const parseVal = s => parseFloat(String(s).replace(/\./g, '').replace(',', '.'));
+
+  // === EXTRACT ESTORNOS ===
+  const estornos = [];
+  const reEstorno = /estorno[\s\S]{0,300}?(\d{1,3}(?:\.\d{3})*,\d{2})/gi;
+  let em;
+  while ((em = reEstorno.exec(texto)) !== null) {
+    const ev = parseVal(em[1]);
+    if (!isNaN(ev) && ev > 0) estornos.push(ev);
+  }
+
+  // === SIMULATE items retornados pelo backend (cópia exata do log anterior) ===
+  const itensBackend = [
+    {"desc":"•••• 8956 Render.Com USD 12.22 Conversão: USD 1 = R$ 5,37","valor":65.65},
+    {"desc":"Uber - NuPay","valor":11.14},
+    {"desc":"99 - NuPay","valor":26.49},
+    {"desc":"99 - NuPay","valor":15.9},
+    {"desc":"99 - NuPay","valor":10.72},
+    {"desc":"Jae*-*Pedido*31486089","valor":150},
+    {"desc":"Cobasi - NuPay - Parcela 1/2","valor":196.9},
+    {"desc":"Applecombill","valor":66.9},
+    {"desc":"Jim.Com* Clinica Sint","valor":40},
+    {"desc":"99 - NuPay","valor":30.99},
+    {"desc":"Uber - NuPay","valor":8.72},
+    {"desc":"Drogarias Pacheco S.A.","valor":62.05},
+    {"desc":"99 - NuPay","valor":12.51},
+    {"desc":"EBW*Spotify - NuPay","valor":23.9},
+    {"desc":"Restaurante Di Comadre","valor":34.5},
+    {"desc":"Panif Conf I Guanabara","valor":37.27},
+    {"desc":"Uber - NuPay","valor":11.93},
+    {"desc":"Uber - NuPay","valor":20.91},
+    {"desc":"Uber - NuPay","valor":18.9},
+    {"desc":"Mp *Duxnutrition","valor":51.06},
+    {"desc":"99 - NuPay","valor":28.98},
+    {"desc":"Ingresso.Com","valor":55.68},
+    {"desc":"99 - NuPay","valor":25.29},
+    {"desc":"Uber - NuPay","valor":26.9},
+    {"desc":"99 - NuPay","valor":13.59},
+    {"desc":"99 - NuPay","valor":14.4},
+    {"desc":"99 - NuPay","valor":12.42},
+    {"desc":"99 - NuPay","valor":25.56},
+    {"desc":"99 - NuPay","valor":20.52},
+    {"desc":"99 - NuPay","valor":20.52},
+    {"desc":"99 - NuPay","valor":22.35},
+    {"desc":"99 - NuPay","valor":22.56},
+    {"desc":"99 - NuPay","valor":5.94},
+    {"desc":"99 - NuPay","valor":7.56},
+    {"desc":"99 - NuPay","valor":4.41},
+    {"desc":"iFood","valor":14.59},
+    {"desc":"Shopee PROCESSADO POR ADYEN","valor":184.93},
+    {"desc":"IOF de Render.Com","valor":2.30},
+  ];
+
+  // === DOIS PASSES (cópia da lógica de processarItensIA) ===
+  const pendingEst = [...estornos];
+  const estornosParaMarcar = new Set();
+  for (let i = itensBackend.length - 1; i >= 0; i--) {
+    const v = Math.abs(itensBackend[i].valor);
+    const idx = pendingEst.findIndex(ev => Math.abs(v - ev) < 0.02);
+    if (idx >= 0) {
+      estornosParaMarcar.add(i);
+      pendingEst.splice(idx, 1);
+      if (!pendingEst.length) break;
+    }
+  }
+
+  // === RESULTADO ===
+  const ativos = itensBackend.filter((_, i) => !estornosParaMarcar.has(i));
+  const totalAtivos = ativos.reduce((s, i) => s + i.valor, 0);
+  const totalEstornos = [...estornosParaMarcar].reduce((s, i) => s + itensBackend[i].valor, 0);
+
+  let out = `=== ESTORNOS DETECTADOS DO PDF (regex) ===\n${JSON.stringify(estornos)}\n\n`;
+  out += `=== ITENS MARCADOS COMO ESTORNADO (índices: ${[...estornosParaMarcar].join(',')}) ===\n`;
+  for (const i of estornosParaMarcar) {
+    out += `  [${i}] ${itensBackend[i].desc} → R$ ${itensBackend[i].valor}\n`;
+  }
+  out += `\n=== ITENS ATIVOS (${ativos.length}) ===\n`;
+  ativos.forEach(it => out += `  ${it.desc} R$ ${it.valor}\n`);
+  out += `\nTotal ativos: R$ ${totalAtivos.toFixed(2)}\n`;
+  out += `Total estornos: R$ ${totalEstornos.toFixed(2)}\n`;
+  out += `Total a pagar PDF: R$ 1.242,36\n`;
+  out += `Diferença: R$ ${(totalAtivos - 1242.36).toFixed(2)}\n`;
+
+  document.getElementById('out').textContent = out;
+  window.__resultado = { estornos, totalAtivos, totalEstornos, estornosParaMarcar: [...estornosParaMarcar] };
+};
+</script>
+</body>
+</html>

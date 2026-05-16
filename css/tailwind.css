@@ -10,3 +10,6 @@
  *
  * DEC-002: Tailwind CSS com build estático (sem JIT em runtime).
  */
+
+/* View Transitions — cross-fade automático entre páginas (Chrome 111+) */
+@view-transition { navigation: auto; }

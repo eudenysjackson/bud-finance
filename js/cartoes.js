@@ -8,7 +8,8 @@ import {
   getAuth, onAuthStateChanged, signOut
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
-  getFirestore, collection, query, orderBy, limit, onSnapshot,
+  getFirestore, initializeFirestore, persistentLocalCache,
+  collection, query, orderBy, limit, onSnapshot,
   addDoc, updateDoc, deleteDoc, getDocs, getDoc, where, doc, writeBatch, serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
@@ -76,7 +77,7 @@ let unsubs = [];
     if (!window.BUD_FIREBASE_CONFIG) throw new Error('config missing');
     const app = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
     auth = getAuth(app);
-    db   = getFirestore(app);
+    db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
 
     onAuthStateChanged(auth, async (user) => {
       if (!user || !user.emailVerified) {

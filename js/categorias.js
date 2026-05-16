@@ -14,12 +14,12 @@
  *  BUG 9 — downgradeEm usa serverTimestamp()
  */
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import {
   getAuth, onAuthStateChanged, signOut
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
-  getFirestore,
+  getFirestore, initializeFirestore, persistentLocalCache,
   collection, doc,
   addDoc, updateDoc, deleteDoc,
   getDocs, getDoc,
@@ -32,9 +32,9 @@ import {
 /* ─────────────────────────────────────────────────────────────────
    Firebase
 ───────────────────────────────────────────────────────────────── */
-const app  = initializeApp(window.BUD_FIREBASE_CONFIG);
+const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
-const db   = getFirestore(app);
+const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
 
 /* ─────────────────────────────────────────────────────────────────
    Categorias padrão (fonte única de verdade via categorias-padrao.js)

@@ -11,19 +11,20 @@
  * Feature gate: planos pro, plus, trial.
  */
 
-import { initializeApp }    from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { initializeApp, getApps }    from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut, getIdToken }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
-  getFirestore, collection, query, where, orderBy, limit,
+  getFirestore, initializeFirestore, persistentLocalCache,
+  collection, query, where, orderBy, limit,
   onSnapshot, doc, getDoc, addDoc, updateDoc, deleteDoc,
   serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // ─── Firebase ──────────────────────────────────────────────────────────────
-const app  = initializeApp(window.BUD_FIREBASE_CONFIG);
+const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
-const db   = getFirestore(app);
+const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
 
 // ─── Estado ────────────────────────────────────────────────────────────────
 let currentUser       = null;

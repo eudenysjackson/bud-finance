@@ -17,19 +17,20 @@
  * BUG 17 — Chart reutiliza instância com chart.update() (não destroy/recreate)
  */
 
-import { initializeApp }    from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { initializeApp, getApps }    from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
-  getFirestore, collection, query, orderBy, limit,
+  getFirestore, initializeFirestore, persistentLocalCache,
+  collection, query, orderBy, limit,
   onSnapshot, doc, addDoc, updateDoc, deleteDoc,
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
-// ─── Firebase ──────────────────────────────────────────────────────────────
-const app  = initializeApp(window.BUD_FIREBASE_CONFIG);
+// ─── Firebase ─────────────────────────────────────────────────────────────────────────────
+const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
-const db   = getFirestore(app);
+const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
 
 // ─── Benchmarks (BUG 5 — fonte única de verdade) ──────────────────────────
 const BENCHMARKS = { selic: 14.75, cdi: 14.65, ipca: 5.53, poupanca: 7.49 };

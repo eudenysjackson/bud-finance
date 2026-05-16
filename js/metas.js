@@ -3,12 +3,12 @@
  * Bud Finance · Firebase 10.8.1 Modular SDK
  */
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import {
   getAuth, onAuthStateChanged, signOut
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
-  getFirestore,
+  getFirestore, initializeFirestore, persistentLocalCache,
   doc, collection,
   addDoc, updateDoc, deleteDoc, getDocs, query, where, orderBy,
   onSnapshot,
@@ -20,9 +20,9 @@ import {
 /* ─────────────────────────────────────────────────────────────────
    Firebase init
 ───────────────────────────────────────────────────────────────── */
-const app  = initializeApp(window.BUD_FIREBASE_CONFIG);
+const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
-const db   = getFirestore(app);
+const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
 
 /* ─────────────────────────────────────────────────────────────────
    Estado global

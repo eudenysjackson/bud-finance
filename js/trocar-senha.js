@@ -3,17 +3,17 @@
 // After successful password change, updates primeiroLogin: false and redirects to dashboard.
 // Firebase SDK Modular v10.8.1 — NO compat layer.
 
-import { initializeApp }
+import { initializeApp, getApps }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, updatePassword, signOut }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, updateDoc }
+import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, updateDoc }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 // ─── Firebase init ──────────────────────────────────────────────────
-const app  = initializeApp(window.BUD_FIREBASE_CONFIG);
+const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
-const db   = getFirestore(app);
+const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
 
 // ─── DOM refs: sections ─────────────────────────────────────────────
 const stateLoading      = document.getElementById('stateLoading');

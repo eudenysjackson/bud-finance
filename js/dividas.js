@@ -2,17 +2,18 @@
 //  Bud Finance — js/dividas.js   (ES Module, Firebase 10.8.1)
 //  Todos os 25 bugs do cérebro/dividas.md corrigidos desde o início.
 // ─────────────────────────────────────────────────────────────────
-import { initializeApp }          from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { initializeApp, getApps }          from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
-  getFirestore, collection, query, orderBy, limit,
+  getFirestore, initializeFirestore, persistentLocalCache,
+  collection, query, orderBy, limit,
   onSnapshot, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, writeBatch,
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // ─── Firebase init ───────────────────────────────────────────────
-const app = initializeApp(window.BUD_FIREBASE_CONFIG);
+const app = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
-const db   = getFirestore(app);
+const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
 
 // ─── Estado global ───────────────────────────────────────────────
 let currentUser        = null;
