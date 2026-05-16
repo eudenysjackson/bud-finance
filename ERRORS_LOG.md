@@ -370,3 +370,36 @@
 - **Solu��o aplicada**: Substitu�do por um separador corretamente dentro de coment�rio `//`.
 - **Regra de preven��o**: Separadores decorativos unicode (-, -, +, etc.) em JS SEMPRE devem estar dentro de coment�rios `//` ou `/* */`. Um �nico caractere inv�lido fora de coment�rio/string causa falha silenciosa do m�dulo inteiro.
 - **Status**: ? Resolvido em 14/05/2026.
+
+---
+
+### ERR-038 — CSS vars inexistentes no modal Pagar Fatura (`--glass-border`, `--glass-bg`, `--primary`)
+- **Data**: 15/05/2026
+- **Arquivo**: `js/cartoes.js` — função `abrirModalPagarFatura()`
+- **Descrição**: Os templates HTML das labels de seleção de conta usavam `var(--glass-border)`, `var(--glass-bg)` e `var(--primary)`, variáveis que não existem no `:root` de `cartoes.html`. As labels ficavam sem borda, sem background e sem `accent-color` no radio button.
+- **Causa raiz**: Variáveis copiadas de outra tela (possivelmente `dashboard.html`) que define `--glass-*` e `--primary`. Em `cartoes.html` essas vars não são declaradas.
+- **Solução aplicada**: Substituídas pelas vars corretas disponíveis em `cartoes.html`: `--card-border`, `--input-bg` e `--btn-bg`.
+- **Regra de prevenção**: Ao criar HTML inline em JS, sempre verificar quais CSS vars existem na tela alvo. Não copiar vars de outras telas sem checar o `:root` local.
+- **Status**: ✅ Resolvido em 15/05/2026.
+
+---
+
+### ERR-039 — Parcelamento gerava datas inválidas (ex: `2026-04-31`)
+- **Data**: 15/05/2026
+- **Arquivo**: `js/cartoes.js` — função `handleSubmitGasto()`
+- **Descrição**: Ao registrar um gasto parcelado com data base em dia 29, 30 ou 31, meses com menos dias recebiam datas inválidas (ex: `2026-04-31`, `2026-02-29` em ano não-bissexto). O `new Date()` silenciosamente avançava para o mês seguinte (overflow), criando parcelas com mês errado no Firestore.
+- **Causa raiz**: O loop de parcelamento avançava o mês manualmente sem clampar o dia ao último dia do mês destino: `const diaParc = diaBase` fixo para todas as parcelas.
+- **Solução aplicada**: Substituído o cálculo manual por `_addMesesData(dataRef, i)`, função já existente no arquivo que usa `new Date(ano, mes+i, 0).getDate()` para clampar o dia corretamente.
+- **Regra de prevenção**: Para avançar meses em datas JS, sempre usar uma função que clampeia o dia (ex: `_addMesesData`). Nunca avançar mês manualmente com aritmética simples quando o dia pode ser 29–31.
+- **Status**: ✅ Resolvido em 15/05/2026.
+
+---
+
+### ERR-040 — Listeners `onSnapshot` do Firestore não cancelados no `beforeunload`
+- **Data**: 15/05/2026
+- **Arquivo**: `js/cartoes.js` — callback `onAuthStateChanged`
+- **Descrição**: Os 3 listeners `onSnapshot` (cartões, transações, categorias) registrados em `setupListeners()` nunca eram cancelados ao navegar para outra página. Isso causava potencial vazamento de memória e callbacks executando em contexto inválido.
+- **Causa raiz**: A função `cleanupListeners()` existia e chamava `unsubs.forEach(u => u && u())`, mas nunca era invocada automaticamente ao descarregar a página.
+- **Solução aplicada**: Adicionado `window.addEventListener('beforeunload', cleanupListeners, { once: true })` logo após `setupListeners()` no callback do `onAuthStateChanged`.
+- **Regra de prevenção**: Toda tela que registra `onSnapshot` deve sempre registrar `window.addEventListener('beforeunload', cleanupListeners, { once: true })` para garantir limpeza ao navegar.
+- **Status**: ✅ Resolvido em 15/05/2026.

@@ -91,6 +91,7 @@ let unsubs = [];
       uid = user.uid;
       setupUI(user);
       setupListeners();
+      window.addEventListener('beforeunload', cleanupListeners, { once: true });
     });
   } catch {
     window.location.href = 'index.html';
@@ -182,6 +183,15 @@ function setupMesNav() {
   document.getElementById('btnProximoMes')?.addEventListener('click', () => {
     if (mesVisualizando === 11) { mesVisualizando = 0; anoVisualizando++; }
     else mesVisualizando++;
+    atualizarLabelMes();
+    renderizarCartoes();
+  });
+
+  document.getElementById('btnHoje')?.addEventListener('click', () => {
+    const now = new Date();
+    if (mesVisualizando === now.getMonth() && anoVisualizando === now.getFullYear()) return;
+    mesVisualizando = now.getMonth();
+    anoVisualizando = now.getFullYear();
     atualizarLabelMes();
     renderizarCartoes();
   });
@@ -344,9 +354,17 @@ function renderizarCartoes() {
   atualizarBanner(dadosCartoes);
 
   grid.innerHTML = '';
-  dadosCartoes.forEach(({ cartao, fatura, status, limite, dispPct, gastos }) => {
-    grid.appendChild(buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey));
+  dadosCartoes.forEach(({ cartao, fatura, status, limite, dispPct, gastos }, idx) => {
+    grid.appendChild(buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey, idx));
   });
+
+  // Badge de mês histórico (G)
+  const agora = new Date();
+  const isMesAtual = mesVisualizando === agora.getMonth() && anoVisualizando === agora.getFullYear();
+  const alertaEl = document.getElementById('alertaMesHistorico');
+  const alertaNomeEl = document.getElementById('alertaMesNome');
+  if (alertaEl) alertaEl.style.display = isMesAtual ? 'none' : '';
+  if (alertaNomeEl) alertaNomeEl.textContent = `${MESES_PT[mesVisualizando]} ${anoVisualizando}`;
 }
 
 function atualizarBanner(dadosCartoes) {
@@ -365,10 +383,11 @@ function atualizarBanner(dadosCartoes) {
   document.getElementById('faturasPagasSub').textContent      = 'neste mês';
 }
 
-function buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey) {
+function buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey, idx = 0) {
   const wrapper = document.createElement('div');
   wrapper.className = 'cartao-wrapper';
   wrapper.dataset.id = cartao.id;
+  wrapper.style.animationDelay = `${idx * 0.07}s`;
 
   const grad = CARD_GRADIENTS[cartao.cor] || CARD_GRADIENTS.roxo;
   const band = BANDEIRA_LABELS[cartao.bandeira] || '••••';
@@ -377,6 +396,9 @@ function buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey) 
   const limiteDisp = Math.max(0, limite - fatura);
   const barCor = dispPct < 20 ? '#ef4444' : dispPct < 50 ? '#f59e0b' : '#10b981';
   const isPago = cartao.faturasPagas?.[mesKey];
+  const ultimoDia = new Date(anoVisualizando, mesVisualizando + 1, 0).getDate();
+  const extURL = `extrato.html?inicio=${mesKey}-01&fim=${mesKey}-${String(ultimoDia).padStart(2,'0')}`;
+  const faturaValorCor = status?.label === 'Paga' ? '#10b981' : status?.cor === '#ef4444' ? '#ef4444' : 'var(--card-text)';
 
   let statusHTML = '';
   if (status) {
@@ -442,7 +464,7 @@ function buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey) 
       <div class="cartao-fatura-row">
         <div>
           <div class="cartao-fatura-label">Fatura ${MESES_PT[mesVisualizando]}</div>
-          <div class="cartao-fatura-valor">${formatBRL(fatura)}</div>
+          <div class="cartao-fatura-valor" style="color:${faturaValorCor};transition:color 0.2s;">${formatBRL(fatura)}</div>
         </div>
         <div style="text-align:right;">
           ${statusHTML}
@@ -468,6 +490,7 @@ function buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey) 
         <button class="cartao-btn cartao-btn-cta" data-pagar="${cartao.id}" style="${isPago ? 'border-color:#10b981;color:#10b981;' : ''}">
           ${isPago ? '✓ Paga' : 'Pagar Fatura'}
         </button>
+        <a class="cartao-btn cartao-btn-icon" href="${extURL}" title="Ver no Extrato" style="text-decoration:none;display:flex;align-items:center;justify-content:center;">📊</a>
         <button class="cartao-btn cartao-btn-icon cartao-btn-danger" data-del-cartao="${cartao.id}" title="Excluir cartão">🗑</button>
       </div>
 
@@ -588,8 +611,14 @@ function setupModais() {
   document.getElementById('btnVoltarReviewIA')?.addEventListener('click', () => { fecharModalReviewIA(); abrirModalImportIA(cartaoImportIA, true); });
   document.getElementById('btnSalvarTransacoesIA')?.addEventListener('click', salvarTransacoesIA);
 
-  // ESC fecha modais
+  // ESC fecha modais / Enter confirma
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      if (document.getElementById('modalPagarFatura')?.classList.contains('open')) {
+        const btnP = document.getElementById('btnConfirmarPagarFatura');
+        if (btnP && !btnP.disabled) { btnP.click(); return; }
+      }
+    }
     if (e.key !== 'Escape') return;
     if (document.getElementById('modalStatusGasto')?.classList.contains('open')) {
       fecharModalStatusGasto(); return;
@@ -931,16 +960,10 @@ async function handleSubmitGasto(e) {
       });
     } else {
       const valorParcela = parseFloat((valor / nParcelas).toFixed(2));
-      // Parse da data base (YYYY-MM-DD)
-      const [anoBase, mesBase, diaBase] = dataRef.split('-').map(Number);
-
+      // _addMesesData garante datas válidas (ex: fev-28 em vez de fev-31)
       for (let i = 0; i < nParcelas; i++) {
-        // Avançar mês a mês
-        const mesOffset = mesBase - 1 + i;
-        const anoParc   = anoBase + Math.floor(mesOffset / 12);
-        const mesParc   = (mesOffset % 12) + 1;
-        const diaParc   = diaBase;
-        const dataParc  = `${anoParc}-${String(mesParc).padStart(2, '0')}-${String(diaParc).padStart(2, '0')}`;
+        const dataParc = _addMesesData(dataRef, i);
+        const [_py, _pm, _pd] = dataParc.split('-').map(Number);
 
         // Ajuste de centavos na primeira parcela
         const valorParc = i === 0 ? parseFloat((valor - valorParcela * (nParcelas - 1)).toFixed(2)) : valorParcela;
@@ -949,7 +972,7 @@ async function handleSubmitGasto(e) {
           ...baseData,
           valor: valorParc,
           dataReferencia: dataParc,
-          data: Timestamp.fromDate(new Date(anoParc, mesParc - 1, diaParc, 12, 0, 0)),
+          data: Timestamp.fromDate(new Date(_py, _pm - 1, _pd, 12, 0, 0)),
           parcelado: true,
           parcelaAtual: i + 1,
           totalParcelas: nParcelas,
@@ -1042,16 +1065,16 @@ function abrirModalPagarFatura(cartaoId, fatura) {
     sel.innerHTML = contas.map(conta => {
       const icon = TIPO_ICONS[conta.tipo] || '🏦';
       const id   = escHtml(conta.id);
-      return `<label style="display:flex;align-items:center;gap:0.625rem;padding:0.625rem;border-radius:0.625rem;cursor:pointer;border:1.5px solid var(--glass-border);background:var(--glass-bg);transition:border-color .15s;">
-        <input type="radio" name="contaPagamento" value="${id}" style="accent-color:var(--primary);flex-shrink:0;">
+      return `<label style="display:flex;align-items:center;gap:0.625rem;padding:0.625rem;border-radius:0.625rem;cursor:pointer;border:1.5px solid var(--card-border);background:var(--input-bg);transition:border-color .15s;">
+        <input type="radio" name="contaPagamento" value="${id}" style="accent-color:var(--btn-bg);flex-shrink:0;">
         <span>${icon}</span>
         <div style="flex:1;min-width:0;">
           <div style="font-size:0.8125rem;font-weight:600;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(conta.nome || conta.tipo)}</div>
           <div style="font-size:0.75rem;color:var(--card-text-sec);">Saldo: ${formatBRL(conta.saldo || 0)}</div>
         </div>
       </label>`;
-    }).join('') + `<label style="display:flex;align-items:center;gap:0.625rem;padding:0.625rem;border-radius:0.625rem;cursor:pointer;border:1.5px solid var(--glass-border);background:var(--glass-bg);">
-      <input type="radio" name="contaPagamento" value="" style="accent-color:var(--primary);flex-shrink:0;">
+    }).join('') + `<label style="display:flex;align-items:center;gap:0.625rem;padding:0.625rem;border-radius:0.625rem;cursor:pointer;border:1.5px solid var(--card-border);background:var(--input-bg);">
+      <input type="radio" name="contaPagamento" value="" style="accent-color:var(--btn-bg);flex-shrink:0;">
       <span>📋</span>
       <div style="flex:1;">
         <div style="font-size:0.8125rem;font-weight:600;color:var(--card-text);">Apenas marcar como paga</div>
