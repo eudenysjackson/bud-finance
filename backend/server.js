@@ -707,14 +707,14 @@ async function extractWithAIFromText(text, tipo) {
     'Você é um extrator preciso de faturas de cartão de crédito brasileiras.',
     'OBJETIVO: extrair cada LINHA DE COMPRA/COBRANÇA individual present no detalhamento de transações da fatura.',
     'INCLUA: compras à vista, parcelas de compras antigas (ex: "3/10 LOJA X"), IOF individual de cada compra, juros de financiamento de compra específica, anuidade, ajustes a débito.',
+    'INCLUA ESTORNOS com valor NEGATIVO (ex: "Estorno de Uber" → valor: -11.93). Eles compensam compras e fazem parte da soma final.',
     'IGNORE ESTRITAMENTE (nunca inclua como transação):',
     '- Linhas de pagamento: "Pagamento recebido", "Pagamento em DD MMM", "Pagamento de fatura"',
     '- Subtotais de seção: "Outros lançamentos R$ X", "Total de compras R$ X", "Pagamentos e Financiamentos R$ X", "Fatura anterior R$ X"',
     '- Subtotais por portador: linha com nome de pessoa + valor (ex: "João Silva   R$ 1.756,22") que aparece antes das transações do portador',
     '- Linhas de saldo: "Saldo restante da fatura anterior", "Saldo em aberto", "Pagamento mínimo"',
-    '- Estornos/créditos com sinal negativo',
-    '- Qualquer linha que seja cabeçalho de seção ou rodapé (número de página, CNPJ, endereço)',
-    'A soma dos valores extraídos deve bater com "Pagamento total da fatura" / "Total a pagar" do documento.',
+    '- Cabeçalhos de seção e rodapés (número de página, CNPJ, endereço)',
+    'A soma dos valores extraídos (positivos + negativos dos estornos) deve bater com "Pagamento total da fatura" / "Total a pagar" do documento.',
     'TAREFA EXTRA: capture em "meta" DOIS totais: "totalCompras" ("Total de compras", só novas compras) E "totalAPagar" ("Pagamento total da fatura" ou "Total a pagar", valor cobrado).',
     'Retorne SOMENTE JSON válido: {"transacoes":[{"desc":"Loja","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47,"totalAPagar":1242.36}}'
   ].join(' ');
@@ -813,12 +813,13 @@ async function extractWithAI(buffer, mimeType, tipo) {
     'Você está analisando uma fatura de cartão de crédito brasileiro.',
     'OBJETIVO: extrair cada LINHA DE COMPRA/COBRANÇA individual present no detalhamento de transações.',
     'INCLUA: compras à vista, parcelas de compras antigas (ex: "3/10 LOJA X"), IOF individual, juros de financiamento de compra específica, anuidade, ajustes a débito.',
-    'IGNORE ESTRITAMENTE: "Pagamento recebido", "Pagamento em DD MMM", subtotais de seção ("Outros lançamentos R$ X", "Total de compras R$ X", "Pagamentos e Financiamentos R$ X"), subtotais por portador (nome de pessoa + valor antes das transações), saldos ("Saldo restante", "Saldo em aberto", "Pagamento mínimo"), créditos negativos, cabeçalhos e rodapés.',
+    'INCLUA ESTORNOS com valor NEGATIVO (ex: "Estorno de Uber" → valor: -11.93). Eles compensam compras e fazem parte da soma final.',
+    'IGNORE ESTRITAMENTE: "Pagamento recebido", "Pagamento em DD MMM", subtotais de seção ("Outros lançamentos R$ X", "Total de compras R$ X", "Pagamentos e Financiamentos R$ X"), subtotais por portador (nome de pessoa + valor antes das transações), saldos ("Saldo restante", "Saldo em aberto", "Pagamento mínimo"), cabeçalhos e rodapés.',
     'TAREFA EXTRA: capture em "meta" DOIS totais: "totalCompras" ("Total de compras") E "totalAPagar" ("Pagamento total da fatura" ou "Total a pagar").',
     'Retorne SOMENTE um JSON válido no formato:',
     '{"transacoes":[{"desc":"nome do estabelecimento","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47,"totalAPagar":1242.36}}',
-    'A soma dos valores extraídos deve bater com totalAPagar do documento.  SEM markdown, SEM comentários.'
-    'Regras: valor deve ser número positivo em reais (float). data em YYYY-MM-DD.',
+    'A soma dos valores extraídos (positivos + negativos) deve bater com totalAPagar do documento.',
+    'Regras: valor é float em reais, negativo para estornos/créditos. data em YYYY-MM-DD.',
     'Se não houver transações, retorne {"transacoes":[],"meta":null}.',
     'Responda APENAS com o JSON, sem explicações ou markdown.'
   ].join(' ');

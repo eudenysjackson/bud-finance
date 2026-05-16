@@ -1887,8 +1887,8 @@ function processarItensIA(itens) {
     if (valorOriginal < 0) {
       status = 'estornado';
     }
-    // Palavras de estorno
-    if (/ESTORNO|DEVOLUC|DEVOLUCAO|REEMBOLSO|CHARGEBACK|CREDITO FATURA|RESSARCIMENTO/.test(descUpper)) {
+    // Palavras de estorno — incluindo "Estorno de X" (prefixo Nubank para estornos)
+    if (/\bESTORNO\b|^ESTORNO\s+DE\s+|DEVOLUC|DEVOLUCAO|REEMBOLSO|CHARGEBACK|CREDITO FATURA|RESSARCIMENTO/.test(descUpper)) {
       status = 'estornado';
     }
     // Linhas de subtotal/seção do Nubank — NÃO são transações individuais
