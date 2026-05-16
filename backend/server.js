@@ -705,11 +705,17 @@ async function extractWithAIFromText(text, tipo) {
     'Use null em campos meta não visíveis. SEM markdown, SEM comentários.'
   ].join(' ') : [
     'Você é um extrator preciso de faturas de cartão de crédito brasileiras.',
-    'OBJETIVO: extrair TODAS as linhas que compõem o "Total a pagar" da fatura.',
-    'INCLUA: compras à vista, parcelas de compras antigas (ex: "3/10 LOJA X"), IOF, encargos, juros, anuidade, saldo remanescente, ajustes a débito.',
-    'IGNORE APENAS: linhas de pagamento da fatura anterior ("Pagamento recebido"), créditos/estornos com sinal negativo, totais e cabeçalhos.',
-    'A soma dos valores extraídos deve bater (ou ficar muito próxima) do "Total a pagar" do documento.',
-    'TAREFA EXTRA: capture em "meta" DOIS totais: "totalCompras" ("Total de compras", só novas compras) E "totalAPagar" ("Total a pagar", valor cobrado).',
+    'OBJETIVO: extrair cada LINHA DE COMPRA/COBRANÇA individual present no detalhamento de transações da fatura.',
+    'INCLUA: compras à vista, parcelas de compras antigas (ex: "3/10 LOJA X"), IOF individual de cada compra, juros de financiamento de compra específica, anuidade, ajustes a débito.',
+    'IGNORE ESTRITAMENTE (nunca inclua como transação):',
+    '- Linhas de pagamento: "Pagamento recebido", "Pagamento em DD MMM", "Pagamento de fatura"',
+    '- Subtotais de seção: "Outros lançamentos R$ X", "Total de compras R$ X", "Pagamentos e Financiamentos R$ X", "Fatura anterior R$ X"',
+    '- Subtotais por portador: linha com nome de pessoa + valor (ex: "João Silva   R$ 1.756,22") que aparece antes das transações do portador',
+    '- Linhas de saldo: "Saldo restante da fatura anterior", "Saldo em aberto", "Pagamento mínimo"',
+    '- Estornos/créditos com sinal negativo',
+    '- Qualquer linha que seja cabeçalho de seção ou rodapé (número de página, CNPJ, endereço)',
+    'A soma dos valores extraídos deve bater com "Pagamento total da fatura" / "Total a pagar" do documento.',
+    'TAREFA EXTRA: capture em "meta" DOIS totais: "totalCompras" ("Total de compras", só novas compras) E "totalAPagar" ("Pagamento total da fatura" ou "Total a pagar", valor cobrado).',
     'Retorne SOMENTE JSON válido: {"transacoes":[{"desc":"Loja","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47,"totalAPagar":1242.36}}'
   ].join(' ');
 
@@ -805,13 +811,13 @@ async function extractWithAI(buffer, mimeType, tipo) {
     'Se algum campo de meta não estiver visível no documento, use null. Responda APENAS com o JSON, sem explicações ou markdown.'
   ].join(' ') : [
     'Você está analisando uma fatura de cartão de crédito brasileiro.',
-    'OBJETIVO: extrair TODAS as linhas que compõem o "Total a pagar" da fatura.',
-    'INCLUA: compras à vista, parcelas de compras antigas (ex: "3/10 LOJA X"), IOF, encargos, juros, anuidade, saldo remanescente, ajustes a débito.',
-    'IGNORE APENAS: linhas de pagamento da fatura anterior ("Pagamento recebido"), créditos/estornos negativos, totais e cabeçalhos.',
-    'A soma dos valores extraídos deve bater (ou ficar muito próxima) do "Total a pagar".',
-    'TAREFA EXTRA: capture em "meta" DOIS totais: "totalCompras" (só novas compras) E "totalAPagar" (valor cobrado).',
+    'OBJETIVO: extrair cada LINHA DE COMPRA/COBRANÇA individual present no detalhamento de transações.',
+    'INCLUA: compras à vista, parcelas de compras antigas (ex: "3/10 LOJA X"), IOF individual, juros de financiamento de compra específica, anuidade, ajustes a débito.',
+    'IGNORE ESTRITAMENTE: "Pagamento recebido", "Pagamento em DD MMM", subtotais de seção ("Outros lançamentos R$ X", "Total de compras R$ X", "Pagamentos e Financiamentos R$ X"), subtotais por portador (nome de pessoa + valor antes das transações), saldos ("Saldo restante", "Saldo em aberto", "Pagamento mínimo"), créditos negativos, cabeçalhos e rodapés.',
+    'TAREFA EXTRA: capture em "meta" DOIS totais: "totalCompras" ("Total de compras") E "totalAPagar" ("Pagamento total da fatura" ou "Total a pagar").',
     'Retorne SOMENTE um JSON válido no formato:',
     '{"transacoes":[{"desc":"nome do estabelecimento","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47,"totalAPagar":1242.36}}',
+    'A soma dos valores extraídos deve bater com totalAPagar do documento.  SEM markdown, SEM comentários.'
     'Regras: valor deve ser número positivo em reais (float). data em YYYY-MM-DD.',
     'Se não houver transações, retorne {"transacoes":[],"meta":null}.',
     'Responda APENAS com o JSON, sem explicações ou markdown.'

@@ -1875,8 +1875,12 @@ function processarItensIA(itens) {
     let status = 'ativa';
     const descUpper = desc.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-    // Pagamento de fatura / crédito
+    // Pagamento de fatura / crédito / seção de sumário — excluir do total
     if (/PAGAMENTO RECEBIDO|PAGTO RECEBIDO|PAYMENT RECEIVED|PAGAMENTO DE FATURA|PGTO FATURA/.test(descUpper)) {
+      status = 'estornado';
+    }
+    // "Pagamento em DD MMM" — linha de pagamento dentro de "Pagamentos e Financiamentos"
+    if (/^PAGAMENTO\s+EM\s+\d/.test(descUpper)) {
       status = 'estornado';
     }
     // Valor negativo = crédito/estorno
@@ -1885,6 +1889,13 @@ function processarItensIA(itens) {
     }
     // Palavras de estorno
     if (/ESTORNO|DEVOLUC|DEVOLUCAO|REEMBOLSO|CHARGEBACK|CREDITO FATURA|RESSARCIMENTO/.test(descUpper)) {
+      status = 'estornado';
+    }
+    // Linhas de subtotal/seção do Nubank — NÃO são transações individuais
+    // Ex: "Outros lançamentos", "Fatura anterior", "Saldo restante da fatura anterior",
+    // "Pagamentos e Financiamentos", "Total de compras de todos os cartões",
+    // "Pagamento mínimo", "Total a pagar"
+    if (/^(OUTROS\s+LAN[CÇ]AMENTOS?|FATURA\s+ANTERIOR|SALDO\s+RESTANTE|PAGAMENTOS\s+E\s+FINANCIAMENTOS?|TOTAL\s+D[EO]\s+COMPRAS|TOTAL\s+A\s+PAGAR|PAGAMENTO\s+MINIMO|PAGAMENTO\s+M[ÍI]NIMO|RESUMO\s+DA\s+FATURA|FATURA\s+ATUAL|PROXIMO\s+FATURA|PR[ÓO]XIMA\s+FATURA|SALDO\s+EM\s+ABERTO|LIMITE|FECHAMENTO)/.test(descUpper)) {
       status = 'estornado';
     }
     // Cancelamento (só se não for estorno — else if)
