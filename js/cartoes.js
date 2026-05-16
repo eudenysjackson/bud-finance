@@ -1682,6 +1682,40 @@ async function processarOFXLocal(file) {
 
 const BUD_BACKEND_URL = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\/$/, '');
 
+// Extrai "Total a pagar" e "Total de compras" do PDF direto no browser via pdf.js.
+// Funciona como fallback quando o backend ainda não retorna meta (deploy não saiu)
+// ou quando o regex do servidor falha em layouts incomuns.
+async function _extrairMetaPdfClientSide(file) {
+  if (!window.pdfjsLib) return null;
+  try {
+    const buf = await file.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+    let texto = '';
+    const maxPag = Math.min(pdf.numPages, 15); // primeiras 15 pgs cobrem o sumário
+    for (let p = 1; p <= maxPag; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      texto += content.items.map(it => it.str).join(' ') + '\n';
+    }
+    const parseVal = s => parseFloat(String(s).replace(/\./g, '').replace(',', '.'));
+    const meta = { totalCompras: null, totalAPagar: null };
+
+    // "Total a pagar ... R$ 1.242,36"
+    const mAP = texto.match(/total\s+a\s+pagar[\s\S]{0,300}?(\d[\d\.]*,\d{2})/i);
+    if (mAP) meta.totalAPagar = parseVal(mAP[1]);
+
+    // "Total de compras (de todos os cartões) ... R$ 908,47"
+    const mC = texto.match(/total\s+d[eo]?\s*compras?[\s\S]{0,300}?(\d[\d\.]*,\d{2})/i);
+    if (mC) meta.totalCompras = parseVal(mC[1]);
+
+    if (meta.totalAPagar === null && meta.totalCompras === null) return null;
+    return meta;
+  } catch (err) {
+    console.warn('[pdf.js client-side] falhou:', err.message);
+    return null;
+  }
+}
+
 async function enviarParaIA() {
   const input = document.getElementById('inputArquivoIA');
   const file = input?.files?.[0];
@@ -1758,6 +1792,22 @@ async function enviarParaIA() {
     const dados = await resp.json();
     const itens = Array.isArray(dados) ? dados : (dados.transacoes || []);
     _importMetaIA = (dados && !Array.isArray(dados) && dados.meta) ? dados.meta : null;
+
+    // Fallback / reforço: tenta extrair totais do PDF direto no browser via pdf.js.
+    // Cobre o caso de o backend ainda não estar atualizado (sem totalAPagar) ou
+    // não ter conseguido localizar os totais no layout do PDF.
+    if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+      const metaCliente = await _extrairMetaPdfClientSide(file);
+      if (metaCliente) {
+        _importMetaIA = _importMetaIA || {};
+        if (!_importMetaIA.totalAPagar && metaCliente.totalAPagar) {
+          _importMetaIA.totalAPagar = metaCliente.totalAPagar;
+        }
+        if (!_importMetaIA.totalCompras && metaCliente.totalCompras) {
+          _importMetaIA.totalCompras = metaCliente.totalCompras;
+        }
+      }
+    }
 
     if (!itens.length) {
       throw new Error('Nenhuma transação encontrada. Tente com um arquivo mais legível ou use OFX.');

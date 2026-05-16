@@ -403,3 +403,17 @@
 - **Solução aplicada**: Adicionado `window.addEventListener('beforeunload', cleanupListeners, { once: true })` logo após `setupListeners()` no callback do `onAuthStateChanged`.
 - **Regra de prevenção**: Toda tela que registra `onSnapshot` deve sempre registrar `window.addEventListener('beforeunload', cleanupListeners, { once: true })` para garantir limpeza ao navegar.
 - **Status**: ✅ Resolvido em 15/05/2026.
+
+---
+
+### ERR-041 — Badge "precisão não verificável" persistia mesmo após backend ler totais
+- **Data**: 15/05/2026
+- **Arquivo**: `js/cartoes.js` — `enviarParaIA()` + `cartoes.html` (CDN pdf.js)
+- **Sintoma**: Após importar fatura Nubank (PDF), o modal Review IA mostrava "Total: R$ 1.291,12" mas o PDF declarava "Total a pagar R$ 1.242,36". O badge ficava em "⚠️ PDF/IA — precisão não verificável · confira cada linha manualmente" mesmo com `_renderConfiabilidadeBadge` esperando `meta.totalAPagar`/`meta.totalCompras`.
+- **Causa raiz**: O frontend dependia 100% de `dados.meta` vindo do backend. Quando o deploy do Render estava defasado em relação ao código frontend (ou o regex server-side falhava em layouts de coluna específicos), `meta` voltava `null` e o badge não tinha referência para comparar.
+- **Solução aplicada**:
+  1. Incluído `pdf.js@3.11.174` via CDN em `cartoes.html` (com workerSrc configurado).
+  2. Nova função `_extrairMetaPdfClientSide(file)` em `cartoes.js`: lê o PDF no navegador via `pdfjsLib.getDocument`, concatena texto das primeiras 15 páginas e roda os mesmos regex (`total a pagar` e `total de compras`) usados no backend.
+  3. Em `enviarParaIA()`, após receber resposta do backend, se o arquivo for PDF chama o fallback client-side e preenche `_importMetaIA.totalAPagar` / `totalCompras` faltantes (backend tem prioridade quando presente).
+- **Regra de prevenção**: Não fazer o frontend depender exclusivamente de metadados do backend quando dá pra extrair localmente. Sempre que houver dependência de deploy defasado entre front e back, criar fallback client-side equivalente.
+- **Status**: ✅ Resolvido em 15/05/2026.
