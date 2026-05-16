@@ -495,6 +495,7 @@
       transition:background 0.35s ease,border-color 0.35s ease;
     }
     .custom-select-dropdown.open { display:block; }
+    .custom-select-dropdown.open-up { top:auto; bottom:calc(100% + 4px); box-shadow:0 -8px 24px rgba(0,0,0,0.14); }
     .custom-select-option {
       padding:0.625rem 0.875rem; cursor:pointer;
       font-size:0.875rem; font-weight:600; color:var(--card-text);
@@ -996,15 +997,28 @@
       <!-- Mês/Ano de referência -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.625rem;margin-bottom:1.25rem;">
         <div class="modal-field">
-          <label class="modal-label" for="iaMes">Mês da Fatura</label>
-          <select class="modal-input" id="iaMes" style="cursor:pointer;">
-            <option value="01">Janeiro</option><option value="02">Fevereiro</option>
-            <option value="03">Março</option><option value="04">Abril</option>
-            <option value="05">Maio</option><option value="06">Junho</option>
-            <option value="07">Julho</option><option value="08">Agosto</option>
-            <option value="09">Setembro</option><option value="10">Outubro</option>
-            <option value="11">Novembro</option><option value="12">Dezembro</option>
-          </select>
+          <label class="modal-label">Mês da Fatura</label>
+          <div class="custom-select-wrap" id="iaMesWrapper">
+            <button type="button" class="custom-select-trigger" id="iaMesBtn" tabindex="0" role="combobox" aria-haspopup="listbox" aria-expanded="false">
+              <span id="iaMesTexto">Junho</span>
+              <span class="custom-select-arrow">▼</span>
+            </button>
+            <div class="custom-select-dropdown" id="iaMesDropdown" role="listbox">
+              <div class="custom-select-option" role="option" data-value="01">Janeiro</div>
+              <div class="custom-select-option" role="option" data-value="02">Fevereiro</div>
+              <div class="custom-select-option" role="option" data-value="03">Março</div>
+              <div class="custom-select-option" role="option" data-value="04">Abril</div>
+              <div class="custom-select-option" role="option" data-value="05">Maio</div>
+              <div class="custom-select-option" role="option" data-value="06">Junho</div>
+              <div class="custom-select-option" role="option" data-value="07">Julho</div>
+              <div class="custom-select-option" role="option" data-value="08">Agosto</div>
+              <div class="custom-select-option" role="option" data-value="09">Setembro</div>
+              <div class="custom-select-option" role="option" data-value="10">Outubro</div>
+              <div class="custom-select-option" role="option" data-value="11">Novembro</div>
+              <div class="custom-select-option" role="option" data-value="12">Dezembro</div>
+            </div>
+          </div>
+          <input type="hidden" id="iaMes">
         </div>
         <div class="modal-field">
           <label class="modal-label" for="iaAno">Ano</label>
@@ -1017,6 +1031,9 @@
         <span id="iaResumoCount">0 selecionados</span>
         <span id="iaResumoTotal">Total: R$ 0,00</span>
       </div>
+
+      <!-- Barra de confiabilidade IA -->
+      <span id="iaConfiabilidadeBadge" style="display:none;"></span>
 
       <!-- Lista de itens -->
       <div id="iaListaItens" style="display:flex;flex-direction:column;gap:0.5rem;max-height:320px;overflow-y:auto;padding-right:2px;">

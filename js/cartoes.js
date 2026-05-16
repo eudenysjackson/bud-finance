@@ -61,6 +61,7 @@ let cartaoParaPagar   = null;
 let contaParaPagarId  = null;  // conta selecionada no modal Pagar Fatura (null = só marcar)
 let cartaoImportIA    = null;  // id ao abrir modal import IA
 let itensIAExtraidos  = [];    // transações extraídas pela IA
+let _importMetaIA     = null;  // meta do PDF (totalCompras) para barra de confiabilidade
 
 let dpGastoMes  = new Date().getMonth();
 let dpGastoAno  = new Date().getFullYear();
@@ -610,6 +611,9 @@ function setupModais() {
   document.getElementById('btnFecharModalReviewIA')?.addEventListener('click', fecharModalReviewIA);
   document.getElementById('btnVoltarReviewIA')?.addEventListener('click', () => { fecharModalReviewIA(); abrirModalImportIA(cartaoImportIA, true); });
   document.getElementById('btnSalvarTransacoesIA')?.addEventListener('click', salvarTransacoesIA);
+
+  // Month dropdown: iaMes
+  _initIaMesDropdown();
 
   // ESC fecha modais / Enter confirma
   document.addEventListener('keydown', (e) => {
@@ -1431,6 +1435,97 @@ function setupCorPicker() {
 
 // ─── Importação com IA ────────────────────────────────────────────────────────
 
+// Helper: define o mês selecionado no custom dropdown #iaMesBtn
+const _MESES_NOMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function _setIaMes(value) {
+  const idx = parseInt(value, 10) - 1;
+  const hidden  = document.getElementById('iaMes');
+  const texto   = document.getElementById('iaMesTexto');
+  const btn     = document.getElementById('iaMesBtn');
+  if (hidden) hidden.value = value;
+  if (texto)  texto.textContent = _MESES_NOMES[idx] || value;
+  if (btn)    btn.classList.toggle('has-value', !!value);
+  document.querySelectorAll('#iaMesDropdown .custom-select-option').forEach(o => {
+    o.classList.toggle('selected', o.dataset.value === value);
+  });
+}
+
+// Helper: inicializa o custom dropdown de mês no modal Review IA
+function _initIaMesDropdown() {
+  const btn = document.getElementById('iaMesBtn');
+  const dd  = document.getElementById('iaMesDropdown');
+  if (!btn || !dd) return;
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // Smart positioning
+    dd.classList.remove('open-up');
+    const rect       = btn.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const ddH        = Math.min(dd.scrollHeight || 220, 220);
+    if (spaceBelow < ddH && spaceAbove > spaceBelow) dd.classList.add('open-up');
+    dd.classList.toggle('open');
+    btn.classList.toggle('open');
+    btn.setAttribute('aria-expanded', String(dd.classList.contains('open')));
+  });
+
+  dd.addEventListener('click', (e) => {
+    const opt = e.target.closest('.custom-select-option');
+    if (!opt) return;
+    _setIaMes(opt.dataset.value);
+    dd.classList.remove('open', 'open-up');
+    btn.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+  });
+
+  // Fechar ao clicar fora
+  document.addEventListener('click', (e) => {
+    if (!btn.contains(e.target) && !dd.contains(e.target)) {
+      dd.classList.remove('open', 'open-up');
+      btn.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+// Helper: renderiza barra de confiabilidade no modal Review IA
+function _renderConfiabilidadeBadge() {
+  const badge = document.getElementById('iaConfiabilidadeBadge');
+  if (!badge) return;
+
+  const meta = _importMetaIA;
+  let badgeBg, badgeColor, badgeText;
+
+  if (meta && meta.totalCompras > 0) {
+    const somaAtivos = itensIAExtraidos
+      .filter(i => i.status === 'ativa' && i.selecionado)
+      .reduce((s, i) => s + i.valor, 0);
+    const pct    = Math.min(somaAtivos / meta.totalCompras, 1.05);
+    const pctStr = Math.round(pct * 100) + '%';
+    const fmt    = v => 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const det    = `compras: ${fmt(somaAtivos)} de ${fmt(meta.totalCompras)} (${pctStr})`;
+
+    if (pct < 0.70) {
+      badgeBg = '#fee2e2'; badgeColor = '#b91c1c';
+      badgeText = `❌ Resultado NÃO confiável — IA capturou ${pctStr} · ${det}`;
+    } else if (pct < 0.90) {
+      badgeBg = '#fff7ed'; badgeColor = '#c2410c';
+      badgeText = `⚠️ Precisão parcial — IA capturou ${pctStr} · ${det}`;
+    } else {
+      badgeBg = '#dcfce7'; badgeColor = '#15803d';
+      badgeText = `✅ Alta precisão — ${pctStr} capturado · ${det}`;
+    }
+  } else {
+    // Sem totalCompras → não verificável
+    badgeBg = '#fef3c7'; badgeColor = '#92400e';
+    badgeText = '⚠️ PDF/IA — precisão não verificável · confira cada linha manualmente';
+  }
+
+  badge.style.cssText = `display:block;font-size:0.7rem;font-weight:700;padding:0.35rem 0.75rem;border-radius:8px;white-space:normal;line-height:1.5;background:${badgeBg};color:${badgeColor};margin-bottom:0.75rem;`;
+  badge.textContent = badgeText;
+}
+
 function abrirModalImportIA(cartaoId, manterArquivo = false) {
   if (!cartaoId) return;
   cartaoImportIA = cartaoId;
@@ -1453,15 +1548,15 @@ function abrirModalImportIA(cartaoId, manterArquivo = false) {
     if (uploadArea) uploadArea.style.display = '';
     const btnEnviar = document.getElementById('btnEnviarImportIA');
     if (btnEnviar) { btnEnviar.textContent = 'Analisar com IA'; btnEnviar.disabled = true; }
+    _importMetaIA = null;
   }
 
   // Preencher mês/ano com o PRÓXIMO mês (mês de pagamento da fatura)
   // A fatura que você importa hoje vence no mês seguinte, não no atual
-  const mesEl = document.getElementById('iaMes');
   const anoEl = document.getElementById('iaAno');
   const proxMes = mesVisualizando === 11 ? 0 : mesVisualizando + 1;
   const proxAno = mesVisualizando === 11 ? anoVisualizando + 1 : anoVisualizando;
-  if (mesEl) mesEl.value = String(proxMes + 1).padStart(2, '0');
+  _setIaMes(String(proxMes + 1).padStart(2, '0'));
   if (anoEl) anoEl.value = String(proxAno);
 
   document.getElementById('modalImportIA').classList.add('open');
@@ -1582,6 +1677,7 @@ async function enviarParaIA() {
     if (uploadArea) uploadArea.style.display = 'none';
     if (progress) { progress.style.display = 'block'; }
     if (progressText) progressText.textContent = 'Lendo arquivo OFX...';
+    _importMetaIA = null; // OFX não tem meta
     try {
       await processarOFXLocal(file);
     } catch (err) {
@@ -1638,6 +1734,7 @@ async function enviarParaIA() {
 
     const dados = await resp.json();
     const itens = Array.isArray(dados) ? dados : (dados.transacoes || []);
+    _importMetaIA = (dados && !Array.isArray(dados) && dados.meta) ? dados.meta : null;
 
     if (!itens.length) {
       throw new Error('Nenhuma transação encontrada. Tente com um arquivo mais legível ou use OFX.');
@@ -1808,6 +1905,7 @@ function abrirModalReviewIA() {
   if (sub) sub.textContent = c ? `💳 ${c.nome} — ${itensIAExtraidos.length} transações encontradas` : `${itensIAExtraidos.length} transações encontradas`;
 
   renderListaReviewIA();
+  _renderConfiabilidadeBadge();
   document.getElementById('modalReviewIA')?.classList.add('open');
 }
 
@@ -2089,6 +2187,7 @@ async function salvarTransacoesIA() {
     fecharModalReviewIA();
     itensIAExtraidos = [];
     cartaoImportIA = null;
+    _importMetaIA = null;
 
   } catch {
     showToast('Erro ao salvar. Nenhuma transação foi importada. Tente novamente.', 'erro');

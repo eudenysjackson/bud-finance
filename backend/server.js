@@ -637,7 +637,7 @@ function parseBankStatementText(rawText) {
 // Extrai totais declarados no próprio texto do PDF (sem IA)
 function extractMetaFromText(text) {
   function parseVal(str) { return parseFloat(str.replace(/\./g, '').replace(',', '.')); }
-  var meta = { totalEntradas: null, totalSaidas: null, saldoFinal: null };
+  var meta = { totalEntradas: null, totalSaidas: null, saldoFinal: null, totalCompras: null };
 
   // "Total entradas +4.035,65" / "Total de entradas\n+R$ 4.035,65"
   var mE = text.match(/total\s+d[eo]?\s*entradas?[\s\S]{0,40}?(\d[\d\.]*,\d{2})/i);
@@ -651,7 +651,14 @@ function extractMetaFromText(text) {
   var mSaldo = text.match(/saldo\s+(?:final|do\s+per[\u00ed\u0069]odo|l[\u00ed\u0069]quido)[\s\S]{0,60}?(\d[\d\.]*,\d{2})/i);
   if (mSaldo) meta.saldoFinal = parseVal(mSaldo[1]);
 
-  if (meta.totalEntradas === null && meta.totalSaidas === null && meta.saldoFinal === null) return null;
+  // Fatura cartão: "Total de compras de todos os cartões\nR$ 908,47"
+  // Ignora caso encontre "Total de compras" DEPOIS de já ter capturado totalEntradas (extrato normal)
+  if (meta.totalEntradas === null) {
+    var mC = text.match(/total\s+d[eo]?\s*compras?[\s\S]{0,100}?(\d[\d\.]*,\d{2})/i);
+    if (mC) meta.totalCompras = parseVal(mC[1]);
+  }
+
+  if (meta.totalEntradas === null && meta.totalSaidas === null && meta.saldoFinal === null && meta.totalCompras === null) return null;
   return meta;
 }
 
@@ -676,8 +683,9 @@ async function extractWithAIFromText(text, tipo) {
     'Use null em campos meta não visíveis. SEM markdown, SEM comentários.'
   ].join(' ') : [
     'Você é um extrator preciso de faturas de cartão de crédito brasileiras.',
-    'Extraia TODAS as compras/débitos. IGNORE pagamentos de fatura, créditos, totais, saldos.',
-    'Retorne SOMENTE JSON válido: {"transacoes":[{"desc":"Loja","valor":50.00,"data":"2026-04-01"}],"meta":null}'
+    'Extraia TODAS as transações de COMPRA/DÉBITO. IGNORE: pagamento de fatura, créditos, estornos sem compra associada, IOF avulso, totais, saldos e cabeçalhos.',
+    'TAREFA EXTRA: capture o total de compras declarado no documento (ex: "Total de compras", "Total de compras e tarifas", "Total de compras de todos os cartões") em "meta.totalCompras". Se não visível, use null.',
+    'Retorne SOMENTE JSON válido: {"transacoes":[{"desc":"Loja","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47}}'
   ].join(' ');
 
   // Limita texto a 30k chars para não estourar contexto
@@ -741,6 +749,11 @@ function sumByType(transacoes) {
 // Calcula score de captura: mínimo entre %entradas e %saídas (1.0 = perfeito)
 function captureScore(transacoes, meta) {
   if (!meta) return null;
+  // Fatura de cartão: compara soma total de compras contra totalCompras declarado
+  if (meta.totalCompras > 0) {
+    var total = (transacoes || []).reduce(function(s, t){ return s + (parseFloat(t.valor) || 0); }, 0);
+    return Math.min(total / meta.totalCompras, 1.05);
+  }
   var sums = sumByType(transacoes);
   var scores = [];
   if (meta.totalEntradas > 0) scores.push(Math.min(sums.creditos / meta.totalEntradas, 1.05));
@@ -766,11 +779,12 @@ async function extractWithAI(buffer, mimeType, tipo) {
   ].join(' ') : [
     'Você está analisando uma fatura de cartão de crédito brasileiro.',
     'Extraia TODAS as transações de COMPRA/DÉBITO. Ignore pagamentos de fatura, créditos, totais e saldos.',
-    'Retorne SOMENTE um array JSON válido com objetos no formato:',
-    '[{"desc":"nome do estabelecimento","valor":50.00,"data":"2026-04-01"}]',
+    'TAREFA EXTRA: procure e capture o total de compras declarado no documento (ex: "Total de compras", "Total de compras e tarifas", "Total de compras de todos os cartões") em "meta.totalCompras". Se não visível, use null.',
+    'Retorne SOMENTE um JSON válido no formato:',
+    '{"transacoes":[{"desc":"nome do estabelecimento","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47}}',
     'Regras: valor deve ser número positivo em reais (float). data em YYYY-MM-DD.',
-    'Se não houver transações de compra, retorne [].',
-    'Responda APENAS com o array JSON, sem explicações ou markdown.'
+    'Se não houver transações de compra, retorne {"transacoes":[],"meta":null}.',
+    'Responda APENAS com o JSON, sem explicações ou markdown.'
   ].join(' ');
 
   var messages = [
@@ -823,15 +837,10 @@ async function extractWithAI(buffer, mimeType, tipo) {
       catch (_e2) { parsed = null; }
     }
 
-    if (isExtrato) {
-      // Formato esperado: {"transacoes":[...], "meta":{...}}
-      var txArr   = Array.isArray(parsed) ? parsed : ((parsed && parsed.transacoes) || []);
-      var metaObj = (!Array.isArray(parsed) && parsed && parsed.meta) ? parsed.meta : null;
-      return { transacoes: txArr.filter(function(t){ return t.desc && parseFloat(t.valor) > 0; }), meta: metaObj };
-    } else {
-      var arr = Array.isArray(parsed) ? parsed : [];
-      return { transacoes: arr.filter(function(t){ return t.desc && parseFloat(t.valor) > 0; }), meta: null };
-    }
+    // Formato esperado: {"transacoes":[...], "meta":{...}} — tanto extrato como fatura
+    var txArr   = Array.isArray(parsed) ? parsed : ((parsed && parsed.transacoes) || []);
+    var metaObj = (!Array.isArray(parsed) && parsed && parsed.meta) ? parsed.meta : null;
+    return { transacoes: txArr.filter(function(t){ return t.desc && parseFloat(t.valor) > 0; }), meta: metaObj };
 
   } catch (err) {
     clearTimeout(timeoutId);
