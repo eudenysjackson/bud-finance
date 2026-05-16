@@ -1700,13 +1700,34 @@ async function _extrairMetaPdfClientSide(file) {
     const parseVal = s => parseFloat(String(s).replace(/\./g, '').replace(',', '.'));
     const meta = { totalCompras: null, totalAPagar: null };
 
-    // "Total a pagar ... R$ 1.242,36"
-    const mAP = texto.match(/total\s+a\s+pagar[\s\S]{0,300}?(\d[\d\.]*,\d{2})/i);
-    if (mAP) meta.totalAPagar = parseVal(mAP[1]);
+    // Helper: dentro de uma janela de texto após uma frase âncora,
+    // retorna o MAIOR valor monetário encontrado (evita pegar IOF/conversão USD
+    // que aparece como primeiro decimal logo após "total a pagar" em PDFs Nubank).
+    function maiorValorAposAncora(ancoraRegex, janelaChars = 400) {
+      const m = texto.match(ancoraRegex);
+      if (!m) return null;
+      const inicio = m.index + m[0].length;
+      const trecho = texto.substring(inicio, inicio + janelaChars);
+      // Captura valores no formato 1.234,56 ou 12,34 (exige vírgula decimal)
+      const candidatos = [...trecho.matchAll(/(\d{1,3}(?:\.\d{3})*,\d{2})/g)]
+        .map(x => parseVal(x[1]))
+        .filter(v => v > 0);
+      if (!candidatos.length) return null;
+      return Math.max(...candidatos);
+    }
 
-    // "Total de compras (de todos os cartões) ... R$ 908,47"
-    const mC = texto.match(/total\s+d[eo]?\s*compras?[\s\S]{0,300}?(\d[\d\.]*,\d{2})/i);
-    if (mC) meta.totalCompras = parseVal(mC[1]);
+    // "Total a pagar" — tentar primeiro a frase mais específica do Nubank
+    // ("Pagamento total da fatura"), que aparece no card de opções de pagamento
+    // e está sempre próxima do valor correto. Fallback: "total a pagar".
+    meta.totalAPagar =
+      maiorValorAposAncora(/pagamento\s+total\s+d[ao]\s+fatura/i, 200) ||
+      maiorValorAposAncora(/total\s+a\s+pagar/i, 400);
+
+    // "Total de compras (de todos os cartões)" — pega o maior na janela
+    meta.totalCompras = maiorValorAposAncora(
+      /total\s+d[eo]?\s*compras?(?:\s+de\s+todos\s+os\s+cart[õo]es)?/i,
+      300
+    );
 
     if (meta.totalAPagar === null && meta.totalCompras === null) return null;
     return meta;

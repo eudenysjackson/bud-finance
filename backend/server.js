@@ -655,14 +655,28 @@ function extractMetaFromText(text) {
   // (só novas compras — sem saldo anterior, parcelas futuras, IOF)
   // Janela ampliada (300 chars) porque PDFs com colunas separam label/valor no texto extraído
   if (meta.totalEntradas === null) {
-    var mC = text.match(/total\s+d[eo]?\s*compras?[\s\S]{0,300}?(\d[\d\.]*,\d{2})/i);
-    if (mC) meta.totalCompras = parseVal(mC[1]);
+    // Helper: dentro da janela após uma âncora, pega o MAIOR valor decimal
+    // (evita capturar IOF/conversão USD que aparece como primeiro número
+    // logo após "total a pagar" em PDFs Nubank).
+    function maiorAposAncora(ancoraRegex, janela) {
+      var m = text.match(ancoraRegex);
+      if (!m) return null;
+      var trecho = text.substring(m.index + m[0].length, m.index + m[0].length + janela);
+      var cands = (trecho.match(/\d{1,3}(?:\.\d{3})*,\d{2}/g) || [])
+        .map(parseVal)
+        .filter(function(v){ return v > 0; });
+      return cands.length ? Math.max.apply(null, cands) : null;
+    }
 
-    // Fatura cartão: "Total a pagar" = valor que será efetivamente cobrado
-    // (inclui saldo anterior, parcelas de compras antigas, IOF, encargos, novas compras)
-    // É o número que o usuário espera ver bater com a soma das transações importadas.
-    var mAP = text.match(/total\s+a\s+pagar[\s\S]{0,300}?(\d[\d\.]*,\d{2})/i);
-    if (mAP) meta.totalAPagar = parseVal(mAP[1]);
+    meta.totalCompras = maiorAposAncora(
+      /total\s+d[eo]?\s*compras?(?:\s+de\s+todos\s+os\s+cart[\u00f5o]es)?/i, 300
+    );
+
+    // "Total a pagar": tenta primeiro a frase mais específica do Nubank
+    // ("Pagamento total da fatura"), que está sempre próxima do valor correto.
+    meta.totalAPagar =
+      maiorAposAncora(/pagamento\s+total\s+d[ao]\s+fatura/i, 200) ||
+      maiorAposAncora(/total\s+a\s+pagar/i, 400);
   }
 
   if (meta.totalEntradas === null && meta.totalSaidas === null && meta.saldoFinal === null &&
