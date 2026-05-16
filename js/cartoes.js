@@ -1497,15 +1497,22 @@ function _renderConfiabilidadeBadge() {
   const meta = _importMetaIA;
   const fmt = v => 'R$ ' + Number(v).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
-  // 1) Exibe linha de "Total da fatura (PDF)" — referência fixa do documento
-  const refBox = document.getElementById('iaFaturaTotalPdf');
-  const refVal = document.getElementById('iaFaturaTotalPdfValor');
+  // Label dinâmico baseado na fonte do import
+  const fonte = meta?.fonte || 'ia';
+  const labelFonte = fonte === 'pdf' ? 'PDF' : fonte === 'imagem' ? 'Imagem' : 'Fatura';
+  const iconeFonte = fonte === 'imagem' ? '🖼️' : '📄';
+
+  // 1) Exibe linha de referência do total declarado na fatura
+  const refBox   = document.getElementById('iaFaturaTotalPdf');
+  const refVal   = document.getElementById('iaFaturaTotalPdfValor');
+  const refLabel = document.getElementById('iaFaturaTotalPdfLabel');
   // Alvo prioritário: totalAPagar (valor real cobrado). Fallback: totalCompras.
   const alvoPdf = meta && meta.totalAPagar > 0 ? meta.totalAPagar
                 : meta && meta.totalCompras > 0 ? meta.totalCompras
                 : null;
   if (refBox && refVal) {
     if (alvoPdf !== null) {
+      if (refLabel) refLabel.textContent = `${iconeFonte} Total da fatura (${labelFonte})`;
       refVal.textContent = fmt(alvoPdf) +
         (meta.totalAPagar > 0 ? ' (Total a pagar)' : ' (Total de compras)');
       refBox.style.display = 'flex';
@@ -1526,7 +1533,7 @@ function _renderConfiabilidadeBadge() {
     const pctStr = Math.round(pct * 100) + '%';
     const diff   = somaAtivos - alvoPdf;
     const diffStr = (diff >= 0 ? '+' : '−') + fmt(Math.abs(diff));
-    const det    = `IA: ${fmt(somaAtivos)} · PDF: ${fmt(alvoPdf)} · dif ${diffStr}`;
+    const det    = `IA: ${fmt(somaAtivos)} · ${labelFonte}: ${fmt(alvoPdf)} · dif ${diffStr}`;
 
     if (pct < 0.70) {
       badgeBg = '#fee2e2'; badgeColor = '#b91c1c';
@@ -1539,9 +1546,9 @@ function _renderConfiabilidadeBadge() {
       badgeText = `✅ Valores batem com a fatura — ${pctStr} · ${det}`;
     }
   } else {
-    // Sem totais detectados no PDF
+    // Sem totais detectados — não é possível validar automaticamente
     badgeBg = '#fef3c7'; badgeColor = '#92400e';
-    badgeText = '⚠️ PDF/IA — precisão não verificável · confira cada linha manualmente';
+    badgeText = `⚠️ ${labelFonte}/IA — precisão não verificável · confira cada linha manualmente`;
   }
 
   badge.style.cssText = `display:block;font-size:0.7rem;font-weight:700;padding:0.35rem 0.75rem;border-radius:8px;white-space:normal;line-height:1.5;background:${badgeBg};color:${badgeColor};margin-bottom:0.75rem;`;
@@ -1846,10 +1853,17 @@ async function enviarParaIA() {
     const itens = Array.isArray(dados) ? dados : (dados.transacoes || []);
     _importMetaIA = (dados && !Array.isArray(dados) && dados.meta) ? dados.meta : null;
 
+    // Marca a fonte do import para uso nos labels do modal de revisão
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    const isImg = !isPdf && (file.type.startsWith('image/') || /\.(jpe?g|png|gif|bmp|webp|heic|heif)$/i.test(file.name));
+    if (_importMetaIA) {
+      _importMetaIA.fonte = isPdf ? 'pdf' : isImg ? 'imagem' : 'ia';
+    }
+
     // Fallback / reforço: tenta extrair totais do PDF direto no browser via pdf.js.
     // Cobre o caso de o backend ainda não estar atualizado (sem totalAPagar) ou
     // não ter conseguido localizar os totais no layout do PDF.
-    if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+    if (isPdf) {
       const metaCliente = await _extrairMetaPdfClientSide(file);
       if (metaCliente) {
         _importMetaIA = _importMetaIA || {};
