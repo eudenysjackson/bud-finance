@@ -1498,8 +1498,10 @@ function _renderConfiabilidadeBadge() {
   let badgeBg, badgeColor, badgeText;
 
   if (meta && meta.totalCompras > 0) {
+    // Soma TODOS os itens ativos extraídos (independente de seleção)
+    // para mostrar quanto a IA capturou vs o total declarado no PDF
     const somaAtivos = itensIAExtraidos
-      .filter(i => i.status === 'ativa' && i.selecionado)
+      .filter(i => i.status === 'ativa')
       .reduce((s, i) => s + i.valor, 0);
     const pct    = Math.min(somaAtivos / meta.totalCompras, 1.05);
     const pctStr = Math.round(pct * 100) + '%';
@@ -1713,6 +1715,7 @@ async function enviarParaIA() {
 
     const formData = new FormData();
     formData.append('arquivo', file);
+    formData.append('tipo', 'fatura'); // informa backend que é fatura de cartão, não extrato
 
     const resp = await fetch(`${BUD_BACKEND_URL}/api/extrair-fatura`, {
       method: 'POST',

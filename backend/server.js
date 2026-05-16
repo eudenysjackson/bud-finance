@@ -653,9 +653,15 @@ function extractMetaFromText(text) {
 
   // Fatura cartão: "Total de compras de todos os cartões\nR$ 908,47"
   // Ignora caso encontre "Total de compras" DEPOIS de já ter capturado totalEntradas (extrato normal)
+  // Janela ampliada (300 chars) porque PDFs com colunas separam label/valor no texto extraído
   if (meta.totalEntradas === null) {
-    var mC = text.match(/total\s+d[eo]?\s*compras?[\s\S]{0,100}?(\d[\d\.]*,\d{2})/i);
+    var mC = text.match(/total\s+d[eo]?\s*compras?[\s\S]{0,300}?(\d[\d\.]*,\d{2})/i);
     if (mC) meta.totalCompras = parseVal(mC[1]);
+    // Fallback: "Idenilson .{2,40} 1.042,83" — subtotal por portador (inclui IOF/financiamentos, mas melhor que nada)
+    if (!mC) {
+      var mT = text.match(/total\s+a\s+pagar[\s\S]{0,100}?(\d[\d\.]*,\d{2})/i);
+      if (mT) meta.totalCompras = parseVal(mT[1]);
+    }
   }
 
   if (meta.totalEntradas === null && meta.totalSaidas === null && meta.saldoFinal === null && meta.totalCompras === null) return null;
@@ -883,14 +889,20 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
       }
 
       if (pdfData) {
-        // ── 2) Parser de texto rápido (sem IA) ─────────────────────
-        transacoes = parseBankStatementText(pdfData.text || '');
+        // ── 2) Extrair meta do texto e preparar transações ─────────
         textMeta = extractMetaFromText(pdfData.text || '');
 
-        // ── 3) IA texto-mode se parser perdeu transações ─────────
-        // Score do parser baseado nos totais declarados no PDF.
+        // Fatura de cartão: parseBankStatementText é para extratos bancários
+        // Para faturas, vai sempre para IA (mais preciso e evita garbage)
+        if (tipo !== 'fatura') {
+          transacoes = parseBankStatementText(pdfData.text || '');
+        }
+
+        // ── 3) IA texto-mode se necessário ───────────────────────
         var parserScore = captureScore(transacoes, textMeta);
-        var precisaIA = (transacoes.length < 2) || (parserScore !== null && parserScore < 0.90);
+        var precisaIA = tipo === 'fatura' ||
+          (transacoes.length < 2) ||
+          (parserScore !== null && parserScore < 0.90);
 
         if (precisaIA && process.env.GROQ_API_KEY && pdfData.text) {
           try {
