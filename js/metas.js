@@ -12,7 +12,7 @@ import {
   doc, collection,
   addDoc, updateDoc, deleteDoc, getDocs, query, where, orderBy,
   onSnapshot,
-  serverTimestamp,
+  serverTimestamp, Timestamp,
   writeBatch,
   increment
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
@@ -34,6 +34,8 @@ let metaEditandoId = null;     // null = nova meta; string = editando
 let metaAportandoId = null;    // id da meta que receberá aporte
 let _metaListenerUnsubscribe = null;
 let _carteiraListenerUnsubscribe = null;
+let _metasOrdem = 'default';           // ordenação da lista de metas
+let _metasMilestones = {};             // { [metaId]: Set<number> } milestones celebrados
 
 // Datepicker — prazo da meta
 let dpMetaDate = null;   // Date | null
@@ -264,11 +266,16 @@ function setupListeners() {
   // Carteiras (para dropdown de aporte) — coleção correta: 'carteira' (sem 's')
   const cartRef = collection(db, 'usuarios', uid, 'carteira');
   _carteiraListenerUnsubscribe = onSnapshot(
-    query(cartRef, orderBy('criadaEm', 'asc')),
+    query(cartRef),   // sem orderBy — evita falha silenciosa se 'criadaEm' não existir
     (snap) => {
-      carteirasGlobal = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      carteirasGlobal = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          if (a.criadaEm && b.criadaEm) return a.criadaEm > b.criadaEm ? 1 : -1;
+          return (a.nome || '').localeCompare(b.nome || '');
+        });
     },
-    () => {}
+    (err) => { console.error('[Metas] Erro ao ouvir carteiras:', err); }
   );
 }
 
@@ -293,22 +300,85 @@ function renderSummary() {
 ───────────────────────────────────────────────────────────────── */
 function renderMetas() {
   const grid  = document.getElementById('metasGrid');
+  const gridAlc = document.getElementById('metasAlcancadasGrid');
+  const secAlc  = document.getElementById('secMetasAlcancadas');
   const empty = document.getElementById('metasEmpty');
-  grid.innerHTML = '';
+  grid.innerHTML    = '';
+  if (gridAlc) gridAlc.innerHTML = '';
 
   if (metasGlobal.length === 0) {
     empty.style.display = 'block';
+    if (secAlc) secAlc.style.display = 'none';
     return;
   }
   empty.style.display = 'none';
 
-  metasGlobal.forEach(meta => {
+  // Separar ativas e concluídas
+  const ativas     = metasGlobal.filter(m => ((m.valorAtual||0) / Math.max(1, m.valorAlvo||1)) * 100 < 100);
+  const concluidas = metasGlobal.filter(m => ((m.valorAtual||0) / Math.max(1, m.valorAlvo||1)) * 100 >= 100);
+
+  // Ordenação das ativas
+  const sorted = [...ativas];
+  if (_metasOrdem === 'prazo') {
+    sorted.sort((a, b) => {
+      if (!a.prazo && !b.prazo) return 0;
+      if (!a.prazo) return 1;
+      if (!b.prazo) return -1;
+      return a.prazo.localeCompare(b.prazo);
+    });
+  } else if (_metasOrdem === 'progresso') {
+    sorted.sort((a, b) => {
+      const pA = (a.valorAtual||0) / Math.max(1, a.valorAlvo||1);
+      const pB = (b.valorAtual||0) / Math.max(1, b.valorAlvo||1);
+      return pB - pA;
+    });
+  } else if (_metasOrdem === 'valor') {
+    sorted.sort((a, b) => (b.valorAlvo||0) - (a.valorAlvo||0));
+  }
+
+  // Render ativas
+  sorted.forEach(meta => _renderMetaCard(meta, grid, false));
+
+  // Render concluídas
+  if (secAlc) {
+    if (concluidas.length > 0) {
+      secAlc.style.display = 'block';
+      const countEl = document.getElementById('alcancadasCount');
+      if (countEl) countEl.textContent = concluidas.length;
+      concluidas.forEach(meta => _renderMetaCard(meta, gridAlc, true));
+    } else {
+      secAlc.style.display = 'none';
+    }
+  }
+}
+
+function _renderMetaCard(meta, container, concluida) {
     const valorAtual = meta.valorAtual || 0;
     const valorAlvo  = meta.valorAlvo  || 0;
     const pct        = valorAlvo > 0 ? Math.min(100, Math.round((valorAtual / valorAlvo) * 100)) : 0;
     const badge      = getBadge(pct);
     const falta      = Math.max(0, valorAlvo - valorAtual);
     const sugestao   = calcSugestaoAporte(meta.prazo || null, falta);
+
+    // Verificar marcos (25, 50, 75%) — só para ativas
+    if (!concluida) {
+      const MARCOS = [25, 50, 75];
+      if (!_metasMilestones[meta.id]) _metasMilestones[meta.id] = new Set();
+      MARCOS.forEach(marco => {
+        if (pct >= marco && !_metasMilestones[meta.id].has(marco)) {
+          _metasMilestones[meta.id].add(marco);
+          const badgeMarcoCfg = getBadge(marco);
+          // Toast de marco (evita re-disparar se meta já tinha este pct antes)
+          if (!meta[`_marco${marco}Shown`]) {
+            meta[`_marco${marco}Shown`] = true;
+            setTimeout(() => {
+              window.budShowToast(`${badgeMarcoCfg.emoji} ${meta.nome || 'Meta'} atingiu ${marco}%!`, 'success');
+              _dispararMiniConfetti();
+            }, 400);
+          }
+        }
+      });
+    }
 
     const card = document.createElement('div');
     card.className = 'meta-card';
@@ -389,12 +459,40 @@ function renderMetas() {
     progressWrap.appendChild(barBg);
     progressWrap.appendChild(labelsRow);
 
+    // Marcos visuais (pontinhos 25/50/75%)
+    if (!concluida) {
+      const marcosRow = document.createElement('div');
+      marcosRow.style.cssText = 'display:flex;gap:0.375rem;margin-top:0.375rem;';
+      [25, 50, 75].forEach(m => {
+        const dot = document.createElement('span');
+        const atingido = pct >= m;
+        dot.style.cssText = `font-size:0.6875rem;font-weight:700;padding:0.1rem 0.4rem;border-radius:999px;background:${atingido ? 'rgba(16,185,129,0.15)' : 'var(--input-bg)'};color:${atingido ? '#059669' : 'var(--text-sec)'};border:1px solid ${atingido ? 'rgba(16,185,129,0.3)' : 'var(--input-border)'};`;
+        dot.textContent = `${m}%`;
+        marcosRow.appendChild(dot);
+      });
+      progressWrap.appendChild(marcosRow);
+    }
+
     // Prazo
     let deadlineEl = null;
     if (meta.prazo) {
       deadlineEl = document.createElement('div');
       deadlineEl.className = 'meta-deadline';
       deadlineEl.textContent = `⏰ Prazo: ${formatDateBR(meta.prazo)}`;
+    }
+
+    // Projeção de conclusão (baseada na data de criação e valorAtual)
+    let projecaoEl = null;
+    if (!concluida && pct > 0 && pct < 100 && meta.criadoEm) {
+      const criadoTs = meta.criadoEm.toDate ? meta.criadoEm.toDate() : new Date(meta.criadoEm);
+      const mesesDecorridos = Math.max(1, (Date.now() - criadoTs) / (1000 * 60 * 60 * 24 * 30.44));
+      const mediaMensal = valorAtual / mesesDecorridos;
+      if (mediaMensal > 0.01) {
+        const mesesRestantes = Math.ceil(falta / mediaMensal);
+        projecaoEl = document.createElement('div');
+        projecaoEl.style.cssText = 'font-size:0.75rem;color:var(--text-sec);font-weight:600;margin-top:0.25rem;';
+        projecaoEl.textContent = `📐 No ritmo atual: completa em ~${mesesRestantes} mês${mesesRestantes !== 1 ? 'es' : ''}`;
+      }
     }
 
     // Sugestão de aporte mensal
@@ -424,22 +522,36 @@ function renderMetas() {
     btnsRow.appendChild(btnAportar);
     btnsRow.appendChild(btnHistorico);
 
+    // Chips de aporte rápido (só para ativas)
+    let chipsRow = null;
+    if (!concluida && pct < 100) {
+      chipsRow = document.createElement('div');
+      chipsRow.style.cssText = 'display:flex;gap:0.375rem;flex-wrap:wrap;margin-top:0.375rem;';
+      [50, 100, 200].forEach(v => {
+        const chip = document.createElement('button');
+        chip.style.cssText = 'padding:0.25rem 0.625rem;border-radius:999px;border:1.5px solid var(--input-border);background:var(--input-bg);font-size:0.75rem;font-weight:700;color:var(--text-sec);cursor:pointer;font-family:inherit;transition:all .15s;';
+        chip.textContent = `+ R$${v}`;
+        chip.addEventListener('click', () => window.abrirModalAporteComValor(meta.id, meta.nome, v));
+        chipsRow.appendChild(chip);
+      });
+    }
+
     // Montar card
     card.appendChild(header);
     card.appendChild(progressWrap);
     if (deadlineEl) card.appendChild(deadlineEl);
+    if (projecaoEl) card.appendChild(projecaoEl);
     if (sugestaoEl) card.appendChild(sugestaoEl);
     card.appendChild(btnsRow);
+    if (chipsRow) card.appendChild(chipsRow);
 
-    grid.appendChild(card);
+    container.appendChild(card);
 
     // Confetti se chegou a 100% nesta renderização
     if (pct >= 100 && !meta._confettiShown) {
       dispararConfetti();
-      // Marcar para não disparar de novo nesta sessão
       meta._confettiShown = true;
     }
-  });
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -464,6 +576,72 @@ function dispararConfetti() {
     piece.addEventListener('animationend', () => piece.remove());
   }
 }
+
+function _dispararMiniConfetti() {
+  const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+  for (let i = 0; i < 18; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.cssText = `
+      left:${20 + Math.random() * 60}vw;
+      top:-10px;
+      width:${5 + Math.random() * 4}px;
+      height:${8 + Math.random() * 4}px;
+      background:${colors[Math.floor(Math.random() * colors.length)]};
+      transform:rotate(${Math.random() * 360}deg);
+      animation-duration:${1.5 + Math.random() * 1.5}s;
+      animation-delay:${Math.random() * 0.4}s;
+    `;
+    document.body.appendChild(piece);
+    piece.addEventListener('animationend', () => piece.remove());
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Ordenação de metas
+───────────────────────────────────────────────────────────────── */
+window.ordenarMetas = function(ordem) {
+  _metasOrdem = ordem;
+  // Atualizar estado visual dos chips
+  ['default', 'prazo', 'progresso', 'valor'].forEach(o => {
+    const btn = document.getElementById(`ordenBtn-${o}`);
+    if (!btn) return;
+    if (o === ordem) {
+      btn.style.background = 'var(--accent)';
+      btn.style.color = '#fff';
+      btn.style.borderColor = 'var(--accent)';
+    } else {
+      btn.style.background = 'var(--input-bg)';
+      btn.style.color = 'var(--text-sec)';
+      btn.style.borderColor = 'var(--input-border)';
+    }
+  });
+  renderMetas();
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   Aporte com valor pré-preenchido
+───────────────────────────────────────────────────────────────── */
+window.abrirModalAporteComValor = function(metaId, metaNome, valor) {
+  abrirModalAporte(metaId, metaNome);
+  const input = document.getElementById('aporteValor');
+  if (input && valor > 0) {
+    const num = valor;
+    input.value = num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   Toggle metas alcançadas
+───────────────────────────────────────────────────────────────── */
+window.toggleMetasAlcancadas = function() {
+  const grid = document.getElementById('metasAlcancadasGrid');
+  const btn  = document.getElementById('btnToggleAlcancadas');
+  if (!grid) return;
+  const open = grid.style.display !== 'none';
+  grid.style.display = open ? 'none' : 'grid';
+  if (btn) btn.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+};
 
 /* ─────────────────────────────────────────────────────────────────
    Emoji grid
@@ -819,19 +997,26 @@ async function handleSubmitAporte(e) {
 
     // 2. Registrar transação vinculada no extrato
     const txRef = doc(collection(db, 'usuarios', uid, 'transacoes'));
+    const dataTimestamp = Timestamp.fromDate(new Date(dataISO + 'T12:00:00'));
     batch.set(txRef, {
       tipo: 'despesa',
       descricao: `Aporte: ${meta.nome}`.substring(0, 100),
       valor,
-      data: dataISO,
+      data: dataTimestamp,
       carteiraId,
       origem: 'meta',
       metaId: metaAportandoId,
       dataCriacao: serverTimestamp(),
     });
 
-    // Nota: não incrementamos saldo diretamente no doc da carteira — o balanço
-    // é gerenciado via snapshot ultimaConfirmacao (import) para evitar dessincronização.
+    // 3. Decrementar ultimaConfirmacao.saldo da carteira (se snapshot existir)
+    const carteira = carteirasGlobal.find(c => c.id === carteiraId);
+    if (carteira?.ultimaConfirmacao?.saldo != null) {
+      const carteiraRef = doc(db, 'usuarios', uid, 'carteira', carteiraId);
+      batch.update(carteiraRef, {
+        'ultimaConfirmacao.saldo': carteira.ultimaConfirmacao.saldo - valor,
+      });
+    }
 
     await batch.commit();
 

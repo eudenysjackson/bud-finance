@@ -580,12 +580,32 @@
 
       <!-- Grid de metas -->
       <div id="metasContainer">
+        <!-- Chips de ordenação -->
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
+          <button id="ordenBtn-default"  onclick="window.ordenarMetas('default')"  style="padding:0.375rem 0.875rem;border-radius:999px;border:1.5px solid var(--accent);background:var(--accent);color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;">⭐ Padrão</button>
+          <button id="ordenBtn-prazo"    onclick="window.ordenarMetas('prazo')"    style="padding:0.375rem 0.875rem;border-radius:999px;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--text-sec);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;">⏰ Prazo</button>
+          <button id="ordenBtn-progresso" onclick="window.ordenarMetas('progresso')" style="padding:0.375rem 0.875rem;border-radius:999px;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--text-sec);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;">📊 Progresso</button>
+          <button id="ordenBtn-valor"    onclick="window.ordenarMetas('valor')"    style="padding:0.375rem 0.875rem;border-radius:999px;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--text-sec);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;">💰 Maior valor</button>
+        </div>
         <div class="metas-empty" id="metasEmpty" style="display:none;">
           <div class="metas-empty-icon">🏆</div>
           <div class="metas-empty-title">Nenhuma meta criada ainda</div>
           <div class="metas-empty-sub">Crie sua primeira meta financeira e acompanhe seu progresso!</div>
         </div>
         <div class="metas-grid" id="metasGrid"></div>
+      </div>
+
+      <!-- Metas Alcançadas (collapsible) -->
+      <div id="secMetasAlcancadas" style="display:none;margin-top:1.5rem;">
+        <div onclick="window.toggleMetasAlcancadas()" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:0.875rem 1.25rem;background:rgba(16,185,129,0.06);border:1.5px solid rgba(16,185,129,0.25);border-radius:1rem;user-select:none;">
+          <div style="display:flex;align-items:center;gap:0.5rem;">
+            <span style="font-size:1.125rem;">🏆</span>
+            <span style="font-size:0.9375rem;font-weight:700;color:#059669;">Metas Alcançadas</span>
+            <span id="alcancadasCount" style="font-size:0.75rem;font-weight:700;background:rgba(16,185,129,0.15);color:#059669;padding:0.2rem 0.5rem;border-radius:999px;"></span>
+          </div>
+          <span id="btnToggleAlcancadas" style="color:#059669;font-size:0.875rem;transition:transform .2s;">▼</span>
+        </div>
+        <div id="metasAlcancadasGrid" class="metas-grid" style="display:none;margin-top:0.875rem;"></div>
       </div>
 
     </main>
