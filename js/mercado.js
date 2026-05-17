@@ -208,6 +208,11 @@ function resetState() {
   _mercadosConhecidos = {};
   _planoUsuario = 'free';
   _usoIAMes = 0;
+  _filtroBusca  = '';
+  _filtroMes    = '';
+  _filtroForma  = '';
+  if (_graficoDonutInst) { try { _graficoDonutInst.destroy(); } catch(e){} _graficoDonutInst = null; }
+  _detalheCompraAtual = null;
   _unsubs.forEach(u => { try { u(); } catch(e){} });
   _unsubs = [];
 }
@@ -642,7 +647,7 @@ async function confirmarExcluirCompra(compra) {
 
 // ─── Render Aba Compras ──────────────────────────────────────────
 function renderCompras() {
-  // Resumo do mês atual
+  // KPIs: sempre baseados no mês atual (sem filtro)
   const now = new Date();
   const prefixo = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const doMes = comprasCache.filter(c => extrairDataRef(c.dataReferencia).startsWith(prefixo));
@@ -652,30 +657,63 @@ function renderCompras() {
   const ticket   = qtd ? totalMes / qtd : 0;
   const maior    = doMes.reduce((m,c) => (Number(c.valor)||0) > (m?.valor||0) ? c : m, null);
 
+  // KPI 5 — item mais comprado no mês (por ocorrências)
+  const itemContMes = {};
+  doMes.forEach(c => {
+    (c.itens || []).forEach(it => {
+      const k = itemKey(it.desc || it.nome || '');
+      if (!k) return;
+      if (!itemContMes[k]) itemContMes[k] = { nome: it.desc || it.nome, n: 0 };
+      itemContMes[k].n++;
+    });
+  });
+  const topItem = Object.values(itemContMes).sort((a,b) => b.n - a.n)[0];
+
   document.getElementById('cardTotalMes').textContent = formatBRL(totalMes);
   document.getElementById('cardTotalMesSub').textContent = qtd === 1 ? '1 compra' : `${qtd} compras`;
   document.getElementById('cardQtdMes').textContent = qtd;
   document.getElementById('cardTicket').textContent = formatBRL(ticket);
   document.getElementById('cardMaior').textContent = maior ? formatBRL(maior.valor) : 'R$ 0,00';
   document.getElementById('cardMaiorSub').textContent = maior ? maior.mercado : '—';
+  document.getElementById('cardItemTop').textContent = topItem ? topItem.nome.slice(0, 25) : '—';
+  document.getElementById('cardItemTopSub').textContent = topItem ? `${topItem.n}x este mês` : 'no mês atual';
 
-  // Lista paginada (BUG 15) — alinhada com resumo (BUG 11): mostra TODAS, mas com indicador
+  // Filtrar lista
+  let filtradas = comprasCache;
+  if (_filtroBusca) {
+    const q = _filtroBusca.toLowerCase();
+    filtradas = filtradas.filter(c => (c.mercado || '').toLowerCase().includes(q));
+  }
+  if (_filtroMes) {
+    filtradas = filtradas.filter(c => extrairDataRef(c.dataReferencia).startsWith(_filtroMes));
+  }
+  if (_filtroForma) {
+    filtradas = filtradas.filter(c => (c.pagamento || '') === _filtroForma);
+  }
+
+  // Render barra de filtros
+  renderFiltrosBar();
+
+  // Lista paginada
   const container = document.getElementById('listaCompras');
   document.getElementById('comprasContador').textContent =
-    comprasCache.length === 1 ? '1 compra' : `${comprasCache.length} compras`;
+    filtradas.length === 1 ? '1 compra' : `${filtradas.length} compras`;
 
-  if (!comprasCache.length) {
+  if (!filtradas.length) {
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">🛒</div>
-        <div class="empty-state-title">Nenhuma compra registrada ainda</div>
-        <div class="empty-state-sub">Clique em <strong>Nova Compra</strong> para começar</div>
+        <div class="empty-state-title">${comprasCache.length ? 'Nenhuma compra encontrada' : 'Nenhuma compra registrada ainda'}</div>
+        <div class="empty-state-sub">${comprasCache.length ? 'Tente outro filtro' : 'Clique em <strong>Nova Compra</strong> para começar'}</div>
       </div>`;
+    renderHistoricoPrecos();
+    renderComparacaoLojas();
+    renderGraficoCategoria();
     return;
   }
 
   const totalPag = paginaCompras * PAGE_SIZE;
-  const visiveis = comprasCache.slice(0, totalPag);
+  const visiveis = filtradas.slice(0, totalPag);
 
   container.innerHTML = visiveis.map(c => {
     const dataIso = extrairDataRef(c.dataReferencia);
@@ -684,7 +722,7 @@ function renderCompras() {
     const itensCount = (c.itens || []).length;
     const isMes = dataIso.startsWith(prefixo);
     return `
-      <div class="compra-card" data-compra-id="${escapeHTML(c.id)}">
+      <div class="compra-card" data-compra-id="${escapeHTML(c.id)}" style="cursor:pointer;">
         <div class="compra-icon" style="${isMes ? '' : 'background:#f1f5f9;'}">🛒</div>
         <div class="compra-body">
           <div class="compra-mercado">${escapeHTML(c.mercado || '—')}</div>
@@ -697,12 +735,13 @@ function renderCompras() {
           </div>
         </div>
         <div class="compra-valor">${formatBRL(c.valor)}</div>
+        <button class="action-btn" data-action="repetir" title="Criar lista desta compra" aria-label="Criar lista">📋</button>
         <button class="action-btn" data-action="edit" aria-label="Editar">✏️</button>
         <button class="action-btn delete" data-action="del" aria-label="Excluir">🗑️</button>
       </div>`;
   }).join('') + (
-    comprasCache.length > totalPag
-      ? `<div style="text-align:center;margin-top:1rem;"><button id="btnVerMais" class="lista-action-btn">Ver mais (${comprasCache.length - totalPag} restantes)</button></div>`
+    filtradas.length > totalPag
+      ? `<div style="text-align:center;margin-top:1rem;"><button id="btnVerMais" class="lista-action-btn">Ver mais (${filtradas.length - totalPag} restantes)</button></div>`
       : ''
   );
 
@@ -710,6 +749,14 @@ function renderCompras() {
     const id = card.getAttribute('data-compra-id');
     const compra = comprasCache.find(c => c.id === id);
     if (!compra) return;
+    // Clique no corpo (não nos botões) → detalhe
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('[data-action]')) return;
+      abrirDetalheCompra(compra);
+    });
+    card.querySelector('[data-action="repetir"]').addEventListener('click', (e) => {
+      e.stopPropagation(); criarListaDaCompra(compra);
+    });
     card.querySelector('[data-action="edit"]').addEventListener('click', (e) => {
       e.stopPropagation(); abrirModalCompra(compra);
     });
@@ -724,6 +771,72 @@ function renderCompras() {
   });
 
   renderHistoricoPrecos();
+  renderComparacaoLojas();
+  renderGraficoCategoria();
+}
+
+// ─── Barra de filtros ────────────────────────────────────────────
+function renderFiltrosBar() {
+  const bar = document.getElementById('filtroBar');
+  if (!bar) return;
+
+  // Meses disponíveis
+  const mesesSet = new Set();
+  comprasCache.forEach(c => {
+    const d = extrairDataRef(c.dataReferencia);
+    if (d && d.length >= 7) mesesSet.add(d.slice(0,7));
+  });
+  const meses = Array.from(mesesSet).sort().reverse();
+
+  // Formas de pagamento disponíveis
+  const formasSet = new Set(comprasCache.map(c => c.pagamento).filter(Boolean));
+  const formas = Array.from(formasSet).sort();
+
+  const mesBR = (ym) => {
+    if (!ym) return '';
+    const [y,m] = ym.split('-');
+    const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    return `${nomes[+m-1]}/${y.slice(2)}`;
+  };
+
+  const mesesHtml = meses.length > 1
+    ? `<button class="filtro-chip${!_filtroMes ? ' ativo' : ''}" data-filtro-mes="">Todos</button>`
+      + meses.slice(0,6).map(m =>
+          `<button class="filtro-chip${_filtroMes===m ? ' ativo' : ''}" data-filtro-mes="${escapeHTML(m)}">${mesBR(m)}</button>`
+        ).join('')
+    : '';
+
+  const formasHtml = formas.map(f =>
+    `<button class="filtro-chip${_filtroForma===f ? ' ativo' : ''}" data-filtro-forma="${escapeHTML(f)}">${escapeHTML(f)}</button>`
+  ).join('');
+
+  bar.innerHTML = `
+    <input class="filtro-search" id="filtroSearchInput" type="text"
+      placeholder="🔍 Buscar mercado…" value="${escapeHTML(_filtroBusca)}" maxlength="60" autocomplete="off">
+    ${mesesHtml}
+    ${formasHtml}
+  `;
+
+  bar.querySelector('#filtroSearchInput')?.addEventListener('input', (e) => {
+    _filtroBusca = e.target.value;
+    paginaCompras = 1;
+    renderCompras();
+  });
+  bar.querySelectorAll('[data-filtro-mes]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _filtroMes = btn.getAttribute('data-filtro-mes');
+      paginaCompras = 1;
+      renderCompras();
+    });
+  });
+  bar.querySelectorAll('[data-filtro-forma]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const v = btn.getAttribute('data-filtro-forma');
+      _filtroForma = _filtroForma === v ? '' : v;
+      paginaCompras = 1;
+      renderCompras();
+    });
+  });
 }
 
 // ─── Histórico de preços ─────────────────────────────────────────
@@ -771,8 +884,9 @@ function renderHistoricoPrecos() {
   container.innerHTML = linhas.map(l => {
     const seta = l.varPct > 0 ? '▲' : (l.varPct < 0 ? '▼' : '—');
     const cls  = l.varPct > 0 ? 'preco-var-up' : (l.varPct < 0 ? 'preco-var-down' : '');
+    const alerta = l.varPct > 10;
     return `
-      <div class="preco-row">
+      <div class="preco-row${alerta ? ' preco-alerta' : ''}">
         <div class="preco-nome">${escapeHTML(l.nome)}</div>
         <div class="preco-stats">
           <span class="preco-min">↓ ${formatBRL(l.min)}</span>
@@ -781,6 +895,232 @@ function renderHistoricoPrecos() {
         </div>
       </div>`;
   }).join('');
+}
+
+// ─── Comparativo entre lojas ─────────────────────────────────────
+function renderComparacaoLojas() {
+  const container = document.getElementById('comparativoLojas');
+  if (!container) return;
+
+  // Agrupa por (itemKey, mercado) → lista de preços
+  const idx = {};
+  comprasCache.forEach(c => {
+    const mercadoNome = c.mercado || 'Desconhecido';
+    (c.itens || []).forEach(it => {
+      const k = itemKey(it.desc || it.nome || '');
+      if (!k || !it.valor) return;
+      if (!idx[k]) idx[k] = { nome: it.desc || it.nome, lojas: {} };
+      if (!idx[k].lojas[mercadoNome]) idx[k].lojas[mercadoNome] = [];
+      idx[k].lojas[mercadoNome].push(Number(it.valor) || 0);
+    });
+  });
+
+  // Apenas itens em 2+ lojas diferentes
+  const comparativos = Object.values(idx)
+    .filter(x => Object.keys(x.lojas).length >= 2)
+    .map(x => {
+      const lojas = Object.entries(x.lojas).map(([nome, precos]) => ({
+        nome,
+        preco: precos.reduce((s,p) => s + p, 0) / precos.length,
+      })).sort((a,b) => a.preco - b.preco);
+      return { nome: x.nome, lojas };
+    })
+    .sort((a,b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+    .slice(0, 20);
+
+  if (!comparativos.length) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding:1.5rem 1rem;">
+        <div class="empty-state-icon">🏪</div>
+        <div class="empty-state-sub">Compre o mesmo item em 2 mercados diferentes para ver a comparação aqui</div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = comparativos.map(c => {
+    const lojaHtml = c.lojas.map((l, i) => `
+      <div class="comp-loja-store${i === 0 ? ' mais-barato' : ''}">
+        ${i === 0 ? '✓ ' : ''}${escapeHTML(l.nome)} ${formatBRL(l.preco)}
+      </div>`).join('');
+    return `
+      <div class="comp-loja-row">
+        <div class="comp-loja-nome">${escapeHTML(c.nome)}</div>
+        <div class="comp-loja-stores">${lojaHtml}</div>
+      </div>`;
+  }).join('');
+}
+
+// ─── Gráfico de categorias (donut) ───────────────────────────────
+function renderGraficoCategoria() {
+  const canvas = document.getElementById('donutCategoria');
+  const secao  = document.getElementById('secaoGrafico');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  // Totais por categoria — itens do mês atual
+  const now = new Date();
+  const prefixo = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const catTotals = {};
+  comprasCache
+    .filter(c => extrairDataRef(c.dataReferencia).startsWith(prefixo))
+    .forEach(c => {
+      (c.itens || []).forEach(it => {
+        const cat = it.cat || 'Outros';
+        catTotals[cat] = (catTotals[cat] || 0) + (Number(it.valor) || 0);
+      });
+      // Se a compra não tem itens, soma como "Mercado"
+      if (!(c.itens || []).length) {
+        catTotals['Mercado'] = (catTotals['Mercado'] || 0) + (Number(c.valor) || 0);
+      }
+    });
+
+  const labels = Object.keys(catTotals);
+  const valores = Object.values(catTotals);
+  const total = valores.reduce((s,v) => s + v, 0);
+
+  if (!total) {
+    if (secao) secao.style.display = 'none';
+    return;
+  }
+  if (secao) secao.style.display = '';
+
+  const CORES = ['#3b82f6','#16a34a','#f59e0b','#dc2626','#7c3aed','#0891b2','#db2777','#84cc16','#f97316','#64748b'];
+  const cores = labels.map((_,i) => CORES[i % CORES.length]);
+
+  // Legenda
+  const legendaEl = document.getElementById('legendaCategoria');
+  if (legendaEl) {
+    legendaEl.innerHTML = labels.map((l, i) => `
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.375rem;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${cores[i]};flex-shrink:0;"></div>
+        <span style="font-size:0.75rem;font-weight:600;color:var(--card-text);flex:1;">${escapeHTML(l)}</span>
+        <span style="font-size:0.75rem;font-weight:700;color:var(--card-text-sec);">${formatBRL(valores[i])}</span>
+      </div>`).join('');
+  }
+
+  if (_graficoDonutInst) {
+    _graficoDonutInst.data.labels = labels;
+    _graficoDonutInst.data.datasets[0].data = valores;
+    _graficoDonutInst.data.datasets[0].backgroundColor = cores;
+    _graficoDonutInst.update();
+    return;
+  }
+
+  _graficoDonutInst = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: valores,
+        backgroundColor: cores,
+        borderWidth: 2,
+        borderColor: '#ffffff',
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      cutout: '65%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => ` ${formatBRL(ctx.raw)} (${Math.round(ctx.raw / total * 100)}%)`,
+          },
+        },
+      },
+    },
+  });
+}
+
+// ─── Detalhe da compra (modal) ───────────────────────────────────
+function abrirDetalheCompra(compra) {
+  _detalheCompraAtual = compra;
+  const dataIso = extrairDataRef(compra.dataReferencia);
+  const dataBR  = formatDataBR(dataIso);
+  const ic      = PAG_ICONS[compra.pagamento] || '🛒';
+
+  document.getElementById('detalheCompraNome').textContent = compra.mercado || 'Compra';
+  document.getElementById('detalheCompraMeta').innerHTML = `
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;font-size:0.8125rem;color:var(--card-text-sec);margin-bottom:1rem;">
+      <span>📅 ${dataBR}</span>
+      <span>${ic} ${escapeHTML(compra.pagamento || '—')}</span>
+      ${compra.parcelas > 1 ? `<span>📦 ${compra.parcelas}x</span>` : ''}
+    </div>`;
+
+  const itens = compra.itens || [];
+  if (!itens.length) {
+    document.getElementById('detalheCompraItens').innerHTML =
+      `<div style="font-size:.8125rem;color:var(--card-text-sec);padding:.5rem 0;">Nenhum item registrado nesta compra.</div>`;
+  } else {
+    const porCat = {};
+    itens.forEach(it => {
+      const cat = it.cat || 'Outros';
+      if (!porCat[cat]) porCat[cat] = [];
+      porCat[cat].push(it);
+    });
+    document.getElementById('detalheCompraItens').innerHTML = Object.entries(porCat).map(([cat, items]) => `
+      <div class="detalhe-cat-header">${escapeHTML(cat)}</div>
+      ${items.map(it => `
+        <div class="detalhe-item-row">
+          <span class="detalhe-item-nome">${escapeHTML(it.desc || it.nome || '—')}</span>
+          ${it.qtd && Number(it.qtd) > 1 ? `<span class="detalhe-item-qtd">${it.qtd}x</span>` : ''}
+          <span class="detalhe-item-valor">${formatBRL(it.valor)}</span>
+        </div>`).join('')}
+    `).join('');
+  }
+
+  const total = Number(compra.valor) || itens.reduce((s,i) => s + (Number(i.valor)||0), 0);
+  document.getElementById('detalheCompraTotal').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;background:var(--input-bg);border-radius:.75rem;margin-top:.875rem;font-size:.9375rem;font-weight:800;color:var(--card-text);">
+      <span>Total</span>
+      <span style="color:#dc2626;">${formatBRL(total)}</span>
+    </div>`;
+
+  document.getElementById('modalDetalheCompra').classList.add('open');
+}
+
+// ─── Criar lista a partir de compra anterior ─────────────────────
+function criarListaDaCompra(compra) {
+  const itens = compra.itens || [];
+  if (!itens.length) {
+    showToast('Esta compra não tem itens — adicione itens antes de repetir.', 'warning');
+    return;
+  }
+  _itensLista = itens.map(it => ({
+    nome: sanitize(it.desc || it.nome || 'Item').slice(0, 60),
+    preenchido: false,
+    valor: 0,
+    cat: it.cat || inferirCategoriaItem(it.desc || it.nome || ''),
+  }));
+  document.getElementById('listaNome').value = `${(compra.mercado || 'Compra').slice(0,40)} – cópia`;
+  document.getElementById('listaId').value = '';
+  document.getElementById('modalListaTitulo').textContent = 'Nova Lista da Compra';
+  renderItensLista();
+  // Fecha detalhe e abre lista
+  document.getElementById('modalDetalheCompra').classList.remove('open');
+  document.getElementById('modalLista').classList.add('open');
+  // Muda para aba listas
+  document.getElementById('tabListas')?.click();
+}
+
+// ─── Último preço conhecido de um item ──────────────────────────
+function ultimoPrecoItem(nome) {
+  const k = itemKey(nome);
+  if (!k) return 0;
+  let ultimaData = '';
+  let ultimoPreco = 0;
+  comprasCache.forEach(c => {
+    const d = extrairDataRef(c.dataReferencia);
+    (c.itens || []).forEach(it => {
+      if (itemKey(it.desc || it.nome || '') === k && it.valor) {
+        if (!ultimaData || d >= ultimaData) {
+          ultimaData = d;
+          ultimoPreco = Number(it.valor) || 0;
+        }
+      }
+    });
+  });
+  return ultimoPreco;
 }
 
 // ─── Modal Nova/Editar Lista ─────────────────────────────────────
@@ -803,14 +1143,28 @@ function renderItensLista() {
     cont.innerHTML = '<div style="font-size:0.75rem;color:var(--card-text-sec);padding:0.5rem 0;">Nenhum item na lista ainda</div>';
     return;
   }
-  cont.innerHTML = _itensLista.map((it, idx) => `
+  cont.innerHTML = _itensLista.map((it, idx) => {
+    const ultimoPreco = ultimoPrecoItem(it.nome);
+    return `
     <div class="item-row">
       <div class="item-info">
         <div class="item-nome">${escapeHTML(it.nome)}</div>
-        <div class="item-meta">${escapeHTML(it.cat)}</div>
+        <div class="item-meta">${escapeHTML(it.cat)}${ultimoPreco > 0 ? ` · últ. ${formatBRL(ultimoPreco)}` : ''}</div>
       </div>
       <button type="button" class="item-remove" data-idx="${idx}" aria-label="Remover">✕</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+
+  // Estimativa total
+  const estimativa = _itensLista.reduce((s, it) => s + ultimoPrecoItem(it.nome), 0);
+  if (estimativa > 0) {
+    const comPreco = _itensLista.filter(it => ultimoPrecoItem(it.nome) > 0).length;
+    cont.innerHTML += `
+      <div style="padding:0.5rem 0.875rem;font-size:0.75rem;font-weight:700;color:#16a34a;margin-top:0.375rem;border-top:1px dashed var(--input-border);">
+        💡 Estimativa: ${formatBRL(estimativa)} (${comPreco} de ${_itensLista.length} com preço histórico)
+      </div>`;
+  }
+
   cont.querySelectorAll('.item-remove').forEach(btn => {
     btn.addEventListener('click', () => {
       _itensLista.splice(+btn.getAttribute('data-idx'), 1);
@@ -960,16 +1314,30 @@ function renderModoCompras() {
   if (!_modoItens.length) {
     cont.innerHTML = '<div style="font-size:0.8125rem;color:var(--card-text-sec);text-align:center;padding:1rem;">Adicione itens para começar</div>';
   } else {
-    cont.innerHTML = _modoItens.map((it, idx) => `
-      <div class="item-row${it.preenchido ? ' preenchido' : ''}">
-        <div class="item-check${it.preenchido ? ' on' : ''}" data-idx="${idx}" data-action="check" role="button" aria-label="Marcar">${it.preenchido ? '✓' : ''}</div>
-        <div class="item-info">
-          <div class="item-nome">${escapeHTML(it.nome)}</div>
-          <div class="item-meta">${escapeHTML(it.cat)}</div>
-        </div>
-        <input type="text" class="item-input-valor" data-idx="${idx}" data-action="valor" value="${it.valor ? formatBRL(it.valor).replace('R$ ','') : ''}" placeholder="0,00" inputmode="decimal">
-        <button type="button" class="item-remove" data-idx="${idx}" data-action="rm" aria-label="Remover">✕</button>
-      </div>`).join('');
+    // Agrupa por categoria mantendo índice original
+    const grupos = {};
+    _modoItens.forEach((it, idx) => {
+      const cat = it.cat || 'Outros';
+      if (!grupos[cat]) grupos[cat] = [];
+      grupos[cat].push({ it, idx });
+    });
+
+    cont.innerHTML = Object.entries(grupos).map(([cat, items]) => `
+      <div class="detalhe-cat-header" style="padding:0.5rem 0.25rem 0.125rem;">${escapeHTML(cat)}</div>
+      ${items.map(({ it, idx }) => {
+        const ultimoPreco = ultimoPrecoItem(it.nome);
+        return `
+        <div class="item-row${it.preenchido ? ' preenchido' : ''}">
+          <div class="item-check${it.preenchido ? ' on' : ''}" data-idx="${idx}" data-action="check" role="button" aria-label="Marcar">${it.preenchido ? '✓' : ''}</div>
+          <div class="item-info">
+            <div class="item-nome">${escapeHTML(it.nome)}</div>
+            ${ultimoPreco > 0 ? `<div class="item-meta">últ. ${formatBRL(ultimoPreco)}</div>` : ''}
+          </div>
+          <input type="text" class="item-input-valor" data-idx="${idx}" data-action="valor" value="${it.valor ? formatBRL(it.valor).replace('R$ ','') : ''}" placeholder="0,00" inputmode="decimal">
+          <button type="button" class="item-remove" data-idx="${idx}" data-action="rm" aria-label="Remover">✕</button>
+        </div>`;
+      }).join('')}
+    `).join('');
 
     cont.querySelectorAll('[data-action="check"]').forEach(el => {
       el.addEventListener('click', () => {
@@ -1073,6 +1441,13 @@ async function finalizarModoCompras() {
   _pendenteConcluirListaId = listaIdParaConcluir;
 }
 let _pendenteConcluirListaId = null;
+
+// ─── Filtros + estado UI novo ────────────────────────────────────────────
+let _filtroBusca  = '';
+let _filtroMes    = '';   // 'YYYY-MM' ou '' (todos)
+let _filtroForma  = '';   // forma de pagamento ou '' (todas)
+let _graficoDonutInst = null;  // instância Chart.js
+let _detalheCompraAtual = null;
 
 // ─── Carteira / cartões para chips de pagamento (BUG 13) ─────────
 async function carregarCartoes() {
@@ -1186,6 +1561,17 @@ function wireUp() {
   });
   document.getElementById('modalLista').addEventListener('click', (e) => {
     if (e.target.id === 'modalLista') fecharModalLista();
+  });
+
+  // Detalhe da compra
+  const fecharDetalhe = () => document.getElementById('modalDetalheCompra').classList.remove('open');
+  document.getElementById('btnFecharDetalheCompra').addEventListener('click', fecharDetalhe);
+  document.getElementById('btnFecharDetalheCompra2').addEventListener('click', fecharDetalhe);
+  document.getElementById('btnCriarListaDaCompra').addEventListener('click', () => {
+    if (_detalheCompraAtual) criarListaDaCompra(_detalheCompraAtual);
+  });
+  document.getElementById('modalDetalheCompra').addEventListener('click', (e) => {
+    if (e.target.id === 'modalDetalheCompra') fecharDetalhe();
   });
 }
 

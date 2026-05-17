@@ -98,7 +98,7 @@
     .tab-btn.active{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,0.25);}
 
     /* ── Cards resumo ───────────────────────────────────── */
-    .cards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;}
+    .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:1rem;margin-bottom:1.5rem;}
     .summary-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);transition:background 0.35s ease,border-color 0.35s ease,transform .2s,box-shadow .2s;}
     .summary-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px -5px rgba(0,0,0,0.1);}
     .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;}
@@ -285,6 +285,31 @@
     }
     @media(max-width:480px){.cards-grid{grid-template-columns:1fr;}}
     @media(min-width:769px){.sidebar-collapse-btn{display:flex;}}
+
+    /* ── Filtros ────────────────────────────────────────── */
+    .filtro-bar{display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap;align-items:center;}
+    .filtro-chip{padding:0.375rem 0.75rem;border-radius:9999px;border:1.5px solid var(--input-border);background:var(--input-bg);font-size:0.75rem;font-weight:700;color:var(--text-sec);cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap;}
+    .filtro-chip.ativo{border-color:#2563eb;background:#eff6ff;color:#2563eb;}
+    .filtro-chip:hover:not(.ativo){border-color:#94a3b8;color:var(--text-main);}
+    .filtro-search{flex:1;min-width:160px;padding:0.4375rem 0.75rem;border:1.5px solid var(--input-border);border-radius:0.75rem;font-size:0.8125rem;font-weight:500;color:var(--card-text);background:var(--input-bg);font-family:inherit;outline:none;transition:border-color .15s;}
+    .filtro-search:focus{border-color:#3b82f6;}
+    /* ── Alerta de preço ────────────────────────────────── */
+    .preco-row.preco-alerta{background:rgba(220,38,38,0.05);padding-left:0.5rem;border-left:3px solid #dc2626;}
+    .preco-row.preco-alerta .preco-nome::after{content:" 🚨";font-size:0.7rem;}
+    /* ── Comparativo entre lojas ────────────────────────── */
+    .comp-loja-row{padding:0.625rem 0.875rem;border-bottom:1px solid var(--input-border);}
+    .comp-loja-row:last-child{border-bottom:none;}
+    .comp-loja-nome{font-size:0.8125rem;font-weight:700;color:var(--card-text);margin-bottom:0.375rem;}
+    .comp-loja-stores{display:flex;flex-wrap:wrap;gap:0.375rem;}
+    .comp-loja-store{display:flex;align-items:center;gap:0.25rem;padding:0.25rem 0.625rem;border-radius:0.5rem;font-size:0.75rem;font-weight:600;background:var(--input-bg);border:1.5px solid var(--input-border);color:var(--card-text-sec);}
+    .comp-loja-store.mais-barato{border-color:#16a34a;background:#f0fdf4;color:#15803d;}
+    /* ── Detalhe da compra ──────────────────────────────── */
+    .detalhe-cat-header{font-size:0.6875rem;font-weight:800;text-transform:uppercase;color:var(--text-sec);letter-spacing:.06em;padding:0.5rem 0 0.125rem;opacity:.65;}
+    .detalhe-item-row{display:flex;align-items:center;gap:0.5rem;padding:0.375rem 0.375rem;border-radius:0.375rem;}
+    .detalhe-item-row:hover{background:var(--input-bg);}
+    .detalhe-item-nome{flex:1;font-size:0.8125rem;font-weight:600;color:var(--card-text);min-width:0;}
+    .detalhe-item-qtd{font-size:0.75rem;color:var(--card-text-sec);white-space:nowrap;}
+    .detalhe-item-valor{font-size:0.8125rem;font-weight:700;color:var(--card-text);white-space:nowrap;}
   </style>
 </head>
 <body>
@@ -428,7 +453,18 @@
             <div class="card-value" id="cardMaior">R$ 0,00</div>
             <div class="card-sub" id="cardMaiorSub">—</div>
           </div>
+          <div class="summary-card">
+            <div class="card-header">
+              <span class="card-label">+ Comprado (Mês)</span>
+              <div class="card-icon card-icon-blue">🛍️</div>
+            </div>
+            <div class="card-value" id="cardItemTop" style="font-size:0.875rem;line-height:1.25;word-break:break-word;">—</div>
+            <div class="card-sub" id="cardItemTopSub">no mês atual</div>
+          </div>
         </div>
+
+        <!-- Filtros -->
+        <div class="filtro-bar" id="filtroBar"></div>
 
         <!-- Lista de compras -->
         <div class="section-card">
@@ -439,6 +475,20 @@
           <div id="listaCompras"></div>
         </div>
 
+        <!-- Gráfico de categorias -->
+        <div class="section-card" id="secaoGrafico">
+          <div class="section-header">
+            <span class="section-title">📊 Gastos por Categoria</span>
+            <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">este mês</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;padding:0.5rem 0;">
+            <div style="width:160px;height:160px;flex-shrink:0;">
+              <canvas id="donutCategoria"></canvas>
+            </div>
+            <div id="legendaCategoria" style="flex:1;min-width:160px;"></div>
+          </div>
+        </div>
+
         <!-- Histórico de preços -->
         <div class="section-card">
           <div class="section-header">
@@ -446,6 +496,15 @@
             <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">produtos comprados ≥ 2x</span>
           </div>
           <div id="historicoPrecos"></div>
+        </div>
+
+        <!-- Comparativo entre lojas -->
+        <div class="section-card">
+          <div class="section-header">
+            <span class="section-title">🏪 Comparativo por Loja</span>
+            <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">mesmo item, preços diferentes</span>
+          </div>
+          <div id="comparativoLojas"></div>
         </div>
 
       </section>
@@ -705,7 +764,26 @@
     </div>
   </div>
 
+  <!-- ═ Modal Detalhe Compra ═════════════════════════════ -->
+  <div class="modal-overlay" id="modalDetalheCompra">
+    <div class="modal-card" style="max-width:520px;">
+      <div class="modal-title">
+        <span id="detalheCompraNome">Compra</span>
+        <button class="modal-close" id="btnFecharDetalheCompra" aria-label="Fechar">✕</button>
+      </div>
+      <div id="detalheCompraMeta"></div>
+      <div id="detalheCompraItens" style="max-height:50vh;overflow-y:auto;"></div>
+      <div id="detalheCompraTotal"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.875rem;">
+        <button class="modal-cancel" id="btnFecharDetalheCompra2" style="margin-top:0;">Fechar</button>
+        <button class="modal-submit" id="btnCriarListaDaCompra" style="margin-top:0;background:linear-gradient(135deg,#16a34a,#15803d);">📝 Criar Lista</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ═ Scripts ═══════════════════════════════════════════ -->
+  <!-- Chart.js 4.4.1 via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>if(typeof pdfjsLib!=='undefined'){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';}</script>
   <script src="js/firebase-config.js"></script>
