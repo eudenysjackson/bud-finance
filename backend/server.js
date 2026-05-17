@@ -1067,11 +1067,11 @@ async function extractCupomWithGroq(buffers, mimeTypes) {
     'Responda APENAS com o JSON, sem explicações ou markdown.'
   ].join('\n');
 
-  // Groq suporta apenas 1 imagem por chamada — usa a primeira; demais são ignoradas por ora
-  var imgContent = buffers.map(function (buf, i) {
-    return { type: 'image_url', image_url: { url: 'data:' + (mimeTypes[i] || 'image/jpeg') + ';base64,' + buf.toString('base64') } };
+  // Texto primeiro (padrão Groq), depois imagens — máx 3MB raw → ~4MB base64 (limite Groq)
+  var imgContent = [{ type: 'text', text: prompt }];
+  buffers.forEach(function (buf, i) {
+    imgContent.push({ type: 'image_url', image_url: { url: 'data:' + (mimeTypes[i] || 'image/jpeg') + ';base64,' + buf.toString('base64') } });
   });
-  imgContent.push({ type: 'text', text: prompt });
 
   var body = JSON.stringify({
     model: 'meta-llama/llama-4-scout-17b-16e-instruct',
@@ -1091,8 +1091,8 @@ async function extractCupomWithGroq(buffers, mimeTypes) {
     clearTimeout(timeoutId);
 
     if (!resp.ok) {
-      var errText = await resp.text().catch(function(){ return resp.status; });
-      throw new Error('Groq API: ' + errText);
+      var errText = await resp.text().catch(function(){ return String(resp.status); });
+      throw new Error('Groq API [' + resp.status + ']: ' + errText);
     }
 
     var data = await resp.json();
@@ -1208,7 +1208,7 @@ async function extractCupomFromText(texto) {
 // ─── Multer pra cupom (até 3 arquivos) ──────────────────────────────
 var uploadCupom = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024, files: 3 }, // 8 MB cada, máx 3
+  limits: { fileSize: 3 * 1024 * 1024, files: 3 }, // 3 MB cada (base64 ≈ 4MB = limite Groq)
   fileFilter: function (_req, file, cb) {
     var ok = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
     if (ok.includes(file.mimetype)) return cb(null, true);
@@ -1221,7 +1221,14 @@ var uploadCupom = multer({
 //   - multipart/form-data { arquivos: 1-3 files (image|pdf) }
 //   - application/json     { texto: "..." } para colar texto direto
 // Retorna: { mercado, cnpj, data, itens:[{nome,qtd,valor,cat}], cached?: true }
-app.post('/api/extrair-cupom', uploadCupom.array('arquivos', 3), async function (req, res) {
+app.post('/api/extrair-cupom', function (req, res) {
+  uploadCupom.array('arquivos', 3)(req, res, async function (multerErr) {
+  if (multerErr) {
+    var msg = multerErr.code === 'LIMIT_FILE_SIZE'
+      ? 'Imagem muito grande. Máximo 3MB por arquivo. Comprima a imagem ou use a aba Texto.'
+      : multerErr.message || 'Erro ao processar arquivo.';
+    return res.status(413).json({ error: msg });
+  }
   try {
     // Modo TEXTO (sem arquivos)
     if (req.is('application/json') || (req.body && req.body.texto && (!req.files || req.files.length === 0))) {
@@ -1257,11 +1264,6 @@ app.post('/api/extrair-cupom', uploadCupom.array('arquivos', 3), async function 
     }
 
     var result = await extractCupomWithGroq(buffers, mimeTypes);
-    if (!result.itens.length) {
-      return res.status(422).json({
-        error: 'Nenhum item identificado. Tente uma foto mais nítida ou cole o texto manualmente.'
-      });
-    }
 
     cupomCacheSet(cacheKey, result);
     return res.json(result);
@@ -1276,6 +1278,7 @@ app.post('/api/extrair-cupom', uploadCupom.array('arquivos', 3), async function 
       : 'Erro ao processar cupom. Verifique a imagem e tente novamente.';
     return res.status(status).json({ error: userMsg });
   }
+  }); // fim uploadCupom callback
 });
 
 // ─── Health check ───────────────────────────────────────────────────
