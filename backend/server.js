@@ -1038,25 +1038,31 @@ async function extractCupomWithGroq(buffers, mimeTypes) {
   var prompt = [
     'Você está analisando um CUPOM FISCAL NFC-e de supermercado brasileiro OU um PRINT de app de mercado/delivery (Rappi, iFood, Zé Delivery, Cornershop).',
     '',
-    'ESTRUTURA DO CUPOM FISCAL (NFC-e): as colunas são ITEM | CODIGO | DESCRICAO | QTD | UN | VL.UNIT | VL.TOTAL.',
-    '"valor" de cada item = coluna VL.TOTAL (valor total da linha = quantidade × preço unitário). NUNCA use VL.UNIT como valor.',
+    'ESTRUTURA DO CUPOM FISCAL NFC-e: cada item ocupa DUAS linhas:',
+    '  Linha 1: ITEM(3 dígitos) CODIGO DESCRICAO UN',
+    '  Linha 2: QTD UN x VL.UNIT  VL.TOTAL  (ou só "UN  VL.TOTAL" quando qtd=1)',
+    '"valor" = VL.TOTAL (último número da linha 2). NUNCA use VL.UNIT.',
+    'Quando a linha 2 mostra apenas "UN  14,99" sem "x", significa qtd=1 e valor=14.99.',
     '',
-    'REGRA CRÍTICA — COMPLETUDE: leia a imagem do TOPO ao FIM e inclua TODOS os itens numerados (001, 002, 003...). NÃO pule nenhum item.',
-    'REGRA CRÍTICA — FIDELIDADE: copie o valor EXATAMENTE como escrito na coluna VL.TOTAL (ex: 12,76 → 12.76). NÃO arredonde, NÃO recalcule.',
-    'REGRA CRÍTICA — NOMES: copie a DESCRICAO do produto EXATAMENTE como aparece no cupom, incluindo abreviações. NUNCA substitua por um produto diferente que você supõe ser. Se está "FILTR PAP MELIT", escreva "FILTR PAP MELIT", não "Feijão". Se está "SACOLA PLAST", escreva "SACOLA PLAST", não "Salada". Máximo 60 chars.',
-    'REGRA CRÍTICA — SEPARAÇÃO: cada número de item (001, 002, 003...) é um produto DISTINTO. NUNCA junte dois itens num só.',
-    'REGRA CRÍTICA — NUNCA INVENTE: se não conseguir ler uma palavra, copie os caracteres que conseguir ler. JAMAIS substitua por outro produto de mercado que você imagina que seja.',
+    'REGRA CRÍTICA — COMPLETUDE: leia do TOPO ao FIM. Cada número 001/002/003... é um item DISTINTO. Conte quantos números de item existem e garanta que o JSON tenha EXATAMENTE a mesma quantidade.',
+    'REGRA CRÍTICA — FIDELIDADE: copie o VL.TOTAL EXATAMENTE. NÃO arredonde, NÃO recalcule.',
+    'REGRA CRÍTICA — NOMES: copie a DESCRICAO EXATAMENTE como aparece (abreviações incluídas). NUNCA substitua por outro nome. "FILTR PAP MELIT" → "FILTR PAP MELIT", não "Feijão". "SACOLA PLAST TRANS" → "SACOLA PLAST TRANS", não "Salada". Máximo 60 chars.',
+    'REGRA CRÍTICA — NUNCA INVENTE: se não conseguir ler, copie o que conseguir. JAMAIS substitua por produto diferente.',
     '',
-    'Extraia TAMBÉM: nome curto do mercado/loja (ex: "Prezunic", "Pão de Açúcar"), CNPJ (14 dígitos, se visível), data da compra (YYYY-MM-DD).',
-    'IGNORE: subtotais, total a pagar, formas de pagamento, troco e descontos.',
-    'Se houver MÚLTIPLAS imagens (cupom em várias páginas), CONSOLIDE tudo num único array.',
+    'Extraia TAMBÉM: nome curto do mercado/loja (ex: "Prezunic"), CNPJ (14 dígitos, se visível), data (YYYY-MM-DD).',
+    'IGNORE: subtotais, total a pagar, formas de pagamento, troco, descontos.',
+    'Se houver MÚLTIPLAS imagens, CONSOLIDE num único array.',
     '',
     'Categorias: "Mercado" (alimentos, hortifrúti, carnes, laticínios), "Padaria/Café" (pães, bolos, café), "Bares/Baladas" (bebidas alcoólicas, refrigerantes), "Farmácia" (higiene, medicamentos, limpeza), "Pets" (ração, areia), "Material Escolar", "Outros" (sacolas, embalagens, demais).',
     '',
-    'Retorne SOMENTE este JSON (sem markdown, sem explicações):',
+    'Exemplo NFC-e (2 itens):',
+    '  005 7896982103388 OVGS MANT GDE C/20 UN → { "nome":"OVGS MANT GDE C/20", "qtd":1, "valor":14.99, "cat":"Mercado" }',
+    '  006 7896016500978 FARINH MAND GRANFI UN → 4.000 UN x 6.99  27.96 → { "nome":"FARINH MAND GRANFI", "qtd":4, "valor":27.96, "cat":"Mercado" }',
+    '',
+    'Retorne SOMENTE JSON (sem markdown):',
     '{"mercado":"Prezunic","cnpj":"12345678000199","data":"2026-04-25","itens":[{"nome":"LAMEN MIOJO 85G","qtd":4,"valor":12.76,"cat":"Mercado"}]}',
-    'Se não houver itens visíveis: {"mercado":"","cnpj":"","data":"","itens":[]}'
-  ].join(' ');
+    'Se não houver itens: {"mercado":"","cnpj":"","data":"","itens":[]}'
+  ].join('\n');
 
   // Monta content: imagens primeiro (mesmo padrão do extractWithAI que funciona em cartões/extrato)
   var imgContent = buffers.map(function (buf, i) {
