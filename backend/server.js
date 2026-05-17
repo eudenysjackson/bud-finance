@@ -1037,57 +1037,50 @@ async function extractCupomWithGroq(buffers, mimeTypes) {
 
   var prompt = [
     'Você está analisando um CUPOM FISCAL de supermercado brasileiro OU um PRINT de app de mercado/delivery (Rappi, iFood Mercado, Zé Delivery, Cornershop, Mercado Livre).',
-    '',
-    'Extraia TODOS os itens e cobranças: produtos comprados, taxa de entrega, embalagem, serviço — qualquer linha com valor cobrado ao consumidor. Ignore APENAS: subtotais, total a pagar, formas de pagamento, troco e descontos.',
-    '',
-    'Identifique também:',
-    '- Nome curto do mercado/loja (sem CNPJ, sem endereço — ex: "Prezunic", "Carrefour", "Rappi")',
-    '- CNPJ (apenas números, 14 dígitos), se visível',
-    '- Data da compra (formato YYYY-MM-DD), se visível',
-    '',
-    'Para cada ITEM, classifique em UMA das categorias:',
-    '- "Mercado" (alimentos crus, hortifrúti, carnes, laticínios)',
-    '- "Padaria/Café" (pães, bolos, café, biscoitos)',
-    '- "Bares/Baladas" (bebidas alcoólicas, refrigerantes, energéticos)',
-    '- "Farmácia" (higiene pessoal, medicamentos, limpeza, cosméticos)',
-    '- "Pets" (ração, petisco, areia, acessórios)',
-    '- "Material Escolar" (cadernos, canetas, material de escritório)',
-    '- "Outros" (qualquer outra coisa)',
-    '',
-    'Retorne SOMENTE um objeto JSON válido neste formato:',
+    'LEIA A IMAGEM INTEIRA, do topo ao final. Extraia TODOS os itens e cobranças: produtos comprados, taxa de entrega, embalagem, serviço — qualquer linha com valor cobrado ao consumidor.',
+    'IGNORE APENAS: subtotais, total a pagar, formas de pagamento, troco e descontos.',
+    'REGRA CRÍTICA — COMPLETUDE: inclua TODOS os itens visíveis, sem pular nenhum.',
+    'REGRA CRÍTICA — FIDELIDADE: copie o valor EXATAMENTE como escrito na imagem (ex: R$ 7,49 → 7.49). NÃO arredonde, NÃO some.',
+    'Identifique também: nome curto do mercado/loja (sem CNPJ, sem endereço — ex: "Prezunic", "Rappi"), CNPJ (14 dígitos, se visível), data da compra (YYYY-MM-DD, se visível).',
+    'Para cada ITEM, classifique em UMA das categorias: "Mercado" (alimentos, hortifrúti, carnes, laticínios), "Padaria/Café" (pães, bolos, café, biscoitos), "Bares/Baladas" (bebidas alcoólicas, refrigerantes, energéticos), "Farmácia" (higiene, medicamentos, limpeza, cosméticos), "Pets" (ração, petisco, areia), "Material Escolar" (cadernos, canetas), "Outros" (demais).',
+    'Se houver MÚLTIPLAS imagens (cupom em várias páginas), CONSOLIDE tudo num único array de itens.',
+    '"valor" é o VALOR TOTAL do item (qtd × unitário), float positivo. "qtd" é a quantidade (use 1 se não souber). "nome" curto até 50 chars, capitalizado.',
+    'Retorne SOMENTE este JSON (sem markdown, sem explicações):',
     '{"mercado":"Prezunic","cnpj":"12345678000199","data":"2026-04-25","itens":[{"nome":"Banana Prata kg","qtd":1.5,"valor":7.49,"cat":"Mercado"}]}',
-    '',
-    'Regras:',
-    '- "valor" é o VALOR TOTAL do item (qtd × unitário), em reais (float positivo).',
-    '- "qtd" é a quantidade. Use 1 se não souber.',
-    '- "nome" curto (até 50 caracteres), capitalizado.',
-    '- Se algum campo faltar, use string vazia ou null. NÃO invente.',
-    '- Se houver MÚLTIPLAS imagens (cupom em várias páginas), CONSOLIDE tudo num único array de itens.',
-    '',
-    'Responda APENAS com o JSON, sem explicações ou markdown.'
-  ].join('\n');
+    'Se não houver itens visíveis: {"mercado":"","cnpj":"","data":"","itens":[]}'
+  ].join(' ');
 
-  // Texto primeiro (padrão Groq), depois imagens — máx 3MB raw → ~4MB base64 (limite Groq)
-  var imgContent = [{ type: 'text', text: prompt }];
-  buffers.forEach(function (buf, i) {
-    imgContent.push({ type: 'image_url', image_url: { url: 'data:' + (mimeTypes[i] || 'image/jpeg') + ';base64,' + buf.toString('base64') } });
+  // Monta content: imagens primeiro (mesmo padrão do extractWithAI que funciona em cartões/extrato)
+  var imgContent = buffers.map(function (buf, i) {
+    return { type: 'image_url', image_url: { url: 'data:' + (mimeTypes[i] || 'image/jpeg') + ';base64,' + buf.toString('base64') } };
   });
+  imgContent.push({ type: 'text', text: prompt });
 
   var body = JSON.stringify({
     model: 'meta-llama/llama-4-scout-17b-16e-instruct',
     messages: [{ role: 'user', content: imgContent }],
-    temperature: 0.1,
-    max_tokens: 2048
+    temperature: 0.0,
+    max_tokens: 8192,
+    response_format: { type: 'json_object' }
   });
 
   var controller = new AbortController();
-  var timeoutId = setTimeout(function(){ controller.abort(); }, 30000);
+  var timeoutId = setTimeout(function(){ controller.abort(); }, 40000);
 
-  try {
-    var resp = await fetch(
+  async function callGroq() {
+    return fetch(
       'https://api.groq.com/openai/v1/chat/completions',
       { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: body, signal: controller.signal }
     );
+  }
+
+  try {
+    var resp = await callGroq();
+    // Retry automático em rate limit (mesmo padrão do extractWithAI)
+    if (resp.status === 429) {
+      await new Promise(function(r){ setTimeout(r, 1500); });
+      resp = await callGroq();
+    }
     clearTimeout(timeoutId);
 
     if (!resp.ok) {
@@ -1103,12 +1096,11 @@ async function extractCupomWithGroq(buffers, mimeTypes) {
       parsed = JSON.parse(content);
     } catch (_e) {
       var objMatch = content.match(/\{[\s\S]*\}/);
-      parsed = objMatch ? JSON.parse(objMatch[0]) : {};
+      try { parsed = objMatch ? JSON.parse(objMatch[0]) : {}; } catch(_e2) { parsed = {}; }
     }
 
     if (typeof parsed !== 'object' || !parsed) parsed = {};
     parsed.itens = Array.isArray(parsed.itens) ? parsed.itens : [];
-    // Saneamento básico
     parsed.itens = parsed.itens
       .map(function (i) {
         var nome = String(i.nome || i.name || i.descricao || '').trim().slice(0, 60);
@@ -1138,42 +1130,53 @@ async function extractCupomFromText(texto) {
   var key = process.env.GROQ_API_KEY;
   if (!key) throw new Error('GROQ_API_KEY não configurada no servidor.');
 
-  var prompt = [
-    'Você está analisando o TEXTO de um cupom fiscal de supermercado OU print de app de mercado.',
-    '',
-    'Extraia TODOS os itens e cobranças: produtos, taxa de entrega, embalagem, serviço — qualquer linha com valor cobrado. Ignore APENAS: subtotais, total a pagar, formas de pagamento, troco e descontos.',
-    '',
-    'Identifique também: nome do mercado, CNPJ (14 dígitos), data (YYYY-MM-DD).',
-    '',
-    'Categorias permitidas: Mercado, Padaria/Café, Bares/Baladas, Farmácia, Pets, Material Escolar, Outros.',
-    '',
-    'Retorne SOMENTE JSON: {"mercado":"...","cnpj":"...","data":"...","itens":[{"nome":"...","qtd":1,"valor":0.00,"cat":"Mercado"}]}',
+  var systemPrompt = 'Você é um extrator preciso de cupons fiscais e prints de apps de mercado/delivery brasileiros. Extraia TODOS os itens e cobranças. NUNCA invente valores. Retorne APENAS JSON válido.';
+
+  var userPrompt = [
+    'Extraia TODOS os itens e cobranças do texto abaixo: produtos, taxa de entrega, embalagem, serviço — qualquer linha com valor cobrado.',
+    'IGNORE APENAS: subtotais, total a pagar, formas de pagamento, troco e descontos.',
+    'Identifique também: nome do mercado, CNPJ (14 dígitos, apenas números), data (YYYY-MM-DD).',
+    'Categorias: "Mercado", "Padaria/Café", "Bares/Baladas", "Farmácia", "Pets", "Material Escolar", "Outros".',
+    '"valor" = valor total do item (float positivo). "qtd" = quantidade (1 se desconhecido). "nome" até 50 chars.',
+    'Formato obrigatório: {"mercado":"...","cnpj":"...","data":"...","itens":[{"nome":"...","qtd":1,"valor":0.00,"cat":"Mercado"}]}',
     '',
     'TEXTO DO CUPOM:',
     '"""',
-    String(texto || '').slice(0, 8000), // proteção contra texto enorme
+    String(texto || '').slice(0, 15000),
     '"""'
   ].join('\n');
 
   var body = JSON.stringify({
     model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-    messages: [{ role: 'user', content: prompt }],
-    temperature: 0.1,
-    max_tokens: 1024
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ],
+    temperature: 0.0,
+    max_tokens: 8192,
+    response_format: { type: 'json_object' }
   });
 
   var controller = new AbortController();
-  var timeoutId = setTimeout(function(){ controller.abort(); }, 25000);
+  var timeoutId = setTimeout(function(){ controller.abort(); }, 40000);
 
-  try {
-    var resp = await fetch(
+  async function callGroq() {
+    return fetch(
       'https://api.groq.com/openai/v1/chat/completions',
       { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: body, signal: controller.signal }
     );
+  }
+
+  try {
+    var resp = await callGroq();
+    if (resp.status === 429) {
+      await new Promise(function(r){ setTimeout(r, 1500); });
+      resp = await callGroq();
+    }
     clearTimeout(timeoutId);
     if (!resp.ok) {
-      var errText = await resp.text().catch(function(){ return resp.status; });
-      throw new Error('Groq API: ' + errText);
+      var errText = await resp.text().catch(function(){ return String(resp.status); });
+      throw new Error('Groq API [' + resp.status + ']: ' + errText);
     }
     var data = await resp.json();
     var content = (data.choices || [])[0]?.message?.content || '{}';
@@ -1181,17 +1184,17 @@ async function extractCupomFromText(texto) {
     try { parsed = JSON.parse(content); }
     catch (_e) {
       var objMatch = content.match(/\{[\s\S]*\}/);
-      parsed = objMatch ? JSON.parse(objMatch[0]) : {};
+      try { parsed = objMatch ? JSON.parse(objMatch[0]) : {}; } catch(_e2) { parsed = {}; }
     }
     if (typeof parsed !== 'object' || !parsed) parsed = {};
     parsed.itens = Array.isArray(parsed.itens) ? parsed.itens : [];
     parsed.itens = parsed.itens
       .map(function (i) {
         return {
-          nome: String(i.nome || '').trim().slice(0, 60),
-          qtd: parseFloat(String(i.qtd || 1).toString().replace(',', '.')) || 1,
-          valor: Math.abs(parseFloat(String(i.valor || 0).toString().replace(',', '.')) || 0),
-          cat: String(i.cat || 'Mercado').trim(),
+          nome: String(i.nome || i.name || i.descricao || '').trim().slice(0, 60),
+          qtd: parseFloat(String(i.qtd || i.quantidade || 1).toString().replace(',', '.')) || 1,
+          valor: Math.abs(parseFloat(String(i.valor || i.value || 0).toString().replace(',', '.')) || 0),
+          cat: String(i.cat || i.categoria || 'Mercado').trim(),
         };
       })
       .filter(function (i) { return i.nome && i.valor > 0; });
