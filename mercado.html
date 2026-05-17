@@ -619,7 +619,12 @@
       </div>
 
       <div class="modal-field">
-        <label class="modal-label">Itens</label>
+        <label class="modal-label" for="listaMercadoAlvo">Onde Comprar <span style="font-weight:400;opacity:0.6;">(opcional)</span></label>
+        <input class="modal-input" type="text" id="listaMercadoAlvo" placeholder="Ex: Prezunic, Americanas..." autocomplete="off" maxlength="60" list="mercadosDatalist">
+      </div>
+
+      <div class="modal-field">
+        <label class="modal-label" style="display:flex;justify-content:space-between;align-items:center;"><span>Itens</span><button type="button" id="btnOrdenarLista" style="font-size:0.6875rem;padding:0.15rem 0.5rem;border:1px solid var(--input-border);border-radius:0.375rem;background:transparent;color:var(--text-sec);cursor:pointer;font-family:inherit;">↕ Ordenar</button></label>
         <div id="itensListaContainer"></div>
         <div class="add-item-row">
           <input type="text" id="novoItemListaNome" placeholder="Nome do item" maxlength="60">
@@ -780,6 +785,8 @@
       </div>
     </div>
   </div>
+
+  <datalist id="mercadosDatalist"></datalist>
 
   <!-- ═ Scripts ═══════════════════════════════════════════ -->
   <!-- Chart.js 4.4.1 via CDN -->

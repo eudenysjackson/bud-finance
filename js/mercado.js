@@ -213,6 +213,9 @@ function resetState() {
   _filtroForma  = '';
   if (_graficoDonutInst) { try { _graficoDonutInst.destroy(); } catch(e){} _graficoDonutInst = null; }
   _detalheCompraAtual = null;
+  _listaBusca = '';
+  _listasHistExpand = false;
+  _pendenteTotalGasto = 0;
   _unsubs.forEach(u => { try { u(); } catch(e){} });
   _unsubs = [];
 }
@@ -1128,9 +1131,10 @@ function abrirModalLista(lista) {
   document.getElementById('modalListaTitulo').textContent = lista ? 'Editar Lista' : 'Nova Lista';
   document.getElementById('listaId').value = lista?.id || '';
   document.getElementById('listaNome').value = lista?.nome || '';
+  document.getElementById('listaMercadoAlvo').value = lista?.mercadoAlvo || '';
   _itensLista = (lista?.itens || []).map(i => ({
     nome: i.nome || 'Item', preenchido: !!i.preenchido,
-    valor: Number(i.valor) || 0, cat: i.cat || inferirCategoriaItem(i.nome),
+    valor: Number(i.valor) || 0, qtd: Number(i.qtd) || 1, cat: i.cat || inferirCategoriaItem(i.nome),
   }));
   renderItensLista();
   document.getElementById('modalLista').classList.add('open');
@@ -1145,18 +1149,20 @@ function renderItensLista() {
   }
   cont.innerHTML = _itensLista.map((it, idx) => {
     const ultimoPreco = ultimoPrecoItem(it.nome);
+    const qtd = it.qtd || 1;
     return `
     <div class="item-row">
-      <div class="item-info">
+      <div class="item-info" style="flex:1;min-width:0;">
         <div class="item-nome">${escapeHTML(it.nome)}</div>
-        <div class="item-meta">${escapeHTML(it.cat)}${ultimoPreco > 0 ? ` · últ. ${formatBRL(ultimoPreco)}` : ''}</div>
+        <div class="item-meta">${escapeHTML(it.cat)}${ultimoPreco > 0 ? ` · últ. ${formatBRL(ultimoPreco)}${qtd > 1 ? ` ×${qtd}` : ''}` : ''}</div>
       </div>
+      <input type="number" data-idx="${idx}" data-action="qty" value="${qtd}" min="1" max="99" style="width:2.75rem;text-align:center;font-size:0.8125rem;border:1px solid var(--input-border);border-radius:0.375rem;background:transparent;color:var(--text-main);padding:0.125rem 0.25rem;margin-right:0.375rem;flex-shrink:0;">
       <button type="button" class="item-remove" data-idx="${idx}" aria-label="Remover">✕</button>
     </div>`;
   }).join('');
 
-  // Estimativa total
-  const estimativa = _itensLista.reduce((s, it) => s + ultimoPrecoItem(it.nome), 0);
+  // Estimativa total com qtd
+  const estimativa = _itensLista.reduce((s, it) => s + ultimoPrecoItem(it.nome) * (it.qtd || 1), 0);
   if (estimativa > 0) {
     const comPreco = _itensLista.filter(it => ultimoPrecoItem(it.nome) > 0).length;
     cont.innerHTML += `
@@ -1165,6 +1171,14 @@ function renderItensLista() {
       </div>`;
   }
 
+  cont.querySelectorAll('[data-action="qty"]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const i = +inp.getAttribute('data-idx');
+      _itensLista[i].qtd = Math.max(1, Math.min(99, parseInt(inp.value, 10) || 1));
+      inp.value = _itensLista[i].qtd;
+      renderItensLista();
+    });
+  });
   cont.querySelectorAll('.item-remove').forEach(btn => {
     btn.addEventListener('click', () => {
       _itensLista.splice(+btn.getAttribute('data-idx'), 1);
@@ -1182,6 +1196,7 @@ async function salvarLista() {
   if (_salvando) return;
   const id = document.getElementById('listaId').value;
   const nome = sanitize(document.getElementById('listaNome').value).slice(0, 60);
+  const mercadoAlvo = sanitize(document.getElementById('listaMercadoAlvo').value).slice(0, 60);
   if (!nome) { showToast('Informe o nome da lista', 'error'); return; }
   if (!_itensLista.length) { showToast('Adicione pelo menos 1 item', 'error'); return; }
 
@@ -1193,9 +1208,10 @@ async function salvarLista() {
       nome: sanitize(i.nome).slice(0, 60),
       preenchido: !!i.preenchido,
       valor: Number(i.valor) || 0,
+      qtd: Number(i.qtd) || 1,
       cat: i.cat || inferirCategoriaItem(i.nome),
     }));
-    const payload = { nome, itens: itensNorm, atualizadoEm: serverTimestamp() };
+    const payload = { nome, mercadoAlvo, itens: itensNorm, atualizadoEm: serverTimestamp() };
     if (id) {
       await updateDoc(doc(db, 'usuarios', currentUser.uid, 'listas-compras', id), payload);
       showToast('Lista atualizada', 'success');
@@ -1217,44 +1233,75 @@ async function salvarLista() {
 
 // ─── Render Aba Listas ───────────────────────────────────────────
 function renderListas() {
-  const ativas = listasCache.filter(l => l.status !== 'concluida');
-  const conc   = listasCache.filter(l => l.status === 'concluida').slice(0, 10);
+  atualizarMercadosDatalist();
+
+  const todasAtivas = listasCache.filter(l => l.status !== 'concluida');
+  const concAll     = listasCache.filter(l => l.status === 'concluida');
+  const busca = _listaBusca.toLowerCase();
+  const ativas = busca
+    ? todasAtivas.filter(l =>
+        l.nome.toLowerCase().includes(busca) ||
+        (l.mercadoAlvo || '').toLowerCase().includes(busca) ||
+        (l.itens || []).some(i => i.nome.toLowerCase().includes(busca)))
+    : todasAtivas;
+  const conc = _listasHistExpand ? concAll : concAll.slice(0, 10);
 
   function htmlLista(l) {
     const itens = l.itens || [];
     const total = itens.length;
     const feitos = itens.filter(i => i.preenchido).length;
-    const pct = total ? Math.round((feitos/total)*100) : 0;
+    const pct = total ? Math.round((feitos / total) * 100) : 0;
     const concluida = l.status === 'concluida';
+    const semPreco = itens.filter(i => ultimoPrecoItem(i.nome) === 0).length;
+    const estimAtiva = !concluida
+      ? itens.reduce((s, i) => s + ultimoPrecoItem(i.nome) * (i.qtd || 1), 0)
+      : 0;
     return `
       <div class="lista-card${concluida ? ' concluida' : ''}" data-lista-id="${escapeHTML(l.id)}">
         <div class="lista-header">
-          <div>
-            <div class="lista-title">${escapeHTML(l.nome)}</div>
-            <div class="lista-meta">${total} itens · ${feitos} preenchidos${concluida ? ' · ✅ concluída' : ''}</div>
+          <div style="min-width:0;flex:1;">
+            <div class="lista-title">${escapeHTML(l.nome)}${semPreco > 0 && !concluida ? ` <span style="font-size:0.7rem;color:#d97706;" title="${semPreco} item(ns) sem preço histórico">⚠️ ${semPreco}</span>` : ''}</div>
+            <div class="lista-meta">
+              ${total} itens · ${feitos} preenchidos${concluida ? ' · ✅ concluída' : ''}${l.mercadoAlvo ? ` · 📍 ${escapeHTML(l.mercadoAlvo)}` : ''}
+            </div>
+            ${concluida && l.totalGasto ? `<div class="lista-meta" style="color:#16a34a;font-weight:700;">💰 Gasto real: ${formatBRL(l.totalGasto)}</div>` : ''}
+            ${estimAtiva > 0 ? `<div class="lista-meta" style="color:var(--text-sec);">💡 Estimativa: ${formatBRL(estimAtiva)}</div>` : ''}
           </div>
         </div>
         ${concluida ? '' : `<div class="lista-progress"><div class="lista-progress-bar" style="width:${pct}%;"></div></div>`}
         <div class="lista-actions">
           ${concluida
-            ? `<button class="lista-action-btn" data-action="edit">Ver itens</button>`
+            ? `<button class="lista-action-btn" data-action="edit">Ver itens</button>
+               <button class="lista-action-btn" data-action="reabrir">Reabrir</button>`
             : `<button class="lista-action-btn primary" data-action="modo">🛒 Modo Compras</button>
                <button class="lista-action-btn" data-action="edit">Editar</button>`}
+          <button class="lista-action-btn" data-action="dup">Duplicar</button>
           <button class="lista-action-btn danger" data-action="del">Excluir</button>
         </div>
       </div>`;
   }
 
-  document.getElementById('listasAtivas').innerHTML = ativas.length
+  // Campo de busca (só aparece com 3+ listas ativas)
+  const buscaHtml = todasAtivas.length >= 3
+    ? `<div style="margin-bottom:0.75rem;"><input type="text" id="listaBuscaInput" value="${escapeHTML(_listaBusca)}" placeholder="🔍 Buscar lista ou item..." style="width:100%;padding:0.5rem 0.75rem;border:1px solid var(--input-border);border-radius:0.625rem;background:var(--input-bg);color:var(--text-main);font-size:0.875rem;font-family:inherit;box-sizing:border-box;"></div>`
+    : '';
+
+  document.getElementById('listasAtivas').innerHTML = buscaHtml + (ativas.length
     ? ativas.map(htmlLista).join('')
     : `<div class="empty-state"><div class="empty-state-icon">📝</div>
-        <div class="empty-state-title">Nenhuma lista ativa</div>
-        <div class="empty-state-sub">Crie uma lista para organizar suas próximas compras</div></div>`;
+        <div class="empty-state-title">${busca ? 'Nenhuma lista encontrada' : 'Nenhuma lista ativa'}</div>
+        <div class="empty-state-sub">${busca ? 'Tente outro termo' : 'Crie uma lista para organizar suas próximas compras'}</div></div>`);
+
+  // Botão "Ver todas"
+  const verTodasBtn = !_listasHistExpand && concAll.length > 10
+    ? `<button id="btnVerTodasConc" style="width:100%;margin-top:0.5rem;padding:0.5rem;border:1px dashed var(--input-border);border-radius:0.625rem;background:transparent;color:var(--text-sec);font-size:0.8125rem;cursor:pointer;font-family:inherit;">Ver todas (${concAll.length})</button>`
+    : '';
 
   document.getElementById('listasConcluidas').innerHTML = conc.length
-    ? conc.map(htmlLista).join('')
+    ? conc.map(htmlLista).join('') + verTodasBtn
     : `<div class="empty-state" style="padding:1.5rem 1rem;"><div class="empty-state-sub">Nenhuma lista concluída ainda</div></div>`;
 
+  // Event listeners
   document.querySelectorAll('.lista-card').forEach(card => {
     const id = card.getAttribute('data-lista-id');
     const lista = listasCache.find(l => l.id === id);
@@ -1262,6 +1309,18 @@ function renderListas() {
     card.querySelector('[data-action="edit"]')?.addEventListener('click', () => abrirModalLista(lista));
     card.querySelector('[data-action="modo"]')?.addEventListener('click', () => abrirModoCompras(lista));
     card.querySelector('[data-action="del"]')?.addEventListener('click', () => confirmarExcluirLista(lista));
+    card.querySelector('[data-action="dup"]')?.addEventListener('click', () => duplicarLista(lista));
+    card.querySelector('[data-action="reabrir"]')?.addEventListener('click', () => reabrirLista(lista));
+  });
+
+  document.getElementById('listaBuscaInput')?.addEventListener('input', (e) => {
+    _listaBusca = e.target.value;
+    renderListas();
+  });
+
+  document.getElementById('btnVerTodasConc')?.addEventListener('click', () => {
+    _listasHistExpand = true;
+    renderListas();
   });
 }
 
@@ -1295,8 +1354,47 @@ async function confirmarExcluirLista(lista) {
   };
 }
 
-// ─── Modo Compras ────────────────────────────────────────────────
-function abrirModoCompras(lista) {
+// ─── Duplicar / Reabrir / Ordenar / Datalist ─────────────────────
+async function duplicarLista(lista) {
+  try {
+    const payload = {
+      nome: `Cópia de ${lista.nome}`.slice(0, 60),
+      mercadoAlvo: lista.mercadoAlvo || '',
+      itens: (lista.itens || []).map(i => ({
+        nome: i.nome, preenchido: false, valor: 0, qtd: i.qtd || 1, cat: i.cat,
+      })),
+      status: 'ativa',
+      criadoEm: serverTimestamp(),
+      atualizadoEm: serverTimestamp(),
+    };
+    await addDoc(collection(db, 'usuarios', currentUser.uid, 'listas-compras'), payload);
+    showToast('Lista duplicada', 'success');
+  } catch (e) { error('duplicarLista', e); showToast('Erro ao duplicar', 'error'); }
+}
+
+async function reabrirLista(lista) {
+  try {
+    await updateDoc(doc(db, 'usuarios', currentUser.uid, 'listas-compras', lista.id), {
+      status: 'ativa',
+      atualizadoEm: serverTimestamp(),
+    });
+    showToast('Lista reaberta', 'success');
+  } catch (e) { error('reabrirLista', e); showToast('Erro ao reabrir', 'error'); }
+}
+
+function ordenarItensPorCategoria() {
+  _itensLista.sort((a, b) => (a.cat || 'Outros').localeCompare(b.cat || 'Outros'));
+  renderItensLista();
+}
+
+function atualizarMercadosDatalist() {
+  const dl = document.getElementById('mercadosDatalist');
+  if (!dl) return;
+  const mercados = [...new Set(comprasCache.map(c => c.mercado).filter(Boolean))].sort();
+  dl.innerHTML = mercados.map(m => `<option value="${escapeHTML(m)}">`).join('');
+}
+
+// ─── Modo Compras ────────────────────────────────────────────────function abrirModoCompras(lista) {
   _modoListaId = lista.id;
   _modoItens = (lista.itens || []).map(i => ({
     nome: i.nome,
@@ -1439,6 +1537,7 @@ async function finalizarModoCompras() {
   // Solução simples: armazena id pendente e o handler de salvar trata.
   document.getElementById('compraId').value = '';   // garante CRIAR (não editar)
   _pendenteConcluirListaId = listaIdParaConcluir;
+  _pendenteTotalGasto = itensComValor.reduce((s, i) => s + Number(i.valor), 0);
 }
 let _pendenteConcluirListaId = null;
 
@@ -1448,6 +1547,9 @@ let _filtroMes    = '';   // 'YYYY-MM' ou '' (todos)
 let _filtroForma  = '';   // forma de pagamento ou '' (todas)
 let _graficoDonutInst = null;  // instância Chart.js
 let _detalheCompraAtual = null;
+let _listaBusca = '';
+let _listasHistExpand = false;
+let _pendenteTotalGasto = 0;
 
 // ─── Carteira / cartões para chips de pagamento (BUG 13) ─────────
 async function carregarCartoes() {
@@ -1528,9 +1630,11 @@ function wireUp() {
         await updateDoc(doc(db, 'usuarios', currentUser.uid, 'listas-compras', _pendenteConcluirListaId), {
           status: 'concluida',
           concluidaEm: serverTimestamp(),
+          ...(_pendenteTotalGasto > 0 ? { totalGasto: _pendenteTotalGasto } : {}),
         });
       } catch (e) { warn('concluir lista', e); }
       _pendenteConcluirListaId = null;
+      _pendenteTotalGasto = 0;
     }
   });
   document.getElementById('compraData').addEventListener('input', (e) => aplicarMascaraData(e.target));
@@ -1573,6 +1677,9 @@ function wireUp() {
   document.getElementById('modalDetalheCompra').addEventListener('click', (e) => {
     if (e.target.id === 'modalDetalheCompra') fecharDetalhe();
   });
+
+  // Ordenar itens da lista por categoria
+  document.getElementById('btnOrdenarLista').addEventListener('click', ordenarItensPorCategoria);
 }
 
 function adicionarItemCompra() {
@@ -1591,7 +1698,7 @@ function adicionarItemLista() {
   const inp = document.getElementById('novoItemListaNome');
   const nome = sanitize(inp.value).slice(0, 60);
   if (!nome) { inp.focus(); return; }
-  _itensLista.push({ nome, preenchido: false, valor: 0, cat: inferirCategoriaItem(nome) });
+  _itensLista.push({ nome, preenchido: false, valor: 0, qtd: 1, cat: inferirCategoriaItem(nome) });
   inp.value = '';
   renderItensLista();
   inp.focus();
