@@ -1494,7 +1494,7 @@ async function pdfParaImagens(file) {
   const maxPages = Math.min(pdf.numPages, 3); // máx 3 páginas = 3 arquivos
   for (let p = 1; p <= maxPages; p++) {
     const page = await pdf.getPage(p);
-    const viewport = page.getViewport({ scale: 2.0 });
+    const viewport = page.getViewport({ scale: 3.0 }); // maior resolução → melhor OCR
     const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
     canvas.height = viewport.height;
