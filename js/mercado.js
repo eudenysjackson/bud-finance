@@ -1394,7 +1394,8 @@ function atualizarMercadosDatalist() {
   dl.innerHTML = mercados.map(m => `<option value="${escapeHTML(m)}">`).join('');
 }
 
-// ─── Modo Compras ────────────────────────────────────────────────function abrirModoCompras(lista) {
+// ─── Modo Compras ────────────────────────────────────────────────
+function abrirModoCompras(lista) {
   _modoListaId = lista.id;
   _modoItens = (lista.itens || []).map(i => ({
     nome: i.nome,
