@@ -1485,6 +1485,26 @@ function renderThumbsIA() {
   }
 }
 
+// ─── Converte páginas de um PDF em blobs JPEG (usa PDF.js do CDN) ───
+async function pdfParaImagens(file) {
+  if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js não carregado.');
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const blobs = [];
+  const maxPages = Math.min(pdf.numPages, 3); // máx 3 páginas = 3 arquivos
+  for (let p = 1; p <= maxPages; p++) {
+    const page = await pdf.getPage(p);
+    const viewport = page.getViewport({ scale: 2.0 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.92));
+    blobs.push(blob);
+  }
+  return blobs;
+}
+
 // ─── Envio para backend ──────────────────────────────────────────
 async function enviarParaIA() {
   if (restanteIA() === 0) {
@@ -1520,8 +1540,20 @@ async function enviarParaIA() {
       });
     } else {
       const fd = new FormData();
-      _iaArquivos.forEach(a => fd.append('arquivos', a.file));
-      progText.textContent = _iaArquivos.length > 1 ? `Analisando ${_iaArquivos.length} imagens…` : 'Analisando imagem…';
+      // PDFs escaneados: converte páginas para JPEG no browser antes de enviar
+      let arquivosParaEnviar = [];
+      for (const a of _iaArquivos) {
+        if (a.file.type === 'application/pdf') {
+          progText.textContent = 'Convertendo PDF em imagem…';
+          progBar.style.width = '20%';
+          const imgs = await pdfParaImagens(a.file);
+          imgs.forEach((blob, i) => arquivosParaEnviar.push(new File([blob], `pagina${i+1}.jpg`, { type: 'image/jpeg' })));
+        } else {
+          arquivosParaEnviar.push(a.file);
+        }
+      }
+      arquivosParaEnviar.forEach(f => fd.append('arquivos', f));
+      progText.textContent = arquivosParaEnviar.length > 1 ? `Analisando ${arquivosParaEnviar.length} imagens…` : 'Analisando imagem…';
       progBar.style.width = '40%';
       resp = await fetch(`${BUD_BACKEND_URL}/api/extrair-cupom`, {
         method: 'POST', body: fd, signal: ctrl.signal,
