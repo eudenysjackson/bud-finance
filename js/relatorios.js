@@ -37,6 +37,7 @@ const db   = (() => { try { return initializeFirestore(app, { localCache: persis
 // ─── Estado ───────────────────────────────────────────────────────────────
 let currentUser    = null;
 let transacoes     = [];           // cache dos últimos 6 meses
+let dividas        = [];           // cache das dívidas ativas
 let dataFiltro     = (() => { const d = new Date(); d.setDate(1); return d; })();
 let anoSeletor     = dataFiltro.getFullYear();
 let valoresOcultos = false;
@@ -330,11 +331,13 @@ async function buscarERenderi() {
       where('dataReferencia', '<=', limiteSup),
       orderBy('dataReferencia', 'asc'),
     );
-    const snap = await getDocs(q);
+    const qDiv = query(collection(db, 'usuarios', currentUser.uid, 'dividas'));
+    const [snap, snapDiv] = await Promise.all([getDocs(q), getDocs(qDiv)]);
     transacoes = snap.docs.map(d => {
       const data = d.data();
       return { ...data, id: d.id, dataReferencia: normalizarData(data.dataReferencia) };
     });
+    dividas = snapDiv.docs.map(d => ({ id: d.id, ...d.data() }));
     _dadosDirty = true;
     renderTudo();
   } catch (e) {
@@ -451,9 +454,21 @@ function renderResumo() {
   if (comprEl) {
     if (totalRec > 0) {
       const comprPct = (totalDep / totalRec) * 100;
+      // Soma comprometimento com parcelas de dívidas ativas
+      const ativasDividas = dividas.filter(d => {
+        const restantes = Math.max(0, (d.parcelas || 0) - (d.parcelasPagas || 0));
+        return restantes > 0 && (d.valorParcela || 0) > 0;
+      });
+      const comprParcelas = ativasDividas.reduce((s, d) => s + (d.valorParcela || 0), 0);
+      const comprParcelasPct = (comprParcelas / totalRec) * 100;
       comprEl.style.display = '';
-      comprEl.textContent = `⚠️ ${comprPct.toFixed(0)}% da renda comprometida`;
-      comprEl.style.color = comprPct >= 90 ? '#dc2626' : comprPct >= 70 ? '#d97706' : '#16a34a';
+      let msg = `⚠️ ${comprPct.toFixed(0)}% da renda comprometida com gastos`;
+      if (comprParcelas > 0) {
+        msg += ` + ${comprParcelasPct.toFixed(0)}% com parcelas de dívidas`;
+      }
+      comprEl.textContent = msg;
+      const totalCompr = comprPct + comprParcelasPct;
+      comprEl.style.color = totalCompr >= 90 ? '#dc2626' : totalCompr >= 70 ? '#d97706' : '#16a34a';
     } else {
       comprEl.style.display = 'none';
     }
@@ -781,6 +796,23 @@ function renderInsight(rec, dep, saldo, porCategoria) {
   if (!msg && rec > 0 && saldo > rec * 0.3) {
     emoji = '🎉';
     msg   = `Ótimo mês! Você poupou <strong>${((saldo / rec) * 100).toFixed(0)}%</strong> da sua receita.`;
+  }
+
+  // Verifica comprometimento total (gastos + parcelas dívidas)
+  if (!msg && rec > 0 && dividas.length > 0) {
+    const ativas = dividas.filter(d => Math.max(0, (d.parcelas||0) - (d.parcelasPagas||0)) > 0 && (d.valorParcela||0) > 0);
+    if (ativas.length > 0) {
+      const comprParcelas = ativas.reduce((s, d) => s + (d.valorParcela || 0), 0);
+      const totalCompr = dep + comprParcelas;
+      const pctCompr = (totalCompr / rec) * 100;
+      if (pctCompr >= 90) {
+        emoji = '🔴';
+        msg = `Atenção! Seus gastos + parcelas de dívidas comprometem <strong>${pctCompr.toFixed(0)}%</strong> da sua renda (${fmt(comprParcelas)}/mês em parcelas).`;
+      } else if (pctCompr >= 70) {
+        emoji = '🟡';
+        msg = `Suas parcelas de dívidas representam <strong>${fmt(comprParcelas)}/mês</strong>. Somado aos gastos, compromete <strong>${pctCompr.toFixed(0)}%</strong> da renda.`;
+      }
+    }
   }
 
   if (!msg) { el.style.display = 'none'; return; }

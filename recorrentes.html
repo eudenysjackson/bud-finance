@@ -205,10 +205,21 @@
       .cards-grid{grid-template-columns:1fr;}
       .rec-card{flex-wrap:wrap;}
       .rec-valor{font-size:0.9375rem;}
+      .rec-actions{width:100%;justify-content:flex-end;}
       .modal-grid2{grid-template-columns:1fr;}
     }
     @media(min-width:769px){.sidebar-collapse-btn{display:flex;}}
     @media(min-width:769px) and (max-width:1024px){.cards-grid{grid-template-columns:repeat(2,1fr);}}
+    /* ── Filtro chips ───────────────────────────────────── */
+    .rec-chip{padding:0.25rem 0.625rem;border-radius:9999px;font-size:0.75rem;font-weight:700;cursor:pointer;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--text-sec);font-family:inherit;transition:all .15s;white-space:nowrap;}
+    .rec-chip.active{background:rgba(37,99,235,0.1);color:#2563eb;border-color:#93c5fd;}
+    .rec-chip:hover:not(.active){background:var(--sidebar-link-hover-bg);}
+    .rec-card-urgente{border-color:rgba(245,158,11,0.55) !important;}
+    /* Scrollbar: não vaza além do border-radius do modal */
+    .modal-card::-webkit-scrollbar{width:6px;}
+    .modal-card::-webkit-scrollbar-track{background:transparent;margin-top:1.5rem;margin-bottom:1.5rem;}
+    .modal-card::-webkit-scrollbar-thumb{background:rgba(100,116,139,0.25);border-radius:999px;}
+    .modal-card::-webkit-scrollbar-thumb:hover{background:rgba(100,116,139,0.45);}
   </style>
 </head>
 <body>
@@ -308,7 +319,7 @@
             <p>Despesas e receitas automáticas</p>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:0.5rem;">
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;">
           <button id="btnProcessarHoje" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:var(--card-bg);border:1px solid var(--card-border);color:var(--card-text);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .2s;" title="Processar contas que vencem hoje">
             <span>⚙️</span><span>Processar Hoje</span>
           </button>
@@ -360,12 +371,37 @@
             <div class="card-value" id="cardReceitas" style="color:#16a34a;">R$ 0,00</div>
             <div class="card-sub">estimativa mensal</div>
           </div>
+          <div class="summary-card">
+            <div class="card-header">
+              <span class="card-label">Saldo Líquido</span>
+              <div class="card-icon card-icon-purple">⚖️</div>
+            </div>
+            <div class="card-value" id="cardSaldo" style="color:#16a34a;">R$ 0,00</div>
+            <div class="card-sub" id="cardSaldoSub">saldo positivo mensal</div>
+          </div>
         </div>
 
         <!-- Lista de recorrentes -->
         <div class="section-card">
-          <div class="section-header">
-            <span class="section-title">Suas Recorrentes</span>
+          <div class="section-header" style="flex-direction:column;align-items:flex-start;gap:0.625rem;">
+            <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+              <span class="section-title">Suas Recorrentes</span>
+              <span id="recContagem" style="font-size:0.75rem;font-weight:600;color:var(--text-sec);white-space:nowrap;"></span>
+            </div>
+            <input type="text" id="recBusca" placeholder="🔍 Buscar por descrição ou categoria..." style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid var(--input-border);border-radius:0.625rem;font-size:0.8125rem;font-weight:600;color:var(--card-text);background:var(--input-bg);font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .2s;">
+            <div style="display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap;">
+              <button class="rec-chip active" id="rct-todos" onclick="window.recFiltroTipo('todos')">Todos</button>
+              <button class="rec-chip" id="rct-despesa" onclick="window.recFiltroTipo('despesa')">↓ Despesas</button>
+              <button class="rec-chip" id="rct-receita" onclick="window.recFiltroTipo('receita')">↑ Receitas</button>
+              <span style="width:1px;height:0.875rem;background:var(--card-border);display:inline-block;margin:0 0.1rem;flex-shrink:0;"></span>
+              <button class="rec-chip active" id="rcs-todas" onclick="window.recFiltroStatus('todas')">Todas</button>
+              <button class="rec-chip" id="rcs-ativas" onclick="window.recFiltroStatus('ativas')">Ativas</button>
+              <button class="rec-chip" id="rcs-pausadas" onclick="window.recFiltroStatus('pausadas')">Pausadas</button>
+              <span style="width:1px;height:0.875rem;background:var(--card-border);display:inline-block;margin:0 0.1rem;flex-shrink:0;"></span>
+              <button class="rec-chip active" id="rco-nome" onclick="window.recOrdem('nome')">A→Z</button>
+              <button class="rec-chip" id="rco-valor" onclick="window.recOrdem('valor')">Maior valor</button>
+              <button class="rec-chip" id="rco-proxima" onclick="window.recOrdem('proxima')">Próx. data</button>
+            </div>
           </div>
           <div id="listaRecorrentes">
             <!-- populado por JS -->
@@ -417,18 +453,20 @@
         <input type="hidden" id="recCategoria">
       </div>
 
-      <!-- Grid: Forma de Pagamento + Periodicidade -->
+      <!-- Grid: Conta/Cartão + Periodicidade -->
       <div class="modal-grid2">
         <div class="modal-field" style="margin-bottom:0;">
-          <label class="modal-label">Forma de Pagamento</label>
-          <div class="custom-select" id="csForma">
-            <div class="custom-select-trigger" id="csFormaTrigger" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false">
-              <span id="csFormaLabel">Selecione…</span>
+          <label class="modal-label">Conta / Cartão</label>
+          <div class="custom-select" id="csConta">
+            <div class="custom-select-trigger" id="csContaTrigger" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false">
+              <span id="csContaLabel">Selecione…</span>
               <span class="custom-select-chevron">▾</span>
             </div>
-            <div class="custom-select-dropdown" id="csFormaDropdown" role="listbox"></div>
+            <div class="custom-select-dropdown" id="csContaDropdown" role="listbox"></div>
           </div>
-          <input type="hidden" id="recForma">
+          <input type="hidden" id="recContaId">
+          <input type="hidden" id="recContaNome">
+          <input type="hidden" id="recContaTipo">
         </div>
         <div class="modal-field" style="margin-bottom:0;">
           <label class="modal-label">Periodicidade</label>
@@ -449,18 +487,10 @@
         <input class="modal-input" type="number" id="recDia" min="1" max="31" value="1" placeholder="1">
       </div>
 
-      <!-- Cartão de crédito (só quando forma = Crédito) -->
-      <div class="modal-field" id="fieldCartao" style="display:none;margin-top:1rem;">
-        <label class="modal-label">Cartão de Crédito</label>
-        <div class="custom-select" id="csCartao">
-          <div class="custom-select-trigger" id="csCartaoTrigger" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false">
-            <span id="csCartaoLabel">Selecione o cartão…</span>
-            <span class="custom-select-chevron">▾</span>
-          </div>
-          <div class="custom-select-dropdown" id="csCartaoDropdown" role="listbox"></div>
-        </div>
-        <input type="hidden" id="recCartaoId">
-        <input type="hidden" id="recCartaoNome">
+      <!-- Observação (opcional) -->
+      <div class="modal-field" style="margin-top:1rem;">
+        <label class="modal-label" for="recObservacao">Observação <span style="font-weight:500;text-transform:none;letter-spacing:0;font-size:0.6875rem;">(opcional)</span></label>
+        <textarea class="modal-input" id="recObservacao" placeholder="Ex: Parcela 2/12, renovação automática, contrato nº 123…" rows="2" style="resize:none;height:3.5rem;"></textarea>
       </div>
 
       <!-- Botões -->

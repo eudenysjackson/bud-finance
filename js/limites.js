@@ -51,6 +51,7 @@ const PLANOS_COPIAR = ['plus', 'pro', 'trial'];
 let _salvando       = false;
 let _catSelecionada = '';   // nome da categoria selecionada no dropdown
 let _tipoLimite     = 'valor'; // 'valor' | 'percentual'
+let _filtroLimitesStatus = 'todos'; // 'todos' | 'estourado' | 'alerta' | 'normal'
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 // escapeHTML: precisa escapar TODAS as aspas (budSanitize() apenas remove tags).
@@ -127,6 +128,9 @@ function getListaCategorias() {
 function renderizar() {
   document.getElementById('navMesAno').textContent = getMesLabel();
 
+  // Atualizar chips de filtro
+  document.querySelectorAll('[id^="lfl-"]').forEach(b => b.classList.toggle('active', b.id === 'lfl-' + _filtroLimitesStatus));
+
   // BUG 15: desabilitar botão próximo se estiver no limite (+12 meses)
   const hoje  = new Date();
   const diffM = (anoVisualizado - hoje.getFullYear()) * 12 + (mesVisualizado - hoje.getMonth());
@@ -199,6 +203,16 @@ function renderizar() {
     const pctA  = efA > 0 ? gastoA / efA : 0;
     const pctB  = efB > 0 ? gastoB / efB : 0;
     return pctB - pctA;
+  }).filter(l => {
+    if (_filtroLimitesStatus === 'todos') return true;
+    const ef    = getLimiteEfetivo(l);
+    const gasto = gastosPorCat[normalizeCategoria(l.categoria)] || 0;
+    const pct   = (ef !== null && ef > 0) ? (gasto / ef) * 100 : 0;
+    const semR  = l.tipoLimite === 'percentual' && ef === null;
+    if (_filtroLimitesStatus === 'estourado') return !semR && pct > 100;
+    if (_filtroLimitesStatus === 'alerta')    return !semR && pct >= 80 && pct <= 100;
+    if (_filtroLimitesStatus === 'normal')    return semR || pct < 80;
+    return true;
   });
 
   ordenados.forEach((l, idx) => {
@@ -226,10 +240,9 @@ function renderizar() {
     const catObj = lista_cats.find(c => normalizeCategoria(c.nome) === normalizeCategoria(l.categoria));
     const emoji  = catObj?.emoji || '🏷️';
 
-    // Sub-info do tipo
-    const tipoInfo = l.tipoLimite === 'percentual'
-      ? `${l.percentual}% da receita`
-      : 'valor fixo';
+    // Sub-info do tipo + valor faltante
+    const faltante = (!semReceita && ef !== null && gasto < ef) ? ' · faltam ' + formatMoeda(ef - gasto) : '';
+    const tipoInfo = (l.tipoLimite === 'percentual' ? `${l.percentual}% da receita` : 'valor fixo') + faltante;
 
     const item = document.createElement('div');
     item.style.cssText = `background:var(--input-bg);border:1.5px solid ${estourado ? 'rgba(252,165,165,0.5)' : 'transparent'};border-radius:1rem;padding:1rem;margin-bottom:0.5rem;animation:fadeInUp .3s ease both;animation-delay:${idx * 0.04}s;`;
@@ -260,7 +273,7 @@ function renderizar() {
       </div>
       <!-- Barra de progresso -->
       <div style="display:flex;align-items:center;gap:0.5rem;">
-        <div style="flex:1;height:7px;background:var(--card-border);border-radius:999px;overflow:hidden;">
+        <div style="flex:1;height:8px;background:var(--card-border);border-radius:999px;overflow:hidden;">
           ${semReceita
             ? '<div style="height:100%;border-radius:999px;background:var(--input-border);width:100%;"></div>'
             : `<div style="height:100%;border-radius:999px;background:${barColor};width:${barWidth}%;transition:width .5s ease;"></div>`
@@ -279,6 +292,64 @@ function renderizar() {
 
     lista.appendChild(item);
   });
+
+  // ── Categorias com gasto mas sem limite ────────────────────────────────────
+  const secSemLimite = document.getElementById('listaSemLimite');
+  if (secSemLimite) {
+    const catsComLimite = new Set(limites.map(l => normalizeCategoria(l.categoria)));
+    const semLimite = Object.entries(gastosPorCat)
+      .filter(([cat, gasto]) => gasto > 0.01 && !catsComLimite.has(cat))
+      .sort((a, b) => b[1] - a[1]);
+
+    if (semLimite.length === 0) {
+      secSemLimite.innerHTML = '';
+    } else {
+      const listaCats = getListaCategorias();
+      const catMap = Object.fromEntries(listaCats.map(c => [normalizeCategoria(c.nome), c]));
+      secSemLimite.innerHTML = '';
+
+      const header = document.createElement('div');
+      header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;cursor:pointer;padding:0.375rem 0;';
+      header.innerHTML = `
+        <span style="font-size:0.75rem;font-weight:800;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.05em;">Sem limite definido (${semLimite.length})</span>
+        <span id="toggleSemLimite" style="font-size:0.75rem;color:var(--text-sec);">&#9660;</span>
+      `;
+
+      const body = document.createElement('div');
+      body.id = 'bodySemLimite';
+      body.style.display = 'none';
+
+      semLimite.forEach(([cat, gasto]) => {
+        const catObj = catMap[cat];
+        const emoji  = catObj?.emoji || '🏷️';
+        const nome   = catObj?.nome  || cat;
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0.75rem;border-radius:0.75rem;background:var(--input-bg);margin-bottom:0.25rem;';
+        row.innerHTML = `
+          <span style="font-size:0.8125rem;font-weight:600;color:var(--card-text);">${emoji} ${escapeHTML(nome)}</span>
+          <div style="display:flex;align-items:center;gap:0.625rem;">
+            <span style="font-size:0.8125rem;font-weight:700;color:var(--card-text);">${formatMoeda(gasto)}</span>
+            <button data-cat="${escapeHTML(nome)}" style="padding:0.25rem 0.625rem;border-radius:0.5rem;border:1.5px solid #93c5fd;background:rgba(37,99,235,0.06);color:#2563eb;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">+ Definir limite</button>
+          </div>
+        `;
+        row.querySelector('[data-cat]').addEventListener('click', () => {
+          window.abrirModalLimite({ categoria: nome });
+        });
+        body.appendChild(row);
+      });
+
+      let expandido = false;
+      header.addEventListener('click', () => {
+        expandido = !expandido;
+        body.style.display = expandido ? '' : 'none';
+        const tog = document.getElementById('toggleSemLimite');
+        if (tog) tog.innerHTML = expandido ? '&#9650;' : '&#9660;';
+      });
+
+      secSemLimite.appendChild(header);
+      secSemLimite.appendChild(body);
+    }
+  }
 }
 
 // ─── Modal ─────────────────────────────────────────────────────────────────
@@ -299,6 +370,7 @@ window.abrirModalLimite = function(l) {
 
   window._setTipoLimite(_tipoLimite);
   renderCatDropdown('');
+  updateHintGasto();
   document.getElementById('modalLimite').classList.add('open');
 };
 
@@ -333,6 +405,26 @@ window._updateHintPerc = function() {
   } else {
     hint.textContent = '';
   }
+};
+
+// ─── Hint: gasto atual da categoria selecionada ────────────────────────────────
+function updateHintGasto() {
+  const hint = document.getElementById('hintGastoAtual');
+  if (!hint) return;
+  if (!_catSelecionada) { hint.style.display = 'none'; return; }
+  const gastoAtual = getGastosPorCat()[normalizeCategoria(_catSelecionada)] || 0;
+  if (gastoAtual > 0.009) {
+    hint.textContent = '📊 Gasto atual neste mês: ' + formatMoeda(gastoAtual);
+    hint.style.display = '';
+  } else {
+    hint.style.display = 'none';
+  }
+}
+
+window._filtrarLimites = function(status) {
+  _filtroLimitesStatus = status;
+  document.querySelectorAll('[id^="lfl-"]').forEach(b => b.classList.toggle('active', b.id === 'lfl-' + status));
+  renderizar();
 };
 
 // ─── Dropdown de categorias ────────────────────────────────────────────────
@@ -373,6 +465,7 @@ function renderCatDropdown(filtro) {
       document.getElementById('catSelectDropdown').classList.remove('open');
       document.getElementById('catSelectTrigger').classList.remove('open');
       document.getElementById('errCategoria').style.display = 'none';
+      updateHintGasto();
     });
     container.appendChild(item);
   });

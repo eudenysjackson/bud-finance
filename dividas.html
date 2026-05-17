@@ -97,7 +97,7 @@
     .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:40;}
 
     /* ── Cards resumo (4 colunas) ───────────────────────── */
-    .cards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;}
+    .cards-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.5rem;}
     .summary-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);transition:background 0.35s ease,border-color 0.35s ease,transform .2s,box-shadow .2s;}
     .summary-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px -5px rgba(0,0,0,0.1);}
     .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;}
@@ -106,6 +106,19 @@
     .card-icon-blue{background:#eff6ff;color:#2563eb;} .card-icon-green{background:#f0fdf4;color:#16a34a;} .card-icon-red{background:#fef2f2;color:#dc2626;} .card-icon-purple{background:#faf5ff;color:#7c3aed;} .card-icon-amber{background:#fffbeb;color:#d97706;}
     .card-value{font-size:1.5rem;font-weight:800;color:var(--card-text);letter-spacing:-0.025em;transition:color 0.35s ease;}
     .card-sub{font-size:0.75rem;font-weight:500;color:var(--card-text-sec);margin-top:0.25rem;transition:color 0.35s ease;}
+
+    /* ── Custom Select (padrão IDV) ──────────────────── */
+    .custom-select{position:relative;}
+    .custom-select-trigger{display:flex;align-items:center;justify-content:space-between;padding:0.3125rem 0.625rem;border:1px solid var(--input-border);border-radius:0.5rem;background:var(--card-bg);color:var(--text-sec);font-size:0.6875rem;font-weight:700;cursor:pointer;user-select:none;font-family:inherit;transition:border-color .2s;white-space:nowrap;}
+    .custom-select-trigger.open{border-color:#3b82f6;}
+    .custom-select-chevron{flex-shrink:0;margin-left:0.375rem;transition:transform .2s;}
+    .custom-select-trigger.open .custom-select-chevron{transform:rotate(180deg);}
+    .custom-select-dropdown{display:none;position:absolute;top:calc(100% + 4px);right:0;min-width:160px;background:var(--bg-page);border:1.5px solid var(--card-border);border-radius:0.75rem;box-shadow:0 8px 24px rgba(0,0,0,0.14);z-index:200;overflow:hidden;}
+    .custom-select-dropdown.open{display:block;}
+    .custom-select-dropdown.open-up{top:auto;bottom:calc(100% + 4px);box-shadow:0 -8px 24px rgba(0,0,0,0.14);}
+    .custom-select-option{padding:0.5rem 0.875rem;font-size:0.8125rem;font-weight:500;color:var(--text-main);cursor:pointer;transition:background .12s;font-family:inherit;}
+    .custom-select-option:hover{background:var(--sidebar-link-hover-bg);}
+    .custom-select-option.selected{background:#eff6ff;color:#2563eb;font-weight:700;}
 
     /* ── Section card ───────────────────────────────────── */
     .section-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.5rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);margin-bottom:1rem;transition:background 0.35s ease,border-color 0.35s ease;}
@@ -119,7 +132,10 @@
     /* ── Modal ──────────────────────────────────────────── */
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:80;align-items:center;justify-content:center;padding:1rem;}
     .modal-overlay.open{display:flex;}
-    .modal-card{background:var(--bg-page);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.75rem;width:100%;max-width:440px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.2);animation:modal-in .25s ease;max-height:90vh;overflow-y:auto;}
+    .modal-card{background:var(--bg-page);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.75rem;width:100%;max-width:440px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.2);animation:modal-in .25s ease;max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+    .modal-card::-webkit-scrollbar{width:5px;}
+    .modal-card::-webkit-scrollbar-track{background:transparent;margin-top:1.5rem;margin-bottom:1.5rem;}
+    .modal-card::-webkit-scrollbar-thumb{background:var(--card-border);border-radius:999px;}
     .modal-card-wide{max-width:580px;}
     @keyframes modal-in{from{transform:translateY(12px) scale(.97);opacity:0;}to{transform:translateY(0) scale(1);opacity:1;}}
     .modal-title{font-size:1.125rem;font-weight:800;color:var(--text-main);margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;}
@@ -196,7 +212,7 @@
     }
     @media(max-width:480px){.cards-grid{grid-template-columns:1fr;}}
     @media(min-width:769px){.sidebar-collapse-btn{display:flex;}}
-    @media(min-width:769px) and (max-width:1200px){.cards-grid{grid-template-columns:repeat(2,1fr);}}
+    @media(min-width:769px) and (max-width:1200px){.cards-grid{grid-template-columns:repeat(3,1fr);}}
   </style>
 </head>
 <body>
@@ -317,6 +333,11 @@
           <div class="card-value" id="kpiJuros" style="color:#d97706;">R$ 0,00</div>
           <div class="card-sub">custo do crédito</div>
         </div>
+        <div class="summary-card">
+          <div class="card-header"><span class="card-label">Mensalidade</span><div class="card-icon card-icon-purple">📅</div></div>
+          <div class="card-value" id="kpiMensalidade" style="color:#7c3aed;">R$ 0,00</div>
+          <div class="card-sub" id="kpiMensalidadeSub">comprometido/mês</div>
+        </div>
       </div>
 
       <!-- Progresso geral -->
@@ -345,15 +366,32 @@
             <button class="filtro-divida active" data-filtro="todos" onclick="window.setFiltroDiv(this)" style="padding:0.3125rem 0.625rem;border:1px solid transparent;border-radius:0.5rem;background:var(--btn-bg,#2563eb);color:#fff;font-size:0.6875rem;font-weight:700;cursor:pointer;font-family:inherit;">Todas</button>
             <button class="filtro-divida" data-filtro="atraso" onclick="window.setFiltroDiv(this)" style="padding:0.3125rem 0.625rem;border:1px solid rgba(252,165,165,0.6);border-radius:0.5rem;background:var(--card-bg);color:#dc2626;font-size:0.6875rem;font-weight:700;cursor:pointer;font-family:inherit;">Em Atraso</button>
             <button class="filtro-divida" data-filtro="ativas" onclick="window.setFiltroDiv(this)" style="padding:0.3125rem 0.625rem;border:1px solid var(--input-border);border-radius:0.5rem;background:var(--card-bg);color:var(--text-sec);font-size:0.6875rem;font-weight:700;cursor:pointer;font-family:inherit;">Ativas</button>
-            <select id="selectOrdemDiv" onchange="window.renderizar()" style="padding:0.3125rem 0.5rem;border:1px solid var(--input-border);border-radius:0.5rem;background:var(--card-bg);color:var(--text-sec);font-size:0.6875rem;font-weight:700;cursor:pointer;font-family:inherit;">
-              <option value="saldo">Maior saldo</option>
-              <option value="nome">Nome A-Z</option>
-              <option value="vencimento">Próximo venc.</option>
-              <option value="progresso">Mais adiantadas</option>
-            </select>
+<div class="custom-select" id="ordemDivWrapper">
+              <div class="custom-select-trigger" id="ordemDivBtn" tabindex="0" role="combobox" aria-haspopup="listbox" aria-expanded="false">
+                <span id="ordemDivTexto">Maior saldo</span>
+                <svg class="custom-select-chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 6L8 10L12 6" stroke="#64748b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div class="custom-select-dropdown" id="ordemDivDropdown" role="listbox">
+                <div class="custom-select-option selected" data-value="saldo">Maior saldo</div>
+                <div class="custom-select-option" data-value="juros">Maior juros</div>
+                <div class="custom-select-option" data-value="nome">Nome A-Z</div>
+                <div class="custom-select-option" data-value="vencimento">Próximo venc.</div>
+                <div class="custom-select-option" data-value="progresso">Mais adiantadas</div>
+              </div>
+              <input type="hidden" id="selectOrdemDiv" value="saldo">
+            </div>
           </div>
         </div>
         <div id="listaDividas"><!-- populado por JS --></div>
+      </div>
+
+      <!-- Seção Dívidas Quitadas (colapsável) -->
+      <div id="secQuitadas" style="display:none;margin-bottom:1rem;">
+        <button id="btnToggleQuitadas" onclick="window.toggleQuitadas()" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1.125rem;background:var(--card-bg);border:1.5px solid var(--card-border);border-radius:1.125rem;cursor:pointer;font-family:inherit;transition:all .2s;">
+          <span style="font-size:0.875rem;font-weight:700;color:#16a34a;">✅ Quitadas (<span id="countQuitadas">0</span>)</span>
+          <span id="iconToggleQuitadas" style="font-size:0.75rem;color:var(--text-sec);font-weight:700;">▸ Expandir</span>
+        </button>
+        <div id="listaQuitadas" style="display:none;padding-top:0.5rem;"><!-- populado por JS --></div>
       </div>
 
     </main>
@@ -525,18 +563,18 @@
       <input type="hidden" id="dividaId">
 
       <div class="modal-field">
-        <label class="modal-label" for="dividaNome">Nome / Credor <span style="color:#dc2626">*</span></label>
+        <label class="modal-label" id="lbl-dividaNome" for="dividaNome">Nome / Credor <span style="color:#dc2626">*</span></label>
         <input class="modal-input" type="text" id="dividaNome" placeholder="Ex: Empréstimo Nubank, Financiamento Caixa…" maxlength="80" autocomplete="off">
       </div>
 
       <div class="modal-field">
-        <label class="modal-label" for="dividaInstituicao">Instituição</label>
+        <label class="modal-label" id="lbl-dividaInstituicao" for="dividaInstituicao">Instituição</label>
         <input class="modal-input" type="text" id="dividaInstituicao" placeholder="Nubank, Caixa, Itaú…" maxlength="60" autocomplete="off">
       </div>
 
       <div class="modal-grid2">
         <div class="modal-field" style="margin-bottom:0;">
-          <label class="modal-label" for="dividaValorTotal">Valor Original <span style="color:#dc2626">*</span></label>
+          <label class="modal-label" id="lbl-dividaValorTotal" for="dividaValorTotal">Valor Original <span style="color:#dc2626">*</span></label>
           <input class="modal-input" type="text" id="dividaValorTotal" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
         </div>
         <div class="modal-field" style="margin-bottom:0;">
@@ -547,18 +585,18 @@
 
       <div class="modal-grid2" style="margin-top:1rem;">
         <div class="modal-field" style="margin-bottom:0;">
-          <label class="modal-label" for="dividaParcelas">Total de Parcelas <span style="color:#dc2626">*</span></label>
+          <label class="modal-label" id="lbl-dividaParcelas" for="dividaParcelas">Total de Parcelas <span style="color:#dc2626">*</span></label>
           <input class="modal-input" type="number" id="dividaParcelas" placeholder="12" min="1" max="600">
         </div>
         <div class="modal-field" style="margin-bottom:0;">
-          <label class="modal-label" for="dividaParcelasPagas">Já Pagas</label>
+          <label class="modal-label" id="lbl-dividaParcelasPagas" for="dividaParcelasPagas">Já Pagas</label>
           <input class="modal-input" type="number" id="dividaParcelasPagas" placeholder="0" min="0">
         </div>
       </div>
 
       <div class="modal-grid2" id="gridValorParcela" style="margin-top:1rem;">
         <div class="modal-field" style="margin-bottom:0;">
-          <label class="modal-label" for="dividaValorParcela">Valor da Parcela</label>
+          <label class="modal-label" id="lbl-dividaValorParcela" for="dividaValorParcela">Valor da Parcela</label>
           <input class="modal-input" type="text" id="dividaValorParcela" placeholder="Calculado…" inputmode="decimal" autocomplete="off">
         </div>
         <div class="modal-field" style="margin-bottom:0;display:flex;align-items:flex-end;">
@@ -572,7 +610,7 @@
       </div>
 
       <div class="modal-field">
-        <label class="modal-label" for="dividaVencimento">Data da 1ª Parcela</label>
+        <label class="modal-label" id="lbl-dividaVencimento" for="dividaVencimento">Data da 1ª Parcela</label>
         <input class="modal-input" type="text" id="dividaVencimento" placeholder="DD/MM/AAAA" maxlength="10" autocomplete="off" inputmode="numeric">
       </div>
 

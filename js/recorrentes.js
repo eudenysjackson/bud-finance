@@ -16,7 +16,7 @@ import { getAuth, onAuthStateChanged, signOut, getIdToken }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
-  collection, query, where, orderBy, limit,
+  collection, query, orderBy, limit,
   onSnapshot, doc, getDoc, addDoc, updateDoc, deleteDoc,
   serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
@@ -31,10 +31,15 @@ let currentUser       = null;
 let recorrentes       = [];          // array de {id, ...dados}
 let tipoAtual         = 'despesa';   // tipo selecionado no modal
 let categoriasCustom  = [];          // personalizadas do Firestore
-let carteiraItems     = [];          // cartões de crédito do usuário (#8)
+let carteiraItems     = [];          // contas e cartões do usuário
 let valoresOcultos    = false;
 let _unsubs           = [];
 let _salvando         = false;       // guard anti-duplo-submit (#7)
+
+let filtroTexto  = '';          // texto de busca livre
+let filtroTipo   = 'todos';     // 'todos' | 'despesa' | 'receita'
+let filtroStatus = 'todas';     // 'todas' | 'ativas' | 'pausadas'
+let filtroOrdem  = 'nome';      // 'nome' | 'valor' | 'proxima'
 
 // ─── Planos com acesso ──────────────────────────────────────────────────────
 const PLANOS_PERMITIDOS = ['pro', 'plus', 'trial'];
@@ -140,15 +145,6 @@ function popularCategorias() {
 }
 
 // ─── Custom selects genérico ───────────────────────────────────────────────
-const FORMAS_PAGAMENTO = [
-  { value: 'PIX',             label: '⚡ PIX' },
-  { value: 'Débito',          label: '💳 Débito' },
-  { value: 'Crédito',         label: '💳 Crédito' },
-  { value: 'Dinheiro',        label: '💵 Dinheiro' },
-  { value: 'Transferência',   label: '🔄 Transferência' },
-  { value: 'Débito automático', label: '🔁 Déb. automático' },
-];
-
 const PERIODICIDADES = [
   { value: 'mensal',  label: '📅 Mensal' },
   { value: 'semanal', label: '🗓️ Semanal' },
@@ -173,8 +169,6 @@ function popularSelectSimples(triggerId, labelId, dropdownId, hiddenId, opcoes, 
       fecharTodosDropdowns();
       // evento especial para periodicidade
       if (hiddenId === 'recPeriodo') toggleDiaVencimento();
-      // evento especial para forma de pagamento (#8)
-      if (hiddenId === 'recForma')   toggleFieldCartao();
     });
     dropdown.appendChild(opt);
   });
@@ -219,31 +213,13 @@ function toggleDiaVencimento() {
   field.style.display = periodo === 'mensal' ? '' : 'none';
 }
 
-// ─── toggleFieldCartao (#8) ─────────────────────────────────────────────────
-// Exibe/esconde o seletor de cartão quando forma = 'Crédito'.
-function toggleFieldCartao() {
-  const forma  = document.getElementById('recForma')?.value;
-  const field  = document.getElementById('fieldCartao');
-  if (!field) return;
-  if (forma === 'Crédito') {
-    field.style.display = '';
-    popularCartaoDropdown(document.getElementById('recCartaoId').value);
-  } else {
-    field.style.display = 'none';
-    document.getElementById('recCartaoId').value   = '';
-    document.getElementById('recCartaoNome').value = '';
-    const lbl = document.getElementById('csCartaoLabel');
-    const trg = document.getElementById('csCartaoTrigger');
-    if (lbl) lbl.textContent = 'Selecione o cartão…';
-    if (trg) trg.classList.remove('has-value');
-  }
-}
-
-// ─── popularCartaoDropdown (#8) ─────────────────────────────────────────────
-function popularCartaoDropdown(valorAtual) {
-  const dropdown  = document.getElementById('csCartaoDropdown');
-  const hiddenId  = document.getElementById('recCartaoId');
-  const hiddenNome = document.getElementById('recCartaoNome');
+// ─── popularContaDropdown ────────────────────────────────────────────────────
+// Preenche o dropdown de Conta/Cartão com as contas e cartões do usuário.
+function popularContaDropdown(valorAtualId) {
+  const dropdown  = document.getElementById('csContaDropdown');
+  const hiddenId  = document.getElementById('recContaId');
+  const hiddenNome = document.getElementById('recContaNome');
+  const hiddenTipo = document.getElementById('recContaTipo');
   if (!dropdown) return;
 
   dropdown.innerHTML = '';
@@ -251,33 +227,49 @@ function popularCartaoDropdown(valorAtual) {
   if (carteiraItems.length === 0) {
     const opt = document.createElement('div');
     opt.className = 'custom-select-option';
-    opt.textContent = 'Nenhum cartão cadastrado';
+    opt.textContent = 'Nenhuma conta cadastrada';
     opt.style.cssText = 'color:var(--text-sec);cursor:default;pointer-events:none;';
     dropdown.appendChild(opt);
     return;
   }
 
-  carteiraItems.forEach(c => {
-    const opt = document.createElement('div');
-    opt.className = 'custom-select-option' + (c.id === valorAtual ? ' selected' : '');
-    opt.textContent = '\uD83D\uDCB3 ' + (c.nome || 'Cartão');
-    opt.dataset.value = c.id;
-    opt.addEventListener('click', () => {
-      hiddenId.value   = c.id;
-      hiddenNome.value = c.nome || '';
-      document.getElementById('csCartaoLabel').textContent = '\uD83D\uDCB3 ' + (c.nome || 'Cartão');
-      document.getElementById('csCartaoTrigger').classList.add('has-value');
-      fecharTodosDropdowns();
+  const iconeTipo = { corrente:'🏦', poupanca:'💰', investimento:'📈', dinheiro:'💵', credito:'💳' };
+
+  const addGrupo = (items, rotulo) => {
+    if (items.length === 0) return;
+    const sep = document.createElement('div');
+    sep.style.cssText = 'padding:0.25rem 0.875rem;font-size:0.6875rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--card-text-sec);background:var(--input-bg);pointer-events:none;';
+    sep.textContent = rotulo;
+    dropdown.appendChild(sep);
+    items.forEach(c => {
+      const icone = iconeTipo[c.tipo] || '🏦';
+      const opt = document.createElement('div');
+      opt.className = 'custom-select-option' + (c.id === valorAtualId ? ' selected' : '');
+      opt.textContent = icone + ' ' + (c.nome || 'Conta');
+      opt.dataset.value = c.id;
+      opt.addEventListener('click', () => {
+        hiddenId.value   = c.id;
+        hiddenNome.value = c.nome || '';
+        hiddenTipo.value = c.tipo || '';
+        document.getElementById('csContaLabel').textContent = icone + ' ' + (c.nome || 'Conta');
+        document.getElementById('csContaTrigger').classList.add('has-value');
+        document.getElementById('csContaTrigger').classList.remove('error');
+        fecharTodosDropdowns();
+      });
+      dropdown.appendChild(opt);
     });
-    dropdown.appendChild(opt);
-  });
+  };
+
+  addGrupo(carteiraItems.filter(c => c.tipo !== 'credito'), 'Contas');
+  addGrupo(carteiraItems.filter(c => c.tipo === 'credito'),  'Cartões de Crédito');
 
   // pré-selecionar valor atual no label
-  if (valorAtual) {
-    const found = carteiraItems.find(c => c.id === valorAtual);
+  if (valorAtualId) {
+    const found = carteiraItems.find(c => c.id === valorAtualId);
     if (found) {
-      document.getElementById('csCartaoLabel').textContent = '\uD83D\uDCB3 ' + (found.nome || 'Cartão');
-      document.getElementById('csCartaoTrigger').classList.add('has-value');
+      const icone = iconeTipo[found.tipo] || '🏦';
+      document.getElementById('csContaLabel').textContent = icone + ' ' + (found.nome || 'Conta');
+      document.getElementById('csContaTrigger').classList.add('has-value');
     }
   }
 }
@@ -314,20 +306,21 @@ window.recSetTipo = function(tipo) {
 };
 
 // ─── Modal Abrir/Fechar ────────────────────────────────────────────────────
-function abrirModal(rec) {
-  const isEditar = !!rec;
-
-  document.getElementById('modalRecTitulo').textContent = isEditar ? 'Editar Recorrente' : 'Nova Recorrente';
-  document.getElementById('recId').value            = isEditar ? rec.id : '';
-  document.getElementById('recDescricao').value     = isEditar ? rec.descricao : '';
-  document.getElementById('recDia').value           = isEditar ? (rec.diaVencimento || 1) : 1;
+function abrirModal(rec, isDuplicar = false) {
+  const isEditar  = !!(rec && rec.id);
+  const isPopular = isEditar || isDuplicar; // preenche campos ao editar OU ao duplicar
+  const titulo = isDuplicar ? 'Duplicar Recorrente' : (isEditar ? 'Editar Recorrente' : 'Nova Recorrente');
+  document.getElementById('modalRecTitulo').textContent = titulo;
+  document.getElementById('recId').value            = isEditar ? rec.id : ''; // ID vazio ao duplicar (nova entrada)
+  document.getElementById('recDescricao').value     = isPopular ? rec.descricao : '';
+  document.getElementById('recDia').value           = isPopular ? (rec.diaVencimento || 1) : 1;
 
   // tipo
-  window.recSetTipo(isEditar ? (rec.tipo || 'despesa') : 'despesa');
+  window.recSetTipo(isPopular ? (rec.tipo || 'despesa') : 'despesa');
 
   // valor
   const valorInput = document.getElementById('recValor');
-  if (isEditar && rec.valor) {
+  if (isPopular && rec.valor) {
     const cents = Math.round(rec.valor * 100);
     const reais = Math.floor(cents / 100);
     const centsStr = String(cents % 100).padStart(2, '0');
@@ -336,29 +329,24 @@ function abrirModal(rec) {
     valorInput.value = '';
   }
 
-  // forma de pagamento
-  const formaVal = isEditar ? (rec.formaPagamento || '') : '';
-  popularSelectSimples('csFormaTrigger', 'csFormaLabel', 'csFormaDropdown', 'recForma', FORMAS_PAGAMENTO, formaVal);
-  document.getElementById('recForma').value = formaVal;
-  if (!formaVal) {
-    document.getElementById('csFormaLabel').textContent = 'Selecione…';
-    document.getElementById('csFormaTrigger').classList.remove('has-value');
+  // conta / cartão
+  const contaId = isPopular ? (rec.contaId || rec.cartaoId || '') : '';
+  document.getElementById('recContaId').value   = contaId;
+  document.getElementById('recContaNome').value = isPopular ? (rec.contaNome || rec.cartaoNome || '') : '';
+  document.getElementById('recContaTipo').value = isPopular ? (rec.contaTipo || (rec.cartaoId && !rec.contaId ? 'credito' : '')) : '';
+  if (!contaId) {
+    document.getElementById('csContaLabel').textContent = 'Selecione…';
+    document.getElementById('csContaTrigger').classList.remove('has-value');
   }
+  popularContaDropdown(contaId);
 
   // periodicidade
-  const periodoVal = isEditar ? (rec.periodicidade || 'mensal') : 'mensal';
+  const periodoVal = isPopular ? (rec.periodicidade || 'mensal') : 'mensal';
   popularSelectSimples('csPeriodoTrigger', 'csPeriodoLabel', 'csPeriodoDropdown', 'recPeriodo', PERIODICIDADES, periodoVal);
   document.getElementById('recPeriodo').value = periodoVal;
 
-  // cartão (#8): visível só quando forma = 'Crédito'
-  const cartaoId = isEditar ? (rec.cartaoId || '') : '';
-  document.getElementById('recCartaoId').value   = cartaoId;
-  document.getElementById('recCartaoNome').value = isEditar ? (rec.cartaoNome || '') : '';
-  toggleFieldCartao();
-  if (cartaoId) popularCartaoDropdown(cartaoId);
-
   popularCategorias();
-  if (isEditar && rec.categoria) {
+  if (isPopular && rec.categoria) {
     const emoji = emojiCategoria(rec.categoria, rec.tipo || 'despesa');
     document.getElementById('recCategoria').value = rec.categoria;
     document.getElementById('csCatLabel').textContent = emoji + ' ' + rec.categoria;
@@ -371,13 +359,16 @@ function abrirModal(rec) {
 
   toggleDiaVencimento();
 
+  // observação
+  const elObs = document.getElementById('recObservacao');
+  if (elObs) elObs.value = rec ? (rec.observacao || '') : '';
+
   // limpar erros
   ['recDescricao','recValor'].forEach(id => {
     document.getElementById(id)?.classList.remove('error');
   });
-  ['csCatTrigger','csFormaTrigger'].forEach(id => {
-    document.getElementById(id)?.classList.remove('error');
-  });
+  document.getElementById('csCatTrigger')?.classList.remove('error');
+  document.getElementById('csContaTrigger')?.classList.remove('error');
 
   document.getElementById('modalRec').classList.add('open');
 }
@@ -396,11 +387,14 @@ async function salvarRecorrente() {
   const descricao   = window.budSanitize(document.getElementById('recDescricao').value.trim());
   const valorRaw    = parseBRL(document.getElementById('recValor').value);
   const categoria   = document.getElementById('recCategoria').value;
-  const forma       = document.getElementById('recForma').value;
   const periodicidade = document.getElementById('recPeriodo').value;
-  const diaVencimento = parseInt(document.getElementById('recDia').value, 10) || 1;
-  const cartaoId    = document.getElementById('recCartaoId')?.value  || null;  // #8
-  const cartaoNome  = document.getElementById('recCartaoNome')?.value || null; // #8
+  const diaVencimento = Math.min(31, Math.max(1, parseInt(document.getElementById('recDia').value, 10) || 1));
+  const contaId     = document.getElementById('recContaId')?.value   || null;
+  const contaNome   = document.getElementById('recContaNome')?.value  || null;
+  const contaTipo   = document.getElementById('recContaTipo')?.value  || null;
+  const observacao  = document.getElementById('recObservacao')
+    ? (window.budSanitize(document.getElementById('recObservacao').value.trim()) || null)
+    : null;
 
   // Validação
   let erros = false;
@@ -444,11 +438,14 @@ async function salvarRecorrente() {
         tipo: tipoAtual,
         valor: valorRaw,
         categoria,
-        formaPagamento: forma,
-        cartaoId:   forma === 'Crédito' ? (cartaoId || null) : null,   // #8
-        cartaoNome: forma === 'Crédito' ? (cartaoNome || null) : null, // #8
+        contaId,
+        contaNome,
+        contaTipo,
+        cartaoId:   contaTipo === 'credito' ? contaId   : null,
+        cartaoNome: contaTipo === 'credito' ? contaNome : null,
         periodicidade,
         diaVencimento,
+        observacao,
         atualizadoEm: serverTimestamp(),
       };
 
@@ -466,11 +463,14 @@ async function salvarRecorrente() {
         tipo: tipoAtual,
         valor: valorRaw,
         categoria,
-        formaPagamento: forma,
-        cartaoId:   forma === 'Crédito' ? (cartaoId || null) : null,   // #8
-        cartaoNome: forma === 'Crédito' ? (cartaoNome || null) : null, // #8
+        contaId,
+        contaNome,
+        contaTipo,
+        cartaoId:   contaTipo === 'credito' ? contaId   : null,
+        cartaoNome: contaTipo === 'credito' ? contaNome : null,
         periodicidade,
         diaVencimento,
+        observacao,
         proximaData: Timestamp.fromDate(proximaData),
         ativa: true,
         criadoEm: serverTimestamp(),
@@ -491,13 +491,14 @@ async function salvarRecorrente() {
 }
 
 // ─── Toggle ativo ─────────────────────────────────────────────────────────
-async function toggleAtivo(id, novoValor) {
+async function toggleAtivo(id, novoValor, checkbox) {
   try {
     await updateDoc(doc(db, 'usuarios', currentUser.uid, 'recorrentes', id), {
       ativa: novoValor,
       atualizadoEm: serverTimestamp(),
     });
   } catch (err) {
+    if (checkbox) checkbox.checked = !novoValor; // reverte estado visual
     (window.budError||console.error)('recorrentes/toggleAtivo:', err);
     window.budShowToast('Erro ao atualizar status.', 'error');
   }
@@ -557,6 +558,15 @@ function renderizar() {
   document.getElementById('cardDespesas').textContent  = valoresOcultos ? '••••' : formatBRL(totalDesp);
   document.getElementById('cardReceitas').textContent  = valoresOcultos ? '••••' : formatBRL(totalRec);
 
+  const saldo = totalRec - totalDesp;
+  const elSaldo = document.getElementById('cardSaldo');
+  if (elSaldo) {
+    elSaldo.textContent  = valoresOcultos ? '••••' : formatBRL(Math.abs(saldo));
+    elSaldo.style.color  = saldo >= 0 ? '#16a34a' : '#dc2626';
+  }
+  const elSaldoSub = document.getElementById('cardSaldoSub');
+  if (elSaldoSub) elSaldoSub.textContent = saldo >= 0 ? 'saldo positivo mensal' : 'déficit mensal';
+
   // Renderizar lista
   const lista = document.getElementById('listaRecorrentes');
   if (!lista) return;
@@ -576,9 +586,50 @@ function renderizar() {
   }
 
   lista.innerHTML = '';
-  const ordenadas = [...recorrentes].sort((a, b) =>
-    (a.descricao || '').localeCompare(b.descricao || '', 'pt-BR')
-  );
+
+  // Aplicar filtros
+  let filtradas = [...recorrentes];
+  if (filtroTexto) {
+    const t = filtroTexto.toLowerCase();
+    filtradas = filtradas.filter(r =>
+      (r.descricao || '').toLowerCase().includes(t) ||
+      (r.categoria || '').toLowerCase().includes(t)
+    );
+  }
+  if (filtroTipo !== 'todos') filtradas = filtradas.filter(r => r.tipo === filtroTipo);
+  if (filtroStatus === 'ativas')   filtradas = filtradas.filter(r => r.ativa !== false);
+  else if (filtroStatus === 'pausadas') filtradas = filtradas.filter(r => r.ativa === false);
+
+  // Atualizar contador
+  const elContagem = document.getElementById('recContagem');
+  if (elContagem) {
+    const total = recorrentes.length;
+    const mostrando = filtradas.length;
+    elContagem.textContent = mostrando < total
+      ? mostrando + ' de ' + total
+      : total + ' recorrente' + (total !== 1 ? 's' : '');
+  }
+
+  // Calcular "hoje" para urgência
+  const hojeRef = new Date(); hojeRef.setHours(0, 0, 0, 0);
+
+  // Ordenar
+  const ordenadas = [...filtradas].sort((a, b) => {
+    if (filtroOrdem === 'valor')   return (b.valor || 0) - (a.valor || 0);
+    if (filtroOrdem === 'proxima') {
+      const toDate = x => x ? (x.toDate ? x.toDate() : new Date(x)) : new Date(9999, 0);
+      return toDate(a.proximaData) - toDate(b.proximaData);
+    }
+    return (a.descricao || '').localeCompare(b.descricao || '', 'pt-BR');
+  });
+
+  if (ordenadas.length === 0 && recorrentes.length > 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'text-align:center;padding:2rem 1rem;';
+    empty.innerHTML = '<div style="font-size:1.5rem;margin-bottom:0.5rem;">🔍</div><div style="font-size:0.875rem;font-weight:700;color:var(--card-text);">Nenhum resultado encontrado</div><div style="font-size:0.8125rem;color:var(--card-text-sec);margin-top:0.25rem;">Tente mudar os filtros ou a busca.</div>';
+    lista.appendChild(empty);
+    return;
+  }
 
   ordenadas.forEach((rec, idx) => {
     const isAtiva    = rec.ativa !== false;
@@ -588,18 +639,41 @@ function renderizar() {
     const valorLabel = valoresOcultos ? '••••' : (rec.tipo === 'receita' ? '+' : '-') + formatBRL(rec.valor || 0).replace('R$ ', 'R$ ');
     const proxData   = rec.proximaData ? 'Próximo: ' + formatarData(rec.proximaData) : '';
 
+    // Urgente: vencimento em ≤ 3 dias
+    const proxDate = rec.proximaData ? (rec.proximaData.toDate ? rec.proximaData.toDate() : new Date(rec.proximaData)) : null;
+    let diasAteVenc = null;
+    if (proxDate) { const d = new Date(proxDate); d.setHours(0,0,0,0); diasAteVenc = Math.ceil((d - hojeRef) / 86400000); }
+    const isUrgente = isAtiva && diasAteVenc !== null && diasAteVenc >= 0 && diasAteVenc <= 3;
+
     const card = document.createElement('div');
     card.className = 'rec-card' + (isAtiva ? '' : ' inativa');
     card.style.cssText = `margin-bottom:0.625rem;animation:fadeInUp .3s ease both;animation-delay:${idx * 0.04}s;`;
+    if (isUrgente) card.classList.add('rec-card-urgente');
+
+    const safeTitle  = window.budSanitize(rec.descricao || '').replace(/"/g, '&quot;');
+    const _iconeTipo = { corrente:'🏦', poupanca:'💰', investimento:'📈', dinheiro:'💵', credito:'💳' };
+    const _ctNome = rec.contaNome || rec.cartaoNome || null;
+    const _ctTipo = rec.contaTipo || (rec.cartaoId ? 'credito' : null);
+    const formaLabel = _ctNome
+      ? `${_iconeTipo[_ctTipo] || '🏦'} ${window.budSanitize(_ctNome)}`
+      : (rec.formaPagamento ? window.budSanitize(rec.formaPagamento) : '');
+    const safeObs = rec.observacao ? window.budSanitize(rec.observacao) : '';
+    const urgBadge = isUrgente
+      ? `<span class="rec-badge" style="background:#fef3c7;color:#b45309;">⚠️ ${diasAteVenc === 0 ? 'hoje' : diasAteVenc === 1 ? 'amanhã' : diasAteVenc + ' dias'}</span>`
+      : '';
 
     card.innerHTML = `
       <div class="rec-icon ${rec.tipo === 'receita' ? 'rec-icon-receita' : 'rec-icon-despesa'}">${emoji}</div>
       <div class="rec-body">
-        <div class="rec-desc" title="${window.budSanitize(rec.descricao || '')}">${window.budSanitize(rec.descricao || '—')}</div>
+        <div class="rec-desc" title="${safeTitle}">${window.budSanitize(rec.descricao || '—')}</div>
         <div class="rec-meta">
           <span class="rec-badge ${badgeCls}">${badgeLabel}</span>
+          ${!isAtiva ? `<span class="rec-badge" style="background:#fef9c3;color:#a16207;">Pausada</span>` : ''}
+          ${urgBadge}
           ${rec.categoria ? `<span class="rec-cat">${window.budSanitize(rec.categoria)}</span>` : ''}
+          ${formaLabel ? `<span class="rec-cat">${formaLabel}</span>` : ''}
           ${proxData ? `<span class="rec-proxima">${proxData}</span>` : ''}
+          ${safeObs ? `<span class="rec-cat" title="${safeObs.replace(/"/g,'&quot;')}" style="font-style:italic;">📝 ${safeObs.length > 28 ? safeObs.slice(0,28)+'…' : safeObs}</span>` : ''}
         </div>
       </div>
       <div class="rec-valor ${rec.tipo === 'receita' ? 'rec-valor-receita' : 'rec-valor-despesa'}">${valorLabel}</div>
@@ -609,6 +683,7 @@ function renderizar() {
           <div class="toggle-pill-track"></div>
           <div class="toggle-pill-thumb"></div>
         </label>
+        <button class="action-btn" data-dup="${rec.id}" title="Duplicar">📋</button>
         <button class="action-btn" data-edit="${rec.id}" title="Editar">✏️</button>
         <button class="action-btn delete" data-del="${rec.id}" title="Excluir">🗑️</button>
       </div>
@@ -616,7 +691,10 @@ function renderizar() {
 
     // eventos
     card.querySelector('input[type="checkbox"]').addEventListener('change', e => {
-      toggleAtivo(rec.id, e.target.checked);
+      toggleAtivo(rec.id, e.target.checked, e.target);
+    });
+    card.querySelector('[data-dup]').addEventListener('click', () => {
+      duplicarRec(rec);
     });
     card.querySelector('[data-edit]').addEventListener('click', () => {
       abrirModal(rec);
@@ -627,6 +705,11 @@ function renderizar() {
 
     lista.appendChild(card);
   });
+}
+
+// ─── Duplicar ────────────────────────────────────────────────────────────────
+function duplicarRec(rec) {
+  abrirModal({ ...rec, id: '' }, true);
 }
 
 // ─── Sidebar: comportamentos ───────────────────────────────────────────────
@@ -734,11 +817,10 @@ onAuthStateChanged(auth, async (user) => {
   }, err => (window.budError||console.error)('recorrentes/categorias:', err));
   _unsubs.push(unsubCat);
 
-  // listener carteira (#8): cartões de crédito do usuário
+  // listener carteira: todas as contas e cartões do usuário
   const qCarteira = query(
     collection(db, 'usuarios', user.uid, 'carteira'),
-    where('tipo', '==', 'credito'),
-    limit(50)
+    limit(100)
   );
   const unsubCarteira = onSnapshot(qCarteira, snap => {
     carteiraItems = snap.docs
@@ -859,17 +941,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Triggers dos custom selects
   setupDropdownTrigger('csCatTrigger',    'csCatDropdown');
-  setupDropdownTrigger('csFormaTrigger',  'csFormaDropdown');
+  setupDropdownTrigger('csContaTrigger',  'csContaDropdown');
   setupDropdownTrigger('csPeriodoTrigger','csPeriodoDropdown');
-  setupDropdownTrigger('csCartaoTrigger', 'csCartaoDropdown'); // #8
 
   // Popular selects estáticos
-  popularSelectSimples('csFormaTrigger',  'csFormaLabel',  'csFormaDropdown',  'recForma',   FORMAS_PAGAMENTO, '');
-  popularSelectSimples('csPeriodoTrigger','csPeriodoLabel','csPeriodoDropdown','recPeriodo',  PERIODICIDADES,   'mensal');
+  popularSelectSimples('csPeriodoTrigger','csPeriodoLabel','csPeriodoDropdown','recPeriodo', PERIODICIDADES, 'mensal');
 
   // Fechar dropdowns ao clicar fora
   document.addEventListener('click', () => fecharTodosDropdowns());
 
   // Expor funções globais necessárias para onclick inline
   window.recAbrirModal = () => abrirModal(null);
+
+  // Filtro de busca
+  document.getElementById('recBusca')?.addEventListener('input', e => {
+    filtroTexto = e.target.value;
+    renderizar();
+  });
+
+  // Chips de filtro
+  window.recFiltroTipo = (tipo) => {
+    filtroTipo = tipo;
+    document.querySelectorAll('[id^="rct-"]').forEach(b => b.classList.toggle('active', b.id === 'rct-' + tipo));
+    renderizar();
+  };
+  window.recFiltroStatus = (status) => {
+    filtroStatus = status;
+    document.querySelectorAll('[id^="rcs-"]').forEach(b => b.classList.toggle('active', b.id === 'rcs-' + status));
+    renderizar();
+  };
+  window.recOrdem = (ordem) => {
+    filtroOrdem = ordem;
+    document.querySelectorAll('[id^="rco-"]').forEach(b => b.classList.toggle('active', b.id === 'rco-' + ordem));
+    renderizar();
+  };
 });

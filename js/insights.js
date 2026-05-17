@@ -38,6 +38,7 @@ const db   = (() => { try { return initializeFirestore(app, { localCache: persis
 let currentUser     = null;
 let transacoes      = [];
 let limites         = [];
+let dividas         = [];   // ← novo
 let carteiraGlobal  = [];
 let userData        = {};
 let valoresOcultos  = false;
@@ -160,18 +161,21 @@ async function buscarERenderi() {
     where('data', '<=', pfxFim),
     orderBy('data', 'desc')
   );
-  const qLim = query(collection(db, 'usuarios', uid, 'limites'));
+  const qLim  = query(collection(db, 'usuarios', uid, 'limites'));
   const qCart = query(collection(db, 'usuarios', uid, 'carteira'));
+  const qDiv  = query(collection(db, 'usuarios', uid, 'dividas'));
 
-  const [snapTx, snapLim, snapCart] = await Promise.all([
+  const [snapTx, snapLim, snapCart, snapDiv] = await Promise.all([
     getDocs(qTx),
     getDocs(qLim),
     getDocs(qCart),
+    getDocs(qDiv),
   ]);
 
-  transacoes = snapTx.docs.map(d => ({ id: d.id, ...d.data() }));
-  limites    = snapLim.docs.map(d => ({ id: d.id, ...d.data() }));
+  transacoes     = snapTx.docs.map(d => ({ id: d.id, ...d.data() }));
+  limites        = snapLim.docs.map(d => ({ id: d.id, ...d.data() }));
   carteiraGlobal = snapCart.docs.map(d => ({ id: d.id, ...d.data() }));
+  dividas        = snapDiv.docs.map(d => ({ id: d.id, ...d.data() }));
 
   renderTudo();
 }
@@ -274,6 +278,37 @@ function gerarAlertas(doMes, doMesPrev, lims) {
     });
   }
 
+  // Dívidas: comprometimento mensal, atraso e juros abusivos
+  const ativasDividas = dividas.filter(d => _calcSaldoDiv(d) > 0.01);
+  const totalRec = doMes.filter(t => t.tipo === 'receita').reduce((s, t) => s + (Number(t.valor) || 0), 0);
+  if (ativasDividas.length > 0) {
+    const comprMensal = ativasDividas.reduce((s, d) => s + (d.valorParcela || 0), 0);
+    if (totalRec > 0) {
+      const pctCompr = (comprMensal / totalRec) * 100;
+      if (pctCompr >= 35) {
+        alertas.push({ tipo:'danger', icone:'💸', titulo:'Endividamento crítico', desc:`Suas parcelas mensais (${fmt(comprMensal)}) comprometem ${pctCompr.toFixed(0)}% da sua renda. Risco alto de inadimplência.` });
+      } else if (pctCompr >= 20) {
+        alertas.push({ tipo:'warn', icone:'📅', titulo:'Comprometimento com dívidas', desc:`${pctCompr.toFixed(0)}% da sua renda (${fmt(comprMensal)}/mês) está comprometida com parcelas de empréstimos.` });
+      }
+    }
+    const abusivos = ativasDividas.filter(d => (d.juros || 0) > 5);
+    if (abusivos.length > 0) {
+      const maiores = abusivos.sort((a,b) => b.juros - a.juros).slice(0,2).map(d => `${d.nome||'?'} (${(d.juros).toFixed(1)}% a.m.)`).join(', ');
+      alertas.push({ tipo:'warn', icone:'🔥', titulo:'Juros abusivos detectados', desc:`Dívidas com taxas acima de 5% a.m.: ${maiores}. Considere renegociar ou quitar com prioridade.` });
+    }
+    const emAtraso = ativasDividas.filter(d => {
+      if (!d.vencimento || !d.parcelas) return false;
+      const base = new Date(d.vencimento + 'T12:00:00');
+      const pagas = d.parcelasPagas || 0;
+      if (pagas >= d.parcelas) return false;
+      const proxVenc = new Date(base.getFullYear(), base.getMonth() + pagas, base.getDate());
+      return proxVenc < new Date();
+    });
+    if (emAtraso.length > 0) {
+      alertas.push({ tipo:'danger', icone:'🔴', titulo:`${emAtraso.length} parcela(s) em atraso`, desc:`${emAtraso.map(d => d.nome||'?').join(', ')} têm parcelas vencidas. Parcelas em atraso geram multa e prejudicam o score.` });
+    }
+  }
+
   return alertas;
 }
 
@@ -354,6 +389,13 @@ function renderResumoSemanal(doMes) {
     <div style="font-size:0.75rem;color:var(--card-text-sec);margin-top:0.5rem;text-align:center;">${semana.length} transação(ões) desde segunda-feira</div>`;
 }
 
+// Calcula saldo devedor simplificado (parcelas restantes × valorParcela)
+function _calcSaldoDiv(d) {
+  const restantes = Math.max(0, (d.parcelas || 0) - (d.parcelasPagas || 0));
+  if (d.valorParcela && restantes > 0) return restantes * d.valorParcela;
+  return Math.max(0, (d.valorTotal || 0) - (d.valorPago || 0));
+}
+
 // ─── Score de Saúde ────────────────────────────────────────────────────────
 function calcularScore(doMes, doMesPrev, lims) {
   let score = 50;
@@ -393,6 +435,27 @@ function calcularScore(doMes, doMesPrev, lims) {
     score -= excedidos * 8;
     if (excedidos === 0 && lims.length > 0) score += 5;
   }
+
+  // Dívidas: penaliza comprometimento e juros abusivos
+  const ativasDividas = dividas.filter(d => _calcSaldoDiv(d) > 0.01);
+  if (rec > 0 && ativasDividas.length > 0) {
+    const comprMensal = ativasDividas.reduce((s, d) => s + (d.valorParcela || 0), 0);
+    const pctCompr    = (comprMensal / rec) * 100;
+    if (pctCompr > 40) score -= 20;
+    else if (pctCompr > 25) score -= 10;
+    else if (pctCompr > 10) score -= 5;
+  }
+  const temJurosAbusivos = ativasDividas.some(d => (d.juros || 0) > 5);
+  if (temJurosAbusivos) score -= 10;
+  const temAtraso = ativasDividas.some(d => {
+    if (!d.vencimento || !d.parcelas) return false;
+    const base = new Date(d.vencimento + 'T12:00:00');
+    const pagas = d.parcelasPagas || 0;
+    if (pagas >= d.parcelas) return false;
+    const proxVenc = new Date(base.getFullYear(), base.getMonth() + pagas, base.getDate());
+    return proxVenc < new Date();
+  });
+  if (temAtraso) score -= 15;
 
   return Math.min(100, Math.max(0, Math.round(score)));
 }
@@ -506,6 +569,22 @@ function gerarInsights(doMes, doMesPrev) {
   if (doMes.length > 0) {
     const freq = diaDoMes > 1 ? (doMes.length / diaDoMes).toFixed(1) : doMes.length;
     insights.push({ emoji: '🔢', titulo: 'Frequência de Transações', texto: `${doMes.length} transações registradas (${freq} por dia em média).` });
+  }
+
+  // Dívidas: comprometimento mensal e estratégia de quitção
+  const ativasDividas = dividas.filter(d => _calcSaldoDiv(d) > 0.01);
+  if (ativasDividas.length > 0) {
+    const comprMensal  = ativasDividas.reduce((s, d) => s + (d.valorParcela || 0), 0);
+    const saldoTotal   = ativasDividas.reduce((s, d) => s + _calcSaldoDiv(d), 0);
+    if (comprMensal > 0) {
+      const pctCompr = rec > 0 ? ((comprMensal / rec) * 100).toFixed(0) : '?';
+      insights.push({ emoji: '💸', titulo: 'Comprometimento com Dívidas', texto: `Você tem ${ativasDividas.length} dívida(s) ativa(s) com ${fmt(comprMensal)}/mês em parcelas (${pctCompr}% da renda). Saldo devedor total: ${fmt(saldoTotal)}.` });
+    }
+    const comJuros = ativasDividas.filter(d => (d.juros || 0) > 0).sort((a, b) => b.juros - a.juros);
+    if (comJuros.length > 0) {
+      const topo = comJuros[0];
+      insights.push({ emoji: '🎯', titulo: 'Estratégia Avalanche Recomendada', texto: `Priorize quitar “${topo.nome||'?'}” primeiro: taxa de ${(topo.juros).toFixed(2)}% a.m. é a mais cara. Eliminar essa dívida economiza mais em juros.` });
+    }
   }
 
   return insights;

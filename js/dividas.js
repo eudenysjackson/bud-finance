@@ -313,6 +313,38 @@ window.trocarTabIA = function(tab) {
   });
 };
 
+// Pré-processa imagem para melhorar precisão do OCR
+// Converte para escala de cinza com contraste aumentado e limita resolução máxima
+async function _preprocessarImagemOCR(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const maxW = 1800;
+      const scale = img.width > maxW ? maxW / img.width : 1;
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const data = imageData.data;
+      const fator = 1.6;
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        const c = Math.min(255, Math.max(0, (gray - 128) * fator + 128));
+        data[i] = data[i + 1] = data[i + 2] = c;
+      }
+      ctx.putImageData(imageData, 0, 0);
+      canvas.toBlob((blob) => { URL.revokeObjectURL(url); resolve(blob); }, 'image/png');
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 window.limparArquivoIA = function() {
   document.getElementById('iaFileInput').value  = '';
   document.getElementById('iaCameraInput').value = '';
@@ -372,12 +404,19 @@ window.processarArquivoIA = async function(inputEl) {
     } else if (file.type === 'text/plain' || ext === 'txt') {
       texto = await file.text();
     } else {
-      // Imagem — OCR
+      // Imagem — OCR com pré-processamento para máxima precisão
       // Bug #6: verificar se Tesseract está disponível
       if (!window.Tesseract) throw new Error('Biblioteca Tesseract.js não carregou. Recarregue a página.');
       animarStepsIA(1);
-      const result = await window.Tesseract.recognize(file, 'por', { logger: () => {} });
-      texto = result.data.text;
+      const imgOtimizada = await _preprocessarImagemOCR(file);
+      const tessWorker = await window.Tesseract.createWorker('por', 1); // OEM 1 = LSTM only
+      try {
+        await tessWorker.setParameters({ tessedit_pageseg_mode: '6' }); // PSM 6 = single block
+        const { data: { text: tessText } } = await tessWorker.recognize(imgOtimizada);
+        texto = tessText;
+      } finally {
+        await tessWorker.terminate();
+      }
     }
 
     animarStepsIA(2);
@@ -416,6 +455,7 @@ async function processarTextoExtraido(texto) {
   const classif = classificarContrato(texto);
   const dados   = extrairDadosDoTexto(texto);
   dados.tipo    = dados.tipo || classif.tipo;
+  classif.confianca = calcularConfiancaExtracao(dados);
 
   animarStepsIA(3);
   await new Promise(r => setTimeout(r, 200));
@@ -445,6 +485,19 @@ function classificarContrato(texto) {
   });
 
   return { tipo: melhorTipo, confianca: Math.min(100, melhorScore * 20 + 30) };
+}
+
+// Confiança baseada na qualidade da extração de dados (não em keywords)
+function calcularConfiancaExtracao(dados) {
+  let pts = 0;
+  if (dados.valorTotal)                pts += 25;
+  if (dados.parcelas)                  pts += 20;
+  if (dados.valorParcela)              pts += 20;
+  if (dados.juros)                     pts += 20;
+  if (dados.cetMensal || dados.cet)    pts +=  5;
+  if (dados.instituicao)               pts +=  5;
+  if (dados.vencimento)                pts +=  5;
+  return Math.min(100, pts);
 }
 
 // Extração de dados por regexes
@@ -477,8 +530,8 @@ function extrairDadosDoTexto(texto) {
     if (rPrest) dados.valorParcela = num(rPrest[1]);
   }
 
-  // Padrão "18x R$ 465,45" / "NxR$"
-  const rNxRS = t.match(/(\d+)\s*[xX×]\s*R?\$?\s*([\d.,]+)/);
+  // Padrão "18x R$ 465,45" / "17x de R$ 465,45" / "NxR$"
+  const rNxRS = t.match(/(\d+)\s*[xX×]\s*(?:de\s+)?R?\$?\s*([\d.,]+)/);
   if (rNxRS) {
     if (!dados.parcelas)     dados.parcelas    = parseInt(rNxRS[1], 10);
     if (!dados.valorParcela) dados.valorParcela = num(rNxRS[2]);
@@ -502,12 +555,13 @@ function extrairDadosDoTexto(texto) {
   }
 
   // ── Parcelas já pagas (mencionadas no documento) ──────────────────────────
-  const rPagas = t.match(/(?:parcelas?\s*pagas?|j[aá]\s*(?:foram\s*)?pagas?)\s*[:\-]?\s*(\d+)/i);
+  const rPagas = t.match(/(?:quantidade\s*de\s*parcelas?\s*pagas?|parcelas?\s*pagas?|j[aá]\s*(?:foram\s*)?pagas?)\s*[:\-]?\s*\n?(\d+)/i);
   if (rPagas) dados.parcelasPagas = parseInt(rPagas[1], 10);
 
   // ── Taxa de juros mensal ──────────────────────────────────────────────────
-  // "Taxa de Juros 3,03% a.m." (sem dois-pontos antes do valor)
-  const rJurosAM = t.match(/taxa\s*(?:de\s*)?juros\s*[:\-]?\s*([\d.,]+)\s*%\s*a\.m\./i);
+  // "Taxa de Juros 3,03% a.m." / "Taxa de juros 3,03% ao mês"
+  // Suporta layout de grade (valor na linha seguinte ao label)
+  const rJurosAM = t.match(/taxa\s*(?:de\s*)?juros[^\n]*?\n?\s*([\d.,]+)\s*%\s*(?:a\.m\.|ao\s*m[eê]s)/i);
   if (rJurosAM) dados.juros = num(rJurosAM[1]);
 
   if (!dados.juros) {
@@ -517,18 +571,25 @@ function extrairDadosDoTexto(texto) {
 
   // Fallback: taxa anual → converte para mensal
   if (!dados.juros) {
-    const rJurosAa = t.match(/taxa\s*(?:de\s*)?juros[^%\n]*?([\d.,]+)\s*%\s*a\.a\./i);
+    const rJurosAa = t.match(/taxa\s*(?:de\s*)?juros[^\n]*?\n?\s*([\d.,]+)\s*%\s*a\.a\./i);
     if (rJurosAa) dados.juros = +((Math.pow(1 + num(rJurosAa[1]) / 100, 1/12) - 1) * 100).toFixed(4);
   }
 
-  // ── CET — captura o valor ANUAL (a.a.) ────────────────────────────────────
-  // "CET – CUSTO EFETIVO TOTAL: 4,18% a.m. / 64,52% a.a."
-  const rCETaa = t.match(/(?:cet|custo\s*efetivo\s*total)[^\n%]*?([\d.,]+)\s*%\s*a\.a\./i);
+  // ── CET ────────────────────────────────────────────────────────────────────
+  // "CET – CUSTO EFETIVO TOTAL: 4,18% a.m. / 64,52% a.a." (captura a.a.)
+  // Suporta layout de grade (valor na linha seguinte ao label)
+  const rCETaa = t.match(/(?:cet|custo\s*efetivo\s*total)[^\n]*?\n?\s*([\d.,]+)\s*%\s*a\.a\./i);
   if (rCETaa) dados.cet = num(rCETaa[1]);
 
+  // "CET 3,34% ao mês" (captura mensal)
   if (!dados.cet) {
+    const rCETmes = t.match(/(?:cet|custo\s*efetivo\s*total)[^\n]*?\n?\s*([\d.,]+)\s*%\s*(?:a\.m\.|ao\s*m[eê]s)/i);
+    if (rCETmes) dados.cetMensal = num(rCETmes[1]);
+  }
+
+  if (!dados.cet && !dados.cetMensal) {
     // genérico sem contexto a.m./a.a.
-    const rCETgen = t.match(/(?:cet|custo\s*efetivo\s*total)[^:\n\d]*?([\d.,]+)\s*%/i);
+    const rCETgen = t.match(/(?:cet|custo\s*efetivo\s*total)[^\n]*?\n?\s*([\d.,]+)\s*%/i);
     if (rCETgen) dados.cet = num(rCETgen[1]);
   }
 
@@ -546,6 +607,22 @@ function extrairDadosDoTexto(texto) {
   if (rVenc) {
     const iso = parseDataBR(rVenc[1]);
     if (iso) dados.vencimento = iso;
+  }
+
+  // Fallback: início da vigência do contrato
+  if (!dados.vencimento) {
+    const rVig = t.match(/vig[eê]ncia[^0-9]*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+    if (rVig) { const iso = parseDataBR(rVig[1]); if (iso) dados.vencimento = iso; }
+  }
+  // Fallback: "Início desconto ABR 2026" → 01/ABR/2026
+  if (!dados.vencimento) {
+    const rIniDesc = t.match(/in[íi]cio\s*desconto\s+([A-ZÀ-Ú]{3,})\s+(\d{4})/i);
+    if (rIniDesc) {
+      const mMap = {JAN:1,FEV:2,MAR:3,ABR:4,MAI:5,JUN:6,JUL:7,AGO:8,SET:9,OUT:10,NOV:11,DEZ:12};
+      const mm = mMap[(rIniDesc[1]||'').toUpperCase().slice(0,3)];
+      const aa = parseInt(rIniDesc[2], 10);
+      if (mm && aa) dados.vencimento = `${aa}-${String(mm).padStart(2,'0')}-01`;
+    }
   }
 
   // ── Instituição (word-boundary, prioridade específica → genérica) ─────────
@@ -604,6 +681,7 @@ function mostrarPreviewIA(dados, classif) {
   if (dados.parcelas)      rows.push(['Total de Parcelas', dados.parcelas + 'x']);
   if (dados.juros)         rows.push(['Juros Mensal', dados.juros.toFixed(2) + '% a.m.']);
   if (dados.cet)           rows.push(['CET (anual)', dados.cet.toFixed(2) + '% a.a.']);
+  if (dados.cetMensal)     rows.push(['CET (mensal)', dados.cetMensal.toFixed(2) + '% a.m.']);
   if (dados.iof)           rows.push(['IOF', fmtIA(dados.iof)]);
   if (dados.seguro)        rows.push(['Seguro', fmtIA(dados.seguro)]);
   if (dados.instituicao)   rows.push(['Instituição', dados.instituicao]);
@@ -793,11 +871,101 @@ function abrirFormManual(rec, comDadosIA = false) {
     document.getElementById(id)?.classList.remove('error');
   });
 
+  // Adaptar labels/placeholders/campos conforme tipo de dívida
+  _adaptarFormTipo(isEditar ? (rec.tipo || '') : (wizardTipo || ''));
+
   fecharTodosModais();
   abrirModal('modalDivida');
 }
 
 window.abrirFormManual = abrirFormManual;
+
+// ─── Adaptar formulário por tipo de dívida ──────────────────────────────────
+function _adaptarFormTipo(tipo) {
+  const REQ = ' <span style="color:#dc2626">*</span>';
+
+  // Defaults (tipo 'Outro' ou desconhecido)
+  let labelNome          = 'Nome / Credor';
+  let placeholderNome    = 'Ex: Empréstimo Nubank, Financiamento Caixa…';
+  let labelInst          = 'Instituição';
+  let placeholderInst    = 'Nubank, Caixa, Itaú…';
+  let labelValorTotal    = 'Valor Original';
+  let labelParcelas      = 'Total de Parcelas';
+  let labelParcelasPagas = 'Já Pagas';
+  let labelParcela       = 'Valor da Parcela';
+  let labelVencimento    = 'Data da 1ª Parcela';
+  let forcarJuros        = null; // null = respeita formato selecionado
+
+  switch (tipo) {
+    case 'Empréstimo':
+      labelNome       = 'Nome do Empréstimo';
+      placeholderNome = 'Ex: Empréstimo pessoal, CDC, Crédito consignado…';
+      labelInst       = 'Banco / Credor';
+      placeholderInst = 'Nubank, Banco do Brasil, CEF…';
+      forcarJuros     = true;
+      break;
+    case 'Financiamento':
+      labelNome       = 'Bem Financiado';
+      placeholderNome = 'Ex: Apartamento 3 quartos, Honda Civic 2023…';
+      labelInst       = 'Banco / Financeira';
+      placeholderInst = 'Caixa, Bradesco, Santander…';
+      forcarJuros     = true;
+      break;
+    case 'Cartão':
+      labelNome       = 'Nome do Cartão';
+      placeholderNome = 'Ex: Nubank Roxinho, Inter Mastercard…';
+      labelInst       = 'Bandeira / Banco';
+      placeholderInst = 'Visa, Mastercard, Elo…';
+      labelParcelas   = 'Total de Parcelas da Fatura';
+      labelParcela    = 'Fatura Mínima';
+      labelVencimento = 'Vencimento da Fatura';
+      forcarJuros     = true;
+      break;
+    case 'Consórcio':
+      labelNome          = 'Grupo / Consórcio';
+      placeholderNome    = 'Ex: Consórcio Caixa Imóvel 2024…';
+      labelInst          = 'Administradora';
+      placeholderInst    = 'Caixa, Porto Seguro, Embracon…';
+      labelValorTotal    = 'Crédito Contratado';
+      labelParcelas      = 'Total de Cotas';
+      labelParcelasPagas = 'Cotas Pagas';
+      labelVencimento    = 'Vencimento da Cota';
+      forcarJuros        = false;
+      break;
+    case 'Informal':
+      labelNome       = 'Descrição da Dívida';
+      placeholderNome = 'Ex: Dinheiro emprestado, Ajuda familiar…';
+      labelInst       = 'Credor (pessoa)';
+      placeholderInst = 'Nome do amigo, familiar, colega…';
+      labelVencimento = 'Data de acerto combinada';
+      forcarJuros     = false;
+      break;
+  }
+
+  // Aplicar labels (preservando asterisco de obrigatório)
+  const setLbl = (id, text, req) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = text + (req ? REQ : '');
+  };
+  setLbl('lbl-dividaNome',          labelNome,          true);
+  setLbl('lbl-dividaInstituicao',   labelInst,          false);
+  setLbl('lbl-dividaValorTotal',    labelValorTotal,    true);
+  setLbl('lbl-dividaParcelas',      labelParcelas,      true);
+  setLbl('lbl-dividaParcelasPagas', labelParcelasPagas, false);
+  setLbl('lbl-dividaValorParcela',  labelParcela,       false);
+  setLbl('lbl-dividaVencimento',    labelVencimento,    false);
+
+  // Aplicar placeholders
+  const setP = (id, text) => { const el = document.getElementById(id); if (el) el.placeholder = text; };
+  setP('dividaNome',       placeholderNome);
+  setP('dividaInstituicao', placeholderInst);
+
+  // Forçar juros visível/oculto se o tipo exige (sobrescreve a lógica de formato)
+  if (forcarJuros !== null) {
+    const fj = document.getElementById('fieldJuros');
+    if (fj) fj.style.display = forcarJuros ? '' : 'none';
+  }
+}
 
 // PMT calc exposto globalmente
 window.calcularPMTForm = function() {
@@ -1323,10 +1491,27 @@ function renderizar() {
     totalJuros += (d.jurosPagos || 0);
   });
 
+  // KPI: comprometimento mensal (soma das parcelas de dívidas ativas)
+  let totalMensalidade = 0;
+  ativas.forEach(d => { totalMensalidade += (d.valorParcela || 0); });
+
+  // "Pague Primeiro" — Avalanche: maior juros; fallback Snowball: menor saldo
+  let idPagarPrimeiro = null;
+  if (ativas.length > 0) {
+    const comJuros = ativas.filter(d => (d.juros || 0) > 0);
+    if (comJuros.length > 0) {
+      idPagarPrimeiro = comJuros.reduce((best, d) => (d.juros > best.juros ? d : best)).id;
+    } else {
+      idPagarPrimeiro = ativas.reduce((best, d) => (calcularSaldoDevedor(d) < calcularSaldoDevedor(best) ? d : best)).id;
+    }
+  }
+
   document.getElementById('kpiAtivas').textContent  = ativas.length;
   document.getElementById('kpiSaldo').textContent   = formatMoeda(totalSaldo);
   document.getElementById('kpiPago').textContent    = formatMoeda(totalPago);
   document.getElementById('kpiJuros').textContent   = formatMoeda(totalJuros);
+  const elMens = document.getElementById('kpiMensalidade');
+  if (elMens) elMens.textContent = formatMoeda(totalMensalidade);
 
   // Progresso geral
   const totalOriginal = dividas.reduce((s, d) => s + (d.valorTotal || 0), 0);
@@ -1369,9 +1554,13 @@ function renderizar() {
     .map(d => ({ d, atrasadas: calcularParcelasAtrasadas(d) }))
     .filter(({ atrasadas }) => atrasadas > 0);
 
+  // Alertas: dívidas com juros abusivos (> 5% a.m.)
+  const dividasJurosAbusivos = ativas.filter(d => (d.juros || 0) > 5);
+
   const secAlertas  = document.getElementById('secAlertas');
   const listaAlertas = document.getElementById('listaAlertas');
-  if (dividasEmAtraso.length > 0 && secAlertas && listaAlertas) {
+  const totalAlertas = dividasEmAtraso.length + dividasJurosAbusivos.length;
+  if (totalAlertas > 0 && secAlertas && listaAlertas) {
     secAlertas.style.display = '';
     listaAlertas.innerHTML = '';
     dividasEmAtraso.forEach(({ d, atrasadas }) => {
@@ -1394,6 +1583,22 @@ function renderizar() {
           </div>
         </div>
         <button onclick="window.abrirDetalhes('${escapeHTML(d.id)}','parcelas')" style="flex-shrink:0;padding:0.375rem 0.75rem;border:none;border-radius:0.625rem;background:#dc2626;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Ver</button>
+      `;
+      listaAlertas.appendChild(el);
+    });
+    // Alertas de juros abusivos
+    dividasJurosAbusivos.forEach(d => {
+      const el = document.createElement('div');
+      el.style.cssText = 'background:rgba(255,247,237,0.9);border:1.5px solid rgba(251,146,60,0.6);border-radius:0.875rem;padding:0.875rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;';
+      el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:0.625rem;min-width:0;">
+          <span style="font-size:1.25rem;flex-shrink:0;">🔥</span>
+          <div style="min-width:0;">
+            <div style="font-size:0.875rem;font-weight:700;color:#c2410c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(d.nome || '—')}</div>
+            <div style="font-size:0.75rem;font-weight:600;color:#9a3412;">Juros abusivos: <strong>${(d.juros).toFixed(2)}% a.m.</strong> · Considere renegociar ou quitar primeiro</div>
+          </div>
+        </div>
+        <button onclick="window.abrirDetalhes('${escapeHTML(d.id)}')" style="flex-shrink:0;padding:0.375rem 0.75rem;border:none;border-radius:0.625rem;background:#ea580c;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Ver</button>
       `;
       listaAlertas.appendChild(el);
     });
@@ -1421,18 +1626,22 @@ function renderizar() {
 
   // ── Filtro ──────────────────────────────────────────────────
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  let filtradas = [...dividas];
+  // Quitadas sempre ficam na seção separada
+  const quitadasLista = dividas.filter(d => calcularSaldoDevedor(d) <= 0.01);
+  let filtradas = dividas.filter(d => calcularSaldoDevedor(d) > 0.01);
   if (_filtroDivida === 'atraso') {
     filtradas = filtradas.filter(d => calcularParcelasAtrasadas(d) > 0);
-  } else if (_filtroDivida === 'ativas') {
-    filtradas = filtradas.filter(d => calcularSaldoDevedor(d) > 0.01);
   }
+  // _filtroDivida === 'ativas' é equivalente ao default (já excluímos quitadas acima)
 
   // ── Ordenação ────────────────────────────────────────────────
   const ordem = document.getElementById('selectOrdemDiv')?.value || 'saldo';
   filtradas.sort((a, b) => {
     if (ordem === 'nome') {
       return (a.nome || '').localeCompare(b.nome || '', 'pt-BR');
+    }
+    if (ordem === 'juros') {
+      return (b.juros || 0) - (a.juros || 0);
     }
     if (ordem === 'vencimento') {
       // ordenar por data da próxima parcela não paga
@@ -1471,12 +1680,22 @@ function renderizar() {
     const quitada = saldo <= 0.01;
     const atrasadas = calcularParcelasAtrasadas(d);
 
-    // Próximo vencimento
+    // Badge "Pague Primeiro"
+    const ehPrioridade = d.id === idPagarPrimeiro;
+    const temJurosAltos = (d.juros || 0) > 5;
+
+    // Próximo vencimento com countdown em dias
     let proximaVencStr = '';
+    let proximaDiasStr = '';
     if (!quitada && d.vencimento && d.parcelas) {
       const base = new Date(d.vencimento + 'T12:00:00');
       const proxVenc = addMonthsSafe(base, d.parcelasPagas || 0);
-      proximaVencStr = `${String(proxVenc.getDate()).padStart(2,'0')}/${String(proxVenc.getMonth()+1).padStart(2,'0')}/${proxVenc.getFullYear()}`;
+      proximaVencStr = `${String(proxVenc.getDate()).padStart(2,'0')}/${String(proxVenc.getMonth()+1).padStart(2,'0')}`;
+      const diffDias = Math.round((proxVenc - hoje) / 86400000);
+      if (diffDias < 0)       proximaDiasStr = `${Math.abs(diffDias)}d atrás`;
+      else if (diffDias === 0) proximaDiasStr = 'hoje';
+      else if (diffDias === 1) proximaDiasStr = 'amanhã';
+      else                     proximaDiasStr = `em ${diffDias}d`;
     }
 
     const barColor = atrasadas > 0
@@ -1491,8 +1710,16 @@ function renderizar() {
         ? `<span style="font-size:0.625rem;font-weight:800;color:#fff;background:#16a34a;padding:0.125rem 0.375rem;border-radius:9999px;margin-left:0.375rem;">✅ QUITADA</span>`
         : '';
 
+    const prioridadeBadge = ehPrioridade
+      ? `<span style="font-size:0.625rem;font-weight:800;color:#fff;background:linear-gradient(135deg,#f59e0b,#d97706);padding:0.125rem 0.375rem;border-radius:9999px;margin-left:0.375rem;">🎯 PAGUE 1°</span>`
+      : '';
+
+    const jurosBadge = temJurosAltos
+      ? `<span style="font-size:0.625rem;font-weight:800;color:#fff;background:#ea580c;padding:0.125rem 0.375rem;border-radius:9999px;margin-left:0.375rem;">🔥 ${(d.juros).toFixed(1)}%a.m.</span>`
+      : '';
+
     const card = document.createElement('div');
-    card.style.cssText = `background:var(--card-bg);border:1.5px solid ${atrasadas > 0 ? 'rgba(252,165,165,0.5)' : 'var(--card-border)'};border-radius:1.125rem;padding:1rem 1.125rem;margin-bottom:0.625rem;cursor:pointer;transition:transform .15s,box-shadow .15s;animation:fadeInUp .3s ease both;animation-delay:${idx * 0.04}s;${quitada ? 'opacity:0.7;' : ''}`;
+    card.style.cssText = `background:var(--card-bg);border:1.5px solid ${atrasadas > 0 ? 'rgba(252,165,165,0.5)' : ehPrioridade ? 'rgba(245,158,11,0.4)' : 'var(--card-border)'};border-radius:1.125rem;padding:1rem 1.125rem;margin-bottom:0.625rem;cursor:pointer;transition:transform .15s,box-shadow .15s;animation:fadeInUp .3s ease both;animation-delay:${idx * 0.04}s;`;
 
     card.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.625rem;">
@@ -1501,7 +1728,7 @@ function renderizar() {
           <div style="min-width:0;">
             <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.25rem;">
               <span style="font-size:0.9375rem;font-weight:700;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(d.nome || '—')}</span>
-              ${statusBadge}
+              ${statusBadge}${prioridadeBadge}${jurosBadge}
             </div>
             <div style="font-size:0.75rem;font-weight:500;color:var(--card-text-sec);">${escapeHTML(d.instituicao || d.tipo || '—')}</div>
           </div>
@@ -1520,7 +1747,8 @@ function renderizar() {
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div style="font-size:0.6875rem;font-weight:500;color:var(--card-text-sec);">
           ${d.parcelasPagas || 0}/${d.parcelas || 0} pagas
-          ${proximaVencStr ? ` · <span style="color:${atrasadas > 0 ? '#dc2626' : 'var(--card-text-sec)'}">📅 ${proximaVencStr}</span>` : ''}
+          ${proximaVencStr ? ` · <span style="color:${atrasadas > 0 ? '#dc2626' : 'var(--card-text-sec)'};">📅 ${proximaVencStr} <strong style="color:${atrasadas > 0 ? '#dc2626' : (proximaDiasStr.includes('atrás') ? '#dc2626' : 'inherit')};">(${proximaDiasStr})</strong></span>` : ''}
+          ${d.valorParcela ? ` · <span style="color:var(--card-text-sec);">${formatMoeda(d.valorParcela)}</span>` : ''}
         </div>
         <button data-edit="${escapeHTML(d.id)}" style="font-size:0.75rem;padding:0.25rem 0.5rem;border:1.5px solid var(--input-border);border-radius:0.5rem;background:var(--input-bg);color:var(--card-text-sec);cursor:pointer;font-family:inherit;" title="Editar">✏️</button>
       </div>
@@ -1547,9 +1775,74 @@ function renderizar() {
 
     lista.appendChild(card);
   });
+
+  // ── Seção Quitadas ───────────────────────────────────────────
+  const secQuit = document.getElementById('secQuitadas');
+  const countQuit = document.getElementById('countQuitadas');
+  const listaQuit = document.getElementById('listaQuitadas');
+  if (secQuit) {
+    if (quitadasLista.length > 0) {
+      secQuit.style.display = '';
+      if (countQuit) countQuit.textContent = quitadasLista.length;
+      // Se a lista já estiver aberta, re-renderiza os cards
+      if (listaQuit && listaQuit.style.display !== 'none') {
+        listaQuit.innerHTML = '';
+        quitadasLista.forEach((d, idx) => listaQuit.appendChild(_renderCardQuitada(d, idx)));
+      }
+    } else {
+      secQuit.style.display = 'none';
+    }
+  }
 }
 
-// Handler de filtro exposto globalmente
+// ─────────────────────────────────────────────────────────────────
+//  CARD QUITADAS
+// ─────────────────────────────────────────────────────────────────
+function _renderCardQuitada(d, idx) {
+  const card = document.createElement('div');
+  card.style.cssText = `background:var(--card-bg);border:1.5px solid var(--card-border);border-radius:1.125rem;padding:0.875rem 1.125rem;margin-bottom:0.5rem;cursor:pointer;transition:transform .15s,box-shadow .15s;opacity:0.75;animation:fadeInUp .25s ease both;animation-delay:${idx * 0.03}s;`;
+  card.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:0.625rem;min-width:0;flex:1;">
+        <span style="font-size:1.25rem;flex-shrink:0;">${d.tipoIcone || '📄'}</span>
+        <div style="min-width:0;">
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.25rem;">
+            <span style="font-size:0.875rem;font-weight:700;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(d.nome || '—')}</span>
+            <span style="font-size:0.625rem;font-weight:800;color:#fff;background:#16a34a;padding:0.125rem 0.375rem;border-radius:9999px;">✅ QUITADA</span>
+          </div>
+          <div style="font-size:0.6875rem;font-weight:500;color:var(--card-text-sec);">${escapeHTML(d.instituicao || d.tipo || '—')} · ${d.parcelas || 0} parcelas</div>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;margin-left:0.5rem;">
+        <div style="font-size:0.9375rem;font-weight:800;color:#16a34a;">${formatMoeda(d.valorTotal || 0)}</div>
+        <div style="font-size:0.6875rem;font-weight:600;color:var(--card-text-sec);">valor original</div>
+      </div>
+    </div>
+  `;
+  card.addEventListener('click', () => window.abrirDetalhes(d.id));
+  card.addEventListener('mouseenter', () => { card.style.transform = 'translateY(-1px)'; card.style.opacity = '1'; });
+  card.addEventListener('mouseleave', () => { card.style.transform = ''; card.style.opacity = '0.75'; });
+  return card;
+}
+
+window.toggleQuitadas = function() {
+  const listaQuit = document.getElementById('listaQuitadas');
+  const icon = document.getElementById('iconToggleQuitadas');
+  if (!listaQuit) return;
+  const aberto = listaQuit.style.display !== 'none';
+  if (aberto) {
+    listaQuit.style.display = 'none';
+    if (icon) icon.textContent = '▸ Expandir';
+  } else {
+    listaQuit.style.display = '';
+    if (icon) icon.textContent = '▾ Recolher';
+    // Preenche os cards diretamente sem re-renderizar tudo
+    listaQuit.innerHTML = '';
+    const quitadas = dividas.filter(d => calcularSaldoDevedor(d) <= 0.01);
+    quitadas.forEach((d, idx) => listaQuit.appendChild(_renderCardQuitada(d, idx)));
+  }
+};
+
 window.setFiltroDiv = function(btn) {
   _filtroDivida = btn.dataset.filtro;
   document.querySelectorAll('.filtro-divida').forEach(b => {
@@ -1779,4 +2072,44 @@ document.addEventListener('DOMContentLoaded', () => {
   // Expor globais necessários para onclick inline no HTML
   window.fecharTodosModais = fecharTodosModais;
   window.fecharModal       = fecharModal;
+
+  // ── Custom Select: ordenação da lista ──
+  const ordemBtn      = document.getElementById('ordemDivBtn');
+  const ordemDropdown = document.getElementById('ordemDivDropdown');
+  const ordemHidden   = document.getElementById('selectOrdemDiv');
+  const ordemTexto    = document.getElementById('ordemDivTexto');
+  if (ordemBtn && ordemDropdown) {
+    ordemBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const aberto = ordemDropdown.classList.contains('open');
+      ordemDropdown.classList.toggle('open', !aberto);
+      ordemBtn.classList.toggle('open', !aberto);
+      ordemBtn.setAttribute('aria-expanded', String(!aberto));
+      // Smart positioning: abre pra cima se não couber abaixo
+      if (!aberto) {
+        const rect = ordemDropdown.parentElement.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        ordemDropdown.classList.toggle('open-up', spaceBelow < 180);
+      }
+    });
+    ordemDropdown.querySelectorAll('.custom-select-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const val = opt.dataset.value;
+        if (ordemHidden) ordemHidden.value = val;
+        if (ordemTexto) ordemTexto.textContent = opt.textContent;
+        ordemDropdown.querySelectorAll('.custom-select-option').forEach(o => o.classList.toggle('selected', o === opt));
+        ordemDropdown.classList.remove('open');
+        ordemBtn.classList.remove('open');
+        ordemBtn.setAttribute('aria-expanded', 'false');
+        renderizar();
+      });
+    });
+    document.addEventListener('click', e => {
+      if (!ordemBtn.contains(e.target)) {
+        ordemDropdown.classList.remove('open');
+        ordemBtn.classList.remove('open');
+        ordemBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
 });

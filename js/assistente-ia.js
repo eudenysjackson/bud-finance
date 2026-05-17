@@ -212,7 +212,32 @@ async function buildContexto(uid, forceRefresh = false) {
       .map(c => `${escapeHTML(c.nome||'Conta')}: ${valoresOcultos ? '•••' : fmtBRL(c.saldo)}`);
 
     // ── Dívidas
-    const dividasAtivas = dividas.filter(d => d.status !== 'quitada');
+    const dividasAtivas = dividas.filter(d => {
+      const restantes = Math.max(0, (d.parcelas || 0) - (d.parcelasPagas || 0));
+      return restantes > 0 && Math.max(0, (d.valorTotal||0) - (d.valorPago||0)) > 0.01
+        || (restantes > 0 && (d.valorParcela||0) > 0);
+    });
+    const saldoDevedorTotal = dividasAtivas.reduce((s, d) => {
+      const restantes = Math.max(0, (d.parcelas||0) - (d.parcelasPagas||0));
+      return s + (d.valorParcela && restantes > 0 ? restantes * d.valorParcela : Math.max(0,(d.valorTotal||0)-(d.valorPago||0)));
+    }, 0);
+    const comprometimentoMensalDividas = dividasAtivas.reduce((s, d) => s + (d.valorParcela||0), 0);
+    const jurosMaiorDivida = dividasAtivas.reduce((mx, d) => Math.max(mx, d.juros||0), 0);
+    const dividasJurosAbusivos = dividasAtivas.filter(d => (d.juros||0) > 5).length;
+    const hoje2 = new Date();
+    const dividasEmAtraso = dividasAtivas.filter(d => {
+      if (!d.vencimento || !d.parcelas) return false;
+      const base = new Date(d.vencimento + 'T12:00:00');
+      const pagas = d.parcelasPagas || 0;
+      if (pagas >= d.parcelas) return false;
+      const proxVenc = new Date(base.getFullYear(), base.getMonth() + pagas, base.getDate());
+      return proxVenc < hoje2;
+    });
+    const dividasDetalhe = dividasAtivas.slice(0, 5).map(d => {
+      const rest = Math.max(0, (d.parcelas||0) - (d.parcelasPagas||0));
+      const saldo = d.valorParcela && rest > 0 ? rest * d.valorParcela : Math.max(0,(d.valorTotal||0)-(d.valorPago||0));
+      return `${d.nome||'Dívida'}: saldo ${valoresOcultos ? '•••' : fmtBRL(saldo)}, parcela ${valoresOcultos ? '•••' : fmtBRL(d.valorParcela||0)}/mês, juros ${(d.juros||0).toFixed(2)}% a.m.`;
+    });
 
     // ── Metas com % concluída
     const hoje = new Date();
@@ -257,7 +282,13 @@ async function buildContexto(uid, forceRefresh = false) {
         topCats,
         saldoContas:        saldoTotal,
         contas:             contasLista,
-        dividasAtivas:      dividasAtivas.length,
+        dividasAtivas:               dividasAtivas.length,
+        saldoDevedorTotal,
+        comprometimentoMensalDividas,
+        jurosMaiorDivida,
+        dividasJurosAbusivos,
+        dividasEmAtraso:             dividasEmAtraso.length,
+        dividasDetalhe,
         metas:              metas.filter(m => m.status !== 'concluida').length,
         metasDetalhe,
         metasAtrasadas,
@@ -285,7 +316,9 @@ async function buildContexto(uid, forceRefresh = false) {
       valoresOcultos: false,
       resumo: {
         receitas: 0, despesas: 0, saldo: 0, topCats: [], saldoContas: 0,
-        contas: [], dividasAtivas: 0, metas: 0, metasDetalhe: [], metasAtrasadas: 0,
+        contas: [], dividasAtivas: 0, saldoDevedorTotal: 0, comprometimentoMensalDividas: 0,
+        jurosMaiorDivida: 0, dividasJurosAbusivos: 0, dividasEmAtraso: 0, dividasDetalhe: [],
+        metas: 0, metasDetalhe: [], metasAtrasadas: 0,
         investimentos: 0, limites: [], limitesEstourados: 0,
         carteira: [], cartoes: [],
         categorias: ['Alimentação','Transporte','Saúde','Educação','Lazer','Moradia','Vestuário','Tecnologia','Serviços','Outros'],
@@ -316,13 +349,39 @@ function analisarSaudeFinanceira(ctx) {
     }
   }
   if ((r.limitesEstourados || 0) > 0) {
-    alertas.push({ nivel: 'alerta', emoji: '\uD83D\uDC38', texto: `${r.limitesEstourados} categoria(s) com limite ultrapassado` });
+    alertas.push({ nivel: 'alerta', emoji: '🐸', texto: `${r.limitesEstourados} categoria(s) com limite ultrapassado` });
   }
   if ((r.metasAtrasadas || 0) > 0) {
-    alertas.push({ nivel: 'info', emoji: '\uD83C\uDFAF', texto: `${r.metasAtrasadas} meta(s) com prazo vencido ou atrasada(s)` });
+    alertas.push({ nivel: 'info', emoji: '🎯', texto: `${r.metasAtrasadas} meta(s) com prazo vencido ou atrasada(s)` });
   }
-  if ((r.dividasAtivas || 0) > 3) {
-    alertas.push({ nivel: 'info', emoji: '\uD83D\uDCB8', texto: `Você tem ${r.dividasAtivas} dívidas ativas registradas` });
+
+  // Dívidas — análise baseada em dados reais
+  if ((r.dividasEmAtraso || 0) > 0) {
+    alertas.push({ nivel: 'critico', emoji: '🔴', texto: `${r.dividasEmAtraso} parcela(s) de dívida em atraso — risco de multas e negativação` });
+  }
+  if ((r.dividasJurosAbusivos || 0) > 0) {
+    const txt = !ctx.valoresOcultos
+      ? `${r.dividasJurosAbusivos} dívida(s) com juros acima de 5% a.m. (maior: ${(r.jurosMaiorDivida||0).toFixed(1)}% a.m.) — prioridade máxima de quitação`
+      : `${r.dividasJurosAbusivos} dívida(s) com juros abusivos detectados`;
+    alertas.push({ nivel: 'critico', emoji: '🔥', texto: txt });
+  }
+  if ((r.comprometimentoMensalDividas || 0) > 0 && (r.receitas || 0) > 0) {
+    const pct = Math.round((r.comprometimentoMensalDividas / r.receitas) * 100);
+    if (pct >= 35) {
+      const txt = !ctx.valoresOcultos
+        ? `Parcelas de dívidas comprometem ${pct}% da sua renda (${fmtBRL(r.comprometimentoMensalDividas)}/mês) — endividamento crítico`
+        : `Parcelas de dívidas comprometem ${pct}% da sua renda — endividamento crítico`;
+      alertas.push({ nivel: 'critico', emoji: '💸', texto: txt });
+    } else if (pct >= 20) {
+      const txt = !ctx.valoresOcultos
+        ? `${pct}% da renda comprometida com parcelas (${fmtBRL(r.comprometimentoMensalDividas)}/mês)`
+        : `${pct}% da renda comprometida com parcelas de dívidas`;
+      alertas.push({ nivel: 'alerta', emoji: '📅', texto: txt });
+    } else if (pct > 0 && (r.dividasAtivas || 0) > 0) {
+      alertas.push({ nivel: 'info', emoji: '📋', texto: `${r.dividasAtivas} dívida(s) ativa(s) — ${pct}% da renda em parcelas` });
+    }
+  } else if ((r.dividasAtivas || 0) > 3) {
+    alertas.push({ nivel: 'info', emoji: '📋', texto: `Você tem ${r.dividasAtivas} dívidas ativas registradas` });
   }
   return alertas;
 }
@@ -381,7 +440,10 @@ function getSugestoes(ctx, alertas) {
   chips.push({ label: '\uD83D\uDCCA Resumo do mês', msg: 'Faça um resumo completo das minhas finanças deste mês' });
 
   if (r.dividasAtivas > 0) {
-    chips.push({ label: '\uD83D\uDCB8 Estrategia para as dívidas', msg: `Tenho ${r.dividasAtivas} dívida(s) ativa(s). Qual a melhor estratégia para quitar?` });
+    const extraDiv = r.dividasJurosAbusivos > 0
+      ? ` Tenho ${r.dividasJurosAbusivos} dívida(s) com juros acima de 5% a.m.`
+      : '';
+    chips.push({ label: '📋 Estratégia para as dívidas', msg: `Tenho ${r.dividasAtivas} dívida(s) ativa(s) com saldo total estimado em ${fmtBRL(r.saldoDevedorTotal||0)}.${extraDiv} Qual a melhor estratégia para quitar?` });
   }
   if (r.metas > 0) {
     chips.push({ label: '\uD83C\uDFAF Progresso das metas', msg: 'Como estão minhas metas financeiras? Alguma em risco?' });

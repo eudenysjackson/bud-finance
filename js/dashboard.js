@@ -796,17 +796,17 @@ function atualizarLembretes7Dias() {
 
   lembretes.slice(0, 5).forEach(function (l) {
     var el = document.createElement('div');
-    var urgente = l.diffDias <= 1;
+    var urgente = l.diffDias <= 3;
     var bgCol  = urgente ? 'rgba(255,251,235,0.8)' : 'var(--sidebar-link-hover-bg)';
-    var brdCol = urgente ? '1.5px solid rgba(253,211,77,0.5)' : '1px solid var(--card-border)';
+    var brdCol = urgente ? '1.5px solid rgba(245,158,11,0.4)' : '1px solid var(--card-border)';
     var textCor = urgente ? '#d97706' : 'var(--card-text)';
     el.style.cssText = 'background:' + bgCol + ';border:' + brdCol + ';border-radius:0.875rem;padding:0.625rem 0.875rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;';
     var dataFmt = l.diffDias === 0 ? 'Hoje' : l.diffDias === 1 ? 'Amanhã' : 'Em ' + l.diffDias + 'd';
     var icone = l.tipo === 'divida' ? '💸' : (l.tipoTrans === 'receita' ? '📥' : '📅');
     var nomeEsc = l.nome.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     var valorFmt = l.valor ? formatarValor(l.valor) : '';
-    // Pill de urgência: vermelho hoje, laranja amanhã, cinza resto
-    var pillBg  = l.diffDias === 0 ? '#dc2626' : l.diffDias === 1 ? '#d97706' : '#64748b';
+    // Pill de urgência: vermelho hoje, laranja amanhã, âmbar 2-3 dias, cinza resto
+    var pillBg  = l.diffDias === 0 ? '#dc2626' : l.diffDias === 1 ? '#d97706' : l.diffDias <= 3 ? '#f59e0b' : '#64748b';
     var pillTxt = l.diffDias === 0 ? 'Hoje' : l.diffDias === 1 ? 'Amanhã' : 'Em ' + l.diffDias + 'd';
     el.innerHTML = '<div style="display:flex;align-items:center;gap:0.625rem;min-width:0;flex:1;">'
       + '<span style="font-size:1.125rem;flex-shrink:0;">' + icone + '</span>'
@@ -831,6 +831,18 @@ function atualizarLembretes7Dias() {
     mais.style.cssText = 'text-align:center;font-size:0.75rem;font-weight:600;color:#94a3b8;padding-top:0.25rem;';
     mais.textContent = '+ mais ' + (lembretes.length - 5) + ' lembrete' + (lembretes.length - 5 > 1 ? 's' : '');
     lista.appendChild(mais);
+  }
+
+  // Badge de urgentes (≤3 dias) no cabeçalho da seção
+  var nUrgentes = lembretes.filter(function(l) { return l.diffDias <= 3; }).length;
+  var badge = document.getElementById('badgeUrgLemb');
+  if (badge) {
+    if (nUrgentes > 0) {
+      badge.textContent = '⚠️ ' + nUrgentes + ' urgente' + (nUrgentes > 1 ? 's' : '');
+      badge.style.display = '';
+    } else {
+      badge.style.display = 'none';
+    }
   }
 
   // Delegar click nos botões Pago ✓
@@ -1027,6 +1039,60 @@ function abrirModalConfirmarPendentes(pendentes) {
     var bf = document.getElementById('btnFecharConfirmarPendentes');
     if (bf) bf.focus();
   }, 60);
+}
+
+// ─── Notificações browser: recorrentes urgentes (≤3 dias) ─────────────────────
+function _dispararNotifRecorrentesUrgentes() {
+  if (!('Notification' in window)) return;
+  var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  // Filtrar recorrentes ativos com vencimento em ≤3 dias
+  var urgentes = recorrentesGlobaisDash.filter(function (r) {
+    if (r.ativo === false) return false;
+    var dia = parseInt(r.diaVencimento, 10);
+    if (!dia) return false;
+    var d = new Date(hoje.getFullYear(), hoje.getMonth(), dia);
+    if (d < hoje) d = new Date(hoje.getFullYear(), hoje.getMonth() + 1, dia);
+    var diff = Math.round((d - hoje) / 86400000);
+    return diff >= 0 && diff <= 3;
+  });
+  if (urgentes.length === 0) return;
+  // Disparar somente uma vez por dia
+  var chaveHoje = 'bud_notif_rec_' + hoje.toISOString().slice(0, 10);
+  if (localStorage.getItem(chaveHoje)) return;
+  function _enviar() {
+    localStorage.setItem(chaveHoje, '1');
+    // Limpar chaves antigas (>3 dias)
+    var limiteAnt = new Date(Date.now() - 4 * 86400000).toISOString().slice(0, 10);
+    Object.keys(localStorage)
+      .filter(function (k) { return k.startsWith('bud_notif_rec_') && k < 'bud_notif_rec_' + limiteAnt; })
+      .forEach(function (k) { localStorage.removeItem(k); });
+    var corpo;
+    if (urgentes.length === 1) {
+      var r0 = urgentes[0];
+      var dia0 = parseInt(r0.diaVencimento, 10);
+      var d0 = new Date(hoje.getFullYear(), hoje.getMonth(), dia0);
+      if (d0 < hoje) d0 = new Date(hoje.getFullYear(), hoje.getMonth() + 1, dia0);
+      var diff0 = Math.round((d0 - hoje) / 86400000);
+      var quando0 = diff0 === 0 ? 'hoje' : diff0 === 1 ? 'amanhã' : 'em ' + diff0 + ' dias';
+      corpo = (r0.nome || r0.descricao || 'Recorrente') + ' vence ' + quando0 + '!';
+    } else {
+      corpo = urgentes.length + ' recorrentes vencem nos próximos 3 dias!';
+    }
+    try {
+      new Notification('Bud Finance — Lembrete ⚠️', {
+        body: corpo,
+        icon: 'favicon.ico',
+        tag: 'bud-rec-urgente'
+      });
+    } catch (_e) { /* silencioso em file:// sem service worker */ }
+  }
+  if (Notification.permission === 'granted') {
+    _enviar();
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then(function (p) {
+      if (p === 'granted') _enviar();
+    });
+  }
 }
 
 // ─── Auto-processar recorrentes (1x/dia, background silencioso) ───────────
@@ -2357,6 +2423,7 @@ function setupListeners(uid) {
     recorrentesGlobaisDash = snapshot.docs.map(function (d) {
       return Object.assign({}, d.data(), { id: d.id });
     });
+    _dispararNotifRecorrentesUrgentes();
     atualizarLembretes7Dias();
     atualizarTudoEmDia();
   }, function () {}));

@@ -160,6 +160,15 @@
     }
     @media(max-width:480px){.cards-grid{grid-template-columns:1fr;}}
     @media(min-width:769px){.sidebar-collapse-btn{display:flex;}}
+    /* ── Filtro chips limites ────────────────────────────── */
+    .limite-chip{padding:0.25rem 0.625rem;border-radius:9999px;font-size:0.75rem;font-weight:700;cursor:pointer;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--text-sec);font-family:inherit;transition:all .15s;white-space:nowrap;}
+    .limite-chip.active{background:rgba(37,99,235,0.1);color:#2563eb;border-color:#93c5fd;}
+    .limite-chip:hover:not(.active){background:var(--sidebar-link-hover-bg);}
+    /* Scrollbar: não vaza além do border-radius do modal */
+    .modal-card::-webkit-scrollbar{width:6px;}
+    .modal-card::-webkit-scrollbar-track{background:transparent;margin-top:1.5rem;margin-bottom:1.5rem;}
+    .modal-card::-webkit-scrollbar-thumb{background:rgba(100,116,139,0.25);border-radius:999px;}
+    .modal-card::-webkit-scrollbar-thumb:hover{background:rgba(100,116,139,0.45);}
   </style>
 </head>
 <body>
@@ -290,16 +299,26 @@
 
       <!-- Lista de limites -->
       <div class="section-card">
-        <div class="section-header">
-          <span class="section-title">Controle por Categoria</span>
-          <!-- Navegação por mês -->
-          <div style="display:flex;align-items:center;gap:0.375rem;">
-            <button id="btnMesAnt" onclick="window.mudarMes(-1)" style="width:2rem;height:2rem;border-radius:0.5rem;border:1.5px solid var(--input-border);background:var(--input-bg);cursor:pointer;font-size:0.875rem;color:var(--text-sec);font-family:inherit;transition:all .15s;">‹</button>
-            <span id="navMesAno" style="font-size:0.875rem;font-weight:700;color:var(--text-main);min-width:130px;text-align:center;"></span>
-            <button id="btnMesProx" onclick="window.mudarMes(1)" style="width:2rem;height:2rem;border-radius:0.5rem;border:1.5px solid var(--input-border);background:var(--input-bg);cursor:pointer;font-size:0.875rem;color:var(--text-sec);font-family:inherit;transition:all .15s;">›</button>
+        <div class="section-header" style="flex-direction:column;align-items:flex-start;gap:0.625rem;">
+          <div style="display:flex;align-items:center;justify-content:space-between;width:100%;flex-wrap:wrap;gap:0.5rem;">
+            <span class="section-title">Controle por Categoria</span>
+            <!-- Navegação por mês -->
+            <div style="display:flex;align-items:center;gap:0.375rem;">
+              <button id="btnMesAnt" onclick="window.mudarMes(-1)" style="width:2rem;height:2rem;border-radius:0.5rem;border:1.5px solid var(--input-border);background:var(--input-bg);cursor:pointer;font-size:0.875rem;color:var(--text-sec);font-family:inherit;transition:all .15s;">‹</button>
+              <span id="navMesAno" style="font-size:0.875rem;font-weight:700;color:var(--text-main);min-width:130px;text-align:center;"></span>
+              <button id="btnMesProx" onclick="window.mudarMes(1)" style="width:2rem;height:2rem;border-radius:0.5rem;border:1.5px solid var(--input-border);background:var(--input-bg);cursor:pointer;font-size:0.875rem;color:var(--text-sec);font-family:inherit;transition:all .15s;">›</button>
+            </div>
+          </div>
+          <!-- Chips de filtro -->
+          <div style="display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap;">
+            <button class="limite-chip active" id="lfl-todos" onclick="window._filtrarLimites('todos')">Todos</button>
+            <button class="limite-chip" id="lfl-estourado" onclick="window._filtrarLimites('estourado')">🔴 Estourado</button>
+            <button class="limite-chip" id="lfl-alerta" onclick="window._filtrarLimites('alerta')">🟡 Em alerta</button>
+            <button class="limite-chip" id="lfl-normal" onclick="window._filtrarLimites('normal')">🟢 Normal</button>
           </div>
         </div>
         <div id="listaLimites"><!-- populado por JS --></div>
+        <div id="listaSemLimite" style="margin-top:0.5rem;"><!-- categorias sem limite, populado por JS --></div>
       </div>
 
     </main>
@@ -332,6 +351,9 @@
         </div>
         <div id="errCategoria" style="font-size:0.75rem;color:#dc2626;margin-top:0.25rem;display:none;"></div>
       </div>
+
+      <!-- Hint: gasto atual da categoria selecionada -->
+      <div id="hintGastoAtual" style="display:none;font-size:0.75rem;font-weight:600;color:#2563eb;padding:0.375rem 0.625rem;background:rgba(37,99,235,0.06);border-radius:0.5rem;margin-bottom:0.75rem;"></div>
 
       <!-- Tipo: Valor fixo | % da Receita -->
       <div class="modal-field">

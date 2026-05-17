@@ -438,3 +438,47 @@
   4. **Refinamento (15/05/2026)**: regex lazy `(\d[\d\.]*,\d{2})` capturava o PRIMEIRO valor decimal após "total a pagar" — no PDF Nubank esse primeiro número é frequentemente um IOF ou uma conversão USD (ex: R$ 12,28) que aparece antes do valor real (R$ 1.242,36) por ordem de leitura do `pdf.js`. Substituído por estratégia "maior valor na janela": coleta TODOS os valores decimais nos N chars após a âncora e escolhe `Math.max`. Adicionada âncora prioritária `Pagamento total da fatura` (frase exclusiva do card de opções de pagamento Nubank, sempre adjacente ao valor correto). Mesma lógica aplicada no backend (`extractMetaFromText`).
 - **Regra de prevenção**: Não fazer o frontend depender exclusivamente de metadados do backend quando dá pra extrair localmente. Para parsing de PDFs com layout em colunas, NUNCA usar regex lazy `[\s\S]{0,N}?` para capturar valor após label — a ordem de extração do `pdf.js`/`pdf-parse` não respeita layout visual. Em vez disso, coletar todos os candidatos numa janela e aplicar critério (maior, mais próximo do "R$" anchor, etc.).
 - **Status**: ✅ Resolvido em 15/05/2026.
+
+---
+
+### ERR-044 — `diaVencimento` salvo sem validação de limite superior em recorrentes.js
+- **Data**: 16/05/2026
+- **Arquivo**: `js/recorrentes.js` — `salvarRecorrente()`
+- **Sintoma**: Usuário poderia digitar `35` no campo "Dia do Vencimento" (HTML tem `min/max` mas não impede digitação manual). O valor `35` era salvo direto no Firestore. O `calcPrimeiraData` usava `Math.min(dia, 31)` para gerar a data, mas o campo `diaVencimento` persistido ficava com valor inválido — afetando lógica futura do backend de processamento.
+- **Causa raiz**: Guard `|| 1` só protegia contra `NaN`/`0`. Nenhum clamp superior era aplicado antes do `addDoc`/`updateDoc`.
+- **Solução aplicada**: `Math.min(31, Math.max(1, parseInt(...) || 1))` no parse do campo antes de salvar.
+- **Regra de prevenção**: Sempre fazer clamp explícito (min + max) em campos numéricos que têm range válido, independentemente do `min`/`max` do HTML.
+- **Status**: ✅ Resolvido em 16/05/2026.
+
+---
+
+### ERR-045 — `budSanitize` não escapa aspas duplas — XSS potencial em atributos HTML
+- **Data**: 16/05/2026
+- **Arquivo**: `js/recorrentes.js` — `renderizar()` (e qualquer outro arquivo que use `budSanitize` dentro de atributos `title`/`href`/`data-*`)
+- **Sintoma**: `card.innerHTML = \`...<div title="${window.budSanitize(rec.descricao)}">...\`` — se `descricao` contivesse `"`, o atributo HTML ficava malformado: `title="Netflix "Premium""`. Vetor de attribute injection.
+- **Causa raiz**: `budSanitize` escapa `<`, `>`, `&` mas **não** `"`. Isso é correto para texto dentro de tags, mas insuficiente para uso dentro de atributos delimitados por aspas duplas.
+- **Solução aplicada**: Adicionado `.replace(/"/g, '&quot;')` ao valor antes de interpolá-lo em atributos: `const safeTitle = window.budSanitize(rec.descricao || '').replace(/"/g, '&quot;')`.
+- **Regra de prevenção**: `budSanitize` é seguro para **conteúdo de texto** dentro de tags. Para **valores de atributos** HTML, sempre encadear `.replace(/"/g, '&quot;')` após o sanitize. Nunca interpolar texto não-controlado diretamente em atributos via template literal sem esse tratamento adicional.
+- **Status**: ✅ Resolvido em 16/05/2026.
+
+---
+
+### ERR-046 — Toggle ativo/inativo sem rollback visual em caso de erro Firebase
+- **Data**: 16/05/2026
+- **Arquivo**: `js/recorrentes.js` — `toggleAtivo()` + evento `change` no checkbox
+- **Sintoma**: Ao clicar no toggle de uma recorrente sem conexão (ou com erro Firebase), a UI mudava visualmente (checkbox invertido) mas o `updateDoc` falhava. O usuário via o estado errado na tela e só descobria o problema pelo toast de erro.
+- **Causa raiz**: A função `toggleAtivo(id, novoValor)` não recebia referência ao elemento DOM do checkbox, impossibilitando o revert.
+- **Solução aplicada**: Assinatura alterada para `toggleAtivo(id, novoValor, checkbox)`. No catch: `if (checkbox) checkbox.checked = !novoValor`. O listener passa `e.target` como terceiro argumento.
+- **Regra de prevenção**: Toggles que disparam operações assíncronas devem sempre ter rollback visual no catch. Passar a referência DOM ao handler assíncrono ao invés de tentar re-consultar o DOM.
+- **Status**: ✅ Resolvido em 16/05/2026.
+
+---
+
+### ERR-047 — Forma de pagamento "Crédito" sem validação do cartão associado
+- **Data**: 16/05/2026
+- **Arquivo**: `js/recorrentes.js` — `salvarRecorrente()`
+- **Sintoma**: Usuário podia selecionar "Crédito" como forma de pagamento, deixar o campo cartão vazio, e salvar. O documento era criado com `formaPagamento: 'Crédito'` e `cartaoId: null` — quebrando integrações downstream (dashboard, processamento de fatura).
+- **Causa raiz**: A validação verificava apenas `descricao`, `valor` e `categoria`. O campo `cartaoId` não tinha guard.
+- **Solução aplicada**: Adicionado ao bloco de validação: `if (forma === 'Crédito' && !cartaoId) { csCartaoTrigger.classList.add('error'); erros = true; }`.
+- **Regra de prevenção**: Campos condicionalmente obrigatórios (visíveis apenas quando outra opção é selecionada) devem ter validação condicionada à mesma lógica de exibição.
+- **Status**: ✅ Resolvido em 16/05/2026.
