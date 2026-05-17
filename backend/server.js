@@ -1036,17 +1036,23 @@ async function extractCupomWithGroq(buffers, mimeTypes) {
   if (!key) throw new Error('GROQ_API_KEY não configurada no servidor.');
 
   var prompt = [
-    'Você está analisando um CUPOM FISCAL de supermercado brasileiro OU um PRINT de app de mercado/delivery (Rappi, iFood Mercado, Zé Delivery, Cornershop, Mercado Livre).',
-    'LEIA A IMAGEM INTEIRA, do topo ao final. Extraia TODOS os itens e cobranças: produtos comprados, taxa de entrega, embalagem, serviço — qualquer linha com valor cobrado ao consumidor.',
-    'IGNORE APENAS: subtotais, total a pagar, formas de pagamento, troco e descontos.',
-    'REGRA CRÍTICA — COMPLETUDE: inclua TODOS os itens visíveis, sem pular nenhum.',
-    'REGRA CRÍTICA — FIDELIDADE: copie o valor EXATAMENTE como escrito na imagem (ex: R$ 7,49 → 7.49). NÃO arredonde, NÃO some.',
-    'Identifique também: nome curto do mercado/loja (sem CNPJ, sem endereço — ex: "Prezunic", "Rappi"), CNPJ (14 dígitos, se visível), data da compra (YYYY-MM-DD, se visível).',
-    'Para cada ITEM, classifique em UMA das categorias: "Mercado" (alimentos, hortifrúti, carnes, laticínios), "Padaria/Café" (pães, bolos, café, biscoitos), "Bares/Baladas" (bebidas alcoólicas, refrigerantes, energéticos), "Farmácia" (higiene, medicamentos, limpeza, cosméticos), "Pets" (ração, petisco, areia), "Material Escolar" (cadernos, canetas), "Outros" (demais).',
-    'Se houver MÚLTIPLAS imagens (cupom em várias páginas), CONSOLIDE tudo num único array de itens.',
-    '"valor" é o VALOR TOTAL do item (qtd × unitário), float positivo. "qtd" é a quantidade (use 1 se não souber). "nome" curto até 50 chars, capitalizado.',
+    'Você está analisando um CUPOM FISCAL NFC-e de supermercado brasileiro OU um PRINT de app de mercado/delivery (Rappi, iFood, Zé Delivery, Cornershop).',
+    '',
+    'ESTRUTURA DO CUPOM FISCAL (NFC-e): as colunas são ITEM | CODIGO | DESCRICAO | QTD | UN | VL.UNIT | VL.TOTAL.',
+    '"valor" de cada item = coluna VL.TOTAL (valor total da linha = quantidade × preço unitário). NUNCA use VL.UNIT como valor.',
+    '',
+    'REGRA CRÍTICA — COMPLETUDE: leia a imagem do TOPO ao FIM e inclua TODOS os itens numerados (001, 002, 003...). NÃO pule nenhum item.',
+    'REGRA CRÍTICA — FIDELIDADE: copie o valor EXATAMENTE como escrito na coluna VL.TOTAL (ex: 12,76 → 12.76). NÃO arredonde, NÃO recalcule.',
+    'REGRA CRÍTICA — NOMES: copie a DESCRICAO do produto como está no cupom, sem abreviar além do que já está abreviado (ex: "LAMEN MIOJO 85G" não vira "Lamen"). Máximo 60 chars.',
+    '',
+    'Extraia TAMBÉM: nome curto do mercado/loja (ex: "Prezunic", "Pão de Açúcar"), CNPJ (14 dígitos, se visível), data da compra (YYYY-MM-DD).',
+    'IGNORE: subtotais, total a pagar, formas de pagamento, troco e descontos.',
+    'Se houver MÚLTIPLAS imagens (cupom em várias páginas), CONSOLIDE tudo num único array.',
+    '',
+    'Categorias: "Mercado" (alimentos, hortifrúti, carnes, laticínios), "Padaria/Café" (pães, bolos, café), "Bares/Baladas" (bebidas alcoólicas, refrigerantes), "Farmácia" (higiene, medicamentos, limpeza), "Pets" (ração, areia), "Material Escolar", "Outros" (sacolas, embalagens, demais).',
+    '',
     'Retorne SOMENTE este JSON (sem markdown, sem explicações):',
-    '{"mercado":"Prezunic","cnpj":"12345678000199","data":"2026-04-25","itens":[{"nome":"Banana Prata kg","qtd":1.5,"valor":7.49,"cat":"Mercado"}]}',
+    '{"mercado":"Prezunic","cnpj":"12345678000199","data":"2026-04-25","itens":[{"nome":"LAMEN MIOJO 85G","qtd":4,"valor":12.76,"cat":"Mercado"}]}',
     'Se não houver itens visíveis: {"mercado":"","cnpj":"","data":"","itens":[]}'
   ].join(' ');
 
@@ -1264,6 +1270,31 @@ app.post('/api/extrair-cupom', function (req, res) {
     var cached = cupomCacheGet(cacheKey);
     if (cached) {
       return res.json(Object.assign({}, cached, { cached: true }));
+    }
+
+    // ── PDFs: extrair texto com pdf-parse → enviar como texto (Groq vision não aceita PDF) ──
+    var hasPdf = mimeTypes.some(function (m) { return m === 'application/pdf'; });
+    if (hasPdf) {
+      var pdfTexts = [];
+      for (var pi = 0; pi < req.files.length; pi++) {
+        if (mimeTypes[pi] === 'application/pdf') {
+          try {
+            var pdfDataCupom = await pdfParse(buffers[pi], { max: 20 });
+            if (pdfDataCupom.text && pdfDataCupom.text.trim().length > 10) {
+              pdfTexts.push(pdfDataCupom.text.trim());
+            }
+          } catch (pdfErr) {
+            console.warn('[extrair-cupom] pdf-parse falhou:', pdfErr.message);
+          }
+        }
+      }
+      var combinedPdfText = pdfTexts.join('\n\n---\n\n').trim();
+      if (!combinedPdfText || combinedPdfText.length < 20) {
+        return res.status(422).json({ error: 'Não foi possível extrair texto do PDF. Tente fotografar o cupom (aba Foto).' });
+      }
+      var resultPdf = await extractCupomFromText(combinedPdfText);
+      cupomCacheSet(cacheKey, resultPdf);
+      return res.json(resultPdf);
     }
 
     var result = await extractCupomWithGroq(buffers, mimeTypes);
