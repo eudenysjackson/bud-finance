@@ -240,6 +240,27 @@ document.addEventListener('click', e => {
 // ═══════════════════════════════════════════════════════════════════════════
 // ── DROPDOWN TIPO ─────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════
+
+// Posiciona dropdown com position:fixed para escapar de overflow:hidden no modal
+function _posicionarDropdown(triggerId, dropdownId) {
+  const tr = document.getElementById(triggerId);
+  const dd = document.getElementById(dropdownId);
+  if (!tr || !dd) return;
+  const rect = tr.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom;
+  dd.style.position  = 'fixed';
+  dd.style.left      = rect.left + 'px';
+  dd.style.width     = rect.width + 'px';
+  dd.style.right     = 'auto';
+  if (spaceBelow >= 180 || spaceBelow >= rect.top) {
+    dd.style.top    = (rect.bottom + 4) + 'px';
+    dd.style.bottom = 'auto';
+  } else {
+    dd.style.top    = 'auto';
+    dd.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+  }
+}
+
 function _buildTipoDropdown() {
   const dd = document.getElementById('tipoDropdown');
   if (!dd) return;
@@ -254,14 +275,17 @@ window._toggleTipoDD = function () {
   const tr = document.getElementById('tipoTrigger');
   if (!dd) return;
   _fecharOutrosDropdowns('tipoDropdown');
+  const abrindo = !dd.classList.contains('open');
   dd.classList.toggle('open');
   if (tr) tr.classList.toggle('open', dd.classList.contains('open'));
+  if (abrindo) _posicionarDropdown('tipoTrigger', 'tipoDropdown');
 };
 window._selectTipo = function (val, emoji) {
   document.getElementById('investTipo').value = val;
   document.getElementById('tipoLabel').textContent = emoji + ' ' + val;
   document.getElementById('tipoLabel').style.color = 'var(--card-text)';
-  document.getElementById('tipoDropdown').classList.remove('open');
+  const dd = document.getElementById('tipoDropdown');
+  if (dd) { dd.classList.remove('open'); dd.style.cssText = ''; }
   document.getElementById('tipoTrigger').classList.remove('open');
   document.getElementById('errTipo').style.display = 'none';
 };
@@ -281,14 +305,17 @@ window._toggleLiquidezDD = function () {
   const tr = document.getElementById('liquidezTrigger');
   if (!dd) return;
   _fecharOutrosDropdowns('liquidezDropdown');
+  const abrindo = !dd.classList.contains('open');
   dd.classList.toggle('open');
   if (tr) tr.classList.toggle('open', dd.classList.contains('open'));
+  if (abrindo) _posicionarDropdown('liquidezTrigger', 'liquidezDropdown');
 };
 window._selectLiquidez = function (val) {
   document.getElementById('investLiquidez').value = val;
   document.getElementById('liquidezLabel').textContent = val;
   document.getElementById('liquidezLabel').style.color = 'var(--card-text)';
-  document.getElementById('liquidezDropdown').classList.remove('open');
+  const dd = document.getElementById('liquidezDropdown');
+  if (dd) { dd.classList.remove('open'); dd.style.cssText = ''; }
   document.getElementById('liquidezTrigger').classList.remove('open');
 };
 
@@ -296,7 +323,7 @@ function _fecharOutrosDropdowns(exceto) {
   ['tipoDropdown','liquidezDropdown'].forEach(id => {
     if (id !== exceto) {
       const el = document.getElementById(id);
-      if (el) el.classList.remove('open');
+      if (el) { el.classList.remove('open'); el.style.cssText = ''; }
     }
   });
   // fecha triggers
@@ -525,6 +552,30 @@ function renderizarKPIs() {
   const cor = rendPct >= 0 ? '#16a34a' : '#dc2626';
   document.getElementById('kpiRendimentoPct').innerHTML =
     `<span style="color:${cor};font-weight:700;">${rendPct >= 0 ? '+' : ''}${fmtPct(rendPct)} total</span>`;
+
+  // CDI beat insight
+  const comRendAnual = investimentos.filter(i => calcRendAnual(i) !== null);
+  const batendoCDI   = comRendAnual.filter(i => (calcRendAnual(i) || 0) > BENCHMARKS.cdi).length;
+  const cdiEl = document.getElementById('kpiCdiBeat');
+  if (cdiEl) {
+    if (comRendAnual.length > 0) {
+      const cor2 = batendoCDI === comRendAnual.length ? '#059669' : batendoCDI > 0 ? '#d97706' : '#dc2626';
+      cdiEl.innerHTML = `<span style="color:${cor2};">${batendoCDI}/${comRendAnual.length} batem CDI (${BENCHMARKS.cdi}% a.a.)</span>`;
+    } else {
+      cdiEl.textContent = '';
+    }
+  }
+
+  // Liquidez disponível (Diária)
+  const LIQUIDEZ_IMEDIATA = ['Diária'];
+  const liquido = investimentos
+    .filter(i => LIQUIDEZ_IMEDIATA.includes(i.liquidez))
+    .reduce((s, i) => s + (Number(i.valorAtual) || 0), 0);
+  const liqCount = investimentos.filter(i => LIQUIDEZ_IMEDIATA.includes(i.liquidez)).length;
+  document.getElementById('kpiLiquidez').textContent    = fmt(liquido);
+  document.getElementById('kpiLiquidezSub').textContent = liqCount > 0
+    ? `${liqCount} investimento${liqCount !== 1 ? 's' : ''} c/ liquidez diária`
+    : 'nenhum com liquidez diária';
 }
 
 function renderizarAlertaDiversificacao() {
@@ -686,7 +737,112 @@ function renderizar() {
   renderizarAlertaDiversificacao();
   renderizarGrafico();
   renderizarLista();
+  renderizarVencimentos();
 }
+
+/* ─────────────────────────────────────────────────────────────────
+   Vencimentos próximos (próximos 30 dias)
+───────────────────────────────────────────────────────────────── */
+function renderizarVencimentos() {
+  const sec = document.getElementById('secVencimentos');
+  if (!sec) return;
+  const hoje  = new Date(); hoje.setHours(0,0,0,0);
+  const lim   = new Date(hoje); lim.setDate(lim.getDate() + 30);
+
+  const venc = investimentos.filter(i => {
+    if (!i.vencimento) return false;
+    const d = new Date(i.vencimento + 'T00:00:00');
+    return d >= hoje && d <= lim;
+  }).sort((a, b) => a.vencimento.localeCompare(b.vencimento));
+
+  if (venc.length === 0) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+
+  document.getElementById('secVencimentosCount').textContent = `${venc.length} item${venc.length !== 1 ? 'ns' : ''}`;
+
+  const lista = document.getElementById('listaVencimentos');
+  lista.innerHTML = venc.map(inv => {
+    const d    = new Date(inv.vencimento + 'T00:00:00');
+    const dias = Math.round((d - hoje) / 86400000);
+    const dStr = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' });
+    const urgencia = dias <= 7 ? '#dc2626' : dias <= 14 ? '#d97706' : '#059669';
+    const t    = getTipoObj(inv.tipo);
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.625rem 0;border-bottom:1px solid var(--card-border);">
+      <div style="display:flex;align-items:center;gap:0.625rem;">
+        <span style="font-size:1.25rem;">${t.emoji}</span>
+        <div>
+          <div style="font-size:0.875rem;font-weight:700;color:var(--card-text);">${escapeHTML(inv.nome || '—')}</div>
+          <div style="font-size:0.75rem;color:var(--card-text-sec);">${escapeHTML(inv.tipo || '—')} · ${fmt(Number(inv.valorAtual)||0)}</div>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:0.8125rem;font-weight:700;color:${urgencia};">Vence ${dStr}</div>
+        <div style="font-size:0.75rem;color:${urgencia};">${dias === 0 ? 'Hoje!' : dias === 1 ? 'Amanhã' : `em ${dias} dias`}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Simulador de Juros Compostos
+───────────────────────────────────────────────────────────────── */
+window.toggleSimulador = function() {
+  const body = document.getElementById('simBody');
+  const btn  = document.getElementById('btnToggleSim');
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (btn) btn.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
+};
+
+window._maskSimBRL = function(input) {
+  let v = input.value.replace(/\D/g, '');
+  if (!v) { input.value = ''; return; }
+  const num = parseInt(v, 10) / 100;
+  input.value = num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+
+window.calcularSimulador = function() {
+  const parseSimBRL = s => parseFloat((s || '').replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+  const pv    = parseSimBRL(document.getElementById('simInicial').value);
+  const pmt   = parseSimBRL(document.getElementById('simMensal').value);
+  const taxa  = parseFloat(document.getElementById('simTaxa').value) / 100 || 0;
+  const n     = parseInt(document.getElementById('simPrazo').value, 10) || 0;
+  const res   = document.getElementById('simResultado');
+
+  if (n <= 0) { res.innerHTML = '<p style="color:#dc2626;font-size:0.875rem;font-weight:600;">Informe um prazo válido.</p>'; return; }
+
+  let montante = pv;
+  const hist   = [{ mes: 0, val: pv }];
+  for (let i = 1; i <= n; i++) {
+    montante = montante * (1 + taxa) + pmt;
+    hist.push({ mes: i, val: montante });
+  }
+
+  const totalAportado = pv + pmt * n;
+  const lucro         = montante - totalAportado;
+  const taxaAno       = (Math.pow(1 + taxa, 12) - 1) * 100;
+  const fmt2          = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const fmtPct2       = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+
+  res.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;margin-bottom:1rem;">
+      <div style="background:var(--input-bg);border-radius:0.875rem;padding:0.875rem;text-align:center;">
+        <div style="font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-sec);margin-bottom:0.25rem;">Montante Final</div>
+        <div style="font-size:1.0625rem;font-weight:800;color:var(--card-text);">${fmt2(montante)}</div>
+      </div>
+      <div style="background:var(--input-bg);border-radius:0.875rem;padding:0.875rem;text-align:center;">
+        <div style="font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-sec);margin-bottom:0.25rem;">Juros Ganhos</div>
+        <div style="font-size:1.0625rem;font-weight:800;color:#059669;">${fmt2(lucro)}</div>
+      </div>
+      <div style="background:var(--input-bg);border-radius:0.875rem;padding:0.875rem;text-align:center;">
+        <div style="font-size:0.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-sec);margin-bottom:0.25rem;">Taxa a.a.</div>
+        <div style="font-size:1.0625rem;font-weight:800;color:var(--card-text);">${fmtPct2(taxaAno)}</div>
+      </div>
+    </div>
+    <div style="font-size:0.75rem;color:var(--text-sec);font-weight:600;">
+      Total aportado: ${fmt2(totalAportado)} · Retorno sobre aporte: ${fmtPct2(totalAportado > 0 ? (lucro/totalAportado)*100 : 0)}
+    </div>`;
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ── MERCADO (AwesomeAPI) ───────────────────────────────────────────────────
