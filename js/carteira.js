@@ -1415,7 +1415,7 @@ function detectarMovimentoInterno(desc) {
   // Pagamento de fatura de cartão (já contabilizado pelas transações do cartão)
   if (/pagamento de fatura/.test(d)) return 'Pgto Fatura CC';
   // Parcela/resgate de empréstimo Nubank (registrar em Dívidas para controle completo)
-  if (/resgate de emprestimo/.test(d)) return 'Parcela Emp.';
+  if (/resgate.{0,8}emprestimo|emprestimo consig|parcela consig|consignado/.test(d)) return 'Parcela Emp.';
   return null;
 }
 
@@ -1447,8 +1447,8 @@ function detectarTipo(desc, tipoOrigem) {
   if (!desc) return tipoOrigem === 'credito' ? 'receita' : 'despesa';
   const d = desc.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-  // Empréstimos/financiamentos → sempre despesa ("Resgate de empréstimo" = pagamento da dívida)
-  if (/emprestimo|financiamento|prestacao/.test(d)) return 'despesa';
+  // Empréstimos/financiamentos → sempre despesa ("Resgate de empréstimo" / consignado = pagamento da dívida)
+  if (/emprestimo|financiamento|prestacao|consignado/.test(d)) return 'despesa';
 
   // Padrões de receita explícitos
   if (/pix receb|transferencia receb|credito receb|deposito receb|estorno|reembolso|devolucao|resgate|rendimento|dividendo|salario|proventos/.test(d)) return 'receita';
@@ -1496,7 +1496,7 @@ const REGRAS_CAT = [
   { cat: 'Pet',                     words: ['pet','veterinario','racao','petshop','petz','cobasi','apetit'] },
   { cat: 'Eletrônicos',             words: ['shpp','shoptime','americanas','magazine luiza','casas bahia','kabum','terabyte'] },
   { cat: 'Compras Online',          words: ['mercadolivre','amazon','shopee','aliexpress','submarino'] },
-  { cat: 'Empréstimos/Dívidas',     words: ['emprestimo','financiamento','prestacao','resgate de emprestimo'] },
+  { cat: 'Empréstimos/Dívidas',     words: ['emprestimo','financiamento','prestacao','consignado','resgate de emprestimo'] },
   { cat: 'Salário',                 words: ['salario','proventos','folha de pagamento','holerite'] },
   { cat: 'Rendimentos/Dividendos',  words: ['rendimento','dividendo','resgate rdb','resgate cdb'] },
   { cat: 'Outros',                  words: ['transferencia','pix','ted','doc','tev'] },
