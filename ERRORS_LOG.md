@@ -537,3 +537,56 @@
 - **Solução aplicada**: Adicionado `min-width:0` ao CSS de `.dash-main` nas 5 páginas de Análises.
 - **Regra de prevenção**: Todo flex item que precisa encolher abaixo do tamanho do conteúdo DEVE ter `min-width:0`. Especialmente necessário em layouts responsivos com grids internos.
 - **Status**: ✅ Resolvido em 18/05/2026.
+
+---
+
+### ERR-053 — Backgrounds hardcoded em alertas JS quebram legibilidade no tema Dark
+- **Data**: 18/05/2026
+- **Arquivos**: `js/dashboard.js`, `js/dividas.js`, `js/investimentos.js`
+- **Sintoma**: Nos temas escuros (hbo Dark, onyx, etc.), os cards de alerta gerados por JS apareciam como blocos brancos/creme chamejantes sobre fundo preto — texto legível mas fundo completamente fora do tema.
+- **Detalhes**:
+  - `dashboard.js` — Limites widget: `rgba(255,251,235,0.8)` (amarelo-creme) e `rgba(254,242,242,0.8)` (rosa-creme) para cards de alerta
+  - `dashboard.js` — Dívidas em Atraso widget: `rgba(254,242,242,0.7)` (rosa claro) nos rows de dívidas
+  - `dividas.js` — seção alertas: `rgba(254,242,242,0.8)` (rosa claro) e `rgba(255,247,237,0.9)` (laranja-creme)
+  - `investimentos.js` — alerta diversificação: `#fffbeb` (creme puro) e `color:#92400e` (marrom escuro — invisível em dark)
+- **Causa raiz**: Elementos gerados via JS usavam cores literais RGB sem transparência semântica. Os valores eram pensados para tema Light e ficavam hardcoded independente do tema ativo.
+- **Solução aplicada**: Substituídas todas as cores por `rgba()` semi-transparentes semanticamente corretas:
+  - Vermelho/atraso: `background:rgba(220,38,38,0.08); border:rgba(220,38,38,0.25)`
+  - Amarelo/alerta: `background:rgba(217,119,6,0.1); border:rgba(217,119,6,0.3)`
+  - Verde/ok: `background:rgba(22,163,74,0.1); border:rgba(22,163,74,0.3)`
+  - Texto mantido em cores semânticas diretas (`#dc2626`, `#d97706`, `#16a34a`) que são legíveis em qualquer fundo.
+- **Regra de prevenção**: Para backgrounds de alerta gerados por JS, SEMPRE usar `rgba()` com opacidade baixa (0.08–0.12) para que o fundo subjacente (dark ou light) apareça. Cores semanticamente fortes (`#dc2626`, `#d97706`) funcionam bem como texto em qualquer tema. NUNCA usar cores RGB opacos como background em elementos dinâmicos.
+- **Status**: ✅ Resolvido em 18/05/2026.
+
+---
+
+### ERR-054 — Botão filtro ativo "Todas" em `dividas.html`: texto invisível no tema Dark
+- **Data**: 18/05/2026
+- **Arquivo**: `dividas.html` (HTML inicial) + `js/dividas.js` (`setFiltroDiv`)
+- **Sintoma**: No tema HBO Dark, o botão "Todas" (filtro ativo) aparecia como um retângulo branco sem texto visível. O botão "Em Atraso" e "Ativas" eram normais.
+- **Causa raiz**: O tema hbo define `--btn-bg: #ffffff` (branco) como cor de botão primário. O botão ativo usava `color:#fff` hardcoded — resultando em texto branco sobre fundo branco (invisível). Duplo problema: (1) HTML inline `style="color:#fff"` na definição inicial do botão. (2) `js/dividas.js` → `setFiltroDiv()` também setava `b.style.color = ativo ? '#fff' : ...` por JS ao clicar.
+- **Solução aplicada**: (1) HTML `dividas.html`: alterado `color:#fff` para `color:var(--btn-text,#fff)`. (2) JS `dividas.js`: alterado `'#fff'` para `'var(--btn-text)'` no `setFiltroDiv`.
+- **Regra de prevenção**: NUNCA hardcodar `color:#fff` em botões primários. O tema hbo usa `--btn-bg:#ffffff` (branco) portanto `--btn-text` é `#000000`. Sempre usar `color:var(--btn-text)` em botões que recebem `background:var(--btn-bg)`.
+- **Status**: ✅ Resolvido em 18/05/2026.
+
+---
+
+### ERR-055 — `color:var(--text-sec)` em elementos com `background:var(--card-bg)`: texto invisível nos 5 temas coloridos
+- **Data**: 18/05/2026
+- **Arquivos afetados** (10 arquivos, 36 ocorrências): `extrato.html`, `comparativo.html`, `balanco-mensal.html`, `assistente-ia.html`, `dividas.html`, `insights.html`, `limites.html`, `graficos.html`, `investimentos.html`, `relatorios.html`
+- **Sintoma**: Botões de ação secundários (Ocultar Valores, Atualizar, Exportar PDF/CSV, Intervalo, Hoje, Exportar Conversa, Limpar Chat, Copiar Limites, etc.), chips de filtro (Receitas/Despesas em tendência, Ativas em dívidas) e o trigger de custom-select em `dividas.html` apareciam com texto completamente invisível nos temas Rosa, Azul, Roxo, Verde e Vermelho.
+- **Causa raiz**: Esses elementos usavam `color:var(--text-sec)` com `background:var(--card-bg)`. Nos 5 temas coloridos, `--text-sec` é definido como uma cor pastel quase branca (ex: Rosa → `#fce7f3`, Azul → `#dbeafe`) — sendo invisível sobre o fundo branco/glass `--card-bg` (`rgba(255,255,255,0.92)`). Comprovado via computed styles no browser.
+- **Solução aplicada**: Substituição em batch (PowerShell) de `color:var(--text-sec)` → `color:var(--card-text)` em todas as linhas que também continham `background:var(--card-bg)`, nos 10 arquivos afetados. Em todos os temas, `--card-text` é uma cor escura adequada para leitura sobre fundo branco/glass.
+- **Regra de prevenção**: `--text-sec` é destinado a texto em fundos de PÁGINA (coloridos/escuros do tema). NUNCA usar `--text-sec` em elementos que tenham `background:var(--card-bg)` — usar sempre `--card-text` (primário) ou `--card-text-sec` (secundário) nesses contextos.
+- **Status**: ✅ Resolvido em 18/05/2026.
+
+---
+
+### ERR-056 — Alertas com `rgba()` semi-transparente diretamente no fundo de página colorido: invisíveis nos temas coloridos
+- **Data**: 18/05/2026
+- **Arquivos afetados**: `js/investimentos.js` (`renderizarAlertaDiversificacao`), `js/dividas.js` (alertas em `#listaAlertas`)
+- **Sintoma**: O alerta de diversificação em Investimentos e os alertas de parcelas em atraso/juros abusivos em Dívidas apareciam como manchas levemente tingidas ou quase invisíveis sobre o fundo colorido da página (ex: rosa, azul) nos temas coloridos.
+- **Causa raiz**: Os alertas eram inseridos diretamente no fundo da página (fora de containers brancos). A técnica `background: rgba(cor, 0.08–0.1)` funciona sobre branco/preto mas desaparece em fundos coloridos vibrantes.
+- **Solução aplicada**: Alterado `cssText` para usar `background:var(--card-bg)` + `border-left:4px solid #cor` colorida. O alerta sempre aparece como um card branco/glass com borda colorida semântica, independente do tema.
+- **Regra de prevenção**: Alertas inseridos diretamente no fundo de página (não dentro de `.summary-card`/`.section-card`) DEVEM usar `background:var(--card-bg)` como base. A técnica `rgba(cor, baixa-opacidade)` só funciona dentro de containers já brancos/glass.
+- **Status**: ✅ Resolvido em 18/05/2026.

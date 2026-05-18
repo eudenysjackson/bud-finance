@@ -1573,7 +1573,7 @@ function renderizar() {
       const parcelaLabel = `Parcela${plural} ${(d.parcelasPagas || 0) + 1}${atrasadas > 1 ? '–' + ((d.parcelasPagas || 0) + atrasadas) : ''}`;
 
       const el = document.createElement('div');
-      el.style.cssText = 'background:rgba(254,242,242,0.8);border:1.5px solid rgba(252,165,165,0.6);border-radius:0.875rem;padding:0.875rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;';
+      el.style.cssText = 'background:var(--card-bg);border:1.5px solid rgba(220,38,38,0.35);border-left:4px solid #dc2626;border-radius:0.875rem;padding:0.875rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;';
       el.innerHTML = `
         <div style="display:flex;align-items:center;gap:0.625rem;min-width:0;">
           <span style="font-size:1.25rem;flex-shrink:0;">🔴</span>
@@ -1589,7 +1589,7 @@ function renderizar() {
     // Alertas de juros abusivos
     dividasJurosAbusivos.forEach(d => {
       const el = document.createElement('div');
-      el.style.cssText = 'background:rgba(255,247,237,0.9);border:1.5px solid rgba(251,146,60,0.6);border-radius:0.875rem;padding:0.875rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;';
+      el.style.cssText = 'background:var(--card-bg);border:1.5px solid rgba(217,119,6,0.35);border-left:4px solid #ea580c;border-radius:0.875rem;padding:0.875rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;';
       el.innerHTML = `
         <div style="display:flex;align-items:center;gap:0.625rem;min-width:0;">
           <span style="font-size:1.25rem;flex-shrink:0;">🔥</span>
@@ -1848,7 +1848,7 @@ window.setFiltroDiv = function(btn) {
   document.querySelectorAll('.filtro-divida').forEach(b => {
     const ativo = b === btn;
     b.style.background = ativo ? 'var(--btn-bg,#2563eb)' : 'var(--card-bg)';
-    b.style.color       = ativo ? '#fff' : (b.dataset.filtro === 'atraso' ? '#dc2626' : 'var(--text-sec)');
+    b.style.color       = ativo ? 'var(--btn-text)' : (b.dataset.filtro === 'atraso' ? '#dc2626' : 'var(--text-sec)');
     b.style.border      = ativo ? '1px solid transparent' : (b.dataset.filtro === 'atraso' ? '1px solid rgba(252,165,165,0.6)' : '1px solid var(--input-border)');
   });
   renderizar();

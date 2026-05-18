@@ -481,14 +481,14 @@ function atualizarLimitesWidget(transacoesMes, saidasMes) {
     var ok = document.createElement('div');
     var limNome = limitesGlobaisDash.length + ' limite' + (limitesGlobaisDash.length > 1 ? 's' : '') + ' definido' + (limitesGlobaisDash.length > 1 ? 's' : '');
     if (pctTotal > 100) {
-      ok.style.cssText = 'background:rgba(255,251,235,0.8);border:1.5px solid rgba(253,211,77,0.4);border-radius:0.875rem;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.625rem;';
+      ok.style.cssText = 'background:rgba(217,119,6,0.1);border:1.5px solid rgba(217,119,6,0.3);border-radius:0.875rem;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.625rem;';
       ok.innerHTML = '<span style="font-size:1.25rem;">\u26A0\uFE0F</span>'
         + '<div>'
         + '<div style="font-size:0.875rem;font-weight:700;color:#d97706;">Gastos acima do orçamento</div>'
         + '<div style="font-size:0.75rem;font-weight:600;color:#92400e;">' + limNome + ' · ' + pctTotal + '% utilizado</div>'
         + '</div>';
     } else {
-      ok.style.cssText = 'background:rgba(240,253,244,0.8);border:1.5px solid rgba(134,239,172,0.4);border-radius:0.875rem;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.625rem;';
+      ok.style.cssText = 'background:rgba(22,163,74,0.1);border:1.5px solid rgba(22,163,74,0.3);border-radius:0.875rem;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.625rem;';
       ok.innerHTML = '<span style="font-size:1.25rem;">\u2705</span>'
         + '<div>'
         + '<div style="font-size:0.875rem;font-weight:700;color:#16a34a;">Orçamento sob controle</div>'
@@ -503,8 +503,8 @@ function atualizarLimitesWidget(transacoesMes, saidasMes) {
   criticos.slice(0, 3).forEach(function(item) {
     var l      = item.l;
     var estour = item.pct > 100;
-    var bgCol  = estour ? 'rgba(254,242,242,0.8)' : 'rgba(255,251,235,0.8)';
-    var brdCol = estour ? 'rgba(252,165,165,0.5)' : 'rgba(253,211,77,0.4)';
+    var bgCol  = estour ? 'rgba(220,38,38,0.1)' : 'rgba(217,119,6,0.1)';
+    var brdCol = estour ? 'rgba(220,38,38,0.25)' : 'rgba(217,119,6,0.3)';
     var textCol = estour ? '#dc2626' : '#d97706';
 
     var el = document.createElement('div');
@@ -643,7 +643,7 @@ function atualizarDividasAtraso() {
   exibir.forEach(function(item) {
     var d = item.d;
     var el = document.createElement('div');
-    el.style.cssText = 'background:rgba(254,242,242,0.7);border:1.5px solid rgba(252,165,165,0.5);border-radius:0.875rem;padding:0.75rem 1rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;';
+    el.style.cssText = 'background:rgba(220,38,38,0.08);border:1.5px solid rgba(220,38,38,0.25);border-radius:0.875rem;padding:0.75rem 1rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;';
 
     var diasAtraso = Math.round((hoje - item.proxVenc) / 86400000);
     var valorParc  = d.valorParcela ? d.valorParcela.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—';

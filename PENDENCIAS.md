@@ -144,6 +144,22 @@ _Sem pendências ativas._
 
 ---
 
+## 🎛️ Configurações — Pendências da Auditoria QA (18/05/2026)
+
+> Auditoria QA da tela `configuracoes.html` em todos os 8 temas de cor em 18/05/2026.
+
+| ID | Descrição | Prioridade | Depende de | Observação |
+|---|---|---|---|---|
+| PEND-072 | **`configuracoes.html` — 2x `</div>` solto após `#modalExcluirConta`** — dois fechamentos de div orfãos na linha seguinte ao modal. Não quebra layout atual mas pode causar conflito ao adicionar elementos após o modal. | ⚙️ DT | — | Auditoria 18/05/2026 — cleanup simples |
+| PEND-073 | **`configuracoes.html` — `.shimmer-badge` CSS definido mas nunca usado** — a animação shimmer foi declarada no `<style>` mas nenhum elemento usa essa classe. Limpeza de CSS morto. | ⚙️ DT | — | Auditoria 18/05/2026 |
+| PEND-074 | **`configuracoes.js` — `modalCancelamento` cria elementos via JS com classes Tailwind** — viola PROJECT_RULES ("NUNCA usar classes Tailwind em elementos criados dinamicamente via JS"). Os overlays/modais gerados usam `flex`, `items-center`, `bg-black`, etc. via `classList.add`. Corrigir para `style` inline. | 🟡 Média | — | Auditoria 18/05/2026 — violação de regra do projeto |
+| PEND-075 | **Configurações — Gestão de Assinatura (seção completa ausente)** — tela não tem a seção "Plano Atual / Upgrade / Cancelamento" descrita no `cérebro/configuracoes.md`. Usuário não vê nem cancela o plano pela tela de configurações. | 🚀 FUT | PEND-001 (Mercado Pago) | Auditoria 18/05/2026 |
+| PEND-076 | **Configurações — Push Notifications mostra "Em breve"** — seção de notificações push está implementada visualmente mas o botão exibe "Em breve" sem funcionalidade. Aguarda PEND-046 (FCM). | 🔴 (bloqueado) | PEND-046 (FCM Service Worker) | Auditoria 18/05/2026 |
+| PEND-077 | **Configurações — Tutorial Reset não tem JS conectado** — o botão "Resetar Tutorial" existe no HTML mas não há lógica em `configuracoes.js` que realmente reinicie o tutorial FAB. `NexoTutorial.resetAll()` referenciado mas tutorial FAB não está implementado. | 🟡 Média | `tutorial.js` (não existe ainda) | Auditoria 18/05/2026 — ver PEND-003 |
+| PEND-078 | **Chart.js — Legend text fica stale ao trocar tema em sessão ativa** — ao trocar de tema SEM recarregar a página, o texto das legendas nos gráficos (graficos.html, balanco-mensal.html, insights.html) permanece na cor antiga. Isso só afeta live-switching durante a sessão; página nova carrega corretamente. Baixo impacto. | 🟢 Baixa | Chart.js | Auditoria 18/05/2026 — BUG-05 identificado mas não corrigido |
+
+---
+
 ## 💸 Dívidas
 
 | ID | Descrição | Prioridade | Depende de | Observação |
@@ -271,5 +287,6 @@ _Sem pendências ativas._
 - **27/04/2026** — Fase 1 concluída. Mercado IA implementado com Groq meta-llama/llama-4-scout. Balanço Mensal (`balanco-mensal.html` + `js/balanco-mensal.js`) criado — Fase 2 iniciada. Sidebars de 11 telas atualizadas com link "Balanço Mensal (Plus)". PEND-MER-11 reclassificada (verificar se backend ainda usa Gemini ou Groq). PEND-044/045/046 adicionadas (Cloud Function processarRecorrentes, Feature Flags, FCM Push).
 - **14/05/2026** — Melhorias e fixes em `carteira.html`/`js/carteira.js`: (1) ERR-036: `confirmarTransferencia()` com schema errado (`tipo:'saida'/'entrada'`, `contaId`, `criadaEm`) corrigido para schema padrão de transações — transferências agora aparecem no extrato. (2) ERR-037: `min-width:0` adicionado a `.dash-main` — elimina overflow horizontal mobile que causava scroll lateral em toda a tela. (3) Identidade visual de bancos (DEC-044): `BANCOS_LOOKUP` com 21 bancos, `detectarBanco()` por regex, gradiente + ícone abreviado + faixa lateral colorida nos cards. (4) Filter pills por tipo (scroll horizontal, nowrap). (5) Botão sort ciclante (criado→nome→saldo→atualizado). (6) Badge dias sem atualizar (>7d amarelo, >30d vermelho). (7) Modal saldo rápido (confirmar saldo sem importar extrato). (8) `conta-btns-grid` CSS class responsiva (2col→1col mobile). ERR-035 (extrato carregamento infinito) já registrado. Commits: `56337d6` (8 melhorias) + este commit.
 - **11/05/2026** — PEND-065 (Histórico de importações) resolvido: sub-coleção `usuarios/{uid}/importacoes`, migração de dados legados, seção visual em `carteira.html`. Extrato: paginação de 50 itens + fix responsividade mobile (min-width:0, flex-wrap). PDF: pdf.js 3.11.174 UMD local (pdf.min.js + pdf.worker.min.js) em vez de CDN — fix para protocol. Commits: `ed2bf30`, `fba053c`. Duplicatas de transações no Firestore (de testes) — limpeza manual necessária. Erro pré-existente `The query requires an index` na coleção `carteira` — link do índice no console Firebase.
+- **18/05/2026** — QA completo de todas as telas nos 8 temas de cor. 6 bugs corrigidos (ERR-053/054 e correspondentes no ERRORS_LOG). Sub-nav de 11 telas corrigidas (tabs invisíveis em temas coloridos). Pendências PEND-072 a PEND-078 registradas abaixo.
 
 

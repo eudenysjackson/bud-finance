@@ -136,12 +136,12 @@
 
     /* ── Sugestões ──────────────────────────────────────── */
     .suggestions{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.25rem;}
-    .sug-btn{padding:0.4375rem 0.875rem;border-radius:2rem;border:1.5px solid var(--card-border);background:var(--card-bg);color:var(--text-sec);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;white-space:nowrap;backdrop-filter:blur(8px);}
+    .sug-btn{padding:0.4375rem 0.875rem;border-radius:2rem;border:1.5px solid var(--card-border);background:var(--card-bg);color:var(--card-text);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;white-space:nowrap;backdrop-filter:blur(8px);}
     .sug-btn:hover{border-color:var(--btn-bg);color:var(--btn-bg);background:rgba(37,99,235,0.05);}
 
     /* ── Botões de chamado ──────────────────────────────── */
     .chamado-btns{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.25rem;}
-    .chamado-btn{padding:0.4375rem 0.875rem;border-radius:2rem;border:1.5px solid var(--card-border);background:var(--card-bg);color:var(--text-sec);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;}
+    .chamado-btn{padding:0.4375rem 0.875rem;border-radius:2rem;border:1.5px solid var(--card-border);background:var(--card-bg);color:var(--card-text);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;}
     .chamado-btn:hover{border-color:var(--btn-bg);color:var(--btn-bg);}
     .chamado-btn.bug{border-color:#ef4444;color:#ef4444;}
     .chamado-btn.bug:hover{background:rgba(239,68,68,0.05);}
@@ -320,13 +320,13 @@
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:0.5rem;">
-            <button onclick="window.exportarConversa()" title="Exportar conversa" style="padding:0.4375rem 0.75rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--text-sec);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;white-space:nowrap;">
+            <button onclick="window.exportarConversa()" title="Exportar conversa" style="padding:0.4375rem 0.75rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;white-space:nowrap;">
               ⬇ Exportar
             </button>
-            <button id="btnLimparChat" title="Limpar conversa" style="padding:0.4375rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--text-sec);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;white-space:nowrap;">
+            <button id="btnLimparChat" title="Limpar conversa" style="padding:0.4375rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;white-space:nowrap;">
               🗑 Limpar
             </button>
-            <button onclick="window.iniciarChamado()" title="Reportar bug ou dar sugestão" style="padding:0.4375rem 0.625rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--text-sec);font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s;line-height:1;" aria-label="Suporte">
+            <button onclick="window.iniciarChamado()" title="Reportar bug ou dar sugestão" style="padding:0.4375rem 0.625rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s;line-height:1;" aria-label="Suporte">
               ?
             </button>
           </div>
