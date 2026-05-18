@@ -495,6 +495,84 @@ function renderScore(doMes, doMesPrev) {
   if (labelEl) labelEl.textContent = label;
   if (descEl)  descEl.textContent  = desc;
   if (tagsEl)  tagsEl.innerHTML    = tags.map(t => `<span class="score-tag ${t.cls}">${escapeHTML(t.txt)}</span>`).join('');
+
+  renderScoreHistorico();
+}
+
+// ─── Score Histórico (linha 6 meses) ──────────────────────────────────────
+function renderScoreHistorico() {
+  const canvas = document.getElementById('scoreHistChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const agora = new Date();
+  const labels  = [];
+  const scores  = [];
+
+  for (let i = 5; i >= 0; i--) {
+    const d    = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
+    const pfx  = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const dP   = new Date(agora.getFullYear(), agora.getMonth() - i - 1, 1);
+    const pfxP = `${dP.getFullYear()}-${String(dP.getMonth()+1).padStart(2,'0')}`;
+
+    const doMes     = transacoes.filter(t =>
+      (normalizarData(t.data)||'').startsWith(pfx)  && t.status !== 'pendente' && t.pago !== false);
+    const doMesPrev = transacoes.filter(t =>
+      (normalizarData(t.data)||'').startsWith(pfxP) && t.status !== 'pendente' && t.pago !== false);
+
+    labels.push(MESES_ABR[d.getMonth()]);
+    scores.push(calcularScore(doMes, doMesPrev, limites));
+  }
+
+  // Destrói instância anterior
+  if (window._scoreHistChartInst) {
+    window._scoreHistChartInst.destroy();
+    window._scoreHistChartInst = null;
+  }
+
+  const last  = scores[scores.length - 1];
+  const cor   = last >= 70 ? '#16a34a' : last >= 40 ? '#f59e0b' : '#dc2626';
+  const fill  = last >= 70 ? 'rgba(22,163,74,0.08)' : last >= 40 ? 'rgba(245,158,11,0.08)' : 'rgba(220,38,38,0.08)';
+  const textC = cssVar('--card-text-sec') || '#64748b';
+  const grid  = cssVar('--input-border')  || 'rgba(0,0,0,0.06)';
+
+  window._scoreHistChartInst = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: scores,
+        borderColor: cor,
+        backgroundColor: fill,
+        borderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 5,
+        pointBackgroundColor: cor,
+        fill: true,
+        tension: 0.35,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: { label: ctx => `Score: ${ctx.raw}/100` },
+        },
+      },
+      scales: {
+        y: {
+          min: 0, max: 100,
+          ticks: { color: textC, font: { size: 10 }, stepSize: 25, maxTicksLimit: 5 },
+          grid:  { color: grid },
+        },
+        x: {
+          ticks: { color: textC, font: { size: 10 } },
+          grid:  { display: false },
+        },
+      },
+    },
+  });
 }
 
 // ─── Insights detalhados ──────────────────────────────────────────────────
