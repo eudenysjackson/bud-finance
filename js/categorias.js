@@ -23,7 +23,7 @@ import {
   collection, doc,
   addDoc, updateDoc, deleteDoc,
   getDocs, getDoc,
-  query, where, orderBy, limit,
+  query, where,
   onSnapshot,
   serverTimestamp,
   writeBatch
@@ -50,16 +50,29 @@ const EMOJI_TEMAS = {
   '🏠 Casa':     ['🏠','🛋️','🚿','🧹','🧺','🪑','🪴','💡','🔑','🚘','🐶','💧','⚡','🔥','🛏️','🔧'],
   '🎮 Lazer':    ['🎮','🎬','🎪','⚽','🏖️','✈️','🍔','🍺','🛹','🏋️','🎁','🎟️','🍻','🎨','🎵'],
 };
-
+const CORES_CAT = [
+  { id:'green',  bg:'rgba(16,185,129,0.15)',  text:'#059669', dot:'#10b981' },
+  { id:'blue',   bg:'rgba(59,130,246,0.15)',  text:'#2563eb', dot:'#3b82f6' },
+  { id:'violet', bg:'rgba(139,92,246,0.15)',  text:'#7c3aed', dot:'#8b5cf6' },
+  { id:'amber',  bg:'rgba(245,158,11,0.15)',  text:'#d97706', dot:'#f59e0b' },
+  { id:'rose',   bg:'rgba(244,63,94,0.15)',   text:'#e11d48', dot:'#f43f5e' },
+  { id:'cyan',   bg:'rgba(6,182,212,0.15)',   text:'#0891b2', dot:'#06b6d4' },
+  { id:'orange', bg:'rgba(249,115,22,0.15)',  text:'#ea580c', dot:'#f97316' },
+  { id:'slate',  bg:'rgba(100,116,139,0.10)', text:'#64748b', dot:'#94a3b8' },
+];
 /* ─────────────────────────────────────────────────────────────────
    Estado global
 ───────────────────────────────────────────────────────────────── */
 let uid            = null;
 let tipoAtual      = 'despesa';
 let emojiAtual     = '📦';
+let corAtual       = 'green';  // ID da cor selecionada
 let editandoCatId  = null;     // null = criando; string = editando
 let nomeAntigoEdit = '';       // guarda nome anterior para propagar renome
 let _unsubCat      = null;     // cleanup do onSnapshot
+let _catDocs       = [];       // docs ordenados do último onSnapshot
+let _novaHighlight = null;     // ID do doc recém-criado (highlight visual)
+let _filtroPadrao  = '';       // filtro de busca nas categorias padrão
 
 const showToast = (msg, tipo = 'success') => window.budShowToast(msg, tipo);
 
@@ -98,7 +111,16 @@ window.switchTab = function (tipo) {
 function renderizarPadrao() {
   const lista = document.getElementById('listaPadrao');
   if (!lista) return;
-  lista.innerHTML = categoriasPadrao[tipoAtual].map(c => `
+  const f    = _filtroPadrao.toLowerCase();
+  const cats = f
+    ? categoriasPadrao[tipoAtual].filter(c =>
+        c.nome.toLowerCase().includes(f) || c.emoji.includes(f))
+    : categoriasPadrao[tipoAtual];
+  if (cats.length === 0) {
+    lista.innerHTML = '<p style="font-size:0.85rem;color:var(--card-text-sec);padding:0.5rem 0;">Nenhuma categoria padrão encontrada.</p>';
+    return;
+  }
+  lista.innerHTML = cats.map(c => `
     <div class="cat-card" title="Categoria padrão — somente leitura" style="opacity:0.78;cursor:not-allowed;">
       <span class="cat-card-emoji">${escapeHTML(c.emoji)}</span>
       <span class="cat-card-nome">${escapeHTML(c.nome)}</span>
@@ -116,36 +138,65 @@ function carregarPersonalizadas() {
   // Cancela listener anterior para evitar duplicatas ao trocar aba
   if (typeof _unsubCat === 'function') _unsubCat();
 
+  // Mostra skeleton enquanto aguarda primeira resposta
+  const skeleton = document.getElementById('skeletonPersonalizadas');
+  if (skeleton) skeleton.style.display = 'grid';
+
   const colRef = collection(db, 'usuarios', uid, 'categorias');
-  // Filtra apenas pelo tipo — sem orderBy para não exigir índice composto.
-  // Ordenação feita client-side por dataCriacao.
   const q      = query(colRef, where('tipo', '==', tipoAtual));
 
   _unsubCat = onSnapshot(q, (snap) => {
-    const lista   = document.getElementById('listaPersonalizadas');
-    const empty   = document.getElementById('emptyState');
+    if (skeleton) skeleton.style.display = 'none';
+
+    const lista = document.getElementById('listaPersonalizadas');
+    const empty = document.getElementById('emptyState');
+    const sub   = document.getElementById('subPersonalizadas');
     if (!lista || !empty) return;
 
     if (snap.empty) {
       lista.innerHTML = '';
       empty.style.display = '';
+      _catDocs = [];
+      if (sub) sub.textContent = 'Crie categorias personalizadas para organizar seus gastos do seu jeito';
       return;
     }
 
     empty.style.display = 'none';
-    // Ordena client-side para evitar índice composto no Firestore
-    const docs = snap.docs.slice().sort((a, b) => {
-      const ta = a.data().dataCriacao?.toMillis?.() ?? 0;
-      const tb = b.data().dataCriacao?.toMillis?.() ?? 0;
-      return ta - tb;
+
+    // Ordena: campo `ordem` (ASC) → dataCriacao (ASC) como fallback
+    _catDocs = snap.docs.slice().sort((a, b) => {
+      const oa = a.data().ordem ?? a.data().dataCriacao?.toMillis?.() ?? 0;
+      const ob = b.data().ordem ?? b.data().dataCriacao?.toMillis?.() ?? 0;
+      return oa - ob;
     });
-    lista.innerHTML = docs.map(d => {
-      const c = d.data();
+
+    // Contador dinâmico
+    const total = _catDocs.length;
+    const tipo  = tipoAtual === 'despesa' ? 'despesa' : 'receita';
+    if (sub) sub.textContent =
+      `${total} categori${total === 1 ? 'a' : 'as'} de ${tipo} criada${total === 1 ? '' : 's'}`;
+
+    lista.innerHTML = _catDocs.map((d, idx) => {
+      const c    = d.data();
+      const cor  = CORES_CAT.find(x => x.id === (c.cor || 'green')) || CORES_CAT[0];
+      const corId = c.cor || 'green';
+      const isNew = d.id === _novaHighlight;
       return `
-        <div class="cat-card personalizada" onclick="editarCategoria('${d.id}','${escapeHTML(c.nome)}','${escapeHTML(c.emoji)}')">
+        <div class="cat-card personalizada${isNew ? ' cat-new-highlight' : ''}"
+             id="catCard-${d.id}"
+             onclick="editarCategoria('${d.id}','${escapeHTML(c.nome)}','${escapeHTML(c.emoji)}','${corId}')">
           <span class="cat-card-emoji">${escapeHTML(c.emoji)}</span>
           <span class="cat-card-nome">${escapeHTML(c.nome)}</span>
-          <span class="cat-badge cat-badge-custom">personalizada</span>
+          <span class="cat-badge" style="background:${cor.bg};color:${cor.text};">personalizada</span>
+          <span class="cat-usos-badge" id="usosBadge-${d.id}">…</span>
+          <div style="display:flex;flex-direction:column;gap:0.125rem;flex-shrink:0;">
+            <button class="cat-order-btn" ${idx === 0 ? 'disabled' : ''}
+                    onclick="event.stopPropagation();moverCategoria('${d.id}',-1)"
+                    aria-label="Mover para cima" title="Mover para cima">▲</button>
+            <button class="cat-order-btn" ${idx === total - 1 ? 'disabled' : ''}
+                    onclick="event.stopPropagation();moverCategoria('${d.id}',1)"
+                    aria-label="Mover para baixo" title="Mover para baixo">▼</button>
+          </div>
           <button
             class="cat-delete-btn"
             onclick="event.stopPropagation();deletarCategoria('${d.id}','${escapeHTML(c.nome)}')"
@@ -154,11 +205,91 @@ function carregarPersonalizadas() {
         </div>
       `;
     }).join('');
+
+    // Limpa highlight após animação
+    if (_novaHighlight) setTimeout(() => { _novaHighlight = null; }, 2500);
+
+    // Carrega badges de uso de forma assíncrona
+    carregarUsos(_catDocs.map(d => ({ id: d.id, nome: d.data().nome })));
   }, (err) => {
+    if (skeleton) skeleton.style.display = 'none';
     (window.budError || console.error)('Erro ao carregar categorias:', err);
     showToast('Erro ao carregar categorias personalizadas.', 'error');
   });
 }
+
+/* ─────────────────────────────────────────────────────────────────
+   Usos: carrega contagem de transações por categoria (assíncrono)
+───────────────────────────────────────────────────────────────── */
+async function carregarUsos(cats) {
+  if (!uid || !cats.length) return;
+  try {
+    const snap = await getDocs(collection(db, 'usuarios', uid, 'transacoes'));
+    const contagem = {};
+    snap.forEach(d => {
+      const cat = d.data().categoria;
+      if (cat) contagem[cat] = (contagem[cat] || 0) + 1;
+    });
+    cats.forEach(({ id, nome }) => {
+      const badge = document.getElementById(`usosBadge-${id}`);
+      if (!badge) return;
+      const n = contagem[nome] || 0;
+      badge.textContent = n > 0 ? `${n} uso${n !== 1 ? 's' : ''}` : 'sem uso';
+    });
+  } catch (_) {
+    cats.forEach(({ id }) => {
+      const b = document.getElementById(`usosBadge-${id}`);
+      if (b) b.textContent = '';
+    });
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Cores: renderizar swatches e selecionar cor
+───────────────────────────────────────────────────────────────── */
+function renderizarCores() {
+  const wrap = document.getElementById('corSwatches');
+  if (!wrap) return;
+  wrap.innerHTML = CORES_CAT.map(c => `
+    <button type="button"
+            class="cor-swatch${corAtual === c.id ? ' selected' : ''}"
+            style="background:${c.dot};"
+            title="${c.id}"
+            onclick="selecionarCor('${c.id}')"></button>
+  `).join('');
+}
+
+window.selecionarCor = function (id) {
+  corAtual = id;
+  renderizarCores();
+  atualizarPreview();
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   Ordenação manual de categorias personalizadas
+───────────────────────────────────────────────────────────────── */
+window.moverCategoria = async function (id, dir) {
+  if (!uid) return;
+  const idx = _catDocs.findIndex(d => d.id === id);
+  if (idx < 0) return;
+  const targetIdx = idx + dir;
+  if (targetIdx < 0 || targetIdx >= _catDocs.length) return;
+
+  const docA = _catDocs[idx];
+  const docB = _catDocs[targetIdx];
+  const ordemA = docA.data().ordem ?? idx;
+  const ordemB = docB.data().ordem ?? targetIdx;
+
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'usuarios', uid, 'categorias', docA.id), { ordem: ordemB });
+  batch.update(doc(db, 'usuarios', uid, 'categorias', docB.id), { ordem: ordemA });
+  try {
+    await batch.commit();
+  } catch (e) {
+    (window.budError || console.error)('Erro ao reordenar:', e);
+    showToast('Erro ao reordenar. Tente novamente.', 'error');
+  }
+};
 
 /* ─────────────────────────────────────────────────────────────────
    Modal — abrir / fechar
@@ -174,6 +305,7 @@ function fecharModal() {
   editandoCatId  = null;
   nomeAntigoEdit = '';
   emojiAtual     = '📦';
+  corAtual       = 'green';
   document.getElementById('emojiTrigger').textContent = '📦';
   document.getElementById('catNome').value = '';
   document.getElementById('btnSalvarCat').textContent = 'Criar Categoria';
@@ -226,20 +358,25 @@ function atualizarPreview() {
   const nome = document.getElementById('catNome')?.value.trim() || '';
   document.getElementById('previewEmoji').textContent = emojiAtual;
   document.getElementById('previewNome').textContent  = nome || 'Nome da categoria';
+  const cor   = CORES_CAT.find(x => x.id === corAtual) || CORES_CAT[0];
+  const badge = document.getElementById('previewBadge');
+  if (badge) { badge.style.background = cor.bg; badge.style.color = cor.text; }
 }
 
 /* ─────────────────────────────────────────────────────────────────
    Editar categoria (abre modal em modo edição — BUG 7)
 ───────────────────────────────────────────────────────────────── */
-window.editarCategoria = function (id, nome, emoji) {
+window.editarCategoria = function (id, nome, emoji, cor) {
   editandoCatId  = id;
   nomeAntigoEdit = nome;
   emojiAtual     = emoji;
+  corAtual       = cor || 'green';
   document.getElementById('emojiTrigger').textContent    = emoji;
   document.getElementById('catNome').value                = nome;
   document.getElementById('tituloModal').textContent     = 'Editar Categoria';
   document.getElementById('btnSalvarCat').textContent    = 'Salvar Alterações';
   atualizarPreview();
+  renderizarCores();
   abrirModal();
   popularTemasEmoji();
 };
@@ -251,18 +388,17 @@ window.deletarCategoria = async function (id, nome) {
   if (!uid) return;
 
   // Verificar se há transações usando esta categoria (BUG 5)
-  let emUso = false;
+  let contagemUsos = 0;
   try {
     const txSnap = await getDocs(query(
       collection(db, 'usuarios', uid, 'transacoes'),
-      where('categoria', '==', nome),
-      limit(1)
+      where('categoria', '==', nome)
     ));
-    emUso = !txSnap.empty;
+    contagemUsos = txSnap.size;
   } catch (_) { /* falha silenciosa — segue sem verificar */ }
 
-  const msg = emUso
-    ? `A categoria "${nome}" está em uso em transações. Ao apagar, as transações existentes mantêm o nome mas a categoria não aparecerá mais nos seletores. Continuar?`
+  const msg = contagemUsos > 0
+    ? `A categoria "${nome}" está em uso em ${contagemUsos} transaç${contagemUsos === 1 ? 'ão' : 'ões'}. Ao apagar, as transações existentes mantêm o nome mas a categoria não aparecerá mais nos seletores. Continuar?`
     : `Apagar a categoria "${nome}"? Esta ação não pode ser desfeita.`;
 
   // Overlay de confirmação com style.cssText (BUG 1 — sem Tailwind dinâmico)
@@ -366,7 +502,7 @@ async function salvarCategoria() {
       }
 
       await updateDoc(doc(db, 'usuarios', uid, 'categorias', editandoCatId), {
-        nome, emoji: emojiAtual
+        nome, emoji: emojiAtual, cor: corAtual
       });
 
       // Propagar renomeação para transações, recorrentes e limites (BUG 7 + PEND-020/030)
@@ -425,12 +561,18 @@ async function salvarCategoria() {
       return;
     }
 
-    await addDoc(collection(db, 'usuarios', uid, 'categorias'), {
+    const novaOrdem = _catDocs.length > 0
+      ? Math.max(..._catDocs.map(d => d.data().ordem ?? 0)) + 1
+      : 0;
+    const novoDoc = await addDoc(collection(db, 'usuarios', uid, 'categorias'), {
       nome,
       emoji: emojiAtual,
+      cor: corAtual,
       tipo: tipoAtual,
       dataCriacao: serverTimestamp(),
+      ordem: novaOrdem,
     });
+    _novaHighlight = novoDoc.id;
 
     showToast('Categoria criada!', 'success');
     fecharModal();
@@ -496,12 +638,14 @@ function setupModal() {
     editandoCatId = null;
     nomeAntigoEdit = '';
     emojiAtual = '📦';
+    corAtual   = 'green';
     document.getElementById('emojiTrigger').textContent = '📦';
     document.getElementById('catNome').value = '';
     document.getElementById('tituloModal').textContent = tipoAtual === 'despesa'
       ? 'Nova Categoria de Despesa' : 'Nova Categoria de Receita';
     document.getElementById('btnSalvarCat').textContent = 'Criar Categoria';
     atualizarPreview();
+    renderizarCores();
     popularTemasEmoji();
     abrirModal();
   });
@@ -545,6 +689,12 @@ function setupModal() {
   // Salvar com Enter no input
   document.getElementById('catNome')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') salvarCategoria();
+  });
+
+  // Busca nas categorias padrão
+  document.getElementById('buscaPadrao')?.addEventListener('input', (e) => {
+    _filtroPadrao = e.target.value.trim();
+    renderizarPadrao();
   });
 }
 
