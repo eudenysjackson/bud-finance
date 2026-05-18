@@ -32,7 +32,7 @@ const EMAILJS_SERVICE_ID  = process.env.EMAILJS_SERVICE_ID  || '';
 const EMAILJS_TEMPLATE_ID           = process.env.EMAILJS_TEMPLATE_RECUPERAR_SENHA || '';
 const EMAILJS_TEMPLATE_CHAMADO      = process.env.EMAILJS_TEMPLATE_CHAMADO || '';
 const EMAILJS_TEMPLATE_BOAS_VINDAS  = process.env.EMAILJS_TEMPLATE_BOAS_VINDAS || '';
-const FRONTEND_URL                  = process.env.FRONTEND_URL || 'https://bud-finance.onrender.com';
+const FRONTEND_URL                  = process.env.FRONTEND_URL || 'https://budsolucoes.com.br';
 
 // ─── WhatsApp config (env vars — set on Render) ─────────────────────
 const WA_PHONE_NUMBER_ID  = process.env.WA_PHONE_NUMBER_ID  || '';
@@ -42,8 +42,9 @@ const WA_APP_SECRET       = process.env.WA_APP_SECRET       || '';
 const WA_NUMERO_DISPLAY   = process.env.WA_NUMERO_DISPLAY   || '';
 const WA_NUMERO_LINK      = process.env.WA_NUMERO_LINK      || '';
 // Evolution API (alternativa MVP sem Meta API)
-const WA_EVOLUTION_URL    = process.env.WA_EVOLUTION_URL    || '';
-const WA_EVOLUTION_KEY    = process.env.WA_EVOLUTION_KEY    || '';
+const WA_EVOLUTION_URL      = process.env.WA_EVOLUTION_URL      || '';
+const WA_EVOLUTION_KEY      = process.env.WA_EVOLUTION_KEY      || '';
+const WA_EVOLUTION_INSTANCE = process.env.WA_EVOLUTION_INSTANCE || 'bud';
 
 // ─── Express setup ──────────────────────────────────────────────────
 const app = express();
@@ -67,6 +68,8 @@ const ALLOWED_ORIGINS_DEV = [
 ];
 const ALLOWED_ORIGINS_PROD = [
   'https://bud-finance.onrender.com',
+  'https://budsolucoes.com.br',
+  'https://www.budsolucoes.com.br',
   // Origens locais de desenvolvimento — seguras pois localhost/127.0.0.1 não é acessível externamente.
   'http://localhost:3000',
   'http://127.0.0.1:3000',
@@ -76,7 +79,6 @@ const ALLOWED_ORIGINS_PROD = [
   'http://127.0.0.1:5501',
   'http://localhost:5502',
   'http://127.0.0.1:5502'
-  // Adicione aqui o domínio customizado de produção quando for configurado.
 ];
 const ALLOWED_ORIGINS = IS_PROD
   ? ALLOWED_ORIGINS_PROD
@@ -2003,7 +2005,7 @@ async function enviarMensagemWA(numero, texto) {
   if (!WA_PHONE_NUMBER_ID || !WA_API_TOKEN) {
     // Evolution API como fallback
     if (WA_EVOLUTION_URL && WA_EVOLUTION_KEY) {
-      await fetch(WA_EVOLUTION_URL + '/message/sendText/bud', {
+      await fetch(WA_EVOLUTION_URL + '/message/sendText/' + WA_EVOLUTION_INSTANCE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': WA_EVOLUTION_KEY },
         body: JSON.stringify({ number: numero, text: texto })
@@ -2023,6 +2025,49 @@ async function enviarMensagemWA(numero, texto) {
   }).catch(function (e) { console.error('[WA] enviarMensagem:', e.message); });
 }
 
+// ─── Helper compartilhado: processa mensagem WA (pareamento Fase 1) ──
+async function processarMensagemWA(numero, texto) {
+  if (!db) return;
+  if (!/^BUD-[A-Z0-9]{4}$/i.test(texto)) return; // Fase 2 (futura): chat IA
+
+  var codigo = texto.toUpperCase();
+  var agora  = Date.now();
+  var snap   = await db.collection('usuarios')
+    .where('whatsappToken', '==', codigo)
+    .limit(1).get();
+
+  if (snap.empty) {
+    await enviarMensagemWA(numero, '❌ Código inválido ou expirado. Gere um novo código em Ajustes → WhatsApp no app.');
+    return;
+  }
+
+  var userDoc  = snap.docs[0];
+  var userData = userDoc.data();
+
+  if (!userData.whatsappTokenExp || agora > userData.whatsappTokenExp) {
+    await enviarMensagemWA(numero, '⏰ Código expirado. Gere um novo em Ajustes → WhatsApp no app.');
+    return;
+  }
+
+  await userDoc.ref.update({
+    whatsappVinculado:   numero,
+    whatsappToken:       null,
+    whatsappTokenExp:    null,
+    whatsappVinculadoEm: new Date().toISOString()
+  });
+
+  var nome = (userData.nome || '').split(' ')[0] || 'usuário';
+  await enviarMensagemWA(numero,
+    '✅ Olá, ' + nome + '! Seu WhatsApp está vinculado ao Bud Finance. 🎉\n\n' +
+    'Agora você pode:\n' +
+    '• Registrar gastos: _"gastei 50 de gasolina"_\n' +
+    '• Consultar saldo: _"qual meu saldo?"_\n' +
+    '• Tirar foto de cupom e eu registro automaticamente\n\n' +
+    'Pode começar! 🚀'
+  );
+  console.log('[WA] número vinculado:', numero, '→ uid:', userDoc.id);
+}
+
 // ─── GET /webhook/whatsapp ─── verificação Meta ─────────────────────
 app.get('/webhook/whatsapp', function (req, res) {
   if (req.query['hub.mode'] === 'subscribe' &&
@@ -2033,7 +2078,7 @@ app.get('/webhook/whatsapp', function (req, res) {
   res.sendStatus(403);
 });
 
-// ─── POST /webhook/whatsapp ─── recebe mensagens ────────────────────
+// ─── POST /webhook/whatsapp ─── recebe mensagens (Meta Cloud API) ───
 app.post('/webhook/whatsapp', async function (req, res) {
   // Verificar assinatura HMAC se WA_APP_SECRET configurado
   if (WA_APP_SECRET) {
@@ -2056,54 +2101,51 @@ app.post('/webhook/whatsapp', async function (req, res) {
     var texto  = (msg.text?.body || '').trim();
     if (!texto || !numero) return;
 
-    // ── Fase 1: Detectar código de pareamento ──────────────────────
-    if (/^BUD-[A-Z0-9]{4}$/i.test(texto)) {
-      var codigo  = texto.toUpperCase();
-      var agora   = Date.now();
-      var snap    = await db.collection('usuarios')
-        .where('whatsappToken', '==', codigo)
-        .limit(1).get();
-
-      if (snap.empty) {
-        await enviarMensagemWA(numero, '❌ Código inválido ou expirado. Gere um novo código em Ajustes → WhatsApp no app.');
-        return;
-      }
-
-      var userDoc  = snap.docs[0];
-      var userData = userDoc.data();
-
-      // Verificar expiração
-      if (!userData.whatsappTokenExp || agora > userData.whatsappTokenExp) {
-        await enviarMensagemWA(numero, '⏰ Código expirado. Gere um novo em Ajustes → WhatsApp no app.');
-        return;
-      }
-
-      // Vincular
-      await userDoc.ref.update({
-        whatsappVinculado: numero,
-        whatsappToken:     null,
-        whatsappTokenExp:  null,
-        whatsappVinculadoEm: new Date().toISOString()
-      });
-
-      var nome = (userData.nome || '').split(' ')[0] || 'usuário';
-      await enviarMensagemWA(numero,
-        '✅ Olá, ' + nome + '! Seu WhatsApp está vinculado ao Bud Finance. 🎉\n\n' +
-        'Agora você pode:\n' +
-        '• Registrar gastos: _"gastei 50 de gasolina"_\n' +
-        '• Consultar saldo: _"qual meu saldo?"_\n' +
-        '• Tirar foto de cupom e eu registro automaticamente\n\n' +
-        'Pode começar! 🚀'
-      );
-      console.log('[WA] número vinculado:', numero, '→ uid:', userDoc.id);
-      return;
-    }
-
-    // ── Fase 2 (futura): processar mensagens de chat ───────────────
-    // TODO: identificar uid pelo número, verificar plano, chamar engine IA
-
+    await processarMensagemWA(numero, texto);
   } catch (err) {
     console.error('[WA] webhook error:', err.message);
+  }
+});
+
+// ─── POST /webhook/evolution ─── recebe mensagens (Evolution API) ───
+// Formato Evolution API v2. Configurar no painel da Evolution:
+//   URL: https://nexo-backend-4kmu.onrender.com/webhook/evolution
+//   Events: MESSAGES_UPSERT
+app.post('/webhook/evolution', async function (req, res) {
+  res.sendStatus(200); // responder rápido
+
+  try {
+    // Verificar chave da Evolution API (se configurada)
+    if (WA_EVOLUTION_KEY) {
+      var apikey = req.headers['apikey'] || req.body?.apikey || '';
+      if (apikey !== WA_EVOLUTION_KEY) {
+        console.warn('[EVO] chave inválida');
+        return;
+      }
+    }
+
+    var event = req.body?.event || '';
+    if (event !== 'messages.upsert') return; // ignorar status, qr, etc.
+
+    var data = req.body?.data || {};
+    if (data.key?.fromMe) return; // ignorar msgs enviadas pelo bot
+
+    var remoteJid = data.key?.remoteJid || '';
+    if (remoteJid.endsWith('@g.us')) return; // ignorar grupos
+
+    var numero = remoteJid.replace('@s.whatsapp.net', '');
+    var texto  = (
+      data.message?.conversation ||
+      data.message?.extendedTextMessage?.text ||
+      ''
+    ).trim();
+
+    if (!texto || !numero) return;
+
+    console.log('[EVO] mensagem recebida de', numero, ':', texto.slice(0, 50));
+    await processarMensagemWA(numero, texto);
+  } catch (err) {
+    console.error('[EVO] webhook error:', err.message);
   }
 });
 
