@@ -1,7 +1,7 @@
 # ARCHITECTURE_MAP.md — Inventário Vivo do Ecossistema
 
 **Projeto**: Bud Finance  
-**Última atualização**: 29/04/2026 — Assistente IA implementado (assistente-ia.html + js/assistente-ia.js + /api/chat + /api/chamado no backend; sidebars atualizadas)
+**Última atualização**: 18/05/2026 — Assistente WhatsApp implementado (assistente-whatsapp.html + js/assistente-whatsapp.js); sidebar link WhatsApp ativado em todas as 18 páginas (era disabled)
 
 > **REGRA**: Antes de criar algo novo, consulte este doc. Ao finalizar qualquer tarefa, atualize.  
 > Se algo novo quebrar uma conexão existente, **pare e avise o usuário**.
@@ -15,6 +15,7 @@
 | **LoginCard** | Card glassmorphic com formulário de login | `index.html` |
 | **OnboardingWizard** | Card wizard 6 passos com progress dots, animações e validação | `onboarding.html` + `js/onboarding.js` |
 | **AssistenteIA** | Chat IA com contexto financeiro real (Groq llama-4-scout), sistema de chamados (bug/sugestão), persiste conversa em sessionStorage | `assistente-ia.html` + `js/assistente-ia.js` |
+| **AssistenteWhatsApp** | Hub dedicado do WhatsApp: paywall (Free/Starter), estado desvinculado (gerar código de pareamento + pairing box + polling 5s/2min), estado vinculado (número formatado + wa.me link + desvincular). Feature gate `PLANOS_WHATSAPP=['plus','pro','trial']`. Showcase de 6 features (todas "Em breve"). Aguarda chip eSIM + VPS Evolution API para ativar em produção (PEND-053). | `assistente-whatsapp.html` + `js/assistente-whatsapp.js` |
 | **BlobsDecorativos** | Manchas de cor azul/ciano no fundo | `index.html` |
 | **LogoIcon** | Ícone `$` com gradiente azul | `index.html` |
 | **InputIdentificador** | Input email/matrícula com label | `index.html` |
@@ -57,7 +58,7 @@
 | **DashSaudeFinanceira** | Score 0-100 com arco SVG animado + label + link insights | `dashboard.html` — `atualizarSaudeFinanceira()` |
 | **DashDicaDia** | Dica financeira contextual baseada nos dados reais do mês | `dashboard.html` — `atualizarDicaFinanceira()` |
 | **TransactionModal** | Modal glassmorphic único para Nova Receita e Nova Despesa | `dashboard.html` |
-| **CfgTabs** | 3 abas: Perfil, Personalização, Segurança | `configuracoes.html` |
+| **CfgTabs** | 4 abas: Perfil, Personalização, Segurança, Dados | `configuracoes.html` |
 | **CfgCardPerfil** | Card com campos editáveis (nome) e leitura (email, matrícula, criação) | `configuracoes.html` |
 | **CfgCardDados** | Card com botão de exportação CSV | `configuracoes.html` |
 | **CfgCardPlano** | Card com nome e descrição do plano ativo | `configuracoes.html` |

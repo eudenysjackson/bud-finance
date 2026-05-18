@@ -192,7 +192,7 @@
 
 ### Telas de IA / Assistentes
 14. **Assistente IA** (`assistente-ia.html` + `js/assistente-ia.js`) — ✅ **CONCLUÍDO** — Chat IA financeiro pessoal via Groq llama-4-scout + contexto real (getDocs mês atual) + chamados bug/sugestão + gate plano Plus/Trial; sidebars atualizadas em todas as telas (29/04/2026)
-15. **Assistente WhatsApp** (`assistente-whatsapp.html` + `js/assistente-whatsapp.js`) — Decorativa por ora; webhook só loga
+15. **Assistente WhatsApp** (`assistente-whatsapp.html` + `js/assistente-whatsapp.js`) — ✅ **PÁGINA CRIADA 18/05/2026** — Hub de status com paywall, pairing box completo (gerar código, polling 5s, wa.me link), estado vinculado/desvinculado, showcase 6 features. Aguarda eSIM + VPS para ativar em produção (PEND-053).
 
 ### Telas de Sistema / Negócio
 16. **Carteira — Minhas Contas** (`carteira.html` + `js/carteira.js`) — ✅ **CONCLUÍDO** — Hub de contas débito/pix/benefícios (Nubank conta, Caixa, vale refeição, vale alimentação, etc.) + importação de extrato inline por conta (CSV, OFX, PDF, imagem via `/api/extrair-fatura`) + deduplication + conciliação de saldo (DEC-043). ~~`importar.html` standalone cancelado.~~
