@@ -17,6 +17,7 @@ const db   = (() => { try { return initializeFirestore(app, { localCache: persis
 let uid = null;
 let _skipThemeSync = false;let _userPlano = 'free';
 let _whatsappNumero = null;
+let _hoverOrigTheme = null;
 // ─── Helpers ────────────────────────────────────────────────────────────
 function getIniciais(nome) {
   if (!nome) return '?';
@@ -86,7 +87,7 @@ function setupSidebar() {
 
 // ─── Navegação por abas ─────────────────────────────────────────────────
 function setupTabs() {
-  const tabs = ['perfil', 'personalizacao', 'seguranca'];
+  const tabs = ['perfil', 'personalizacao', 'seguranca', 'dados'];
   document.querySelectorAll('.cfg-tab-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       const target = btn.dataset.tab;
@@ -143,7 +144,23 @@ function renderThemeBubbles() {
       btn.style.transform = 'scale(1.18)';
     }
 
+    btn.addEventListener('mouseenter', function () {
+      if (_hoverOrigTheme === null) _hoverOrigTheme = window.budThemeManager.getCurrent();
+      _skipThemeSync = true;
+      window.budThemeManager.apply(key);
+    });
+
+    btn.addEventListener('mouseleave', function () {
+      if (_hoverOrigTheme !== null) {
+        window.budThemeManager.apply(_hoverOrigTheme);
+        _hoverOrigTheme = null;
+        _skipThemeSync = false;
+      }
+    });
+
     btn.addEventListener('click', function () {
+      _hoverOrigTheme = null; // commit — impede mouseleave de reverter
+      _skipThemeSync = false;
       window.budThemeManager.apply(key);
       atualizarIndicadorTema();
     });
@@ -281,11 +298,14 @@ async function salvarNome() {
     return;
   }
 
+  const diaInput = document.getElementById('perfilDiaFechamento');
+  const diaFechamento = diaInput ? Math.min(28, Math.max(1, parseInt(diaInput.value) || 1)) : 1;
+
   btn.disabled = true;
   btn.textContent = 'Salvando...';
   try {
     await updateProfile(user, { displayName: novoNome });
-    await updateDoc(doc(db, 'usuarios', user.uid), { nome: novoNome });
+    await updateDoc(doc(db, 'usuarios', user.uid), { nome: novoNome, diaFechamento: diaFechamento });
 
     // Atualiza sidebar imediatamente
     const avatar = document.getElementById('sidebarAvatar');
@@ -299,6 +319,11 @@ async function salvarNome() {
 
     if (window.budShowToast) window.budShowToast('Nome atualizado com sucesso!', 'success');
     btn.textContent = 'Salvo ✓';
+    btn.style.background = '';
+    btn.style.color = '';
+    // Reset dirty indicator
+    const inputN = document.getElementById('perfilNome');
+    if (inputN) inputN.dataset.nomeSalvo = inputN.value;
     setTimeout(function () {
       btn.textContent = 'Salvar Alterações';
       btn.disabled = false;
@@ -308,6 +333,58 @@ async function salvarNome() {
     btn.textContent = 'Salvar Alterações';
     btn.disabled = false;
   }
+}
+
+// ─── Info do dispositivo/browser ────────────────────────────────────────
+function getInfoDispositivo() {
+  var ua = navigator.userAgent || '';
+  var browser = 'Navegador desconhecido';
+  var os = 'SO desconhecido';
+
+  if (/Edg\/|Edge\//.test(ua)) browser = 'Microsoft Edge';
+  else if (/OPR\/|Opera\//.test(ua)) browser = 'Opera';
+  else if (/Chrome\//.test(ua) && !/Chromium/.test(ua)) browser = 'Google Chrome';
+  else if (/Firefox\//.test(ua)) browser = 'Firefox';
+  else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
+
+  if (/iPhone|iPad/.test(ua)) os = /iPad/.test(ua) ? 'iPadOS' : 'iOS';
+  else if (/Android/.test(ua)) os = 'Android';
+  else if (/Windows/.test(ua)) os = 'Windows';
+  else if (/Macintosh/.test(ua)) os = 'macOS';
+  else if (/Linux/.test(ua)) os = 'Linux';
+
+  return browser + ' · ' + os;
+}
+
+// ─── Modo Privacidade — toggle ocultar saldo ─────────────────────────────
+function setupModoPrivacidade() {
+  const chk    = document.getElementById('chkOcultarSaldo');
+  const slider = document.getElementById('sliderOcultarSaldo');
+  const knob   = document.getElementById('knobOcultarSaldo');
+  if (!chk) return;
+
+  function atualizarVisual(ativo) {
+    chk.checked = ativo;
+    chk.setAttribute('aria-checked', ativo ? 'true' : 'false');
+    if (slider) slider.style.background = ativo ? 'var(--btn-bg,#2563eb)' : '#cbd5e1';
+    if (knob)   knob.style.transform    = ativo ? 'translateX(20px)' : 'translateX(0)';
+  }
+
+  // Estado inicial vem do localStorage (sincronizado com Firestore em carregarPerfil)
+  atualizarVisual(window.budGetOcultarSaldo ? window.budGetOcultarSaldo() : false);
+
+  chk.addEventListener('change', async function () {
+    const novoEstado = chk.checked;
+    if (window.budSetOcultarSaldo) window.budSetOcultarSaldo(novoEstado);
+    atualizarVisual(novoEstado);
+    if (uid) {
+      updateDoc(doc(db, 'usuarios', uid), { ocultarSaldo: novoEstado }).catch(function () {});
+    }
+    if (window.budShowToast) window.budShowToast(
+      novoEstado ? '🔒 Modo privacidade ativado' : '👁 Modo privacidade desativado',
+      'success', 2000
+    );
+  });
 }
 
 // ─── WhatsApp vincular / desvincular ───────────────────────────────────────
@@ -719,6 +796,10 @@ async function carregarPerfil(user) {
     elUltimoAcesso.textContent = formatarData(user.metadata.lastSignInTime);
   }
 
+  // Dispositivo atual
+  const elDispositivo = document.getElementById('infoDispositivo');
+  if (elDispositivo) elDispositivo.textContent = getInfoDispositivo();
+
   // Loading state enquanto Firestore carrega
   const elPlanoDescLoad = document.getElementById('planoDesc');
   if (elPlanoDescLoad) elPlanoDescLoad.textContent = 'Carregando...';
@@ -774,6 +855,28 @@ async function carregarPerfil(user) {
       _userPlano = plano.toLowerCase();
       _whatsappNumero = data.whatsappVinculado || null;
       carregarWhatsApp();
+
+      // Dia de fechamento do mês
+      const diaFechamento = data.diaFechamento || 1;
+      const inputDia = document.getElementById('perfilDiaFechamento');
+      if (inputDia) {
+        inputDia.value = diaFechamento;
+        inputDia.dataset.diaOriginal = diaFechamento;
+      }
+
+      // Ocultar saldo — sincronizar Firestore → localStorage → UI
+      if (typeof data.ocultarSaldo === 'boolean') {
+        if (window.budSetOcultarSaldo) window.budSetOcultarSaldo(data.ocultarSaldo);
+        const chk    = document.getElementById('chkOcultarSaldo');
+        const slider = document.getElementById('sliderOcultarSaldo');
+        const knob   = document.getElementById('knobOcultarSaldo');
+        if (chk) {
+          chk.checked = data.ocultarSaldo;
+          chk.setAttribute('aria-checked', data.ocultarSaldo ? 'true' : 'false');
+          if (slider) slider.style.background = data.ocultarSaldo ? 'var(--btn-bg,#2563eb)' : '#cbd5e1';
+          if (knob)   knob.style.transform    = data.ocultarSaldo ? 'translateX(20px)' : 'translateX(0)';
+        }
+      }
 
       // Aplicar tema salvo (evita flash)
       if (tema && window.budThemeManager) {
@@ -961,6 +1064,24 @@ onAuthStateChanged(auth, async function (user) {
   renderThemeBubbles();
   setupSeguranca();
   setupFotoPerfil();
+  setupModoPrivacidade();
+
+  // Versão dinâmica no rodapé
+  const elVersao = document.getElementById('budVersionDisplay');
+  if (elVersao && window.BUD_VERSION) elVersao.textContent = 'Bud Finance v' + window.BUD_VERSION;
+
+  // Dirty indicator no campo Nome
+  const inputNome    = document.getElementById('perfilNome');
+  const btnSalvarRef = document.getElementById('btnSalvarNome');
+  if (inputNome && btnSalvarRef) {
+    inputNome.dataset.nomeSalvo = inputNome.value;
+    inputNome.addEventListener('input', function () {
+      const mudou = inputNome.value !== inputNome.dataset.nomeSalvo;
+      btnSalvarRef.textContent = mudou ? '● Salvar Alterações' : 'Salvar Alterações';
+      btnSalvarRef.style.background = mudou ? '#f59e0b' : '';
+      btnSalvarRef.style.color      = mudou ? '#fff'    : '';
+    });
+  }
 
   const btnSalvar = document.getElementById('btnSalvarNome');
   if (btnSalvar) btnSalvar.addEventListener('click', salvarNome);

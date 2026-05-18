@@ -268,6 +268,38 @@
     initSidebarGroups();
   }
 
+  // ─── Versão do app ───────────────────────────────────────────────────────────
+  var BUD_VERSION = '1.0.0';
+
+  // ─── Ocultar Saldo — modo privacidade ────────────────────────────────────────
+  function budGetOcultarSaldo() {
+    return budStorage.get('bud_ocultar_saldo') === '1';
+  }
+
+  function budSetOcultarSaldo(ocultar) {
+    budStorage.set('bud_ocultar_saldo', ocultar ? '1' : '0');
+    if (ocultar) {
+      document.documentElement.classList.add('saldo-oculto');
+    } else {
+      document.documentElement.classList.remove('saldo-oculto');
+    }
+  }
+
+  // Injetar CSS e aplicar preferência salva imediatamente (antes do DOMContentLoaded)
+  (function () {
+    if (document.head && !document.getElementById('bud-ocultar-saldo-style')) {
+      var stOcultar = document.createElement('style');
+      stOcultar.id = 'bud-ocultar-saldo-style';
+      stOcultar.textContent =
+        '.bud-saldo-privado{transition:filter 0.3s ease;}' +
+        '.saldo-oculto .bud-saldo-privado{filter:blur(10px)!important;user-select:none!important;pointer-events:none;}';
+      document.head.appendChild(stOcultar);
+    }
+    if (budGetOcultarSaldo()) {
+      document.documentElement.classList.add('saldo-oculto');
+    }
+  })();
+
   // ─── Exports ─────────────────────────────────────────────────────────────────────────────────────
   window.budShowToast  = budShowToast;
   window.budSanitize   = budSanitize;
@@ -283,4 +315,7 @@
   window.budCalcStrength  = budCalcStrength;
   window.BUD_SENHAS_COMUNS = BUD_SENHAS_COMUNS;
   window.budInitSidebarGroups = initSidebarGroups;
+  window.BUD_VERSION        = BUD_VERSION;
+  window.budGetOcultarSaldo = budGetOcultarSaldo;
+  window.budSetOcultarSaldo = budSetOcultarSaldo;
 })();

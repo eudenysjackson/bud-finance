@@ -549,6 +549,7 @@
         <button class="cfg-tab-btn active" id="tabBtnPerfil" role="tab" aria-selected="true"  aria-controls="tabPerfil"       data-tab="perfil">👤 Perfil</button>
         <button class="cfg-tab-btn"        id="tabBtnPersonalizacao" role="tab" aria-selected="false" aria-controls="tabPersonalizacao" data-tab="personalizacao">🎨 Personalização</button>
         <button class="cfg-tab-btn"        id="tabBtnSeguranca" role="tab" aria-selected="false" aria-controls="tabSeguranca"    data-tab="seguranca">🔒 Segurança</button>
+        <button class="cfg-tab-btn"        id="tabBtnDados"     role="tab" aria-selected="false" aria-controls="tabDados"        data-tab="dados">📦 Dados</button>
       </div>
 
       <!-- ── Tab: Perfil ────────────────────────────────────────── -->
@@ -592,13 +593,26 @@
             <div class="cfg-value muted" id="perfilCriacao">—</div>
           </div>
 
+          <div class="cfg-field">
+            <div class="cfg-label">Dia de Fechamento do Mês</div>
+            <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+              <input class="cfg-value" type="number" id="perfilDiaFechamento" min="1" max="28" placeholder="1" style="max-width:80px;cursor:text;" title="Dia do mês que inicia seu período financeiro">
+              <span style="font-size:0.75rem;color:var(--card-text-sec);font-weight:500;line-height:1.4;">Dia do mês em que começa seu período financeiro<br>(ex: dia do salário — entre 1 e 28)</span>
+            </div>
+          </div>
+
           <div style="display:flex;justify-content:flex-end;margin-top:0.25rem;">
             <button class="cfg-btn cfg-btn-primary" id="btnSalvarNome">Salvar Alterações</button>
           </div>
         </div>
 
+      </div>
+
+      <!-- ── Tab: Dados ──────────────────────────────────────────── -->
+      <div id="tabDados" role="tabpanel" style="display:none;">
+
         <div class="cfg-card">
-          <div class="cfg-card-title">Dados</div>
+          <div class="cfg-card-title">📤 Exportar Dados</div>
           <div class="cfg-action-row">
             <div class="cfg-action-info">
               <div class="cfg-action-label">Exportar Histórico</div>
@@ -606,18 +620,18 @@
             </div>
             <button class="cfg-btn cfg-btn-primary" id="btnExportarCSV">Exportar CSV</button>
           </div>
-        </div>
-
-        <div class="cfg-card">
-          <div class="cfg-card-title">🛡️ Privacidade e LGPD</div>
-          <div class="cfg-action-row">
+          <div class="cfg-action-row" style="margin-top:0.75rem;">
             <div class="cfg-action-info">
               <div class="cfg-action-label">Exportar Meus Dados</div>
               <div class="cfg-action-desc">Baixa todas as suas informações pessoais em formato JSON (portabilidade LGPD)</div>
             </div>
             <button class="cfg-btn cfg-btn-primary" id="btnExportarJSON">Exportar JSON</button>
           </div>
-          <div class="cfg-action-row" style="margin-top:0.75rem;">
+        </div>
+
+        <div class="cfg-card">
+          <div class="cfg-card-title">🛡️ Privacidade e LGPD</div>
+          <div class="cfg-action-row">
             <div class="cfg-action-info">
               <div class="cfg-action-label">Política de Privacidade</div>
               <div class="cfg-action-desc">Como tratamos e protegemos seus dados</div>
@@ -634,7 +648,7 @@
         </div>
 
         <div class="cfg-card">
-          <div class="cfg-card-title">Plano</div>
+          <div class="cfg-card-title">💎 Plano</div>
           <div class="cfg-action-row">
             <div class="cfg-action-info">
               <div style="display:flex;align-items:center;flex-wrap:wrap;">
@@ -715,6 +729,18 @@
 
           <div class="cfg-action-row" style="margin-top:0.75rem;">
             <div class="cfg-action-info">
+              <div class="cfg-action-label">👁 Modo Privacidade</div>
+              <div class="cfg-action-desc">Oculta valores financeiros em todas as telas</div>
+            </div>
+            <label style="position:relative;display:inline-block;width:46px;height:26px;flex-shrink:0;margin-left:1rem;cursor:pointer;" title="Ativar/desativar modo privacidade">
+              <input type="checkbox" id="chkOcultarSaldo" style="opacity:0;width:0;height:0;position:absolute;" role="switch" aria-label="Modo privacidade — ocultar saldos">
+              <span id="sliderOcultarSaldo" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#cbd5e1;transition:background .25s;border-radius:13px;"></span>
+              <span id="knobOcultarSaldo" style="position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .25s;"></span>
+            </label>
+          </div>
+
+          <div class="cfg-action-row" style="margin-top:0.75rem;">
+            <div class="cfg-action-info">
               <div class="cfg-action-label">Notificações Push</div>
               <div class="cfg-action-desc" id="pushStatusDesc">Receba alertas de vencimentos, metas e limites</div>
             </div>
@@ -744,6 +770,10 @@
           <div class="cfg-field">
             <div class="cfg-label">Último Acesso</div>
             <div class="cfg-value muted" id="ultimoAcesso">—</div>
+          </div>
+          <div class="cfg-field">
+            <div class="cfg-label">Dispositivo Atual</div>
+            <div class="cfg-value muted" id="infoDispositivo">—</div>
           </div>
         </div>
 
@@ -787,7 +817,7 @@
 
       <!-- Rodapé -->
       <div style="text-align:center;padding:1.5rem 0 0.75rem;">
-        <span style="font-size:0.6875rem;font-weight:500;color:var(--card-text-sec);opacity:0.4;">Bud Finance v1.0.0</span>
+        <span id="budVersionDisplay" style="font-size:0.6875rem;font-weight:500;color:var(--card-text-sec);opacity:0.4;">Bud Finance v1.0.0</span>
       </div>
 
     </main>
