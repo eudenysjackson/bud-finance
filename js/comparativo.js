@@ -133,9 +133,13 @@ function populaSelects(preservarSelecao = false) {
     if (el) el.innerHTML = opts;
   });
 
-  // Restaurar ou aplicar defaults
-  const default1 = sorted.length >= 2 ? sorted[1] : sorted[0];
-  const default2 = sorted[0];
+  // Restaurar ou aplicar defaults — usa mês atual como referência para não selecionar meses futuros
+  const hoje = new Date();
+  const mesAtualPfx = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+  // Meses <= mês atual, do mais recente para o mais antigo
+  const sortedPassados = sorted.filter(m => m <= mesAtualPfx);
+  const default2 = sortedPassados.length >= 1 ? sortedPassados[0] : sorted[0];
+  const default1 = sortedPassados.length >= 2 ? sortedPassados[1] : (sorted.length >= 2 ? sorted[1] : sorted[0]);
 
   const v1 = (preservarSelecao && sel1Atual && sorted.includes(sel1Atual)) ? sel1Atual : default1;
   const v2 = (preservarSelecao && sel2Atual && sorted.includes(sel2Atual)) ? sel2Atual : default2;
@@ -316,11 +320,11 @@ function comparar() {
   const saldo1El = document.getElementById('m1Saldo');
   const saldo2El = document.getElementById('m2Saldo');
   if (saldo1El) {
-    saldo1El.textContent   = fmt(Math.abs(d1.saldo));
+    saldo1El.textContent   = fmt(d1.saldo);
     saldo1El.style.color   = d1.saldo >= 0 ? '#16a34a' : '#dc2626';
   }
   if (saldo2El) {
-    saldo2El.textContent   = fmt(Math.abs(d2.saldo));
+    saldo2El.textContent   = fmt(d2.saldo);
     saldo2El.style.color   = d2.saldo >= 0 ? '#16a34a' : '#dc2626';
   }
 

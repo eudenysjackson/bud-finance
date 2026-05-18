@@ -110,7 +110,7 @@
     .sidebar-user-id{font-size:0.6875rem;font-weight:500;color:var(--text-sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
 
     /* ── Main ───────────────────────────────────────────── */
-    .dash-main{flex:1;margin-left:260px;padding:1.5rem;position:relative;z-index:1;transition:margin-left .3s ease;}
+    .dash-main{flex:1;min-width:0;margin-left:260px;padding:1.5rem;position:relative;z-index:1;transition:margin-left .3s ease;}
     .dash-main.sidebar-collapsed{margin-left:64px;}
     .hamburger-btn{display:none;width:2.5rem;height:2.5rem;border-radius:0.75rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);align-items:center;justify-content:center;font-size:1.25rem;cursor:pointer;color:var(--card-text);z-index:60;transition:background 0.35s ease,border-color 0.35s ease,color 0.35s ease;}
     .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:40;}
@@ -306,7 +306,7 @@
     <main class="dash-main" id="dashMain">
 
       <!-- ── Sub-nav Análises ───────────────────────── -->
-      <div style="display:flex;align-items:center;gap:0.25rem;flex-wrap:wrap;margin-bottom:1rem;background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1rem;padding:0.5rem 0.625rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);overflow-x:auto;">
+      <div style="display:flex;align-items:center;gap:0.25rem;flex-wrap:nowrap;margin-bottom:1rem;background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1rem;padding:0.5rem 0.625rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);overflow-x:auto;">
         <span style="font-size:0.5625rem;font-weight:800;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-sec);opacity:0.45;padding:0 0.25rem;white-space:nowrap;flex-shrink:0;">Análises</span>
         <a href="graficos.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">📉 Gráficos</a>
         <a href="balanco-mensal.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">📊 Balanço</a>

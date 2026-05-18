@@ -482,3 +482,58 @@
 - **Solução aplicada**: Adicionado ao bloco de validação: `if (forma === 'Crédito' && !cartaoId) { csCartaoTrigger.classList.add('error'); erros = true; }`.
 - **Regra de prevenção**: Campos condicionalmente obrigatórios (visíveis apenas quando outra opção é selecionada) devem ter validação condicionada à mesma lógica de exibição.
 - **Status**: ✅ Resolvido em 16/05/2026.
+
+---
+
+### ERR-048 — `insights.js`: SyntaxError — `totalRec` declarado duas vezes na mesma função
+- **Data**: 18/05/2026
+- **Arquivo**: `js/insights.js` — função `gerarAlertas()`
+- **Sintoma**: Página `insights.html` ficava presa no splash eterno; módulo não executava.
+- **Causa raiz**: Variável `const totalRec` declarada em linha 241 (início da função) e novamente em linha 282 (bloco de dívidas dentro da mesma função), causando `SyntaxError` que impedia o módulo inteiro de ser avaliado.
+- **Solução aplicada**: Removida a segunda declaração duplicada na linha 282; o bloco de dívidas passa a usar a variável já declarada anteriormente.
+- **Regra de prevenção**: Ao adicionar novo código em função existente, verificar se as variáveis a declarar já existem no escopo da função. Preferir nomes mais específicos em blocos diferentes.
+- **Status**: ✅ Resolvido em 18/05/2026.
+
+---
+
+### ERR-049 — `insights.js`: import estático de `firebase-messaging.js` bloqueia módulo em file://
+- **Data**: 18/05/2026
+- **Arquivo**: `js/insights.js` — linha 29-30
+- **Sintoma**: `firebase-messaging.js` não estava acessível (`net::ERR_ABORTED`) neste ambiente, causando falha do import estático e impedindo todo o módulo de executar (splash eterno).
+- **Causa raiz**: Import estático de CDN em top-level do módulo. Se a URL falha, o módulo inteiro falha sem possibilidade de fallback.
+- **Solução aplicada**: Substituído import estático por import dinâmico (`await import(...)`) dentro de `ativarNotifPush()`, que é a única função que usa `getMessaging`. Assim a falha é localizada.
+- **Regra de prevenção**: Imports de módulos CDN usados apenas em funcionalidades opcionais (push, analytics, etc.) devem ser dinâmicos para não bloquear a inicialização.
+- **Status**: ✅ Resolvido em 18/05/2026.
+
+---
+
+### ERR-050 — Comparativo: meses padrão selecionavam meses futuros
+- **Data**: 18/05/2026
+- **Arquivo**: `js/comparativo.js` — `populaSelects()`
+- **Sintoma**: Ao abrir `comparativo.html`, os dropdowns mostravam Junho e Julho 2026 (meses com transações futuras/parceladas), em vez do mês atual (Maio 2026) e o anterior.
+- **Causa raiz**: `default2 = sorted[0]` e `default1 = sorted[1]` pegavam os dois meses mais recentes no dataset, sem considerar a data atual. Com parcelas lançadas no futuro, esses eram meses futuros.
+- **Solução aplicada**: Adicionada lógica para filtrar `sorted` por meses `<= mesAtualPfx` antes de definir defaults. O mês mais recente não-futuro é o default do Mês 2; o anterior a ele é o default do Mês 1.
+- **Regra de prevenção**: Ao definir "mês padrão" em qualquer tela, sempre usar `new Date()` como âncora e filtrar por `<= mesAtual`.
+- **Status**: ✅ Resolvido em 18/05/2026.
+
+---
+
+### ERR-051 — Comparativo: saldo exibido sem sinal negativo quando despesas > receitas
+- **Data**: 18/05/2026
+- **Arquivo**: `js/comparativo.js` — `comparar()`, linhas de renderização do saldo
+- **Sintoma**: Quando despesas eram maiores que receitas (saldo negativo), o valor aparecia positivo (ex: "R$ 1.470,39" em vez de "-R$ 1.470,39"). A cor ficava vermelha (correto), mas o sinal era omitido.
+- **Causa raiz**: `fmt(Math.abs(d1.saldo))` — `Math.abs()` removia o sinal antes de formatar.
+- **Solução aplicada**: Trocado para `fmt(d1.saldo)` — `fmt()` usa `toLocaleString` com `style:'currency'` que formata valores negativos corretamente.
+- **Regra de prevenção**: Nunca usar `Math.abs()` em valores monetários exibidos ao usuário. Usar cor/ícone para indicar positivo/negativo, mas preservar o sinal no texto.
+- **Status**: ✅ Resolvido em 18/05/2026.
+
+---
+
+### ERR-052 — Análises: `.dash-main` sem `min-width:0` causava overflow horizontal em mobile
+- **Data**: 18/05/2026
+- **Arquivos**: `graficos.html`, `balanco-mensal.html`, `comparativo.html`, `relatorios.html`, `insights.html`
+- **Sintoma**: Em viewport estreito (<768px), o conteúdo das telas de Análises estourava 135px além do viewport. Colunas da direita em grids 2-col eram cortadas por `overflow-x:hidden` do body.
+- **Causa raiz**: Flex item `.dash-main` com `flex:1` mas sem `min-width:0`. Por padrão, `min-width:auto` em flex items impede que o item encolha abaixo da largura mínima do conteúdo. O conteúdo interno (charts, grids) forçava 625px em um container de 490px.
+- **Solução aplicada**: Adicionado `min-width:0` ao CSS de `.dash-main` nas 5 páginas de Análises.
+- **Regra de prevenção**: Todo flex item que precisa encolher abaixo do tamanho do conteúdo DEVE ter `min-width:0`. Especialmente necessário em layouts responsivos com grids internos.
+- **Status**: ✅ Resolvido em 18/05/2026.

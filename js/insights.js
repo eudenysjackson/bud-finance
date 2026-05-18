@@ -26,8 +26,7 @@ import {
   collection, query, where, orderBy,
   getDocs, getDoc, doc, updateDoc, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
-import { getMessaging, getToken, onMessage }
-  from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
+// firebase-messaging importado de forma dinâmica em ativarNotifPush() para não bloquear o módulo em file://
 
 // ─── Firebase ─────────────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
@@ -280,7 +279,6 @@ function gerarAlertas(doMes, doMesPrev, lims) {
 
   // Dívidas: comprometimento mensal, atraso e juros abusivos
   const ativasDividas = dividas.filter(d => _calcSaldoDiv(d) > 0.01);
-  const totalRec = doMes.filter(t => t.tipo === 'receita').reduce((s, t) => s + (Number(t.valor) || 0), 0);
   if (ativasDividas.length > 0) {
     const comprMensal = ativasDividas.reduce((s, d) => s + (d.valorParcela || 0), 0);
     if (totalRec > 0) {
@@ -577,8 +575,8 @@ function gerarInsights(doMes, doMesPrev) {
     const comprMensal  = ativasDividas.reduce((s, d) => s + (d.valorParcela || 0), 0);
     const saldoTotal   = ativasDividas.reduce((s, d) => s + _calcSaldoDiv(d), 0);
     if (comprMensal > 0) {
-      const pctCompr = rec > 0 ? ((comprMensal / rec) * 100).toFixed(0) : '?';
-      insights.push({ emoji: '💸', titulo: 'Comprometimento com Dívidas', texto: `Você tem ${ativasDividas.length} dívida(s) ativa(s) com ${fmt(comprMensal)}/mês em parcelas (${pctCompr}% da renda). Saldo devedor total: ${fmt(saldoTotal)}.` });
+      const pctCompr = rec > 0 ? ((comprMensal / rec) * 100).toFixed(0) + '%' : 'N/D';
+      insights.push({ emoji: '💸', titulo: 'Comprometimento com Dívidas', texto: `Você tem ${ativasDividas.length} dívida(s) ativa(s) com ${fmt(comprMensal)}/mês em parcelas (${pctCompr} da renda). Saldo devedor total: ${fmt(saldoTotal)}.` });
     }
     const comJuros = ativasDividas.filter(d => (d.juros || 0) > 0).sort((a, b) => b.juros - a.juros);
     if (comJuros.length > 0) {
@@ -694,6 +692,7 @@ window.ativarNotifPush = async function() {
   }
 
   try {
+    const { getMessaging, getToken } = await import('https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js');
     const messaging = getMessaging(app);
     const token = await getToken(messaging, { vapidKey: VAPID });
     if (token) {
