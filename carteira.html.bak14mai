@@ -1,0 +1,636 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="description" content="Bud Finance — Minhas Contas">
+  <title>Contas - Bud Finance</title>
+
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Bud Finance">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/tailwind.css">
+  <script src="js/theme-manager.js"></script>
+
+  <!-- pdf.js UMD LOCAL (funciona em file:// sem depender de CDN/CORS) -->
+  <script src="js/vendor/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'js/vendor/pdf.worker.min.js';
+      console.log('[pdf.js] carregado v' + window.pdfjsLib.version + ' (local)');
+    } else {
+      console.error('[pdf.js] NÃO carregou — PDF cairá no backend e perderá precisão');
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg-page:#f4f7fb; --text-main:#1e293b; --text-sec:#475569;
+      --card-bg:rgba(255,255,255,0.85); --card-border:rgba(255,255,255,0.9);
+      --card-text:#1e293b; --card-text-sec:#64748b;
+      --btn-bg:#2563eb; --btn-text:#ffffff;
+      --input-bg:#f8fafc; --input-border:#f1f5f9; --input-focus:#3b82f6;
+      --blob-opacity:1;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Inter',system-ui,sans-serif;background-color:var(--bg-page);min-height:100vh;min-height:100dvh;overflow-x:hidden;transition:background-color 0.35s ease;}
+
+    /* ── Splash ──────────────────────────────────────────── */
+    #splash{position:fixed;inset:0;background:var(--bg-page);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;z-index:99999;transition:opacity .5s ease;}
+    #splash.hide{opacity:0;pointer-events:none;}
+    .splash-bar{width:120px;height:4px;border-radius:2px;background:#e2e8f0;overflow:hidden;}
+    .splash-bar-inner{width:40%;height:100%;border-radius:2px;background:#3b82f6;animation:slide-bar 1.2s ease-in-out infinite;}
+    @keyframes pulse-logo{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
+    @keyframes slide-bar{0%{transform:translateX(-100%);}100%{transform:translateX(350%);}}
+
+    /* ── Blobs ───────────────────────────────────────────── */
+    .blob{position:fixed;border-radius:9999px;pointer-events:none;z-index:0;opacity:var(--blob-opacity,1);transition:opacity 0.35s ease;}
+    .blob-blue{top:-5%;left:-5%;width:35%;height:35%;background:rgba(147,197,253,0.30);filter:blur(100px);}
+    .blob-cyan{bottom:-5%;right:-5%;width:25%;height:25%;background:rgba(103,232,249,0.20);filter:blur(100px);}
+
+    /* ── Layout ──────────────────────────────────────────── */
+    .dash-layout{display:flex;min-height:100vh;min-height:100dvh;}
+
+    /* ── Sidebar ─────────────────────────────────────────── */
+    .sidebar{width:260px;background:var(--sidebar-bg);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-right:1px solid var(--card-border);display:flex;flex-direction:column;padding:1.5rem 1rem;position:fixed;top:0;left:0;bottom:0;z-index:50;transition:transform .3s ease,width .3s ease,background 0.35s ease,border-color 0.35s ease;overflow:visible;}
+    .sidebar-collapse-btn{display:none;position:absolute;top:50%;right:-1rem;transform:translateY(-50%);width:1rem;height:3.5rem;border-radius:0 0.5rem 0.5rem 0;background:var(--btn-bg);border:none;color:var(--btn-text);font-size:0.6rem;font-weight:700;cursor:pointer;align-items:center;justify-content:center;z-index:51;box-shadow:3px 0 12px rgba(0,0,0,0.22);transition:background 0.35s ease;flex-shrink:0;line-height:1;}
+    .sidebar.collapsed{width:64px;padding-left:0.75rem;padding-right:0.75rem;align-items:center;}
+    .sidebar.collapsed .sidebar-logo{justify-content:center;padding:0 0 0.625rem;gap:0;}
+    .sidebar.collapsed .sidebar-logo-text,.sidebar.collapsed .sidebar-link-text,.sidebar.collapsed .sidebar-user-info{opacity:0;width:0;overflow:hidden;white-space:nowrap;transition:opacity .25s,width .25s;}
+    .sidebar.collapsed .sidebar-link{justify-content:center;padding:0;height:2.5rem;width:2.5rem;gap:0;}
+    .sidebar.collapsed .sidebar-user{justify-content:center;padding:0;height:2.5rem;width:2.5rem;gap:0;background:transparent;}
+    .sidebar-logo{display:flex;align-items:center;gap:0.75rem;padding:0 0.5rem 1.25rem;margin-bottom:0.5rem;border-bottom:1px solid var(--card-border);transition:border-color 0.35s ease;}
+    .sidebar-logo img{width:2.25rem;height:2.25rem;object-fit:contain;background:rgba(255,255,255,0.92);border-radius:0.5rem;padding:0.15rem;flex-shrink:0;}
+    .sidebar-logo span{font-size:1.125rem;font-weight:800;color:var(--text-main);letter-spacing:-0.025em;overflow:hidden;white-space:nowrap;transition:color 0.35s ease,opacity .25s,width .25s;}
+    .sidebar-link-text{overflow:hidden;white-space:nowrap;transition:opacity .25s,width .25s;}
+    .sidebar-nav{flex:1;display:flex;flex-direction:column;gap:0.25rem;margin-top:0.75rem;}
+    .sidebar-link{display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:0.75rem;font-size:0.875rem;font-weight:600;color:var(--text-sec);text-decoration:none;transition:all .2s,color 0.35s ease;cursor:pointer;border:none;background:none;width:100%;font-family:inherit;}
+    .sidebar-link:hover{background:var(--sidebar-link-hover-bg);color:var(--sidebar-link-hover-color);}
+    .sidebar-link.active{background:var(--sidebar-link-active-bg);color:var(--sidebar-link-active-color);}
+    .sidebar-link-icon{font-size:1.125rem;width:1.5rem;text-align:center;}
+    .sidebar-group-label{font-size:0.6rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-sec);opacity:0.45;padding:0.875rem 0.75rem 0.2rem;}
+    .sidebar.collapsed .sidebar-group-label{display:none;}
+    .sidebar-nav-divider{height:1px;background:var(--card-border);margin:0.375rem 0.75rem;opacity:0.4;}
+    .sidebar.collapsed .sidebar-nav-divider{margin:0.375rem 0.5rem;}
+    .sidebar-link-disabled{opacity:0.4;cursor:default;pointer-events:none;}
+    .sidebar-badge-soon,.sidebar-badge-plus{font-size:0.5rem;font-weight:800;border-radius:0.375rem;padding:0.1rem 0.3rem;letter-spacing:0.04em;text-transform:uppercase;margin-left:auto;flex-shrink:0;}
+    .sidebar-badge-soon{background:rgba(0,0,0,0.07);color:var(--text-sec);}
+    .sidebar-badge-plus{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;}
+    .sidebar.collapsed .sidebar-badge-soon,.sidebar.collapsed .sidebar-badge-plus{display:none;}
+    .sidebar-user{display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:0.75rem;background:var(--sidebar-user-bg);transition:background 0.35s ease;}
+    .sidebar-avatar{width:2.25rem;height:2.25rem;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#2563eb);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:0.8rem;flex-shrink:0;}
+    .sidebar-user-info{overflow:hidden;transition:opacity .25s,width .25s;}
+    .sidebar-user-name{font-size:0.8125rem;font-weight:700;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
+    .sidebar-user-id{font-size:0.6875rem;font-weight:500;color:var(--text-sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
+
+    /* ── Main ────────────────────────────────────────────── */
+    .dash-main{flex:1;margin-left:260px;padding:1.5rem;position:relative;z-index:1;transition:margin-left .3s ease;}
+    .dash-main.sidebar-collapsed{margin-left:64px;}
+    .dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;}
+    .dash-welcome h1{font-size:1.5rem;font-weight:800;color:var(--text-main);letter-spacing:-0.025em;transition:color 0.35s ease;}
+    .dash-welcome p{font-size:0.8125rem;font-weight:500;color:var(--text-sec);margin-top:0.125rem;transition:color 0.35s ease;}
+    .hamburger-btn{display:none;width:2.5rem;height:2.5rem;border-radius:0.75rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);align-items:center;justify-content:center;font-size:1.25rem;cursor:pointer;color:var(--card-text);z-index:60;transition:background 0.35s ease,border-color 0.35s ease,color 0.35s ease;}
+    .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:40;}
+
+    /* ── Cards resumo ────────────────────────────────────── */
+    .cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;}
+    .summary-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);transition:background 0.35s ease,border-color 0.35s ease,transform .2s,box-shadow .2s;}
+    .summary-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px -5px rgba(0,0,0,0.1);}
+    .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;}
+    .card-label{font-size:0.6875rem;font-weight:800;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.08em;transition:color 0.35s ease;}
+    .card-icon{width:2rem;height:2rem;border-radius:0.5rem;display:flex;align-items:center;justify-content:center;font-size:0.875rem;}
+    .card-icon-blue{background:#eff6ff;color:#2563eb;}
+    .card-icon-green{background:#f0fdf4;color:#16a34a;}
+    .card-icon-purple{background:#f5f3ff;color:#7c3aed;}
+    .card-value{font-size:1.5rem;font-weight:800;color:var(--card-text);letter-spacing:-0.025em;transition:color 0.35s ease;}
+    .card-sub{font-size:0.75rem;font-weight:500;color:var(--card-text-sec);margin-top:0.25rem;transition:color 0.35s ease;}
+
+    /* ── Section card ────────────────────────────────────── */
+    .section-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.5rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);margin-bottom:1rem;transition:background 0.35s ease,border-color 0.35s ease;}
+
+    /* ── Contas grid ─────────────────────────────────────── */
+    .contas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;}
+    .conta-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);transition:background 0.35s ease,border-color 0.35s ease,transform .2s,box-shadow .2s;}
+    .conta-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px -5px rgba(0,0,0,0.1);}
+    .conta-card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem;}
+    .conta-card-tipo{display:flex;align-items:center;gap:0.625rem;}
+    .conta-tipo-icon{width:2.5rem;height:2.5rem;border-radius:0.75rem;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;}
+    .conta-tipo-nome{font-size:0.875rem;font-weight:800;color:var(--card-text);transition:color 0.35s ease;}
+    .conta-tipo-badge{font-size:0.6rem;font-weight:700;padding:0.15rem 0.4rem;border-radius:0.375rem;text-transform:uppercase;letter-spacing:0.04em;margin-top:0.125rem;display:inline-block;}
+    .conta-card-actions{display:flex;gap:0.375rem;flex-shrink:0;}
+    .conta-action-btn{width:1.75rem;height:1.75rem;border-radius:0.5rem;border:1.5px solid var(--input-border);background:var(--input-bg);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.8125rem;transition:all .15s;color:var(--card-text-sec);}
+    .conta-action-btn:hover{border-color:#93c5fd;color:#2563eb;background:#eff6ff;}
+    .conta-action-btn.danger:hover{border-color:#fca5a5;color:#dc2626;background:#fef2f2;}
+    .conta-saldo{font-size:1.75rem;font-weight:800;color:var(--card-text);letter-spacing:-0.03em;margin-bottom:0.375rem;transition:color 0.35s ease;}
+    .conta-confirmacao{font-size:0.75rem;font-weight:500;color:var(--card-text-sec);margin-bottom:1rem;transition:color 0.35s ease;}
+    .conta-import-btn{width:100%;padding:0.625rem;border:1.5px solid #3b82f6;border-radius:0.75rem;background:transparent;color:#2563eb;font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:0.375rem;}
+    .conta-import-btn:hover{background:#eff6ff;}
+
+    /* ── Empty state ─────────────────────────────────────── */
+    .empty-state{text-align:center;padding:3rem 1rem;}
+    .empty-state-icon{font-size:2.5rem;margin-bottom:0.75rem;}
+    .empty-state-title{font-size:0.9375rem;font-weight:700;color:var(--card-text);transition:color 0.35s ease;}
+    .empty-state-sub{font-size:0.8125rem;font-weight:500;color:var(--card-text-sec);margin-top:0.25rem;transition:color 0.35s ease;}
+
+    /* ── Modal ───────────────────────────────────────────── */
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:80;align-items:center;justify-content:center;padding:1rem;}
+    .modal-overlay.open{display:flex;}
+    .modal-card{background:var(--bg-page);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.75rem;width:100%;max-width:440px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.2);animation:modal-in .25s ease;max-height:90vh;overflow-y:auto;}      .nova-conta-text{display:inline;}    /* Fix: barra de scroll não vaza além do border-radius */
+    .modal-card::-webkit-scrollbar{width:5px;}
+    .modal-card::-webkit-scrollbar-track{background:transparent;margin-top:1.5rem;margin-bottom:1.5rem;}
+    .modal-card::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.15);border-radius:999px;}
+    .modal-card-lg{max-width:700px;}
+    @keyframes modal-in{from{transform:translateY(12px) scale(.97);opacity:0;}to{transform:translateY(0) scale(1);opacity:1;}}
+    .modal-title{font-size:1.125rem;font-weight:800;color:var(--text-main);margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;}
+    .modal-close{width:2rem;height:2rem;border-radius:0.5rem;background:var(--sidebar-user-bg);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;color:var(--text-sec);font-family:inherit;transition:background .2s;flex-shrink:0;}
+    .modal-close:hover{background:var(--sidebar-link-hover-bg);}
+    .modal-field{margin-bottom:1rem;}
+    .modal-label{display:block;font-size:0.75rem;font-weight:700;color:var(--text-sec);margin-bottom:0.375rem;text-transform:uppercase;letter-spacing:0.05em;}
+    .modal-input{width:100%;padding:0.625rem 0.875rem;border:1.5px solid var(--input-border);border-radius:0.75rem;font-size:0.875rem;font-weight:600;color:var(--card-text);background:var(--input-bg);font-family:inherit;transition:border-color .2s,box-shadow .2s;outline:none;-webkit-appearance:none;appearance:none;box-sizing:border-box;}
+    .modal-input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.12);}
+    .modal-input.error{border-color:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,0.1);}
+    .modal-grid2{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;}
+    .modal-submit{width:100%;padding:0.75rem;border:none;border-radius:0.75rem;font-size:0.9375rem;font-weight:800;cursor:pointer;font-family:inherit;transition:all .2s;margin-top:0.25rem;color:#fff;background:linear-gradient(135deg,#2563eb,#1d4ed8);}
+    .modal-submit:hover:not(:disabled){opacity:0.9;transform:translateY(-1px);}
+    .modal-submit:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
+    .modal-cancel{width:100%;padding:0.625rem;border:none;border-radius:0.75rem;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;background:rgba(0,0,0,0.05);color:var(--text-sec);margin-top:0.5rem;transition:background .15s;}
+    .modal-cancel:hover{background:rgba(0,0,0,0.09);}
+
+    /* ── Custom select ───────────────────────────────────── */
+    .custom-select{position:relative;}
+    .custom-select-trigger{width:100%;padding:0.625rem 0.875rem;border:1.5px solid var(--input-border);border-radius:0.75rem;font-size:0.875rem;font-weight:600;color:var(--card-text-sec);background:var(--input-bg);font-family:inherit;transition:border-color .2s,box-shadow .2s;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;box-sizing:border-box;}
+    .custom-select-trigger.has-value{color:var(--card-text);}
+    .custom-select-trigger.open,.custom-select-trigger:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.12);outline:none;}
+    .custom-select-trigger.error{border-color:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,0.1);}
+    .custom-select-chevron{flex-shrink:0;transition:transform .2s;}
+    .custom-select-trigger.open .custom-select-chevron{transform:rotate(180deg);}
+    .custom-select-dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg-page);border:1.5px solid var(--card-border);border-radius:0.75rem;box-shadow:0 8px 24px rgba(0,0,0,0.14);z-index:300;overflow:hidden;max-height:200px;overflow-y:auto;}
+    .custom-select-dropdown.open{display:block;}
+    .custom-select-option{padding:0.625rem 0.875rem;font-size:0.875rem;font-weight:500;color:var(--text-main);cursor:pointer;transition:background .12s;}
+    .custom-select-option:hover{background:var(--sidebar-link-hover-bg);}
+    .custom-select-option.selected{background:#eff6ff;color:#2563eb;font-weight:700;}
+
+    /* ── Import modal steps ──────────────────────────────── */
+    .import-step{display:none;}
+    .import-step.active{display:block;}
+    .import-stepper{display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;overflow:hidden;}
+    .import-step-dot{width:1.75rem;height:1.75rem;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.6875rem;font-weight:800;flex-shrink:0;transition:all .25s;}
+    .import-step-dot.done{background:#2563eb;color:#fff;}
+    .import-step-dot.current{background:#eff6ff;color:#2563eb;border:2px solid #2563eb;}
+    .import-step-dot.pending{background:var(--input-bg);color:var(--text-sec);border:1.5px solid var(--input-border);}
+    .import-step-line{flex:1;height:2px;background:var(--input-border);transition:background .25s;}
+    .import-step-line.done{background:#2563eb;}
+    .drop-zone{border:2px dashed var(--input-border);border-radius:1rem;padding:2.5rem 1.5rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--input-bg);}
+    .drop-zone:hover,.drop-zone.drag-over{border-color:#3b82f6;background:#eff6ff;}
+    .drop-zone-icon{font-size:2.5rem;margin-bottom:0.75rem;}
+    .drop-zone-title{font-size:0.9375rem;font-weight:700;color:var(--card-text);transition:color 0.35s ease;}
+    .drop-zone-sub{font-size:0.8125rem;font-weight:500;color:var(--card-text-sec);margin-top:0.25rem;transition:color 0.35s ease;}
+    .file-chosen{display:none;align-items:center;gap:0.625rem;padding:0.75rem 1rem;border:1.5px solid #86efac;border-radius:0.75rem;background:#f0fdf4;margin-top:0.75rem;}
+    .file-chosen.visible{display:flex;}
+    .import-preview-table{width:100%;border-collapse:collapse;font-size:0.8125rem;}
+    .import-preview-table th{padding:0.5rem 0.625rem;font-size:0.625rem;font-weight:800;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.06em;border-bottom:1.5px solid var(--input-border);text-align:left;white-space:nowrap;}
+    .import-preview-table td{padding:0.5rem 0.625rem;border-bottom:1px solid var(--input-border);color:var(--card-text);vertical-align:middle;}
+    .import-preview-table tr:hover td{background:rgba(0,0,0,0.02);}
+    .import-preview-table tr.skipped td{opacity:0.4;}
+    /* ── Custom dropdown por linha (categoria) ─────────────── */
+    .row-cat-btn{-webkit-appearance:none;appearance:none;border:1.5px solid var(--input-border);border-radius:0.625rem;padding:0.3rem 2rem 0.3rem 0.625rem;font-size:0.75rem;font-weight:600;background:var(--input-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 0.5rem center;color:var(--card-text);font-family:inherit;width:175px;cursor:pointer;outline:none;transition:border-color .2s,box-shadow .2s;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;}
+    .row-cat-btn:focus,.row-cat-btn.open{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.12);}
+    #rowCatSharedDd{position:fixed;z-index:99999;background:var(--card-bg);border:1.5px solid var(--card-border);border-radius:0.875rem;box-shadow:0 8px 32px rgba(0,0,0,0.14);max-height:280px;overflow-y:auto;display:none;backdrop-filter:blur(12px);}
+    #rowCatSharedDd.open{display:block;}
+    #rowCatSharedDd::-webkit-scrollbar{width:4px;}
+    #rowCatSharedDd::-webkit-scrollbar-thumb{background:var(--input-border);border-radius:4px;}
+    .row-cat-option{padding:0.45rem 0.875rem;font-size:0.8125rem;font-weight:500;cursor:pointer;color:var(--card-text);transition:background .1s;white-space:nowrap;}
+    .row-cat-option:hover{background:rgba(59,130,246,0.07);}
+    .row-cat-option.selected{background:#eff6ff;color:#2563eb;font-weight:700;}
+    /* ── Cor-picker (contas) ─────────────────────────────────── */
+    .conta-cor-picker{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.25rem;}
+    .conta-cor-pill{width:1.75rem;height:1.75rem;border-radius:50%;border:2.5px solid transparent;cursor:pointer;transition:transform .15s,border-color .15s;outline:none;}
+    .conta-cor-pill:hover{transform:scale(1.15);}
+    .conta-cor-pill.selected{border-color:var(--input-focus);transform:scale(1.18);box-shadow:0 0 0 2px rgba(59,130,246,0.25);}
+    .tipo-pill{display:inline-flex;align-items:center;gap:0.25rem;padding:0.2rem 0.5rem;border-radius:999px;font-size:0.6875rem;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:all .15s;}
+    .tipo-pill-receita{background:#dcfce7;color:#16a34a;}
+    .tipo-pill-despesa{background:#fee2e2;color:#dc2626;}
+    .import-pagination{display:flex;align-items:center;justify-content:space-between;margin-top:0.75rem;}
+    .import-pag-btn{padding:0.4rem 0.75rem;border:1.5px solid var(--input-border);border-radius:0.5rem;background:var(--input-bg);font-size:0.75rem;font-weight:700;color:var(--card-text-sec);cursor:pointer;font-family:inherit;transition:all .15s;}
+    .import-pag-btn:hover:not(:disabled){border-color:#93c5fd;color:#2563eb;}
+    .import-pag-btn:disabled{opacity:0.4;cursor:not-allowed;}
+    .import-pag-info{font-size:0.75rem;font-weight:600;color:var(--card-text-sec);}
+    .import-global-row{display:flex;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap;align-items:flex-end;}
+
+    /* ── Duplication badge ───────────────────────────────── */
+    .dedup-badge{display:inline-flex;align-items:center;gap:0.25rem;padding:0.25rem 0.625rem;border-radius:999px;font-size:0.6875rem;font-weight:700;}
+    .dedup-badge-warn{background:#fef9c3;color:#854d0e;}
+    .dedup-badge-ok{background:#dcfce7;color:#14532d;}
+
+    /* ── Responsive ──────────────────────────────────────── */
+    @media(max-width:768px){
+      .sidebar{transform:translateX(-100%);}
+      .sidebar.open{transform:translateX(0);}
+      .sidebar.collapsed{width:260px;padding-left:1rem;padding-right:1rem;align-items:flex-start;}
+      .sidebar-overlay.open{display:block;}
+      .dash-main{margin-left:0 !important;padding:1rem;}
+      .hamburger-btn{display:flex;}
+      .sidebar-collapse-btn{display:none !important;}
+      .cards-grid{grid-template-columns:1fr;}
+      .contas-grid{grid-template-columns:1fr;}
+      .modal-grid2{grid-template-columns:1fr;}
+      .modal-card-lg{max-width:100%;}
+      .dash-welcome h1{font-size:1.125rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .dash-welcome p{display:none;}
+      .nova-conta-text{display:none;}
+    }
+    @media(min-width:480px) and (max-width:768px){.cards-grid{grid-template-columns:1fr 1fr;}}
+    @media(min-width:769px){.sidebar-collapse-btn{display:flex;}}
+    @media(min-width:769px) and (max-width:1024px){.cards-grid{grid-template-columns:repeat(2,1fr);}}
+  </style>
+</head>
+<body>
+
+  <!-- ═ Splash ════════════════════════════════════════════ -->
+  <div id="splash">
+    <img src="logo.png" alt="Bud Finance" style="width:56px;height:56px;object-fit:contain;animation:pulse-logo 1.8s ease-in-out infinite;">
+    <div class="splash-bar"><div class="splash-bar-inner"></div></div>
+  </div>
+
+  <!-- ═ Blobs ═════════════════════════════════════════════ -->
+  <div class="blob blob-blue" aria-hidden="true"></div>
+  <div class="blob blob-cyan" aria-hidden="true"></div>
+
+  <!-- ═ Overlay sidebar mobile ════════════════════════════ -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- ═ Layout ════════════════════════════════════════════ -->
+  <div class="dash-layout">
+
+    <!-- ─ Sidebar ──────────────────────────────────────── -->
+    <aside class="sidebar" id="sidebar">
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">‹</button>
+      <div class="sidebar-logo">
+        <img src="logo.png" alt="Bud Finance" width="32" height="32">
+        <span class="sidebar-logo-text">Bud Finance</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="sidebar-link">
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
+        </a>
+        <div class="sidebar-group-label">Finanças</div>
+        <a href="carteira.html" class="sidebar-link active">
+          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Contas</span>
+        </a>
+        <a href="cartoes.html" class="sidebar-link">
+          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
+        </a>
+        <a href="recorrentes.html" class="sidebar-link">
+          <span class="sidebar-link-icon">🔄</span><span class="sidebar-link-text"> Recorrentes</span>
+        </a>
+        <a href="dividas.html" class="sidebar-link">
+          <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
+        </a>
+        <a href="metas.html" class="sidebar-link">
+          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
+        </a>
+        <a href="mercado.html" class="sidebar-link">
+          <span class="sidebar-link-icon">🛒</span><span class="sidebar-link-text"> Compras</span>
+        </a>
+        <a href="categorias.html" class="sidebar-link">
+          <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
+        </a>
+        <div class="sidebar-group-label">Panorama Geral</div>
+        <a href="graficos.html" class="sidebar-link">
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
+        </a>
+        <div class="sidebar-group-label">Bud Plus</div>
+        <a href="assistente-ia.html" class="sidebar-link">
+          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span>
+        </a>
+        <span class="sidebar-link sidebar-link-disabled">
+          <span class="sidebar-link-icon">💬</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
+        </span>
+        <div class="sidebar-nav-divider"></div>
+        <a href="configuracoes.html" class="sidebar-link">
+          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
+        </a>
+      </nav>
+      <div class="sidebar-user" style="margin-top:auto;">
+        <div class="sidebar-avatar" id="sidebarAvatar">?</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebarUserName">Carregando...</div>
+          <div class="sidebar-user-id" id="sidebarUserId">---</div>
+        </div>
+      </div>
+      <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
+      </button>
+    </aside>
+
+    <!-- ─ Main ─────────────────────────────────────────── -->
+    <main class="dash-main" id="dashMain">
+
+      <!-- ── Sub-nav Contas ──────────────────────────── -->
+      <div style="display:flex;align-items:center;gap:0.25rem;margin-bottom:1rem;background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1rem;padding:0.5rem 0.625rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);">
+        <a href="carteira.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;background:var(--sidebar-link-active-bg);color:var(--sidebar-link-active-color);font-size:0.8125rem;font-weight:700;text-decoration:none;white-space:nowrap;">🏦 Contas</a>
+        <a href="extrato.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;">📋 Extrato</a>
+      </div>
+
+      <!-- Header -->
+      <div class="dash-header">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
+          <div class="dash-welcome">
+            <h1>🏦 Minhas Contas</h1>
+            <p>Gerencie suas contas e importe extratos</p>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <button id="btnToggleValues" style="width:2.25rem;height:2.25rem;border-radius:0.625rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);display:flex;align-items:center;justify-content:center;font-size:1rem;cursor:pointer;color:var(--card-text-sec);transition:all .2s;" title="Ocultar/Mostrar valores">👁️</button>
+          <button id="btnSync" style="width:2.25rem;height:2.25rem;border-radius:0.625rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);display:flex;align-items:center;justify-content:center;font-size:1rem;cursor:pointer;color:var(--card-text-sec);transition:all .2s;" title="Sincronizar">🔄</button>
+          <button id="btnNovaConta" style="display:flex;align-items:center;gap:0.375rem;padding:0.5rem 1rem;border-radius:0.75rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);border:none;color:#fff;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Nova conta">+ <span class="nova-conta-text">Nova Conta</span></button>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="cards-grid">
+        <div class="summary-card">
+          <div class="card-header">
+            <span class="card-label">Total Disponível</span>
+            <div class="card-icon card-icon-green">💰</div>
+          </div>
+          <div class="card-value" id="kpiTotal" style="color:#16a34a;">R$ 0,00</div>
+          <div class="card-sub" id="kpiTotalSub">0 contas</div>
+        </div>
+        <div class="summary-card">
+          <div class="card-header">
+            <span class="card-label">Contas Ativas</span>
+            <div class="card-icon card-icon-blue">🏦</div>
+          </div>
+          <div class="card-value" id="kpiContas">0</div>
+          <div class="card-sub" id="kpiContasSub">Nenhuma conta cadastrada</div>
+        </div>
+        <div class="summary-card">
+          <div class="card-header">
+            <span class="card-label">Última Importação</span>
+            <div class="card-icon card-icon-purple">📥</div>
+          </div>
+          <div class="card-value" id="kpiUltImport" style="font-size:1.125rem;">—</div>
+          <div class="card-sub" id="kpiUltImportSub">Nenhum extrato importado</div>
+        </div>
+      </div>
+
+      <!-- Contas Grid -->
+      <div class="section-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+          <div style="font-size:1rem;font-weight:800;color:var(--card-text);">Suas Contas</div>
+          <div style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);" id="contasContador">—</div>
+        </div>
+        <div class="contas-grid" id="contasGrid">
+          <div class="empty-state">
+            <div class="empty-state-icon">⏳</div>
+            <div class="empty-state-title">Carregando...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Histórico de Importações -->
+      <div class="section-card" id="sectionHistoricoImport">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+          <div>
+            <div style="font-size:1rem;font-weight:800;color:var(--card-text);">📂 Histórico de Importações</div>
+            <div style="font-size:0.75rem;font-weight:500;color:var(--card-text-sec);margin-top:0.125rem;">Últimas 20 importações realizadas</div>
+          </div>
+        </div>
+        <div id="historicoImportLista" style="display:none;"></div>
+        <div id="historicoImportVazio" class="empty-state" style="display:block;padding:2rem 1rem;">
+          <div class="empty-state-icon">📭</div>
+          <div class="empty-state-title">Nenhuma importação realizada</div>
+          <div class="empty-state-sub">Os extratos importados aparecerão aqui.</div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ═ Modal Nova / Editar Conta ═════════════════════════ -->
+  <div class="modal-overlay" id="modalConta" role="dialog" aria-modal="true" aria-labelledby="modalContaTitulo">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-title">
+        <span id="modalContaTitulo">➕ Nova Conta</span>
+        <button class="modal-close" id="btnFecharModalConta" aria-label="Fechar">✕</button>
+      </div>
+      <input type="hidden" id="contaEditId">
+
+      <!-- Tipo -->
+      <div class="modal-field">
+        <label class="modal-label">Tipo de Conta</label>
+        <div class="custom-select">
+          <button class="custom-select-trigger" id="contaTipoBtn" type="button">
+            <span id="contaTipoTexto">Selecione o tipo...</span>
+            <svg class="custom-select-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <input type="hidden" id="contaTipoValue">
+          <div class="custom-select-dropdown" id="contaTipoDropdown">
+            <div class="custom-select-option" data-value="dinheiro">💵 Dinheiro / Carteira</div>
+            <div class="custom-select-option" data-value="debito">🏦 Conta Bancária (Débito)</div>
+            <div class="custom-select-option" data-value="vale_refeicao">🍽️ Vale Refeição</div>
+            <div class="custom-select-option" data-value="vale_alimentacao">🛒 Vale Alimentação</div>
+            <div class="custom-select-option" data-value="transporte">🚌 Transporte / VT</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nome -->
+      <div class="modal-field">
+        <label class="modal-label" for="contaNome">Nome da Conta</label>
+        <input type="text" id="contaNome" class="modal-input" placeholder="Ex: Nubank, Bradesco, VR..." maxlength="50">
+      </div>
+
+      <!-- Saldo Inicial -->
+      <div class="modal-field">
+        <label class="modal-label" for="contaSaldoInicial">Saldo Atual (R$)</label>
+        <input type="text" id="contaSaldoInicial" class="modal-input" placeholder="R$ 0,00">
+      </div>
+
+      <!-- Cor da Conta -->
+      <div class="modal-field">
+        <label class="modal-label">Cor de Identificação</label>
+        <div class="conta-cor-picker" id="contaCorPicker">
+          <button type="button" class="conta-cor-pill" data-cor="sem_cor" style="background:var(--input-bg);border-color:var(--input-border);" title="Sem cor">✕</button>
+          <button type="button" class="conta-cor-pill" data-cor="roxo"    style="background:linear-gradient(135deg,#7c3aed,#4c1d95);" title="Roxo"></button>
+          <button type="button" class="conta-cor-pill" data-cor="azul"    style="background:linear-gradient(135deg,#2563eb,#1e3a8a);" title="Azul"></button>
+          <button type="button" class="conta-cor-pill" data-cor="teal"    style="background:linear-gradient(135deg,#0d9488,#134e4a);" title="Teal"></button>
+          <button type="button" class="conta-cor-pill" data-cor="verde"   style="background:linear-gradient(135deg,#16a34a,#14532d);" title="Verde"></button>
+          <button type="button" class="conta-cor-pill" data-cor="laranja" style="background:linear-gradient(135deg,#f97316,#c2410c);" title="Laranja"></button>
+          <button type="button" class="conta-cor-pill" data-cor="vermelho"style="background:linear-gradient(135deg,#ef4444,#991b1b);" title="Vermelho"></button>
+          <button type="button" class="conta-cor-pill" data-cor="rosa"    style="background:linear-gradient(135deg,#ec4899,#9d174d);" title="Rosa"></button>
+          <button type="button" class="conta-cor-pill" data-cor="amarelo" style="background:linear-gradient(135deg,#d97706,#78350f);" title="Amarelo"></button>
+          <button type="button" class="conta-cor-pill" data-cor="cyan"    style="background:linear-gradient(135deg,#0891b2,#164e63);" title="Cyan"></button>
+          <button type="button" class="conta-cor-pill" data-cor="preto"   style="background:linear-gradient(135deg,#374151,#111827);" title="Preto"></button>
+        </div>
+      </div>
+
+      <button class="modal-submit" id="btnSalvarConta">Salvar Conta</button>
+      <button class="modal-cancel" id="btnCancelarConta">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- ═ Modal Importar Extrato ════════════════════════════ -->
+  <div class="modal-overlay" id="modalImport" role="dialog" aria-modal="true" aria-labelledby="modalImportTitulo">
+    <div class="modal-card modal-card-lg" onclick="event.stopPropagation()" style="max-height:90vh;overflow-y:auto;">
+
+      <div class="modal-title">
+        <span id="modalImportTitulo">📥 Importar Extrato</span>
+        <button class="modal-close" id="btnFecharModalImport" aria-label="Fechar">✕</button>
+      </div>
+
+      <!-- Stepper -->
+      <div class="import-stepper">
+        <div class="import-step-dot current" id="stepDot1">1</div>
+        <div class="import-step-line" id="stepLine1"></div>
+        <div class="import-step-dot pending" id="stepDot2">2</div>
+        <div class="import-step-line" id="stepLine2"></div>
+        <div class="import-step-dot pending" id="stepDot3">3</div>
+      </div>
+
+      <!-- Step 1: Upload -->
+      <div class="import-step active" id="importStep1">
+        <div style="font-size:0.875rem;font-weight:600;color:var(--card-text-sec);margin-bottom:1rem;">
+          Conta: <strong id="importContaNome" style="color:var(--card-text);">—</strong>
+        </div>
+        <div class="drop-zone" id="dropZone">
+          <div class="drop-zone-icon">📂</div>
+          <div class="drop-zone-title">Arraste seu arquivo aqui</div>
+          <div class="drop-zone-sub">CSV, OFX, QFX, PDF ou imagem</div>
+          <div style="margin-top:0.875rem;">
+            <label style="display:inline-flex;align-items:center;gap:0.375rem;padding:0.5rem 1.125rem;border-radius:0.75rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:inherit;">
+              📁 Escolher arquivo
+              <input type="file" id="fileInput" accept=".csv,.ofx,.qfx,.pdf,.jpg,.jpeg,.png" style="display:none;">
+            </label>
+          </div>
+        </div>
+        <div class="file-chosen" id="fileChosen">
+          <span style="font-size:1.25rem;">📄</span>
+          <span id="fileChosenName" style="font-size:0.875rem;font-weight:600;color:#16a34a;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+          <button id="btnRemoveFile" style="background:none;border:none;cursor:pointer;font-size:1rem;color:#dc2626;">✕</button>
+        </div>
+        <div id="importStep1Error" style="display:none;margin-top:0.75rem;padding:0.625rem 0.875rem;border-radius:0.75rem;background:#fef2f2;color:#dc2626;font-size:0.8125rem;font-weight:600;"></div>
+        <button class="modal-submit" id="btnImportStep1Next" disabled style="margin-top:1.25rem;">Continuar →</button>
+        <button class="modal-cancel" id="btnCancelarImport">Cancelar</button>
+      </div>
+
+      <!-- Step 2: Preview -->
+      <div class="import-step" id="importStep2">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem;">
+          <div style="font-size:0.9375rem;font-weight:800;color:var(--card-text);">Revisar Transações</div>
+          <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+            <span id="previewCount" class="dedup-badge dedup-badge-ok">0 transações</span>
+            <span id="previewDedupBadge" class="dedup-badge dedup-badge-warn" style="display:none;">⚠️ 0 duplicatas</span>
+            <span id="importConfiabilidadeBadge" style="display:none;"></span>
+          </div>
+        </div>
+
+        <!-- Overrides globais -->
+        <div class="import-global-row">
+          <div style="flex:1;min-width:150px;">
+            <div class="modal-label" style="margin-bottom:0.375rem;">Tipo Global</div>
+            <div style="display:flex;gap:0.375rem;">
+              <button class="tipo-pill tipo-pill-receita" id="globalTipoReceita" onclick="setGlobalTipo('receita')">↑ Receita</button>
+              <button class="tipo-pill tipo-pill-despesa" id="globalTipoDespesa" onclick="setGlobalTipo('despesa')">↓ Despesa</button>
+              <button style="padding:0.2rem 0.5rem;border-radius:999px;font-size:0.6875rem;font-weight:700;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--text-sec);cursor:pointer;font-family:inherit;" id="globalTipoAuto" onclick="setGlobalTipo('auto')">Auto</button>
+            </div>
+          </div>
+          <div style="flex:1;min-width:150px;">
+            <div class="modal-label" style="margin-bottom:0.375rem;">Categoria Global</div>
+            <div class="custom-select">
+              <button class="custom-select-trigger" id="globalCatBtn" type="button" style="font-size:0.8125rem;padding:0.375rem 0.625rem;">
+                <span id="globalCatTexto">Auto-detectar</span>
+                <svg class="custom-select-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <input type="hidden" id="globalCatValue">
+              <div class="custom-select-dropdown" id="globalCatDropdown"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview table wrapper -->
+        <div style="overflow-x:auto;margin-bottom:0.75rem;border:1.5px solid var(--input-border);border-radius:0.75rem;max-height:320px;overflow-y:auto;">
+          <table class="import-preview-table">
+            <thead>
+              <tr>
+                <th style="width:24px;"><input type="checkbox" id="chkAll" title="Selecionar todos"></th>
+                <th>Data</th>
+                <th>Descrição</th>
+                <th>Tipo</th>
+                <th>Valor</th>
+                <th>Categoria</th>
+              </tr>
+            </thead>
+            <tbody id="previewTableBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Paginação -->
+        <div class="import-pagination">
+          <button class="import-pag-btn" id="btnPrevPage" onclick="previewNavPage(-1)">‹ Anterior</button>
+          <span class="import-pag-info" id="previewPageInfo">Página 1 de 1</span>
+          <button class="import-pag-btn" id="btnNextPage" onclick="previewNavPage(1)">Próximo ›</button>
+        </div>
+
+        <button class="modal-submit" id="btnImportStep2Next" style="margin-top:1rem;">Importar Selecionados →</button>
+        <button class="modal-cancel" id="btnImportStep2Back">← Voltar</button>
+      </div>
+
+      <!-- Step 3: Resultado -->
+      <div class="import-step" id="importStep3">
+        <div style="text-align:center;padding:1.5rem 0;">
+          <div id="importResultIcon" style="font-size:3rem;margin-bottom:0.75rem;">⏳</div>
+          <div id="importResultTitle" style="font-size:1.125rem;font-weight:800;color:var(--text-main);margin-bottom:0.375rem;">Importando...</div>
+          <div id="importResultSub" style="font-size:0.875rem;font-weight:500;color:var(--text-sec);">Aguarde, salvando transações...</div>
+        </div>
+        <div id="importResultDetails" style="display:none;background:var(--input-bg);border:1.5px solid var(--input-border);border-radius:0.75rem;padding:1rem;margin-bottom:1rem;font-size:0.8125rem;font-weight:600;color:var(--card-text);">
+        </div>
+        <!-- Confirmação de saldo: usuário pode corrigir antes de fechar -->
+        <div id="importSaldoConfirm" style="display:none;margin-bottom:1rem;">
+          <label style="font-size:0.8125rem;font-weight:700;color:var(--card-text-sec);display:block;margin-bottom:0.375rem;">💰 Saldo atual da conta (confirme ou corrija):</label>
+          <input type="text" id="importSaldoFinalInput" class="modal-input" placeholder="R$ 0,00" style="font-size:0.9rem;font-weight:700;">
+          <div style="font-size:0.75rem;color:var(--text-sec);margin-top:0.25rem;">Este valor será salvo como saldo da conta</div>
+        </div>
+        <button class="modal-submit" id="btnImportConcluir" style="display:none;">Concluído ✓</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═ Modal Confirmar Exclusão ══════════════════════════ -->
+  <div class="modal-overlay" id="modalExcluir" role="dialog" aria-modal="true">
+    <div class="modal-card" onclick="event.stopPropagation()" style="max-width:380px;text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:0.75rem;">🗑️</div>
+      <div style="font-size:1rem;font-weight:800;color:var(--text-main);margin-bottom:0.375rem;">Excluir conta?</div>
+      <div style="font-size:0.875rem;font-weight:500;color:var(--text-sec);margin-bottom:0.375rem;" id="excluirContaNome">—</div>
+      <div style="font-size:0.8125rem;font-weight:500;color:#dc2626;margin-bottom:1.5rem;">As transações importadas desta conta não serão excluídas.</div>
+      <div style="display:flex;gap:0.75rem;">
+        <button id="btnCancelarExcluir" style="flex:1;padding:0.625rem;border:none;border-radius:0.75rem;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;background:rgba(0,0,0,0.05);color:var(--text-sec);transition:background .15s;">Cancelar</button>
+        <button id="btnConfirmarExcluir" style="flex:1;padding:0.625rem;border:none;border-radius:0.75rem;font-size:0.875rem;font-weight:800;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;transition:opacity .2s;">Excluir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═ Shared row-category dropdown ════════════════════════ -->
+  <div id="rowCatSharedDd"></div>
+
+  <!-- ═ Scripts ════════════════════════════════════════════ -->
+  <script src="js/bud-utils.js"></script>
+  <script src="js/categorias-padrao.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script type="module" src="js/carteira.js"></script>
+
+</body>
+</html>
