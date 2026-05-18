@@ -45,10 +45,13 @@ const categoriasPadrao = window.BUD_CATEGORIAS_PADRAO;
    Emoji picker — temas e listas
 ───────────────────────────────────────────────────────────────── */
 const EMOJI_TEMAS = {
-  '💰 Dinheiro': ['💰','💵','💳','💎','📈','📉','💸','🏦','💹','🪙','🧾','🛡️'],
-  '💼 Trabalho': ['💼','💻','🖥️','📞','📠','✍️','🛠️','⚙️','🏗️','🚀','📄','🏢'],
-  '🏠 Casa':     ['🏠','🛋️','🚿','🧹','🧺','🪑','🪴','💡','🔑','🚘','🐶','💧','⚡','🔥','🛏️','🔧'],
-  '🎮 Lazer':    ['🎮','🎬','🎪','⚽','🏖️','✈️','🍔','🍺','🛹','🏋️','🎁','🎟️','🍻','🎨','🎵'],
+  '💰 Dinheiro':   ['💰','💵','💴','💶','💷','💳','💎','📈','📉','💸','🏦','💹','🪙','🧧','🛡️','🤑','💲','🏧'],
+  '💼 Trabalho':   ['💼','💻','🗚️','📱','📞','📠','✍️','🛠️','⚙️','🏗️','🚀','📄','📊','📋','🗂️','🏢','📌','🖰️'],
+  '🏠 Casa':       ['🏠','🏡','🛋️','🚿','🚱','🧹','🧺','🪑','🪴','💡','🔑','🪟','🪚','💧','⚡','🔥','🛏️','🔧','🧲','🪣'],
+  '🍔 Comida':     ['🍔','🍕','🌮','🍜','🍣','🍱','🥗','🥘','🍰','🍫','☕','🧁','🍷','🥂','🍹','🧃','🛒','🥩','🥪','🍦'],
+  '💊 Saúde':      ['💊','🏥','🩺','🦷','🏋️','🧘','🩹','🪻','💉','🏃','🧬','😴','💪','🧠','🩼','🌡️','🧪','🫐','🚑','🦶'],
+  '🚗 Transporte': ['🚗','🚌','🚕','🛵','🚲','✈️','🚂','⛽','🈿️','🚢','🏓️','🛣️','🚁','🚻','⛵','🚐','🛸','🚜','🏎️','🚦'],
+  '🎮 Lazer':      ['🎮','🎦','🎪','⚽','🏖️','🍺','🛹','🎁','🏟️','🍻','🎨','🎵','📚','🎭','🎯','🏊','🎸','🎲','🧩','🎤'],
 };
 const CORES_CAT = [
   { id:'green',  bg:'rgba(16,185,129,0.15)',  text:'#059669', dot:'#10b981' },
@@ -72,7 +75,8 @@ let nomeAntigoEdit = '';       // guarda nome anterior para propagar renome
 let _unsubCat      = null;     // cleanup do onSnapshot
 let _catDocs       = [];       // docs ordenados do último onSnapshot
 let _novaHighlight = null;     // ID do doc recém-criado (highlight visual)
-let _filtroPadrao  = '';       // filtro de busca nas categorias padrão
+let _filtroPadrao       = '';  // filtro de busca nas categorias padrão
+let _filtroPersonalizada = ''; // filtro de busca nas categorias personalizadas
 
 const showToast = (msg, tipo = 'success') => window.budShowToast(msg, tipo);
 
@@ -100,6 +104,9 @@ function formatarData() {
 ───────────────────────────────────────────────────────────────── */
 window.switchTab = function (tipo) {
   tipoAtual = tipo;
+  _filtroPersonalizada = '';
+  const bInput = document.getElementById('buscaPersonalizada');
+  if (bInput) bInput.value = '';
   document.getElementById('tabDespesa').classList.toggle('tab-active', tipo === 'despesa');
   document.getElementById('tabReceita').classList.toggle('tab-active', tipo === 'receita');
   renderizarTudo();
@@ -147,75 +154,99 @@ function carregarPersonalizadas() {
 
   _unsubCat = onSnapshot(q, (snap) => {
     if (skeleton) skeleton.style.display = 'none';
-
-    const lista = document.getElementById('listaPersonalizadas');
-    const empty = document.getElementById('emptyState');
-    const sub   = document.getElementById('subPersonalizadas');
-    if (!lista || !empty) return;
-
-    if (snap.empty) {
-      lista.innerHTML = '';
-      empty.style.display = '';
-      _catDocs = [];
-      if (sub) sub.textContent = 'Crie categorias personalizadas para organizar seus gastos do seu jeito';
-      return;
-    }
-
-    empty.style.display = 'none';
-
-    // Ordena: campo `ordem` (ASC) → dataCriacao (ASC) como fallback
-    _catDocs = snap.docs.slice().sort((a, b) => {
+    _catDocs = snap.empty ? [] : snap.docs.slice().sort((a, b) => {
       const oa = a.data().ordem ?? a.data().dataCriacao?.toMillis?.() ?? 0;
       const ob = b.data().ordem ?? b.data().dataCriacao?.toMillis?.() ?? 0;
       return oa - ob;
     });
-
-    // Contador dinâmico
-    const total = _catDocs.length;
-    const tipo  = tipoAtual === 'despesa' ? 'despesa' : 'receita';
-    if (sub) sub.textContent =
-      `${total} categori${total === 1 ? 'a' : 'as'} de ${tipo} criada${total === 1 ? '' : 's'}`;
-
-    lista.innerHTML = _catDocs.map((d, idx) => {
-      const c    = d.data();
-      const cor  = CORES_CAT.find(x => x.id === (c.cor || 'green')) || CORES_CAT[0];
-      const corId = c.cor || 'green';
-      const isNew = d.id === _novaHighlight;
-      return `
-        <div class="cat-card personalizada${isNew ? ' cat-new-highlight' : ''}"
-             id="catCard-${d.id}"
-             onclick="editarCategoria('${d.id}','${escapeHTML(c.nome)}','${escapeHTML(c.emoji)}','${corId}')">
-          <span class="cat-card-emoji">${escapeHTML(c.emoji)}</span>
-          <span class="cat-card-nome">${escapeHTML(c.nome)}</span>
-          <span class="cat-badge" style="background:${cor.bg};color:${cor.text};">personalizada</span>
-          <span class="cat-usos-badge" id="usosBadge-${d.id}">…</span>
-          <div style="display:flex;flex-direction:column;gap:0.125rem;flex-shrink:0;">
-            <button class="cat-order-btn" ${idx === 0 ? 'disabled' : ''}
-                    onclick="event.stopPropagation();moverCategoria('${d.id}',-1)"
-                    aria-label="Mover para cima" title="Mover para cima">▲</button>
-            <button class="cat-order-btn" ${idx === total - 1 ? 'disabled' : ''}
-                    onclick="event.stopPropagation();moverCategoria('${d.id}',1)"
-                    aria-label="Mover para baixo" title="Mover para baixo">▼</button>
-          </div>
-          <button
-            class="cat-delete-btn"
-            onclick="event.stopPropagation();deletarCategoria('${d.id}','${escapeHTML(c.nome)}')"
-            aria-label="Excluir categoria ${escapeHTML(c.nome)}"
-            title="Excluir">✕</button>
-        </div>
-      `;
-    }).join('');
-
-    // Limpa highlight após animação
-    if (_novaHighlight) setTimeout(() => { _novaHighlight = null; }, 2500);
-
-    // Carrega badges de uso de forma assíncrona
-    carregarUsos(_catDocs.map(d => ({ id: d.id, nome: d.data().nome })));
+    renderListaPersonalizadas();
   }, (err) => {
     if (skeleton) skeleton.style.display = 'none';
     (window.budError || console.error)('Erro ao carregar categorias:', err);
     showToast('Erro ao carregar categorias personalizadas.', 'error');
   });
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Renderiza lista filtrada de categorias personalizadas
+───────────────────────────────────────────────────────────────── */
+function renderListaPersonalizadas() {
+  const lista     = document.getElementById('listaPersonalizadas');
+  const empty     = document.getElementById('emptyState');
+  const sub       = document.getElementById('subPersonalizadas');
+  const buscaWrap = document.getElementById('buscaPersonalizadaWrap');
+  if (!lista || !empty) return;
+
+  const total = _catDocs.length;
+
+  // Mostra busca quando há 2 ou mais categorias
+  if (buscaWrap) buscaWrap.style.display = total >= 2 ? '' : 'none';
+
+  if (total === 0) {
+    lista.innerHTML = '';
+    empty.style.display = '';
+    if (sub) sub.textContent = 'Crie categorias personalizadas para organizar seus gastos do seu jeito';
+    return;
+  }
+
+  empty.style.display = 'none';
+
+  // Contador dinâmico (usa total, não filtrado)
+  const tipo = tipoAtual === 'despesa' ? 'despesa' : 'receita';
+  if (sub) sub.textContent =
+    `${total} categori${total === 1 ? 'a' : 'as'} de ${tipo} criada${total === 1 ? '' : 's'}`;
+
+  // Aplica filtro
+  const f = _filtroPersonalizada.toLowerCase();
+  const cats = f
+    ? _catDocs.filter(d =>
+        d.data().nome.toLowerCase().includes(f) || d.data().emoji.includes(f))
+    : _catDocs;
+
+  if (cats.length === 0) {
+    lista.innerHTML = '<p style="font-size:0.85rem;color:var(--card-text-sec);padding:0.5rem 0;">Nenhuma categoria encontrada.</p>';
+    return;
+  }
+
+  lista.innerHTML = cats.map((d) => {
+    const c      = d.data();
+    const cor    = CORES_CAT.find(x => x.id === (c.cor || 'green')) || CORES_CAT[0];
+    const corId  = c.cor || 'green';
+    const isNew  = d.id === _novaHighlight;
+    // Índice no array original (para saber first/last nos botões de ordem)
+    const origIdx = _catDocs.findIndex(x => x.id === d.id);
+    return `
+      <div class="cat-card personalizada${isNew ? ' cat-new-highlight' : ''}"
+           id="catCard-${d.id}"
+           style="flex-direction:column;align-items:stretch;gap:0.5rem;"
+           onclick="editarCategoria('${d.id}','${escapeHTML(c.nome)}','${escapeHTML(c.emoji)}','${corId}')">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <span class="cat-card-emoji">${escapeHTML(c.emoji)}</span>
+          <span class="cat-card-nome">${escapeHTML(c.nome)}</span>
+          <span class="cat-badge" style="background:${cor.bg};color:${cor.text};margin-left:auto;flex-shrink:0;">personalizada</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:0.375rem;">
+          <span class="cat-usos-badge" id="usosBadge-${d.id}">…</span>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:0.25rem;">
+            <button class="cat-order-btn" ${origIdx === 0 ? 'disabled' : ''}
+                    onclick="event.stopPropagation();moverCategoria('${d.id}',-1)"
+                    aria-label="Mover para cima" title="Mover para cima">▲</button>
+            <button class="cat-order-btn" ${origIdx === _catDocs.length - 1 ? 'disabled' : ''}
+                    onclick="event.stopPropagation();moverCategoria('${d.id}',1)"
+                    aria-label="Mover para baixo" title="Mover para baixo">▼</button>
+            <button
+              class="cat-delete-btn"
+              onclick="event.stopPropagation();deletarCategoria('${d.id}','${escapeHTML(c.nome)}')"
+              aria-label="Excluir categoria ${escapeHTML(c.nome)}"
+              title="Excluir">✕</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (_novaHighlight) setTimeout(() => { _novaHighlight = null; }, 2500);
+  carregarUsos(cats.map(d => ({ id: d.id, nome: d.data().nome })));
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -695,6 +726,12 @@ function setupModal() {
   document.getElementById('buscaPadrao')?.addEventListener('input', (e) => {
     _filtroPadrao = e.target.value.trim();
     renderizarPadrao();
+  });
+
+  // Busca nas categorias personalizadas
+  document.getElementById('buscaPersonalizada')?.addEventListener('input', (e) => {
+    _filtroPersonalizada = e.target.value.trim();
+    renderListaPersonalizadas();
   });
 }
 
