@@ -1,0 +1,45 @@
+version: '3'
+
+# Evolution API — Bud Finance WhatsApp Bot
+# Instância: "bud"
+# ─────────────────────────────────────────────────────────
+# ANTES DE SUBIR: troque BUD_CHAVE_FORTE_AQUI por uma senha forte sua.
+# Guarde essa senha — você vai precisar dela no Render (WA_EVOLUTION_KEY).
+#
+# Para usar no Render Web Service:
+#   Image: atendai/evolution-api:latest
+#   Port: 8080
+#   (adicione as env vars abaixo individualmente no painel do Render)
+
+services:
+  evolution-api:
+    image: atendai/evolution-api:latest
+    container_name: bud-evolution
+    restart: always
+    ports:
+      - "8080:8080"
+    volumes:
+      - evolution_data:/evolution/instances
+    environment:
+      # ─── Autenticação ──────────────────────────────────
+      AUTHENTICATION_TYPE: apikey
+      AUTHENTICATION_API_KEY: BUD_CHAVE_FORTE_AQUI   # ← TROQUE ISSO
+
+      # ─── Webhook → Render backend ──────────────────────
+      WEBHOOK_GLOBAL_URL: https://bud-finance-backend.onrender.com/webhook/evolution
+      WEBHOOK_GLOBAL_ENABLED: "true"
+      WEBHOOK_EVENTS_MESSAGES_UPSERT: "true"
+      WEBHOOK_EVENTS_MESSAGES_UPDATE: "false"
+      WEBHOOK_EVENTS_CONNECTION_UPDATE: "false"
+      WEBHOOK_EVENTS_QRCODE_UPDATED: "false"
+      WEBHOOK_EVENTS_SEND_MESSAGE: "false"
+
+      # ─── Configurações gerais ──────────────────────────
+      SERVER_TYPE: http
+      SERVER_PORT: "8080"
+      LOG_LEVEL: ERROR
+      DEL_INSTANCE: "false"
+      CLEAN_STORE_MESSAGES: "true"
+
+volumes:
+  evolution_data:
