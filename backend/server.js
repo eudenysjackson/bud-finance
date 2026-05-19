@@ -2005,11 +2005,16 @@ async function enviarMensagemWA(numero, texto) {
   if (!WA_PHONE_NUMBER_ID || !WA_API_TOKEN) {
     // Evolution API como fallback (WA_EVOLUTION_KEY opcional)
     if (WA_EVOLUTION_URL) {
-      await fetch(WA_EVOLUTION_URL + '/message/sendText/' + WA_EVOLUTION_INSTANCE, {
+      console.log('[EVO] enviando para:', numero);
+      var evoResp = await fetch(WA_EVOLUTION_URL + '/message/sendText/' + WA_EVOLUTION_INSTANCE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': WA_EVOLUTION_KEY },
         body: JSON.stringify({ number: numero, text: texto })
-      }).catch(function (e) { console.error('[EVO] enviarMensagem:', e.message); });
+      }).catch(function (e) { console.error('[EVO] enviarMensagem network error:', e.message); return null; });
+      if (evoResp) {
+        var evoBody = await evoResp.text().catch(function () { return ''; });
+        console.log('[EVO] sendText status:', evoResp.status, evoBody.slice(0, 300));
+      }
     }
     return;
   }
