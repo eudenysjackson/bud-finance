@@ -2003,13 +2003,13 @@ function gerarTokenWA() {
 // Helper: envia mensagem de texto via Meta Cloud API
 async function enviarMensagemWA(numero, texto) {
   if (!WA_PHONE_NUMBER_ID || !WA_API_TOKEN) {
-    // Evolution API como fallback
-    if (WA_EVOLUTION_URL && WA_EVOLUTION_KEY) {
+    // Evolution API como fallback (WA_EVOLUTION_KEY opcional)
+    if (WA_EVOLUTION_URL) {
       await fetch(WA_EVOLUTION_URL + '/message/sendText/' + WA_EVOLUTION_INSTANCE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': WA_EVOLUTION_KEY },
         body: JSON.stringify({ number: numero, text: texto })
-      }).catch(function () {});
+      }).catch(function (e) { console.error('[EVO] enviarMensagem:', e.message); });
     }
     return;
   }
