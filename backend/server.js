@@ -2028,6 +2028,8 @@ async function enviarMensagemWA(numero, texto) {
 // ─── Helper compartilhado: processa mensagem WA (pareamento Fase 1) ──
 async function processarMensagemWA(numero, texto) {
   if (!db) return;
+  // Normalizar: remover espaços extras (usuário pode digitar "BUD - XXXX")
+  texto = texto.replace(/\s+/g, '').trim();
   if (!/^BUD-[A-Z0-9]{4}$/i.test(texto)) return; // Fase 2 (futura): chat IA
 
   var codigo = texto.toUpperCase();
