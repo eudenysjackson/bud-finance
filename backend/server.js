@@ -2113,6 +2113,7 @@ app.post('/webhook/whatsapp', async function (req, res) {
 //   Events: MESSAGES_UPSERT
 app.post('/webhook/evolution', async function (req, res) {
   res.sendStatus(200); // responder rápido
+  console.log('[EVO-DEBUG] payload:', JSON.stringify(req.body).slice(0, 300));
 
   try {
     // Verificar chave da Evolution API (se configurada)
