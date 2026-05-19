@@ -27,6 +27,7 @@ services:
 
       # ─── Webhook → Render backend ──────────────────────
       WEBHOOK_GLOBAL_URL: https://bud-finance-backend.onrender.com/webhook/evolution
+      # URL acima confirmada — bud-finance-backend.onrender.com é o backend ativo do Bud Finance
       WEBHOOK_GLOBAL_ENABLED: "true"
       WEBHOOK_EVENTS_MESSAGES_UPSERT: "true"
       WEBHOOK_EVENTS_MESSAGES_UPDATE: "false"
