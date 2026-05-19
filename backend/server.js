@@ -2026,20 +2026,23 @@ async function enviarMensagemWA(numero, texto) {
 }
 
 // ─── Helper compartilhado: processa mensagem WA (pareamento Fase 1) ──
-async function processarMensagemWA(numero, texto) {
+// jid = JID completo (ex: 5521999999@s.whatsapp.net ou 18962346@lid)
+// numero = apenas dígitos/id sem sufixo (para Firestore)
+async function processarMensagemWA(jid, texto) {
   if (!db) return;
-  // Normalizar: remover espaços extras (usuário pode digitar "BUD - XXXX")
+  // Normalizar: remover espaços, aceitar minúsculas (bud-xxxx ou BUD - XXXX)
   texto = texto.replace(/\s+/g, '').trim();
   if (!/^BUD-[A-Z0-9]{4}$/i.test(texto)) return; // Fase 2 (futura): chat IA
 
   var codigo = texto.toUpperCase();
+  var numero = jid.split('@')[0]; // apenas dígitos para Firestore
   var agora  = Date.now();
   var snap   = await db.collection('usuarios')
     .where('whatsappToken', '==', codigo)
     .limit(1).get();
 
   if (snap.empty) {
-    await enviarMensagemWA(numero, '❌ Código inválido ou expirado. Gere um novo código em Ajustes → WhatsApp no app.');
+    await enviarMensagemWA(jid, '❌ Código inválido ou expirado. Gere um novo código em Ajustes → WhatsApp no app.');
     return;
   }
 
@@ -2047,19 +2050,19 @@ async function processarMensagemWA(numero, texto) {
   var userData = userDoc.data();
 
   if (!userData.whatsappTokenExp || agora > userData.whatsappTokenExp) {
-    await enviarMensagemWA(numero, '⏰ Código expirado. Gere um novo em Ajustes → WhatsApp no app.');
+    await enviarMensagemWA(jid, '⏰ Código expirado. Gere um novo em Ajustes → WhatsApp no app.');
     return;
   }
 
   await userDoc.ref.update({
-    whatsappVinculado:   numero,
+    whatsappVinculado:   numero, // armazena só os dígitos (sem @lid/@s.whatsapp.net)
     whatsappToken:       null,
     whatsappTokenExp:    null,
     whatsappVinculadoEm: new Date().toISOString()
   });
 
   var nome = (userData.nome || '').split(' ')[0] || 'usuário';
-  await enviarMensagemWA(numero,
+  await enviarMensagemWA(jid,
     '✅ Olá, ' + nome + '! Seu WhatsApp está vinculado ao Bud Finance. 🎉\n\n' +
     'Agora você pode:\n' +
     '• Registrar gastos: _"gastei 50 de gasolina"_\n' +
@@ -2136,17 +2139,16 @@ app.post('/webhook/evolution', async function (req, res) {
     var remoteJid = data.key?.remoteJid || '';
     if (remoteJid.endsWith('@g.us')) return; // ignorar grupos
 
-    var numero = remoteJid.replace('@s.whatsapp.net', '');
     var texto  = (
       data.message?.conversation ||
       data.message?.extendedTextMessage?.text ||
       ''
     ).trim();
 
-    if (!texto || !numero) return;
+    if (!texto || !remoteJid) return;
 
-    console.log('[EVO] mensagem recebida de', numero, ':', texto.slice(0, 50));
-    await processarMensagemWA(numero, texto);
+    console.log('[EVO] mensagem recebida de', remoteJid.split('@')[0], ':', texto.slice(0, 50));
+    await processarMensagemWA(remoteJid, texto); // passa JID completo
   } catch (err) {
     console.error('[EVO] webhook error:', err.message);
   }
