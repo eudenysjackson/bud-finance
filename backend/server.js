@@ -2123,7 +2123,10 @@ app.post('/webhook/whatsapp', async function (req, res) {
 //   Events: MESSAGES_UPSERT
 app.post('/webhook/evolution', async function (req, res) {
   res.sendStatus(200); // responder rápido
-  console.log('[EVO-DEBUG] payload:', JSON.stringify(req.body).slice(0, 300));
+  // Log completo apenas para messages.upsert (debug @lid)
+  if (req.body?.event === 'messages.upsert') {
+    console.log('[EVO-DEBUG] messages.upsert FULL:', JSON.stringify(req.body));
+  }
 
   try {
     // Nota: Evolution API não envia apikey nos webhooks. Auth via URL secreta opcional.
