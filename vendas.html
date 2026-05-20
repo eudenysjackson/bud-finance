@@ -95,9 +95,9 @@
     .mock-tx-cat { font-size: .65rem; color: var(--text-muted); }
     .mock-tx-val { font-size: .82rem; font-weight: 800; }
     .mock-tx-val.g { color: var(--green); } .mock-tx-val.r { color: var(--red); }
-    .mock-float { position: absolute; background: white; border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-md); padding: .6rem .9rem; display: flex; align-items: center; gap: 8px; font-size: .75rem; font-weight: 700; color: var(--text); }
-    .mock-float-top { top: -16px; right: -16px; }
-    .mock-float-bot { bottom: -16px; left: -16px; }
+    .mock-float { position: absolute; background: white; border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-md); padding: .6rem .9rem; display: flex; align-items: center; gap: 8px; font-size: .75rem; font-weight: 700; color: var(--text); z-index: 10; }
+    .mock-float-top { top: 1.25rem; right: -1rem; }
+    .mock-float-bot { bottom: 2rem; left: -1rem; }
     @media (max-width: 900px) { .mock-float { display: none; } }
     .ia-pulse { width: 8px; height: 8px; background: var(--green); border-radius: 50%; animation: pdot 1.5s infinite; }
     /* STATS */
@@ -171,6 +171,8 @@
     .plan-features li .check { color: var(--green); font-weight: 800; min-width: 14px; }
     .plan-features li .cross { color: var(--text-muted); min-width: 14px; }
     .plan-features li.disabled { opacity: .45; }
+    .plan-features li .plan-limit { margin-left: auto; background: var(--green-light); color: var(--green-dark); font-size: .67rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
+    .plan-features li .inf { font-size: .9rem; min-width: 14px; line-height: 1.2; }
     .plan-divider { border: none; border-top: 1px solid var(--border); margin: 1.1rem 0; }
     /* TESTIMONIALS */
     #testimonials { background: var(--page2); border-top: 1px solid var(--border); }
@@ -197,7 +199,9 @@
     .cta-trust-item::before { content: '✓ '; color: rgba(255,255,255,.95); }
     /* FOOTER */
     footer { background: white; border-top: 1px solid var(--border); padding: 3.5rem 0 2rem; }
-    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 3rem; margin-bottom: 2.5rem; }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 3rem; margin-bottom: 2.5rem; }
+    .footer-security { display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center; padding: 1.25rem; background: var(--page); border-radius: 12px; margin-bottom: 2rem; border: 1px solid var(--border); }
+    .security-item { font-size: .8rem; font-weight: 600; color: var(--text-sec); display: flex; align-items: center; gap: 6px; }
     @media (max-width: 768px) { .footer-grid { grid-template-columns: 1fr 1fr; gap: 2rem; } }
     @media (max-width: 480px) { .footer-grid { grid-template-columns: 1fr; } }
     .footer-brand p { font-size: .85rem; color: var(--text-muted); margin-top: .6rem; max-width: 220px; line-height: 1.6; }
@@ -216,7 +220,7 @@
 
   <nav class="nav">
     <a href="vendas.html" class="nav-logo">
-      <div class="nav-logo-icon">B</div>
+      <img src="logo.png" alt="Bud Finance" style="height:34px;width:auto">
       Bud Finance
     </a>
     <ul class="nav-links">
@@ -265,6 +269,10 @@
               <span class="mock-url">budsolucoes.com.br/dashboard</span>
             </div>
             <div class="mockup-content">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem;padding-bottom:.75rem;border-bottom:1px solid #f1f5f9">
+                <span style="font-size:.78rem;font-weight:700;color:#1e293b">Bom dia, Andie 👋</span>
+                <span style="font-size:.65rem;color:#94a3b8;background:#f1f5f9;padding:2px 8px;border-radius:999px;font-weight:600">Dashboard</span>
+              </div>
               <div class="mock-balance">
                 <div>
                   <div class="mock-balance-label">Saldo total</div>
@@ -439,40 +447,39 @@
       <h2 style="text-align:center;margin-bottom:.6rem">Comece grátis.<br /><span class="text-green">Evolua quando quiser.</span></h2>
       <p style="text-align:center;color:var(--text-muted);font-size:.9rem">Sem taxas escondidas. Cancele quando quiser.</p>
       <div class="pricing-grid">
+        <!-- FREE -->
         <div class="plan-card">
           <div class="plan-name">Free</div>
           <div class="plan-price"><span class="amount" style="font-size:2.2rem">Grátis</span></div>
-          <div class="plan-desc">Para quem está começando</div>
+          <div class="plan-desc">Para começar a se organizar</div>
           <button class="plan-btn plan-btn-free" onclick="window.location.href='cadastro.html'">Criar conta grátis</button>
           <hr class="plan-divider" />
           <ul class="plan-features">
-            <li><span class="check">✓</span> Dashboard financeiro completo</li>
-            <li><span class="check">✓</span> Até 50 transações/mês</li>
-            <li><span class="check">✓</span> 1 cartão de crédito</li>
-            <li><span class="check">✓</span> Categorias padrão</li>
-            <li><span class="check">✓</span> Metas e Limites básicos</li>
-            <li class="disabled"><span class="cross">✗</span> Importação IA (PDF/foto)</li>
-            <li class="disabled"><span class="cross">✗</span> Relatórios avançados</li>
-            <li class="disabled"><span class="cross">✗</span> Assistente IA</li>
+            <li><span class="check">✓</span> Todos os módulos liberados</li>
+            <li><span class="check">✓</span> <span>Créditos IA</span><span class="plan-limit">20/mês</span></li>
+            <li><span class="check">✓</span> <span>Lançamentos</span><span class="plan-limit">50/mês</span></li>
+            <li><span class="check">✓</span> <span>Conta bancária</span><span class="plan-limit">1</span></li>
+            <li><span class="check">✓</span> <span>Cartão de crédito</span><span class="plan-limit">1</span></li>
+            <li><span class="check">✓</span> <span>Importações</span><span class="plan-limit">1/mês</span></li>
           </ul>
         </div>
+        <!-- STARTER -->
         <div class="plan-card">
           <div class="plan-name">Starter</div>
           <div class="plan-price"><span class="currency">R$</span><span class="amount">9<span style="font-size:1.4rem">,99</span></span><span class="period">/mês</span></div>
-          <div class="plan-desc">Para uso pessoal completo</div>
+          <div class="plan-desc">Para quem quer mais controle</div>
           <button class="plan-btn plan-btn-paid" onclick="window.assinar('starter')">Assinar Starter</button>
           <hr class="plan-divider" />
           <ul class="plan-features">
-            <li><span class="check">✓</span> Tudo do Free</li>
-            <li><span class="check">✓</span> Transações ilimitadas</li>
-            <li><span class="check">✓</span> 2 cartões de crédito</li>
-            <li><span class="check">✓</span> Importação CSV e OFX</li>
-            <li><span class="check">✓</span> Categorias personalizadas</li>
-            <li><span class="check">✓</span> Balanço mensal + Extrato</li>
-            <li class="disabled"><span class="cross">✗</span> Importação PDF/foto (IA)</li>
-            <li class="disabled"><span class="cross">✗</span> Assistente IA</li>
+            <li><span class="check">✓</span> Todos os módulos liberados</li>
+            <li><span class="check">✓</span> <span>Créditos IA</span><span class="plan-limit">60/mês</span></li>
+            <li><span class="check">✓</span> <span>Lançamentos</span><span class="plan-limit">200/mês</span></li>
+            <li><span class="check">✓</span> <span>Contas bancárias</span><span class="plan-limit">3</span></li>
+            <li><span class="check">✓</span> <span>Cartões de crédito</span><span class="plan-limit">2</span></li>
+            <li><span class="check">✓</span> <span>Importações</span><span class="plan-limit">5/mês</span></li>
           </ul>
         </div>
+        <!-- PRO -->
         <div class="plan-card popular">
           <div class="plan-popular-badge">⭐ Mais popular</div>
           <div class="plan-name">Pro</div>
@@ -481,32 +488,32 @@
           <button class="plan-btn plan-btn-paid" onclick="window.assinar('pro')">Assinar Pro</button>
           <hr class="plan-divider" />
           <ul class="plan-features">
-            <li><span class="check">✓</span> Tudo do Starter</li>
-            <li><span class="check">✓</span> 4 cartões de crédito</li>
-            <li><span class="check">✓</span> Importação PDF e foto (IA)</li>
-            <li><span class="check">✓</span> Assistente IA com insights</li>
-            <li><span class="check">✓</span> Relatórios avançados</li>
-            <li><span class="check">✓</span> Comparativo mensal</li>
-            <li><span class="check">✓</span> Controle de dívidas</li>
-            <li class="disabled"><span class="cross">✗</span> Cartões ilimitados</li>
+            <li><span class="check">✓</span> Todos os módulos liberados</li>
+            <li><span class="check">✓</span> <span>Créditos IA</span><span class="plan-limit">200/mês</span></li>
+            <li><span class="check">✓</span> <span>Lançamentos</span><span class="plan-limit">500/mês</span></li>
+            <li><span class="check">✓</span> <span>Contas bancárias</span><span class="plan-limit">5</span></li>
+            <li><span class="check">✓</span> <span>Cartões de crédito</span><span class="plan-limit">5</span></li>
+            <li><span class="check">✓</span> <span>Importações</span><span class="plan-limit">20/mês</span></li>
           </ul>
         </div>
+        <!-- PLUS -->
         <div class="plan-card">
           <div class="plan-name">Plus</div>
           <div class="plan-price"><span class="currency">R$</span><span class="amount">49<span style="font-size:1.4rem">,90</span></span><span class="period">/mês</span></div>
-          <div class="plan-desc">Para uso intensivo e profissional</div>
+          <div class="plan-desc">Tudo sem limites, para sempre</div>
           <button class="plan-btn plan-btn-paid" onclick="window.assinar('plus')">Assinar Plus</button>
           <hr class="plan-divider" />
           <ul class="plan-features">
-            <li><span class="check">✓</span> Tudo do Pro</li>
-            <li><span class="check">✓</span> Cartões ilimitados</li>
-            <li><span class="check">✓</span> Assistente IA avançado</li>
-            <li><span class="check">✓</span> Exportação de dados</li>
-            <li><span class="check">✓</span> Score saúde financeira</li>
+            <li><span class="check">✓</span> Todos os módulos liberados</li>
+            <li><span class="inf">♾️</span> Créditos IA ilimitados</li>
+            <li><span class="inf">♾️</span> Lançamentos ilimitados</li>
+            <li><span class="inf">♾️</span> Contas e cartões</li>
+            <li><span class="inf">♾️</span> Importações ilimitadas</li>
             <li><span class="check">✓</span> Suporte prioritário</li>
           </ul>
         </div>
       </div>
+      <p style="text-align:center;font-size:.78rem;color:var(--text-muted);margin-top:1.75rem">💡 <strong>O que são créditos IA?</strong> Cada uso do Assistente, importação por foto/PDF ou análise automática consome 1 crédito. Importações CSV/OFX não consomem créditos.</p>
     </div>
   </section>
 
@@ -568,7 +575,7 @@
       <div class="footer-grid">
         <div class="footer-brand">
           <a href="vendas.html" class="nav-logo" style="margin-bottom:.6rem">
-            <div class="nav-logo-icon">B</div>
+            <img src="logo.png" alt="Bud Finance" style="height:34px;width:auto">
             Bud Finance
           </a>
           <p>Controle financeiro pessoal inteligente. Feito no Brasil. 🇧🇷</p>
@@ -579,26 +586,23 @@
           <ul>
             <li><a href="#features">Recursos</a></li>
             <li><a href="#pricing">Planos e preços</a></li>
-            <li><a href="cadastro.html">Criar conta</a></li>
-            <li><a href="index.html">Entrar</a></li>
           </ul>
         </div>
         <div class="footer-col">
-          <h4>Suporte</h4>
+          <h4>Contato</h4>
           <ul>
-            <li><a href="mailto:contato@budsolucoes.com.br">Contato</a></li>
-            <li><a href="politica-privacidade.html">Privacidade</a></li>
+            <li><a href="mailto:contato@budsolucoes.com.br">✉️ E-mail</a></li>
+            <li><a href="https://www.instagram.com/appbudfinance" target="_blank" rel="noopener">📸 @appbudfinance</a></li>
+            <li><a href="https://wa.me/55XXXXXXXXXX?text=Ol%C3%A1%21+Vim+do+site+Bud+Finance+e+gostaria+de+saber+mais+%F0%9F%99%82" target="_blank" rel="noopener">💬 WhatsApp</a></li>
+            <li><a href="https://budsolucoes.com.br/politica-privacidade.html" target="_blank" rel="noopener">Privacidade</a></li>
           </ul>
         </div>
-        <div class="footer-col">
-          <h4>App</h4>
-          <ul>
-            <li><a href="dashboard.html">Dashboard</a></li>
-            <li><a href="cartoes.html">Cartões</a></li>
-            <li><a href="graficos.html">Gráficos</a></li>
-            <li><a href="assistente-ia.html">Assistente IA</a></li>
-          </ul>
-        </div>
+      </div>
+      <div class="footer-security">
+        <div class="security-item">🔒 Compra 100% segura</div>
+        <div class="security-item">💳 Pagamento via Mercado Pago</div>
+        <div class="security-item">🛡️ Garantia de 7 dias</div>
+        <div class="security-item">🔐 Dados criptografados</div>
       </div>
       <div class="footer-bottom">
         <p>© 2026 Bud Finance — Bud Soluções. Todos os direitos reservados.</p>
