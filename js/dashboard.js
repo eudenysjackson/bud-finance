@@ -1618,6 +1618,16 @@ function configurarBannerPlano(userData) {
     var diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
     if (diffDias <= 0) {
+      // Trial vencido: rebaixar para free no servidor e recarregar
+      var _uid = usuarioAtualId;
+      if (_uid) {
+        fetch((window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com') + '/api/expirar-trial',
+          { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ uid: _uid }) })
+          .then(function(r) { return r.json(); })
+          .then(function(d) { if (d.ok) location.reload(); })
+          .catch(function() {});
+      }
       banner.style.background = 'linear-gradient(135deg, #fee2e2, #fecaca)';
       banner.style.borderColor = '#f87171';
       banner.style.color = '#991b1b';

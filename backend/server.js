@@ -204,6 +204,70 @@ app.post('/api/boas-vindas', async function (req, res) {
   }
 });
 
+// ─── POST /api/iniciar-trial ───────────────────────────────────────
+// Ativado automaticamente após cadastro: concede 3 dias no plano Pro.
+// Usa Firebase Admin SDK para contornar regras Firestore de create.
+app.post('/api/iniciar-trial', express.json(), async function (req, res) {
+  if (!db) return res.status(503).json({ ok: false, error: 'Firebase Admin não inicializado.' });
+  var uid = (req.body && typeof req.body.uid === 'string') ? req.body.uid.trim() : '';
+  if (!uid || uid.length > 128 || !/^[a-zA-Z0-9_-]+$/.test(uid)) {
+    return res.status(400).json({ ok: false, error: 'UID inválido.' });
+  }
+  try {
+    var ref = db.collection('usuarios').doc(uid);
+    var snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ ok: false, error: 'Usuário não encontrado.' });
+    var data = snap.data();
+    // Só ativa trial em contas sem plano ou no free (não sobrescreve planos pagos)
+    if (data.plano && data.plano !== 'free') {
+      return res.json({ ok: true, msg: 'Plano já definido.' });
+    }
+    var trialFim = new Date();
+    trialFim.setDate(trialFim.getDate() + 3);
+    await ref.update({
+      plano:         'trial',
+      trialFim:      admin.firestore.Timestamp.fromDate(trialFim),
+      trialIniciado: admin.firestore.FieldValue.serverTimestamp()
+    });
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error('[iniciar-trial]', e.message);
+    return res.status(500).json({ ok: false });
+  }
+});
+
+// ─── POST /api/expirar-trial ───────────────────────────────────────
+// Chamado pelo dashboard quando detecta que o trial venceu.
+// Rebaixa o plano para 'free' e limpa os campos de trial.
+app.post('/api/expirar-trial', express.json(), async function (req, res) {
+  if (!db) return res.status(503).json({ ok: false });
+  var uid = (req.body && typeof req.body.uid === 'string') ? req.body.uid.trim() : '';
+  if (!uid || uid.length > 128 || !/^[a-zA-Z0-9_-]+$/.test(uid)) {
+    return res.status(400).json({ ok: false });
+  }
+  try {
+    var ref = db.collection('usuarios').doc(uid);
+    var snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ ok: false });
+    var data = snap.data();
+    if (data.plano !== 'trial') return res.json({ ok: true, msg: 'N\u00e3o era trial.' });
+    // Confirmar que realmente expirou
+    var trialFim = data.trialFim;
+    if (trialFim && trialFim.toDate && trialFim.toDate() > new Date()) {
+      return res.json({ ok: false, msg: 'Trial ainda ativo.' });
+    }
+    await ref.update({
+      plano:         'free',
+      trialFim:      admin.firestore.FieldValue.delete(),
+      trialIniciado: admin.firestore.FieldValue.delete()
+    });
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error('[expirar-trial]', e.message);
+    return res.status(500).json({ ok: false });
+  }
+});
+
 // ─── POST /reset-senha ─────────────────────────────────────────────
 // Generates a password reset link and sends the email SERVER-SIDE.
 // The oobCode NEVER leaves the backend — frontend only gets { success: true }.

@@ -219,6 +219,13 @@ form.addEventListener('submit', async function (e) {
     // 10. Write user doc
     await setDoc(doc(db, 'usuarios', user.uid), docData);
 
+    // 10b. Ativar trial Pro de 3 dias (fire-and-forget — não bloqueia cadastro)
+    fetch(
+      (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com') + '/api/iniciar-trial',
+      { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: user.uid }) }
+    ).catch(function() {});
+
     // 11. Register referral in subcollection (NOT arrayUnion)
     if (indicador) {
       try {

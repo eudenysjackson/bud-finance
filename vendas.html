@@ -247,7 +247,7 @@
           <h1>Suas finanças no<br /><span class="hl">controle total.</span></h1>
           <p>Importe extratos, categorize gastos com IA e tenha uma visão clara do seu dinheiro — tudo em um só lugar, bonito e rápido.</p>
           <div class="hero-btns">
-            <a href="cadastro.html" class="btn-primary btn-hero">🚀 Criar conta grátis</a>
+            <a href="cadastro.html" class="btn-primary btn-hero">🚀 3 dias Pro grátis — Criar conta</a>
             <a href="#pricing" class="btn-secondary btn-hero">Ver planos</a>
           </div>
           <div class="hero-trust">
@@ -270,7 +270,7 @@
             </div>
             <div class="mockup-content">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem;padding-bottom:.75rem;border-bottom:1px solid #f1f5f9">
-                <span style="font-size:.78rem;font-weight:700;color:#1e293b">Bom dia, Andie 👋</span>
+                <span style="font-size:.78rem;font-weight:700;color:#1e293b">Bom dia, <span id="mockup-name" style="transition:opacity .4s ease">Andie</span> 👋</span>
                 <span style="font-size:.65rem;color:#94a3b8;background:#f1f5f9;padding:2px 8px;border-radius:999px;font-weight:600">Dashboard</span>
               </div>
               <div class="mock-balance">
@@ -333,8 +333,8 @@
     <div class="container">
       <div class="stats-grid">
         <div class="stat-item"><div class="stat-num">40+</div><div class="stat-lbl">Categorias inteligentes</div></div>
-        <div class="stat-item"><div class="stat-num">&lt;3 min</div><div class="stat-lbl">Para importar seu extrato</div></div>
-        <div class="stat-item"><div class="stat-num">8</div><div class="stat-lbl">Temas de cor do app</div></div>
+        <div class="stat-item"><div class="stat-num">- 3 min</div><div class="stat-lbl">Para importar seu extrato</div></div>
+        <div class="stat-item"><div class="stat-num">3 dias</div><div class="stat-lbl">Teste Pro grátis ao criar conta</div></div>
         <div class="stat-item"><div class="stat-num">100%</div><div class="stat-lbl">Seus dados, seu controle</div></div>
       </div>
     </div>
@@ -452,15 +452,16 @@
           <div class="plan-name">Free</div>
           <div class="plan-price"><span class="amount" style="font-size:2.2rem">Grátis</span></div>
           <div class="plan-desc">Para começar a se organizar</div>
-          <button class="plan-btn plan-btn-free" onclick="window.location.href='cadastro.html'">Criar conta grátis</button>
+          <button class="plan-btn plan-btn-free" onclick="window.location.href='cadastro.html'">Criar conta — 3 dias Pro grátis</button>
           <hr class="plan-divider" />
           <ul class="plan-features">
-            <li><span class="check">✓</span> Todos os módulos liberados</li>
-            <li><span class="check">✓</span> <span>Créditos IA</span><span class="plan-limit">20/mês</span></li>
-            <li><span class="check">✓</span> <span>Lançamentos</span><span class="plan-limit">50/mês</span></li>
+            <li><span class="check">✓</span> Dashboard e lançamentos básicos</li>
+            <li><span class="check">✓</span> <span>Lançamentos</span><span class="plan-limit">30/mês</span></li>
             <li><span class="check">✓</span> <span>Conta bancária</span><span class="plan-limit">1</span></li>
             <li><span class="check">✓</span> <span>Cartão de crédito</span><span class="plan-limit">1</span></li>
-            <li><span class="check">✓</span> <span>Importações</span><span class="plan-limit">1/mês</span></li>
+            <li class="disabled"><span class="cross">✗</span> Créditos IA</li>
+            <li class="disabled"><span class="cross">✗</span> Importação de extratos</li>
+            <li class="disabled"><span class="cross">✗</span> Relatórios avançados</li>
           </ul>
         </div>
         <!-- STARTER -->
@@ -558,7 +559,7 @@
       <h2>Pronto para assumir o controle<br />das suas finanças?</h2>
       <p>Crie sua conta grátis em menos de 1 minuto. Sem cartão de crédito, sem compromisso.</p>
       <div class="cta-btns">
-        <a href="cadastro.html" class="btn-cta-white">🚀 Criar conta gratuita</a>
+        <a href="cadastro.html" class="btn-cta-white">🚀 3 dias Pro grátis — Criar conta</a>
         <a href="index.html" class="btn-cta-outline">Já tenho conta →</a>
       </div>
       <div class="cta-trust">
@@ -586,6 +587,7 @@
           <ul>
             <li><a href="#features">Recursos</a></li>
             <li><a href="#pricing">Planos e preços</a></li>
+            <li><a href="https://budsolucoes.com.br/politica-privacidade.html" target="_blank" rel="noopener">Privacidade</a></li>
           </ul>
         </div>
         <div class="footer-col">
@@ -594,7 +596,6 @@
             <li><a href="mailto:contato@budsolucoes.com.br">✉️ E-mail</a></li>
             <li><a href="https://www.instagram.com/appbudfinance" target="_blank" rel="noopener">📸 @appbudfinance</a></li>
             <li><a href="https://wa.me/55XXXXXXXXXX?text=Ol%C3%A1%21+Vim+do+site+Bud+Finance+e+gostaria+de+saber+mais+%F0%9F%99%82" target="_blank" rel="noopener">💬 WhatsApp</a></li>
-            <li><a href="https://budsolucoes.com.br/politica-privacidade.html" target="_blank" rel="noopener">Privacidade</a></li>
           </ul>
         </div>
       </div>
@@ -612,6 +613,22 @@
   </footer>
 
   <div id="vnd-toast"></div>
+  <script>
+    (function() {
+      var nomes = ['João','Maria','Daniel','Bruna','Carlos','Fernanda','Lucas','Ana','Pedro','Julia','Thiago','Camila','Mariana','Felipe','Larissa','Rafael','Beatriz','Diego','Sônia','André'];
+      function iniciar() {
+        var el = document.getElementById('mockup-name');
+        if (!el) return;
+        var i = 0;
+        setInterval(function() {
+          el.style.opacity = '0';
+          setTimeout(function() { i = (i + 1) % nomes.length; el.textContent = nomes[i]; el.style.opacity = '1'; }, 400);
+        }, 2500);
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+      else iniciar();
+    })();
+  </script>
   <script type="module" src="js/vendas.js"></script>
 </body>
 </html>
