@@ -2126,15 +2126,7 @@ app.post('/webhook/evolution', async function (req, res) {
   console.log('[EVO-DEBUG] payload:', JSON.stringify(req.body).slice(0, 300));
 
   try {
-    // Verificar chave da Evolution API (se configurada)
-    if (WA_EVOLUTION_KEY) {
-      var apikey = req.headers['apikey'] || req.body?.apikey || '';
-      if (apikey !== WA_EVOLUTION_KEY) {
-        console.warn('[EVO] chave inválida');
-        return;
-      }
-    }
-
+    // Nota: Evolution API não envia apikey nos webhooks. Auth via URL secreta opcional.
     var event = req.body?.event || '';
     if (event !== 'messages.upsert') return; // ignorar status, qr, etc.
 
