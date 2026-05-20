@@ -2394,7 +2394,9 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
       console.error('[MP] create-subscription error:', JSON.stringify(mpData));
       return res.status(502).json({ error: mpData.message || 'Erro ao criar assinatura no Mercado Pago.' });
     }
-    return res.json({ init_point: mpData.init_point });
+    var isSandbox  = MP_ACCESS_TOKEN.startsWith('TEST-');
+    var checkoutUrl = isSandbox ? (mpData.sandbox_init_point || mpData.init_point) : mpData.init_point;
+    return res.json({ init_point: checkoutUrl });
   } catch (err) {
     console.error('[MP] create-subscription fetch error:', err.message);
     return res.status(500).json({ error: 'Erro de comunicação com Mercado Pago.' });
