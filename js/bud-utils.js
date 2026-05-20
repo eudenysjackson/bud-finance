@@ -4,6 +4,30 @@
 (function () {
   'use strict';
 
+  // ─── Feature flags ────────────────────────────────────────────────────
+  // Para reativar WhatsApp: trocar whatsapp para true e remover este bloco
+  // de CSS abaixo. Backend e demais arquivos seguem intactos.
+  window.BUD_FEATURES = window.BUD_FEATURES || { whatsapp: false };
+
+  if (!window.BUD_FEATURES.whatsapp) {
+    var injectHide = function () {
+      var css = ''
+        + 'a.sidebar-link[href="assistente-whatsapp.html"]{display:none !important;}'
+        + '#cardWhatsApp{display:none !important;}';
+      var style = document.createElement('style');
+      style.id = 'bud-feature-hide-whatsapp';
+      style.textContent = css;
+      (document.head || document.documentElement).appendChild(style);
+    };
+    if (document.head) injectHide();
+    else document.addEventListener('DOMContentLoaded', injectHide);
+
+    // Redirecionar quem cair direto na página dedicada
+    if (/\/assistente-whatsapp\.html(\?|#|$)/i.test(location.pathname + location.search)) {
+      location.replace('dashboard.html');
+    }
+  }
+
   // ─── Toast container (created once, reused) ──────────────────────────
   let toastContainer = null;
 
