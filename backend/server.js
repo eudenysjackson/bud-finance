@@ -2372,6 +2372,7 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
   var mpBody = {
     reason:             plan.title,
     external_reference: externalRef,
+    payer_email:        email,
     auto_recurring: {
       frequency:          1,
       frequency_type:     'months',
@@ -2381,10 +2382,6 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
     back_url: FRONTEND_URL + '/dashboard.html',
     status:   'pending'
   };
-  // payer_email só em produção — em sandbox bloqueia o comprador teste
-  if (!MP_ACCESS_TOKEN.startsWith('TEST-')) {
-    mpBody.payer_email = email;
-  }
 
   try {
     var mpRes  = await fetch('https://api.mercadopago.com/preapproval', {
@@ -2511,6 +2508,41 @@ async function _mpCreditarIndicacao(refCode, novoUid, planKey) {
     console.error('[MP] Erro ao creditar indicação:', err.message);
   }
 }
+
+// ─── POST /mercadopago/sandbox-activate (APENAS sandbox) ────────────
+// Simula ativação de plano sem passar pelo checkout do MP.
+// Útil para testar o pipeline Firestore em ambiente de teste.
+app.post('/mercadopago/sandbox-activate', async function (req, res) {
+  if (!MP_ACCESS_TOKEN.startsWith('TEST-'))
+    return res.status(403).json({ error: 'Endpoint disponível apenas em modo sandbox.' });
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase não inicializado.' });
+
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
+
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+
+  var uid     = decoded.uid;
+  var planKey = String(req.body.planKey || 'pro').toLowerCase().trim();
+  if (!MP_PLANS[planKey]) return res.status(400).json({ error: 'Plano inválido.' });
+
+  var expira = new Date();
+  expira.setMonth(expira.getMonth() + 1);
+  var mockSubId = 'SANDBOX_TEST_' + Date.now();
+
+  await db.collection('usuarios').doc(uid).update({
+    plano:             planKey,
+    planoExpira:       admin.firestore.Timestamp.fromDate(expira),
+    mpSubscriptionId:  mockSubId,
+    planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  console.log('[MP sandbox-activate] Plano ativado via sandbox:', uid, planKey);
+  return res.json({ ok: true, uid, planKey, mpSubscriptionId: mockSubId, planoExpira: expira.toISOString() });
+});
 
 // ─── Start server ───────────────────────────────────────────────────
 var PORT = process.env.PORT || 3000;
