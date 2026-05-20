@@ -9,7 +9,12 @@
   <meta property="og:description" content="O app de finanças pessoais que usa IA para categorizar seus gastos automaticamente." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://budsolucoes.com.br" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2310b981'/><text y='.9em' font-size='72' x='50%25' text-anchor='middle' font-family='system-ui,sans-serif' font-weight='900' fill='white'>B</text></svg>" />
+  <meta property="og:image" content="https://budsolucoes.com.br/logo.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Bud Finance — Controle financeiro inteligente" />
+  <meta name="twitter:description" content="Organize suas finanças pessoais com IA, importe extratos bancários automaticamente, controle cartões de crédito e muito mais." />
+  <meta name="twitter:image" content="https://budsolucoes.com.br/logo.png" />
+  <link rel="icon" type="image/png" href="logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
@@ -465,13 +470,14 @@
       <div style="text-align:center;margin-bottom:.5rem"><span class="section-tag">✦ Planos</span></div>
       <h2 style="text-align:center;margin-bottom:.6rem">Comece grátis.<br /><span class="text-green">Evolua quando quiser.</span></h2>
       <p style="text-align:center;color:var(--text-muted);font-size:.9rem">Sem taxas escondidas. Cancele quando quiser.</p>
+      <div id="ref-banner" style="display:none;margin:1rem auto 0;max-width:520px;padding:.7rem 1.25rem;background:linear-gradient(135deg,#d1fae5,#a7f3d0);border-radius:12px;border:1.5px solid #10b981;text-align:center;font-size:.875rem;font-weight:600;color:#065f46">🎁 Desconto de <strong>10% off</strong> aplicado via link de indicação — preços já atualizados abaixo.</div>
       <div class="pricing-grid">
         <!-- FREE -->
         <div class="plan-card">
           <div class="plan-name">Free</div>
           <div class="plan-price"><span class="amount" style="font-size:2.2rem">Grátis</span></div>
           <div class="plan-desc">Para começar a se organizar</div>
-          <button class="plan-btn plan-btn-free" onclick="window.location.href='cadastro.html'">Criar conta — 3 dias Pro grátis</button>
+          <button id="btn-plan-free" class="plan-btn plan-btn-free" onclick="window.location.href='cadastro.html'">Criar conta — 3 dias Pro grátis</button>
           <hr class="plan-divider" />
           <ul class="plan-features">
             <li><span class="check">✓</span> Dashboard e lançamentos básicos</li>
@@ -486,7 +492,7 @@
         <!-- STARTER -->
         <div class="plan-card">
           <div class="plan-name">Starter</div>
-          <div class="plan-price"><span class="currency">R$</span><span class="amount">9<span style="font-size:1.4rem">,99</span></span><span class="period">/mês</span></div>
+          <div class="plan-price" id="plan-price-starter"><span class="currency">R$</span><span class="amount">9<span style="font-size:1.4rem">,99</span></span><span class="period">/mês</span></div>
           <div class="plan-desc">Para quem quer mais controle</div>
           <button class="plan-btn plan-btn-paid" onclick="window.assinar('starter')">Assinar Starter</button>
           <hr class="plan-divider" />
@@ -503,7 +509,7 @@
         <div class="plan-card popular">
           <div class="plan-popular-badge">⭐ Mais popular</div>
           <div class="plan-name">Pro</div>
-          <div class="plan-price"><span class="currency">R$</span><span class="amount">29<span style="font-size:1.4rem">,90</span></span><span class="period">/mês</span></div>
+          <div class="plan-price" id="plan-price-pro"><span class="currency">R$</span><span class="amount">29<span style="font-size:1.4rem">,90</span></span><span class="period">/mês</span></div>
           <div class="plan-desc">Para quem leva as finanças a sério</div>
           <button class="plan-btn plan-btn-paid" onclick="window.assinar('pro')">Assinar Pro</button>
           <hr class="plan-divider" />
@@ -519,7 +525,7 @@
         <!-- PLUS -->
         <div class="plan-card">
           <div class="plan-name">Plus</div>
-          <div class="plan-price"><span class="currency">R$</span><span class="amount">49<span style="font-size:1.4rem">,90</span></span><span class="period">/mês</span></div>
+          <div class="plan-price" id="plan-price-plus"><span class="currency">R$</span><span class="amount">49<span style="font-size:1.4rem">,90</span></span><span class="period">/mês</span></div>
           <div class="plan-desc">Tudo sem limites, para sempre</div>
           <button class="plan-btn plan-btn-paid" onclick="window.assinar('plus')">Assinar Plus</button>
           <hr class="plan-divider" />
@@ -542,6 +548,7 @@
     <div class="container">
       <div style="text-align:center;margin-bottom:.5rem"><span class="section-tag">✦ Depoimentos</span></div>
       <h2 style="text-align:center">O que nossos usuários<br /><span class="text-green">estão dizendo</span></h2>
+      <p style="text-align:center;font-size:.78rem;color:var(--text-muted);margin-bottom:1.5rem">Exemplos de como nossos usuários usam o Bud Finance no dia a dia.</p>
       <div class="testimonials-grid">
         <div class="testimonial-card">
           <div class="testimonial-stars">★★★★★</div>

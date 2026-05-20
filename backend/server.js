@@ -46,6 +46,17 @@ const WA_EVOLUTION_URL      = process.env.WA_EVOLUTION_URL      || '';
 const WA_EVOLUTION_KEY      = process.env.WA_EVOLUTION_KEY      || '';
 const WA_EVOLUTION_INSTANCE = process.env.WA_EVOLUTION_INSTANCE || 'bud';
 
+// ─── Mercado Pago config ─────────────────────────────────────────────
+const MP_ACCESS_TOKEN   = process.env.MP_ACCESS_TOKEN   || '';
+const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET || '';
+// planKey → título e preço mensal (BRL)
+const MP_PLANS = {
+  starter: { title: 'Bud Finance Starter', amount: 9.99  },
+  pro:     { title: 'Bud Finance Pro',     amount: 29.90 },
+  plus:    { title: 'Bud Finance Plus',    amount: 49.90 }
+};
+const MP_INDICACAO_DESCONTO = 0.10; // 10% off para links de indicação
+
 // ─── Express setup ──────────────────────────────────────────────────
 const app = express();
 app.use(express.json({ limit: '200kb' })); // aumentado para suportar mensagens com extratos/planilhas do Assistente IA
@@ -2310,6 +2321,191 @@ app.post('/api/whatsapp/desvincular', async function (req, res) {
     return res.status(500).json({ error: 'Erro ao desvincular.' });
   }
 });
+
+// ─── POST /mercadopago/create-subscription ──────────────────────────
+// Cria uma assinatura recorrente (preapproval) no Mercado Pago.
+// Auth: Bearer Firebase ID Token.
+// Body: { planKey: 'starter'|'pro'|'plus', ref?: string }
+// Segurança: uid e email extraídos do Bearer token — nunca do body.
+app.post('/mercadopago/create-subscription', async function (req, res) {
+  if (!MP_ACCESS_TOKEN) return res.status(503).json({ error: 'Pagamentos não configurados.' });
+  if (!auth || !db)     return res.status(503).json({ error: 'Firebase não inicializado.' });
+
+  // 1. Verificar token
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
+
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+
+  var uid   = decoded.uid;
+  var email = decoded.email || '';
+
+  // 2. Validar planKey
+  var planKey = String(req.body.planKey || '').toLowerCase().trim();
+  if (!MP_PLANS[planKey]) return res.status(400).json({ error: 'Plano inválido.' });
+
+  var plan   = MP_PLANS[planKey];
+  var amount = plan.amount;
+
+  // 3. Validar ref code e aplicar desconto de 10% se indicação legítima
+  var rawRef  = req.body.ref ? String(req.body.ref).trim() : null;
+  var refCode = rawRef ? rawRef.slice(0, 32).replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : null;
+  if (refCode) {
+    try {
+      var refSnap = await db.collection('usuarios')
+        .where('codigoIndicacao', '==', refCode).limit(1).get();
+      if (refSnap.empty) {
+        refCode = null; // código não encontrado — sem desconto
+      } else {
+        amount = Math.round(plan.amount * (1 - MP_INDICACAO_DESCONTO) * 100) / 100;
+      }
+    } catch (_e) { refCode = null; }
+  }
+
+  // 4. external_reference: uid|planKey[|refCode] — recuperado no webhook
+  var externalRef = uid + '|' + planKey + (refCode ? '|' + refCode : '');
+
+  // 5. Criar preapproval no Mercado Pago
+  var mpBody = {
+    reason:             plan.title,
+    external_reference: externalRef,
+    payer_email:        email,
+    auto_recurring: {
+      frequency:          1,
+      frequency_type:     'months',
+      transaction_amount: amount,
+      currency_id:        'BRL'
+    },
+    back_url: FRONTEND_URL + '/dashboard.html',
+    status:   'pending'
+  };
+
+  try {
+    var mpRes  = await fetch('https://api.mercadopago.com/preapproval', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN },
+      body:    JSON.stringify(mpBody)
+    });
+    var mpData = await mpRes.json();
+    if (!mpRes.ok) {
+      console.error('[MP] create-subscription error:', JSON.stringify(mpData));
+      return res.status(502).json({ error: mpData.message || 'Erro ao criar assinatura no Mercado Pago.' });
+    }
+    return res.json({ init_point: mpData.init_point });
+  } catch (err) {
+    console.error('[MP] create-subscription fetch error:', err.message);
+    return res.status(500).json({ error: 'Erro de comunicação com Mercado Pago.' });
+  }
+});
+
+// ─── POST /webhook/mercadopago ───────────────────────────────────────
+// Recebe notificações do Mercado Pago e atualiza o plano no Firestore.
+// Configurar no painel MP → Integrações → Webhooks:
+//   URL: https://bud-finance-backend.onrender.com/webhook/mercadopago
+//   Eventos: subscription_preapproval, payment
+app.post('/webhook/mercadopago', async function (req, res) {
+  // 1. Verificar assinatura HMAC-SHA256 (se MP_WEBHOOK_SECRET configurado)
+  if (MP_WEBHOOK_SECRET) {
+    var xSig    = req.headers['x-signature']  || '';
+    var xReqId  = req.headers['x-request-id'] || '';
+    var dataId  = (req.body.data && req.body.data.id)
+      ? String(req.body.data.id) : (req.query['data.id'] || '');
+    var tsParts  = xSig.split(',');
+    var ts       = (tsParts.find(p => p.startsWith('ts=')) || '').replace('ts=', '');
+    var v1       = (tsParts.find(p => p.startsWith('v1=')) || '').replace('v1=', '');
+    var manifest = 'id:' + dataId + ';request-id:' + xReqId + ';ts:' + ts + ';';
+    var expected = require('crypto').createHmac('sha256', MP_WEBHOOK_SECRET).update(manifest).digest('hex');
+    if (expected !== v1) {
+      console.warn('[MP webhook] Assinatura inválida — ignorando');
+      return res.status(401).json({ error: 'Assinatura inválida.' });
+    }
+  }
+
+  // 2. Responder imediatamente (MP exige resposta rápida)
+  res.sendStatus(200);
+
+  if (!db) return;
+  var type   = req.body.type   || req.query.type         || '';
+  var dataId = (req.body.data && req.body.data.id)
+    ? String(req.body.data.id) : (req.query['data.id']   || '');
+  if (!dataId) return;
+
+  try {
+    if      (type === 'subscription_preapproval') await _mpHandleSubscription(dataId);
+    else if (type === 'payment')                  await _mpHandlePayment(dataId);
+  } catch (err) {
+    console.error('[MP webhook] Erro ao processar notificação:', err.message);
+  }
+});
+
+// Busca detalhes da assinatura no MP e atualiza o Firestore
+async function _mpHandleSubscription(preapprovalId) {
+  var mpRes = await fetch('https://api.mercadopago.com/preapproval/' + preapprovalId, {
+    headers: { 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN }
+  });
+  if (!mpRes.ok) return;
+  var sub = await mpRes.json();
+
+  var parts   = String(sub.external_reference || '').split('|');
+  var uid     = parts[0];
+  var planKey = parts[1];
+  var refCode = parts[2] || null;
+  if (!uid || !MP_PLANS[planKey]) return;
+
+  var status = String(sub.status || '').toLowerCase();
+
+  if (status === 'authorized') {
+    var expira = new Date();
+    expira.setMonth(expira.getMonth() + 1);
+    await db.collection('usuarios').doc(uid).update({
+      plano:             planKey,
+      planoExpira:       admin.firestore.Timestamp.fromDate(expira),
+      mpSubscriptionId:  preapprovalId,
+      planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp()
+    });
+    console.log('[MP webhook] Plano ativado:', uid, planKey);
+    if (refCode) await _mpCreditarIndicacao(refCode, uid, planKey);
+
+  } else if (status === 'cancelled' || status === 'paused') {
+    await db.collection('usuarios').doc(uid).update({
+      plano:             'free',
+      mpSubscriptionId:  preapprovalId,
+      planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp()
+    });
+    console.log('[MP webhook] Assinatura cancelada/pausada:', uid);
+  }
+}
+
+// Para pagamentos avulsos: delega para _mpHandleSubscription via preapproval_id
+async function _mpHandlePayment(paymentId) {
+  var mpRes = await fetch('https://api.mercadopago.com/v1/payments/' + paymentId, {
+    headers: { 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN }
+  });
+  if (!mpRes.ok) return;
+  var payment = await mpRes.json();
+  if (payment.preapproval_id) await _mpHandleSubscription(String(payment.preapproval_id));
+}
+
+// Registra indicação bem-sucedida na subcoleção do referrer
+async function _mpCreditarIndicacao(refCode, novoUid, planKey) {
+  try {
+    var snap = await db.collection('usuarios')
+      .where('codigoIndicacao', '==', refCode).limit(1).get();
+    if (snap.empty) return;
+    await db.collection('usuarios').doc(snap.docs[0].id)
+      .collection('indicacoes').add({
+        indicadoUid: novoUid,
+        planKey:     planKey,
+        creditadoEm: admin.firestore.FieldValue.serverTimestamp()
+      });
+    console.log('[MP] Indicação creditada:', refCode, '→', novoUid);
+  } catch (err) {
+    console.error('[MP] Erro ao creditar indicação:', err.message);
+  }
+}
 
 // ─── Start server ───────────────────────────────────────────────────
 var PORT = process.env.PORT || 3000;
