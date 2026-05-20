@@ -2009,7 +2009,7 @@ async function enviarMensagemWA(numero, texto) {
       var evoResp = await fetch(WA_EVOLUTION_URL + '/message/sendText/' + WA_EVOLUTION_INSTANCE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': WA_EVOLUTION_KEY },
-        body: JSON.stringify({ number: numero, text: texto })
+        body: JSON.stringify({ number: numero, textMessage: { text: texto } })
       }).catch(function (e) { console.error('[EVO] enviarMensagem network error:', e.message); return null; });
       if (evoResp) {
         var evoBody = await evoResp.text().catch(function () { return ''; });
