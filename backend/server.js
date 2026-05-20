@@ -2372,7 +2372,6 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
   var mpBody = {
     reason:             plan.title,
     external_reference: externalRef,
-    payer_email:        email,
     auto_recurring: {
       frequency:          1,
       frequency_type:     'months',
@@ -2382,6 +2381,10 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
     back_url: FRONTEND_URL + '/dashboard.html',
     status:   'pending'
   };
+  // payer_email só em produção — em sandbox bloqueia o comprador teste
+  if (!MP_ACCESS_TOKEN.startsWith('TEST-')) {
+    mpBody.payer_email = email;
+  }
 
   try {
     var mpRes  = await fetch('https://api.mercadopago.com/preapproval', {
