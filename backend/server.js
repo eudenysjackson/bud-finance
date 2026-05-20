@@ -53,7 +53,7 @@ const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET || '';
 const MP_PLANS = {
   starter: { title: 'Bud Finance Starter', amount: 9.99  },
   pro:     { title: 'Bud Finance Pro',     amount: 29.90 },
-  plus:    { title: 'Bud Finance Plus',    amount: 49.90 }
+  plus:    { title: 'Bud Finance Plus',    amount: 1.99  } // TEMP: valor teste — restaurar para 49.90 após validação
 };
 const MP_INDICACAO_DESCONTO = 0.10; // 10% off para links de indicação
 
