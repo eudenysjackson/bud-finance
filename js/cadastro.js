@@ -254,6 +254,36 @@ form.addEventListener('submit', async function (e) {
     formSection.classList.add('hidden');
     successSection.classList.add('active');
 
+    // 14b. Se veio com ?plano= pago, exibir oferta de checkout imediato
+    (function () {
+      var _params  = new URLSearchParams(window.location.search);
+      var _plano   = (_params.get('plano') || '').toLowerCase().trim();
+      var _ref     = _params.get('ref') || '';
+      var _labels  = { starter: 'Starter — R$ 9,99/mês', pro: 'Pro — R$ 29,90/mês', plus: 'Plus — R$ 49,90/mês' };
+      if (!_labels[_plano]) return;
+
+      var offer    = document.getElementById('checkoutOffer');
+      var planLbl  = document.getElementById('checkoutPlanLabel');
+      var btnNow   = document.getElementById('btnCheckoutNow');
+      var btnLogin = document.getElementById('btnLoginNormal');
+      if (!offer || !planLbl || !btnNow) return;
+
+      planLbl.textContent = _plano.charAt(0).toUpperCase() + _plano.slice(1);
+      btnNow.textContent  = 'Assinar ' + _labels[_plano];
+
+      var loginUrl = 'index.html?checkout=' + encodeURIComponent(_plano);
+      if (_ref) loginUrl += '&ref=' + encodeURIComponent(_ref);
+      btnNow.href = loginUrl;
+
+      // Botão "Ir para o Login" vira "Pular — usar trial de 3 dias"
+      if (btnLogin) {
+        btnLogin.textContent = 'Pular — usar trial de 3 dias';
+        btnLogin.style.background = '#64748b';
+      }
+
+      offer.style.display = 'block';
+    })();
+
   } catch (error) {
     resetBtn();
 

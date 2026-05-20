@@ -229,9 +229,31 @@ formLogin.addEventListener('submit', async function (e) {
     // 8. Redirect based on first login
     if (userData.primeiroLogin === true) {
       window.location.href = 'trocar-senha.html';
-    } else {
-      window.location.href = 'dashboard.html';
+      return;
     }
+
+    // 8b. Auto-checkout: vindo de cadastro.html com ?checkout=plano
+    var _checkoutParams = new URLSearchParams(window.location.search);
+    var _checkoutPlano  = (_checkoutParams.get('checkout') || '').toLowerCase().trim();
+    var _checkoutRef    = _checkoutParams.get('ref') || '';
+    var _planosValidos  = ['starter', 'pro', 'plus'];
+    if (_planosValidos.includes(_checkoutPlano)) {
+      try {
+        var _idToken = await user.getIdToken();
+        var _body    = { planKey: _checkoutPlano };
+        if (_checkoutRef) _body.ref = _checkoutRef;
+        var _mpResp  = await fetch(
+          (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com') + '/mercadopago/create-subscription',
+          { method: 'POST', headers: { 'Authorization': 'Bearer ' + _idToken, 'Content-Type': 'application/json' }, body: JSON.stringify(_body) }
+        );
+        if (_mpResp.ok) {
+          var _mpData = await _mpResp.json();
+          if (_mpData.init_point) { window.location.href = _mpData.init_point; return; }
+        }
+      } catch (_e) { /* fallback: vai pro dashboard normalmente */ }
+    }
+
+    window.location.href = 'dashboard.html';
 
   } catch (error) {
     window.budShowToast('Erro ao acessar sua conta. Tente novamente.', 'error');
