@@ -656,6 +656,15 @@
       else iniciar();
     })();
   </script>
+  <!-- fallback: garante window.assinar mesmo se o módulo falhar (ex: sem firebase-config.js em produção) -->
+  <script>
+    window.assinar = function(planKey) {
+      var ref = new URLSearchParams(location.search).get('ref');
+      var url = 'cadastro.html?plano=' + encodeURIComponent(planKey);
+      if (ref) url += '&ref=' + encodeURIComponent(ref);
+      location.href = url;
+    };
+  </script>
   <script type="module" src="js/vendas.js"></script>
 </body>
 </html>

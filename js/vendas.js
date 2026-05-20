@@ -4,15 +4,20 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 
-// ── Firebase init ─────────────────────────────────────────
-const cfg = window.BUD_FIREBASE_CONFIG;
-const app = initializeApp(cfg);
-const auth = getAuth(app);
-
+// ── Firebase init (resiliente: firebase-config.js pode não existir em produção) ─
 const FUNCTIONS_URL = window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com';
-
 let _currentUser = null;
-onAuthStateChanged(auth, u => { _currentUser = u; });
+
+try {
+  const cfg = window.BUD_FIREBASE_CONFIG;
+  if (cfg) {
+    const app = initializeApp(cfg);
+    const auth = getAuth(app);
+    onAuthStateChanged(auth, u => { _currentUser = u; });
+  }
+} catch (e) {
+  console.warn('[vendas] Firebase init falhou — modo fallback (redirect para cadastro):', e);
+}
 
 let _refCode = null; // código de indicação da URL (?ref=XXXXX)
 
