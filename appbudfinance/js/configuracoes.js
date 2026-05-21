@@ -1076,20 +1076,22 @@ async function executarReset() {
 }
 
 // ─── Reiniciar Tutorial ──────────────────────────────────────────────────
-async function reiniciarTutorial() {
+function reiniciarTutorial() {
   const btn = document.getElementById('btnReiniciarTutorial');
   if (!btn || !uid) return;
   btn.disabled = true;
   btn.textContent = 'Reiniciando...';
 
   try {
-    // Limpar chaves do localStorage
-    Object.keys(localStorage)
-      .filter(k => k.startsWith('nexo_tutorial_done_'))
-      .forEach(k => localStorage.removeItem(k));
-
-    // Marcar onboarding como não concluído no Firestore
-    await updateDoc(doc(db, 'usuarios', uid), { onboardingConcluido: false });
+    // Resetar todos os tutoriais (nova engine BudTutorial)
+    if (window.BudTutorial) {
+      window.BudTutorial.resetAll();
+    } else {
+      // Fallback: limpar chaves manualmente
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('bud_tut_done_') || k === 'bud_tut_never')
+        .forEach(k => localStorage.removeItem(k));
+    }
 
     if (window.budShowToast) window.budShowToast('Tutorial reiniciado! Ele aparecerá na próxima vez que você acessar cada tela.', 'success', 4000);
   } catch (_) {
