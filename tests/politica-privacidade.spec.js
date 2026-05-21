@@ -5,7 +5,7 @@ const { test, expect } = require('@playwright/test');
 test.describe('Política de Privacidade — politica-privacidade.html', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/politica-privacidade.html');
+    await page.goto('/appbudfinance/politica-privacidade.html');
     await page.waitForLoadState('domcontentloaded');
   });
 
