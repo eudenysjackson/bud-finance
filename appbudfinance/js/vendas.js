@@ -52,7 +52,7 @@ function _applyRefDiscount() {
   const freeBtn = document.getElementById('btn-plan-free');
   if (freeBtn) {
     freeBtn.onclick = function() {
-      window.location.href = 'cadastro.html?ref=' + encodeURIComponent(_refCode);
+      window.location.href = 'appbudfinance/cadastro.html?ref=' + encodeURIComponent(_refCode);
     };
   }
 }
@@ -71,7 +71,7 @@ function showToast(msg) {
 window.assinar = async function(planKey) {
   // Se não estiver logado, redireciona para cadastro com o plano pré-selecionado
   if (!_currentUser) {
-    let url = 'cadastro.html?plano=' + encodeURIComponent(planKey);
+    let url = 'appbudfinance/cadastro.html?plano=' + encodeURIComponent(planKey);
     if (_refCode) url += '&ref=' + encodeURIComponent(_refCode);
     window.location.href = url;
     return;
