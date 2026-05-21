@@ -477,7 +477,7 @@ function addBoasVindas(nome, ctx, alertas) {
   }
 
   addMsg('bot', formatarMensagemIA(
-    `Olá${nomeTxt}! \uD83D\uDC4B Sou o **Bud**, seu assistente financeiro pessoal.` +
+    `Olá${nomeTxt}! 👋 Sou o **Buddy**, seu assistente financeiro do Bud Finance.` +
     `\n\nTenho acesso aos seus dados reais e posso:\n` +
     `- Analisar seus gastos e receitas\n` +
     `- Identificar problemas e oportunidades\n` +
@@ -949,11 +949,11 @@ function exportarConversa() {
     return;
   }
   const linhas = conversaIA.map(m => {
-    const quem  = m.role === 'user' ? 'Você' : 'Bud IA';
+    const quem  = m.role === 'user' ? 'Você' : 'Buddy';
     const texto = m.content.replace(/\[ACTION:TRANSACTION\][\s\S]*?\[\/ACTION\]/g, '').trim();
     return `[${quem}]\n${texto}`;
   });
-  const conteudo = `Conversa com Bud IA — ${new Date().toLocaleString('pt-BR')}\n${'─'.repeat(40)}\n\n` + linhas.join('\n\n---\n\n');
+  const conteudo = `Conversa com Buddy — ${new Date().toLocaleString('pt-BR')}\n${'─'.repeat(40)}\n\n` + linhas.join('\n\n---\n\n');
   const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');

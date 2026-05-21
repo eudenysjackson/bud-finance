@@ -22,6 +22,35 @@
 
 ---
 
+### DEC-049 — Assistente IA: renomear personagem de "Bud" para "Buddy"
+
+- **Data**: 21/05/2026
+- **O que foi decidido**: O assistente de IA do Bud Finance se chama **Buddy** (não "Bud"). O app continua sendo "Bud Finance". O assistente é "Buddy, o assistente financeiro do Bud Finance".
+- **Por quê**: Distinguir o produto (Bud Finance) do personagem da IA (Buddy). Evita confusão entre o nome do app e o nome do assistente. "Buddy" é mais afetuoso e memorável.
+- **Consequências**:
+  - `backend/server.js` — system prompt: `'Você é o Buddy, assistente financeiro inteligente do app Bud Finance.'`
+  - `appbudfinance/assistente-ia.html` — header: `🤖 Buddy`, subtitle: `Seu assistente financeiro do Bud Finance`
+  - `appbudfinance/js/assistente-ia.js` — greeting inicial, label de export, filename de export
+  - Em todo texto futuro: "Buddy" para o personagem, "Bud Finance" para o app
+- **Quando revisar**: Se houver rebranding geral do produto.
+
+---
+
+### DEC-050 — Arquitetura de Notificações: 2 camadas independentes
+
+- **Data**: 21/05/2026
+- **O que foi decidido**: O sistema de notificações tem **2 camadas independentes** com tecnologias distintas:
+  - **Camada 1 — Push OS (mobile/desktop)**: Service Worker + Web Push API + Firebase Cloud Messaging (FCM). Permissão pedida via popup próprio do app no primeiro login (não diretamente o popup nativo do OS). Token salvo em `usuarios/{uid}/fcmToken`. Cron no backend envia mensagens variadas diárias (9h). Ver PEND-046.
+  - **Camada 2 — In-App Banners (dashboard)**: localStorage-based, exibição única, banner posicionado ao lado do botão olho na header do dashboard. Sem Firebase, sem Service Worker. Ver PEND-084.
+- **Por quê**: As duas camadas têm propósitos distintos e dependências diferentes. Os banners in-app são mais simples, não requerem FCM, e devem ser implementados primeiro (maior impacto imediato). O push OS é mais complexo e depende de Service Worker + aprovação do usuário.
+- **Consequências**:
+  - Implementar na ordem: PEND-084 (in-app, sem dependências) → PEND-046 (push OS, requer SW + FCM)
+  - NUNCA usar classes Tailwind nos elementos dos banners (criados via JS) → `style.cssText`
+  - Popup de permissão do app ANTES do popup do OS (melhora taxa de concessão)
+- **Quando revisar**: Se migrar para Firebase App Hosting ou mudar o provedor de push.
+
+---
+
 ## Formato
 
 ```

@@ -29,7 +29,7 @@
 |---|---|---|
 | **LoginCard** | Card glassmorphic com formulário de login | `index.html` |
 | **OnboardingWizard** | Card wizard 6 passos com progress dots, animações e validação | `onboarding.html` + `js/onboarding.js` |
-| **AssistenteIA** | Chat IA com contexto financeiro real (Groq llama-4-scout), sistema de chamados (bug/sugestão), persiste conversa em sessionStorage | `assistente-ia.html` + `js/assistente-ia.js` |
+| **AssistenteIA** | Chat IA com personagem **Buddy** (Groq llama-4-scout), contexto financeiro real, sistema de chamados (bug/sugestão), persiste conversa em sessionStorage | `assistente-ia.html` + `js/assistente-ia.js` |
 | **AssistenteWhatsApp** | Hub dedicado do WhatsApp: paywall (Free/Starter), estado desvinculado (gerar código de pareamento + pairing box + polling 5s/2min), estado vinculado (número formatado + wa.me link + desvincular). Feature gate `PLANOS_WHATSAPP=['plus','pro','trial']`. Showcase de 6 features (todas "Em breve"). Aguarda chip eSIM + VPS Evolution API para ativar em produção (PEND-053). | `assistente-whatsapp.html` + `js/assistente-whatsapp.js` |
 | **BlobsDecorativos** | Manchas de cor azul/ciano no fundo | `index.html` |
 | **LogoIcon** | Ícone `$` com gradiente azul | `index.html` |
