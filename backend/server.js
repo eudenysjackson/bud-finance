@@ -2385,6 +2385,10 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
   } catch (_e) { /* não bloqueia o fluxo */ }
 
   // 5. Criar preapproval no Mercado Pago
+  // Link expira em 2 horas — impede que o link seja usado por terceiros após esse período
+  var linkExpira = new Date();
+  linkExpira.setHours(linkExpira.getHours() + 2);
+
   var mpBody = {
     reason:               plan.title,
     external_reference:   externalRef,
@@ -2394,6 +2398,7 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
     ...(payerPhone ? { payer_phone: payerPhone }      : {}),
     statement_descriptor: 'BUD FINANCE',
     notification_url:     'https://bud-finance-backend.onrender.com/webhook/mercadopago',
+    date_of_expiry:       linkExpira.toISOString(),
     auto_recurring: {
       frequency:          1,
       frequency_type:     'months',
@@ -2486,12 +2491,39 @@ async function _mpHandleSubscription(preapprovalId) {
   var status = String(sub.status || '').toLowerCase();
 
   if (status === 'authorized') {
+    // Validar que quem pagou é o dono da conta Bud Finance
+    var payerEmail = String(sub.payer_email || '').toLowerCase().trim();
+    try {
+      var userSnap2 = await db.collection('usuarios').doc(uid).get();
+      if (userSnap2.exists) {
+        var userEmail2 = String(userSnap2.data().email || '').toLowerCase().trim();
+        if (payerEmail && userEmail2 && payerEmail !== userEmail2) {
+          console.warn('[MP webhook] Pagador inválido — cancelando assinatura:', uid, payerEmail, '!=', userEmail2);
+          // Cancelar no MP para evitar cobranças futuras
+          try {
+            await fetch('https://api.mercadopago.com/preapproval/' + preapprovalId, {
+              method:  'PUT',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN },
+              body:    JSON.stringify({ status: 'cancelled' })
+            });
+          } catch (_ec) { /* cancelamento falhou — ativação bloqueada de qualquer forma */ }
+          await db.collection('usuarios').doc(uid).update({
+            pagamentoPendente: true,
+            erroAssinatura:    'pagador_invalido',
+            planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp()
+          });
+          return; // não ativa o plano
+        }
+      }
+    } catch (_ev) { /* se validação falhar, prossegue com ativação normal */ }
+
     var expira = new Date();
     expira.setMonth(expira.getMonth() + 1);
     await db.collection('usuarios').doc(uid).update({
       plano:             planKey,
       planoExpira:       admin.firestore.Timestamp.fromDate(expira),
       mpSubscriptionId:  preapprovalId,
+      erroAssinatura:    admin.firestore.FieldValue.delete(),
       planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp()
     });
     console.log('[MP webhook] Plano ativado:', uid, planKey);

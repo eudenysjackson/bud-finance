@@ -1608,6 +1608,28 @@ function configurarBannerPlano(userData) {
 
   var plano = userData.plano || 'free';
 
+  // ── Erro de pagador inválido (outra conta MP pagou o link) ──────────
+  if (userData.erroAssinatura === 'pagador_invalido') {
+    banner.style.background  = 'linear-gradient(135deg, #fef3c7, #fde68a)';
+    banner.style.borderColor = '#f59e0b';
+    banner.style.color       = '#92400e';
+    bannerText.textContent   = 'Pagamento recusado: o link foi pago por uma conta do Mercado Pago diferente da sua. Acesse "Ver Planos" e tente novamente com a sua conta MP.';
+    banner.querySelector('.trial-banner-icon').textContent = '⚠️';
+    banner.classList.add('show');
+    return;
+  }
+
+  // ── Pagamento recusado pelo banco/MP ────────────────────────────────
+  if (userData.pagamentoPendente && plano !== 'pro' && plano !== 'plus' && plano !== 'starter') {
+    banner.style.background  = 'linear-gradient(135deg, #fee2e2, #fecaca)';
+    banner.style.borderColor = '#f87171';
+    banner.style.color       = '#991b1b';
+    bannerText.textContent   = 'Seu pagamento foi recusado. Tente novamente com outro método de pagamento.';
+    banner.querySelector('.trial-banner-icon').textContent = '❌';
+    banner.classList.add('show');
+    return;
+  }
+
   if (plano === 'trial') {
     var trialFim = userData.trialFim;
     if (!trialFim) { banner.classList.remove('show'); return; }
