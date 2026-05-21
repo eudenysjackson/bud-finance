@@ -1,7 +1,7 @@
 # DECISIONS_LOG.md — Registro de Decisões Arquiteturais
 
 **Projeto**: Bud Finance  
-**Última atualização**: 16/05/2026
+**Última atualização**: 20/05/2026
 
 > **REGRA**: Antes de refatorar qualquer padrão, ler este doc primeiro.  
 > Toda decisão não-óbvia deve ser registrada aqui.
@@ -568,6 +568,30 @@ unTransaction. Sem atomicidade, falha parcial corromperia dados.
 - **Por quê**: O usuário importou OFX (dados perfeitos) e viu "precisão não verificável", o que era UX enganosa. Para PDF sem meta, o texto genérico não ajudava — mostrar o total extraído e a contagem real dá informação útil para o usuário decidir.
 - **Consequências**: O badge nunca mais é um aviso genérico; sempre reflete o estado real da extração.
 - **Quando revisar**: Se adicionarmos novos formatos de import (ex: CSV, XLSX).
+
+---
+
+### DEC-047 — Estrutura de URL multi-produto: /appbudfinance/ + raiz vendas
+
+- **Data**: 20/05/2026
+- **O que foi decidido**:
+  1. `budsolucoes.com.br` abrigará múltiplos produtos no futuro (ex: `/appbudfinance`, `/appoutro`). Por isso, **não** usar `app.budsolucoes.com.br` (subdomínio genérico).
+  2. O domínio raiz `budsolucoes.com.br` (e `www.budsolucoes.com.br`) será a **landing/vendas** — `vendas.html` torna-se o novo `index.html` da raiz.
+  3. O app Bud Finance vive em `budsolucoes.com.br/appbudfinance/` — toda a árvore HTML + JS + CSS do app é movida para a subpasta `appbudfinance/`.
+  4. O arquivo `CNAME` (GitHub Pages) permanece na raiz apontando `budsolucoes.com.br`.
+  5. A pasta `js/`, `css/` e `email-templates/` são movidas para `appbudfinance/js/`, `appbudfinance/css/` e `appbudfinance/email-templates/` — o app é auto-contido dentro da subpasta.
+  6. Arquivos que ficam na raiz (fora da subpasta): `index.html` (= vendas), `CNAME`, `manifest.json`, `politica-privacidade.html`.
+  7. O backend `FRONTEND_URL` passa de `https://bud-finance.onrender.com` para `https://budsolucoes.com.br/appbudfinance`.
+  8. Firebase Auth → URLs autorizadas devem incluir `budsolucoes.com.br/appbudfinance`.
+- **Por quê**: Modelo SaaS multi-produto no mesmo domínio institucional. Cada produto tem seu caminho independente. Subdomínio genérico `app.` não escala (exigiria `app2.`, `beta.`, etc.).
+- **Consequências**:
+  - Todos os ~30 arquivos HTML do app + `js/` + `css/` precisam ser movidos para `appbudfinance/`.
+  - Todos os links internos entre páginas do app devem ser relativos (ex: `href="dashboard.html"` dentro da subpasta funciona sem alteração).
+  - Links nas páginas que apontam para `index.html` (login) e similares continuam funcionando dentro da subpasta.
+  - `back_url` do Mercado Pago e outros callbacks externos precisam ser atualizados.
+  - Render Static Site (se usado): ajustar `Publish Directory` para `appbudfinance/` **ou** manter servindo a raiz do repo com a nova estrutura.
+  - Ver PEND-082 para o plano de migração passo a passo.
+- **Quando revisar**: Ao adicionar o próximo produto em `budsolucoes.com.br`.
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Projeto**: Bud Finance
 **Criado em**: 23/04/2026
-**Última atualização**: 01/05/2026 (Teste real de uso — bugs de importação registrados)
+**Última atualização**: 20/05/2026
 
 > Documento único de consulta antes de qualquer sprint. Consolida:
 > - Features descritas no `cérebro/` que ainda não foram implementadas no Bud
@@ -205,6 +205,7 @@ _Sem pendências ativas._
 | ID | Item | Prioridade | Origem | Notas |
 |----|------|------------|--------|-------|
 | PEND-081 | **🔴 PRIORIDADE — Teste E2E Mercado Pago Sandbox (webhook + Firestore)** — Checkout MP já gera `init_point` ✅. Para validação completa antes de aceitar pagamentos reais: **(1)** No painel MP Developers → Contas de teste → criar conta **Vendedor de teste**; **(2)** Clicar nos 3 pontinhos → "Ver credenciais" → copiar Access Token da conta vendedor teste (começa com `TEST-`); **(3)** No Render: setar `MP_ACCESS_TOKEN` = token do vendedor teste → Save → aguardar redeploy; **(4)** No app: login com conta Bud Finance → `index.html?checkout=pro`; **(5)** No checkout MP: login com **Comprador teste** já criado → selecionar cartão `5031 4332 1540 6351` / CVV `123` / nome `APRO` → Confirmar; **(6)** Verificar nos logs do Render que `/webhook/mercadopago` foi chamado; **(7)** No Firebase Console → `usuarios/{uid}` → confirmar campos `plano`, `planoExpira`, `mpSubscriptionId` atualizados; **(8)** Após teste: restaurar `MP_ACCESS_TOKEN` de produção no Render. | 🔴 Alta | Implementação completa 20/05/2026 | Único bloqueante: criar conta Vendedor de teste no MP Developers. Comprador de teste já existe. |
+| PEND-082 | **🔴 Migração URL: mover app para `budsolucoes.com.br/appbudfinance/`** — Decisão DEC-047. Passos: **(1)** Criar pasta `appbudfinance/` no repo; **(2)** Mover todos os HTML do app (exceto `vendas.html`) + pastas `js/`, `css/`, `email-templates/` para dentro de `appbudfinance/`; **(3)** Mover `vendas.html` → raiz `index.html`; **(4)** Revisar links internos (devem ser relativos dentro da subpasta — a maioria já é); **(5)** Atualizar `back_url` do MP, `BUD_FUNCTIONS_URL`, `FRONTEND_URL` no Render; **(6)** Adicionar `budsolucoes.com.br` nas URLs autorizadas do Firebase Auth Console; **(7)** Ajustar Render Static Site publish directory (se necessário); **(8)** Atualizar ARCHITECTURE_MAP.md. | 🔴 Alta | DEC-047 — 20/05/2026 | Executar em sprint dedicada — muitas referências cross-arquivo. Não misturar com outros PRs. |
 | DT-004 | **Testes para parser de PDF do extrato (cartoes/dividas IA)** — adicionar suíte unitária com fixtures de PDFs reais (Itaú, Nubank, BB) para o parser do backend. | 🟢 Baixa | Auditoria 27/04/2026 (M7) | Sem testes, alterações no parser podem regredir silenciosamente. |
 | DT-005 | **B9 — Gradiente vermelho/erro no tema Dark (HBO)** — tons como `#dc2626`/`#ef4444` ficam contrastantes mas saturados sobre fundo `#0f1419`. Avaliar versão mais "soft" para Dark (ex: `#f87171`). | 🟢 Baixa | Auditoria 27/04/2026 | Não bloqueia uso; revisão visual manual recomendada com usuário. |
 | DT-006 | **M5 — Cores hardcoded inline em alguns elementos** — pontos de gradiente/bordas usando hex literal em vez de var(--…). Inventariar e migrar para tokens. | 🟢 Baixa | Auditoria 27/04/2026 | Refatorar sem revisão visual em todos os 8 temas é arriscado (ver DEC abaixo). |
