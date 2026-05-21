@@ -119,7 +119,7 @@
            style="width:3rem;height:3rem;object-fit:contain;margin:0 auto 0.75rem;display:block;">
     </div>
     <h1>Política de Privacidade</h1>
-    <p class="subtitle">Última atualização: 29 de abril de 2026 — Versão 1.1</p>
+    <p class="subtitle">Última atualização: 20 de maio de 2026 — Versão 1.2</p>
 
     <!-- ─── 1. Introdução ────────────────────────────────────────── -->
     <h2>1. Introdução</h2>
@@ -162,7 +162,8 @@
       <li><strong>Dados de uso:</strong> registros financeiros que você inserir voluntariamente (receitas, despesas, categorias, metas, dívidas, investimentos, cartões, recorrentes, limites, lista de compras);</li>
       <li><strong>Dados técnicos:</strong> endereço IP, tipo de navegador, data e hora de acesso (para segurança e prevenção de fraude);</li>
       <li><strong>Dados de indicação:</strong> código de indicação utilizado, se aplicável;</li>
-      <li><strong>Conteúdo de faturas bancárias (temporário):</strong> ao usar a função de importação de fatura via IA, o conteúdo do arquivo PDF ou OFX é enviado ao nosso servidor exclusivamente para extração das transações — <strong>não é armazenado permanentemente</strong> em nenhum banco de dados após o processamento;</li>
+      <li><strong>Conteúdo de faturas bancárias (temporário):</strong> ao usar a função de importação de fatura via IA, o conteúdo do arquivo PDF, OFX, CSV ou imagem é enviado ao nosso servidor exclusivamente para extração das transações — <strong>não é armazenado permanentemente</strong> em nenhum banco de dados após o processamento;</li>
+      <li><strong>Dados de assinatura e pagamento:</strong> referência de assinatura (Mercado Pago) associada ao seu UID — não armazenamos dados de cartão de crédito ou débito;</li>
       <li><strong>Token FCM (notificações):</strong> identificador de dispositivo armazenado no Firestore para futura entrega de notificações push. O recurso ainda não está ativo — o token é armazenado mas não utilizado para envio de mensagens nesta versão.</li>
     </ul>
 
@@ -176,7 +177,9 @@
       <li>Processar seu programa de indicações e eventuais descontos;</li>
       <li>Gerenciar planos e assinaturas (gratuitos e pagos);</li>
       <li>Processar automaticamente transações recorrentes via servidor (recurso disponível nos planos Pro, Plus e Trial);</li>
-      <li>Extrair transações de arquivos de fatura (PDF/OFX) via inteligência artificial, a pedido do usuário;</li>
+      <li>Extrair transações de arquivos de fatura (PDF/OFX/CSV/imagem) via inteligência artificial, a pedido do usuário;</li>
+      <li>Fornecer o Assistente de IA financeiro (plano Plus) — conversas são processadas em tempo real e não armazenadas permanentemente;
+      <li>Processar pagamentos de assinaturas via Mercado Pago;</li>
       <li>Cumprir obrigações legais e regulatórias;</li>
       <li>Garantir a segurança da plataforma.</li>
     </ul>
@@ -196,8 +199,9 @@
     <p>Seus dados podem ser compartilhados com:</p>
     <ul>
       <li><strong>Firebase (Google):</strong> autenticação e armazenamento em nuvem (Firestore), com servidores conforme padrões internacionais de segurança;</li>
-      <li><strong>Backend próprio (Render.com):</strong> servidor intermediário utilizado para processamento de recuperação de senha, importação de faturas via IA e processamento de transações recorrentes. Toda requisição é autenticada via token de identidade Firebase — o servidor verifica sua identidade antes de qualquer operação. Os dados processados não são retidos após a resposta;</li>
-      <li><strong>Google Gemini AI:</strong> ao importar uma fatura bancária (PDF/OFX), o conteúdo do arquivo é enviado ao serviço de inteligência artificial da Google (Gemini 1.5 Flash) exclusivamente para extração de transações. O dado é processado em trânsito e não é armazenado pela Google para treinamento de modelos em nossa integração;</li>
+      <li><strong>Backend próprio (Render.com):</strong> servidor intermediário utilizado para processamento de recuperação de senha, importação de faturas via IA, Assistente de IA e processamento de transações recorrentes. Toda requisição é autenticada via token de identidade Firebase — o servidor verifica sua identidade antes de qualquer operação. Os dados processados não são retidos após a resposta;</li>
+      <li><strong>Groq (Llama-4 Scout):</strong> ao importar uma fatura bancária (PDF/imagem) ou utilizar o Assistente de IA, o conteúdo é enviado à API da Groq (modelo llama-4-scout) exclusivamente para processamento em tempo real. O dado é processado em trânsito e não é retido para treinamento de modelos;</li>
+      <li><strong>Mercado Pago:</strong> processamento de pagamentos de assinaturas. Dados de cartão são tratados diretamente pelo Mercado Pago (certificação PCI-DSS) — não temos acesso a eles;</li>
       <li><strong>EmailJS:</strong> envio de e-mails transacionais (boas-vindas, verificação);</li>
       <li><strong>Autoridades competentes:</strong> quando exigido por decisão judicial ou lei aplicável.</li>
     </ul>
@@ -233,7 +237,7 @@
       <li>O plano atual do usuário é armazenado no Firestore e utilizado para controle de acesso às funcionalidades;</li>
       <li>Os dados de pagamento, quando aplicável, serão processados por plataformas terceirizadas com certificação PCI-DSS — <strong>não armazenamos dados de cartão de crédito</strong>;</li>
       <li>Ao assinar um plano, dados adicionais poderão ser coletados conforme necessário para a cobrança;</li>
-      <li>Os termos específicos de cada plano são informados no momento da contratação.</li>
+      <li>Assinaturas são gerenciadas via Mercado Pago — o pagamento é processado diretamente pelo Mercado Pago e <strong>não armazenamos dados de cartão de crédito ou débito</strong>. Apenas o ID da assinatura (preapproval_id) é salvo no Firestore para controle do plano;</li>
     </ul>
 
     <!-- ─── 9. Seus Direitos (LGPD — Art. 18) ───────────────────── -->
@@ -278,9 +282,11 @@
       e estado de interface. Os dados armazenados localmente são:
     </p>
     <ul>
-      <li><strong>Tema visual selecionado</strong> (ex: escuro, claro, colorido);</li>
+      <li><strong>Tema visual selecionado</strong> (chave <code>nexo_dark_mode</code>);</li>
+      <li><strong>Foto de perfil em cache</strong> (chave <code>nexo_foto_[uid]</code>);</li>
       <li><strong>Estado da barra lateral</strong> (colapsada ou expandida);</li>
-      <li><strong>Progresso do tutorial</strong> — chaves no formato <code>nexo_tutorial_done_[tela]</code> indicam quais guias passo a passo foram concluídos.</li>
+      <li><strong>Progresso do tutorial</strong> — chaves no formato <code>nexo_tutorial_done_[tela]</code> indicam quais guias passo a passo foram concluídos;</li>
+      <li><strong>Streak de uso</strong> — chave <code>nexo_streak_[uid]</code> para controle da sequência de dias de uso consecutivos.</li>
     </ul>
     <p>
       Não utilizamos cookies de rastreamento ou publicidade. Os dados de autenticação
@@ -311,15 +317,18 @@
       esta política, entre em contato:
     </p>
     <ul>
-      <li><strong>E-mail:</strong> contato@budfinance.com.br</li>
-      <li><strong>Responsável pelo tratamento:</strong> Bud Finance</li>
+      <li><strong>E-mail:</strong> <a href="mailto:budsolucoes@gmail.com">budsolucoes@gmail.com</a></li>
+      <li><strong>WhatsApp:</strong> <a href="https://wa.me/5521983554954" target="_blank" rel="noopener">(21) 98355-4954</a></li>
+      <li><strong>Instagram:</strong> <a href="https://www.instagram.com/appbudfinance" target="_blank" rel="noopener">@appbudfinance</a></li>
+      <li><strong>Site:</strong> <a href="https://budsolucoes.com.br" target="_blank" rel="noopener">budsolucoes.com.br</a></li>
+      <li><strong>Responsável pelo tratamento:</strong> Bud Soluções</li>
     </ul>
 
     <hr class="divider">
 
     <!-- ─── Footer ───────────────────────────────────────────────── -->
     <div style="text-align:center;">
-      <a href="index.html" class="back-link">← Voltar para o login</a>
+      <a href="/" class="back-link">← Voltar para o site</a>
       <p style="font-size:0.6875rem;color:#94a3b8;margin-top:0.75rem;">
         © 2026 Bud Finance — Todos os direitos reservados.
       </p>
