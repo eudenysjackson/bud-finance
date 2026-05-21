@@ -12,8 +12,8 @@
 
 set -e
 
-TARGET="js/firebase-config.js"
-EXAMPLE="js/firebase-config.example.js"
+TARGET="appbudfinance/js/firebase-config.js"
+EXAMPLE="appbudfinance/js/firebase-config.example.js"
 
 # Em CI/CD o firebase-config.js não existe (está no .gitignore).
 # Copia o template como ponto de partida.

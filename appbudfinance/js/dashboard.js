@@ -1643,9 +1643,11 @@ function configurarBannerPlano(userData) {
       // Trial vencido: rebaixar para free no servidor e recarregar
       var _uid = usuarioAtualId;
       if (_uid) {
-        fetch((window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com') + '/api/expirar-trial',
-          { method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uid: _uid }) })
+        (_dashCurrentUser ? _dashCurrentUser.getIdToken() : Promise.resolve(null))
+          .then(function(token) {
+            return fetch((window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com') + '/api/expirar-trial',
+              { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': token ? 'Bearer ' + token : '' } });
+          })
           .then(function(r) { return r.json(); })
           .then(function(d) { if (d.ok) location.reload(); })
           .catch(function() {});

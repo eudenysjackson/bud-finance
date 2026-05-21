@@ -220,10 +220,15 @@ app.post('/api/boas-vindas', async function (req, res) {
 // Usa Firebase Admin SDK para contornar regras Firestore de create.
 app.post('/api/iniciar-trial', express.json(), async function (req, res) {
   if (!db) return res.status(503).json({ ok: false, error: 'Firebase Admin não inicializado.' });
-  var uid = (req.body && typeof req.body.uid === 'string') ? req.body.uid.trim() : '';
-  if (!uid || uid.length > 128 || !/^[a-zA-Z0-9_-]+$/.test(uid)) {
-    return res.status(400).json({ ok: false, error: 'UID inválido.' });
-  }
+
+  // Verificar token JWT — UID extraído do token, nunca do body
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ ok: false, error: 'Token ausente.' });
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_e) { return res.status(401).json({ ok: false, error: 'Token inválido.' }); }
+  var uid = decoded.uid;
   try {
     var ref = db.collection('usuarios').doc(uid);
     var snap = await ref.get();
@@ -252,10 +257,15 @@ app.post('/api/iniciar-trial', express.json(), async function (req, res) {
 // Rebaixa o plano para 'free' e limpa os campos de trial.
 app.post('/api/expirar-trial', express.json(), async function (req, res) {
   if (!db) return res.status(503).json({ ok: false });
-  var uid = (req.body && typeof req.body.uid === 'string') ? req.body.uid.trim() : '';
-  if (!uid || uid.length > 128 || !/^[a-zA-Z0-9_-]+$/.test(uid)) {
-    return res.status(400).json({ ok: false });
-  }
+
+  // Verificar token JWT — UID extraído do token, nunca do body
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ ok: false, error: 'Token ausente.' });
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_e) { return res.status(401).json({ ok: false, error: 'Token inválido.' }); }
+  var uid = decoded.uid;
   try {
     var ref = db.collection('usuarios').doc(uid);
     var snap = await ref.get();
@@ -2463,21 +2473,23 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
 //   URL: https://bud-finance-backend.onrender.com/webhook/mercadopago
 //   Eventos: subscription_preapproval, payment
 app.post('/webhook/mercadopago', async function (req, res) {
-  // 1. Verificar assinatura HMAC-SHA256 (se MP_WEBHOOK_SECRET configurado)
-  if (MP_WEBHOOK_SECRET) {
-    var xSig    = req.headers['x-signature']  || '';
-    var xReqId  = req.headers['x-request-id'] || '';
-    var dataId  = (req.body.data && req.body.data.id)
-      ? String(req.body.data.id) : (req.query['data.id'] || '');
-    var tsParts  = xSig.split(',');
-    var ts       = (tsParts.find(p => p.startsWith('ts=')) || '').replace('ts=', '');
-    var v1       = (tsParts.find(p => p.startsWith('v1=')) || '').replace('v1=', '');
-    var manifest = 'id:' + dataId + ';request-id:' + xReqId + ';ts:' + ts + ';';
-    var expected = require('crypto').createHmac('sha256', MP_WEBHOOK_SECRET).update(manifest).digest('hex');
-    if (expected !== v1) {
-      console.warn('[MP webhook] Assinatura inválida — ignorando');
-      return res.status(401).json({ error: 'Assinatura inválida.' });
-    }
+  // 1. Verificar assinatura HMAC-SHA256 (obrigatório — falha se secret não configurado)
+  if (!MP_WEBHOOK_SECRET) {
+    console.error('[MP webhook] MP_WEBHOOK_SECRET não configurado — rejeitando requisição');
+    return res.status(503).json({ error: 'Webhook não configurado.' });
+  }
+  var xSig    = req.headers['x-signature']  || '';
+  var xReqId  = req.headers['x-request-id'] || '';
+  var dataId  = (req.body.data && req.body.data.id)
+    ? String(req.body.data.id) : (req.query['data.id'] || '');
+  var tsParts  = xSig.split(',');
+  var ts       = (tsParts.find(p => p.startsWith('ts=')) || '').replace('ts=', '');
+  var v1       = (tsParts.find(p => p.startsWith('v1=')) || '').replace('v1=', '');
+  var manifest = 'id:' + dataId + ';request-id:' + xReqId + ';ts:' + ts + ';';
+  var expected = require('crypto').createHmac('sha256', MP_WEBHOOK_SECRET).update(manifest).digest('hex');
+  if (expected !== v1) {
+    console.warn('[MP webhook] Assinatura inválida — ignorando');
+    return res.status(401).json({ error: 'Assinatura inválida.' });
   }
 
   // 2. Responder imediatamente (MP exige resposta rápida)

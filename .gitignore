@@ -18,6 +18,7 @@ node_modules/
 
 # Sensitive config (use firebase-config.example.js as template)
 js/firebase-config.js
+appbudfinance/js/firebase-config.js
 
 # Build outputs
 dist/
