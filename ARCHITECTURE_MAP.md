@@ -1,10 +1,25 @@
 # ARCHITECTURE_MAP.md — Inventário Vivo do Ecossistema
 
 **Projeto**: Bud Finance  
-**Última atualização**: 18/05/2026 — Assistente WhatsApp implementado (assistente-whatsapp.html + js/assistente-whatsapp.js); sidebar link WhatsApp ativado em todas as 18 páginas (era disabled)
+**Última atualização**: 20/05/2026 — **Migração URL multi-produto (DEC-047/PEND-082)**: app movido para subpasta `appbudfinance/`; `vendas.html` renomeado para `index.html` na raiz (landing pública em `budsolucoes.com.br`). App acessível em `budsolucoes.com.br/appbudfinance/`. Todos os HTML do app, `js/`, `css/`, `email-templates/`, `manifest.json`, `logobranca.*`, `logopreta.*` movidos para `appbudfinance/`. `logo.png` mantido na raiz E copiado em `appbudfinance/`. `backend/server.js` `FRONTEND_URL` default agora `https://budsolucoes.com.br/appbudfinance`. Tests Playwright atualizados para `/appbudfinance/dashboard.html`.
 
 > **REGRA**: Antes de criar algo novo, consulte este doc. Ao finalizar qualquer tarefa, atualize.  
 > Se algo novo quebrar uma conexão existente, **pare e avise o usuário**.
+
+---
+
+## 🌐 Estrutura de URLs (DEC-047)
+
+| URL | Conteúdo | Arquivo no repo |
+|---|---|---|
+| `budsolucoes.com.br/` | Landing/vendas pública | `index.html` (raiz) — antigo `vendas.html` |
+| `budsolucoes.com.br/appbudfinance/` | Login do app Bud Finance | `appbudfinance/index.html` |
+| `budsolucoes.com.br/appbudfinance/dashboard.html` | Dashboard, etc. | `appbudfinance/*.html` |
+| `budsolucoes.com.br/appoutro/` | (Futuro) Outros produtos Bud | `appoutro/` (não existe ainda) |
+
+**Estrutura física**:
+- Raiz: `index.html` (vendas), `logo.png`, `CNAME`, docs (`*.md`), `backend/`, `tests/`, `cérebro/`, `playwright.config.js`, `package.json`
+- `appbudfinance/`: todos HTML do app, `js/`, `css/`, `email-templates/`, `manifest.json`, logos do app
 
 ---
 

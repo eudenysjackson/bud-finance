@@ -6,7 +6,7 @@ const { test, expect } = require('@playwright/test');
 test.describe('Dashboard — Auth Guard', () => {
 
   test('sem auth, redireciona para index.html', async ({ page }) => {
-    await page.goto('/dashboard.html');
+    await page.goto('/appbudfinance/dashboard.html');
     await page.waitForURL('**/index.html', { timeout: 15_000 });
     expect(page.url()).toContain('index.html');
   });
@@ -19,7 +19,7 @@ test.describe('Dashboard — Estrutura HTML', () => {
   // Bloqueia dashboard.js para evitar auth guard redirect
   test.beforeEach(async ({ page }) => {
     await page.route('**/js/dashboard.js', route => route.abort());
-    await page.goto('/dashboard.html', { waitUntil: 'domcontentloaded' });
+    await page.goto('/appbudfinance/dashboard.html', { waitUntil: 'domcontentloaded' });
   });
 
   test('título da página correto', async ({ page }) => {

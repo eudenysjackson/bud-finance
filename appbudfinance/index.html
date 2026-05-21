@@ -1,0 +1,313 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#3b82f6">
+  <meta name="description" content="Bud Finance — Controle financeiro inteligente">
+  <title>Login - Bud Finance</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Bud Finance">
+
+  <!-- Google Fonts — Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS (build estático) -->
+  <link rel="stylesheet" href="css/tailwind.css">
+
+  <!-- Inline critical styles (fallback + splash + blobs) -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: #f0f4f8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow-y: auto;
+    }
+
+    /* ── Splash screen ────────────────────────────────────────────── */
+    #splash {
+      position: fixed; inset: 0;
+      background: #f0f4f8;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 1rem;
+      z-index: 99999;
+      transition: opacity .5s ease;
+    }
+    #splash.hide { opacity: 0; pointer-events: none; }
+    .splash-logo {
+      width: 56px; height: 56px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #eff6ff, #dbeafe);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; font-weight: 800; color: #2563eb;
+      animation: pulse-logo 1.8s ease-in-out infinite;
+      border: 1px solid rgba(191,219,254,.5);
+    }
+    .splash-bar {
+      width: 120px; height: 4px; border-radius: 2px;
+      background: #e2e8f0; overflow: hidden;
+    }
+    .splash-bar-inner {
+      width: 40%; height: 100%; border-radius: 2px;
+      background: #3b82f6;
+      animation: slide-bar 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse-logo {
+      0%, 100% { transform: scale(1); }
+      50%      { transform: scale(1.06); }
+    }
+    @keyframes slide-bar {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+
+    /* ── Blobs (inline style para funcionar sem Tailwind build dinâmico) ── */
+    .blob {
+      position: absolute;
+      border-radius: 9999px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .blob-blue {
+      top: 0; left: 0;
+      width: 40%; height: 40%;
+      background: rgba(147,197,253,0.40);
+      filter: blur(100px);
+    }
+    .blob-cyan {
+      bottom: 0; right: 0;
+      width: 30%; height: 30%;
+      background: rgba(103,232,249,0.30);
+      filter: blur(100px);
+    }
+
+    /* ── Glass card ──────────────────────────────────────────────── */
+    .login-card {
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      padding: 1.5rem;
+      border-radius: 2rem;
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 24rem;
+      position: relative;
+      z-index: 10;
+      margin: 0 1rem;
+      border: 1px solid #fff;
+    }
+    @media (min-width: 768px) {
+      .login-card { padding: 2rem; }
+    }
+
+    /* ── Form elements ───────────────────────────────────────────── */
+    .bud-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 0.375rem;
+    }
+    .bud-input {
+      width: 100%;
+      padding: 0.625rem 1rem;
+      border-radius: 0.75rem;
+      border: 2px solid #f1f5f9;
+      background: #f8fafc;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #1e293b;
+      outline: none;
+      transition: background-color .2s, border-color .2s;
+      font-family: inherit;
+    }
+    .bud-input::placeholder { color: #94a3b8; }
+    .bud-input:focus {
+      background: #fff;
+      border-color: #3b82f6;
+    }
+
+    /* ── Button ──────────────────────────────────────────────────── */
+    .bud-btn-primary {
+      width: 100%;
+      background: #2563eb;
+      color: #fff;
+      font-weight: 800;
+      padding: 0.75rem;
+      border-radius: 0.75rem;
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 10px 15px -3px rgba(37,99,235,0.3);
+      transition: background-color .2s, transform .1s;
+      font-family: inherit;
+      margin-top: 0.5rem;
+    }
+    .bud-btn-primary:hover { background: #1d4ed8; }
+    .bud-btn-primary:active { transform: scale(0.98); }
+    .bud-btn-primary:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    /* ── Misc ────────────────────────────────────────────────────── */
+    .toggle-pw {
+      position: absolute;
+      right: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.875rem;
+      cursor: pointer;
+      padding: 0.25rem;
+      line-height: 1;
+    }
+    .toggle-pw:hover { color: #475569; }
+    .link-primary {
+      color: #2563eb;
+      font-weight: 700;
+      text-decoration: none;
+      transition: color .2s;
+    }
+    .link-primary:hover { color: #1d4ed8; text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ Splash screen ════════════════════════════════════════════ -->
+  <div id="splash">
+    <img src="logo.png" alt="Bud Finance" style="width:56px;height:56px;object-fit:contain;animation:pulse-logo 1.8s ease-in-out infinite;">
+    <div class="splash-bar"><div class="splash-bar-inner"></div></div>
+  </div>
+
+  <!-- ═══ Blobs decorativos ════════════════════════════════════════ -->
+  <div class="blob blob-blue" aria-hidden="true"></div>
+  <div class="blob blob-cyan" aria-hidden="true"></div>
+
+  <!-- ═══ Card de Login ════════════════════════════════════════════ -->
+  <div class="login-card" role="main">
+
+    <!-- Logo + Título -->
+    <div style="text-align:center;margin-bottom:1.25rem;">
+      <img src="logo.png" alt="Bud Finance"
+           style="width:3.5rem;height:3.5rem;object-fit:contain;margin:0 auto 0.75rem;display:block;">
+      <h2 style="font-size:1.25rem;font-weight:800;color:#1e293b;letter-spacing:-0.025em;">Bem-vindo(a)</h2>
+      <p style="font-size:0.75rem;color:#64748b;margin-top:0.375rem;font-weight:500;">Insira seus dados de acesso</p>
+    </div>
+
+    <!-- Form -->
+    <form id="formLogin" method="post" autocomplete="on" novalidate>
+
+      <!-- Input: Email / Matrícula -->
+      <div style="margin-bottom:1rem;">
+        <label for="identificador" class="bud-label">E-mail ou Matrícula</label>
+        <input
+          type="text"
+          id="identificador"
+          name="identificador"
+          autocomplete="username"
+          placeholder="seu@email.com ou BUD-XXXX-XXXX"
+          class="bud-input"
+          required
+        >
+      </div>
+
+      <!-- Input: Senha -->
+      <div style="margin-bottom:0.25rem;">
+        <label for="senha" class="bud-label">Senha</label>
+        <div style="position:relative;">
+          <input
+            type="password"
+            id="senha"
+            name="senha"
+            autocomplete="current-password"
+            placeholder="••••••••"
+            class="bud-input"
+            style="padding-right:2.5rem;"
+            required
+          >
+          <button type="button" id="toggleSenha" class="toggle-pw" aria-label="Mostrar/ocultar senha">👁</button>
+        </div>
+        <div style="text-align:right;margin-top:0.375rem;">
+          <a href="recuperar-senha.html" class="link-primary" style="font-size:0.75rem;">Esqueceu a senha?</a>
+        </div>
+      </div>
+
+      <!-- Botão Login -->
+      <button type="submit" id="btnLogin" class="bud-btn-primary">
+        Acessar meu painel
+      </button>
+    </form>
+
+    <!-- Link Cadastro -->
+    <div style="text-align:center;margin-top:1rem;">
+      <p style="font-size:0.875rem;color:#64748b;font-weight:500;">
+        Novo por aqui?
+        <a href="cadastro.html" class="link-primary">Crie sua conta</a>
+      </p>
+    </div>
+
+    <!-- Footer LGPD -->
+    <div style="text-align:center;margin-top:1rem;padding-top:0.75rem;border-top:1px solid #f1f5f9;">
+      <p style="font-size:11px;color:#94a3b8;">
+        Ao acessar, você concorda com nossa
+        <a href="politica-privacidade.html" target="_blank" rel="noopener noreferrer"
+           style="color:#3b82f6;font-weight:500;text-decoration:none;">
+          Política de Privacidade
+        </a>
+        e com o tratamento dos seus dados conforme a LGPD.
+      </p>
+    </div>
+  </div>
+
+  <!-- ═══ Scripts ══════════════════════════════════════════════════ -->
+  <!-- Firebase config (exposes window.BUD_FIREBASE_CONFIG) -->
+  <script src="js/firebase-config.js"></script>
+  <!-- Global utils (exposes window.budShowToast, window.budSanitize) -->
+  <script src="js/bud-utils.js"></script>
+  <!-- Login logic (ES Module) -->
+  <script type="module" src="js/index.js"></script>
+
+  <!-- Splash dismiss -->
+  <script>
+    (function () {
+      var splash = document.getElementById('splash');
+      if (!splash) return;
+      // Dismiss after fonts + firebase module loads (min 700ms, max 6s)
+      var minTime = 0; // sem espera mínima artificial
+      var start = Date.now();
+      window.addEventListener('load', function () {
+        var elapsed = Date.now() - start;
+        var remaining = Math.max(0, 0 - elapsed); // sem espera mínima artificial
+        setTimeout(function () {
+          splash.classList.add('hide');
+          setTimeout(function () { splash.remove(); }, 600);
+        }, remaining);
+      });
+      // Safety: force dismiss after 6s
+      setTimeout(function () {
+        if (splash.parentNode) {
+          splash.classList.add('hide');
+          setTimeout(function () { splash.remove(); }, 600);
+        }
+      }, 6000);
+    })();
+  </script>
+</body>
+</html>

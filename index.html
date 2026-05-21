@@ -1,313 +1,670 @@
 ﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance — Controle financeiro inteligente">
-  <title>Login - Bud Finance</title>
-
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="logo.png">
-  <link rel="apple-touch-icon" href="logo.png">
-  <link rel="manifest" href="manifest.json">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Bud Finance">
-
-  <!-- Google Fonts — Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-  <!-- Tailwind CSS (build estático) -->
-  <link rel="stylesheet" href="css/tailwind.css">
-
-  <!-- Inline critical styles (fallback + splash + blobs) -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bud Finance — Controle financeiro inteligente</title>
+  <meta name="description" content="Organize suas finanças pessoais com IA, importe extratos bancários automaticamente, controle cartões de crédito e muito mais. Experimente grátis." />
+  <meta property="og:title" content="Bud Finance — Controle financeiro inteligente" />
+  <meta property="og:description" content="O app de finanças pessoais que usa IA para categorizar seus gastos automaticamente." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://budsolucoes.com.br" />
+  <meta property="og:image" content="https://budsolucoes.com.br/logo.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Bud Finance — Controle financeiro inteligente" />
+  <meta name="twitter:description" content="Organize suas finanças pessoais com IA, importe extratos bancários automaticamente, controle cartões de crédito e muito mais." />
+  <meta name="twitter:image" content="https://budsolucoes.com.br/logo.png" />
+  <link rel="icon" type="image/png" href="logo.png" />
+  <script src="appbudfinance/js/firebase-config.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Inter', system-ui, sans-serif;
-      background-color: #f0f4f8;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      min-height: 100dvh;
-      overflow-y: auto;
+    :root {
+      --green: #10b981; --green-dark: #059669; --green-light: #d1fae5;
+      --green-glow: rgba(16,185,129,.15); --blue: #2563eb; --red: #ef4444; --amber: #f59e0b;
+      --page: #f4f7fb; --page2: #ffffff; --card: rgba(255,255,255,.9);
+      --border: rgba(0,0,0,.08); --text: #1e293b; --text-sec: #475569; --text-muted: #94a3b8;
+      --radius: 16px;
+      --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
+      --shadow-md: 0 4px 24px rgba(0,0,0,.10); --shadow-lg: 0 12px 48px rgba(0,0,0,.14);
     }
-
-    /* ── Splash screen ────────────────────────────────────────────── */
-    #splash {
-      position: fixed; inset: 0;
-      background: #f0f4f8;
-      display: flex; align-items: center; justify-content: center;
-      flex-direction: column; gap: 1rem;
-      z-index: 99999;
-      transition: opacity .5s ease;
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--page); color: var(--text); line-height: 1.6; overflow-x: hidden; }
+    .container { max-width: 1140px; margin: 0 auto; padding: 0 1.5rem; }
+    .text-green { color: var(--green); }
+    /* Navbar */
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; height: 64px;
+      background: rgba(244,247,251,.94); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
     }
-    #splash.hide { opacity: 0; pointer-events: none; }
-    .splash-logo {
-      width: 56px; height: 56px;
-      border-radius: 16px;
-      background: linear-gradient(135deg, #eff6ff, #dbeafe);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.5rem; font-weight: 800; color: #2563eb;
-      animation: pulse-logo 1.8s ease-in-out infinite;
-      border: 1px solid rgba(191,219,254,.5);
+    .nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.1rem; color: var(--text); text-decoration: none; }
+    .nav-logo-icon { width: 34px; height: 34px; background: var(--green); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; font-weight: 900; color: #fff; }
+    .nav-links { display: flex; align-items: center; gap: 2rem; list-style: none; }
+    .nav-links a { color: var(--text-sec); text-decoration: none; font-size: .9rem; font-weight: 500; transition: color .15s; }
+    .nav-links a:hover { color: var(--green); }
+    .nav-cta { display: flex; align-items: center; gap: .75rem; }
+    .btn-nav-login { color: var(--text-sec); font-size: .875rem; font-weight: 600; text-decoration: none; transition: color .15s; }
+    .btn-nav-login:hover { color: var(--text); }
+    @media (max-width: 768px) { .nav-links { display: none; } .btn-nav-login { display: none; } }
+    /* Buttons */
+    .btn-primary { background: var(--green); color: #fff; border: none; cursor: pointer; padding: .55rem 1.3rem; border-radius: 10px; font-size: .875rem; font-weight: 700; text-decoration: none; transition: background .15s, box-shadow .15s, transform .1s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary:hover { background: var(--green-dark); box-shadow: 0 4px 16px rgba(16,185,129,.35); transform: translateY(-1px); }
+    .btn-secondary { background: white; color: var(--text); border: 1.5px solid var(--border); cursor: pointer; padding: .55rem 1.3rem; border-radius: 10px; font-size: .875rem; font-weight: 600; text-decoration: none; transition: border-color .15s, box-shadow .15s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-secondary:hover { border-color: var(--green); box-shadow: var(--shadow); }
+    .btn-hero { padding: .875rem 2rem; font-size: 1rem; border-radius: 12px; }
+    /* Section tag */
+    .section-tag { display: inline-flex; align-items: center; gap: 6px; background: var(--green-light); color: var(--green-dark); font-size: .75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 4px 12px; border-radius: 999px; margin-bottom: .75rem; }
+    section { padding: 5rem 0; }
+    h2 { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 800; line-height: 1.2; }
+    /* HERO */
+    #hero { padding-top: 9rem; padding-bottom: 5rem; background: var(--page2); border-bottom: 1px solid var(--border); }
+    .hero-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
+    @media (max-width: 900px) { .hero-inner { grid-template-columns: 1fr; gap: 3rem; } }
+    .hero-badge { display: inline-flex; align-items: center; gap: 7px; background: var(--green-light); color: var(--green-dark); font-size: .78rem; font-weight: 700; padding: 5px 14px; border-radius: 999px; margin-bottom: 1.25rem; }
+    .hero-badge-dot { width: 7px; height: 7px; background: var(--green); border-radius: 50%; animation: pdot 2s infinite; }
+    @keyframes pdot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+    .hero-left h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); font-weight: 900; line-height: 1.1; letter-spacing: -.03em; margin-bottom: 1.25rem; color: var(--text); }
+    .hero-left h1 .hl { background: linear-gradient(135deg, var(--green) 0%, #34d399 60%, #6ee7b7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero-left p { font-size: 1.05rem; color: var(--text-sec); margin-bottom: 2rem; max-width: 440px; }
+    .hero-btns { display: flex; gap: .75rem; flex-wrap: wrap; }
+    .hero-trust { display: flex; align-items: center; gap: 1.5rem; margin-top: 1.75rem; flex-wrap: wrap; }
+    .hero-trust-item { display: flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--text-muted); font-weight: 500; }
+    .hero-trust-item::before { content: '✓'; color: var(--green); font-weight: 800; }
+    /* Mockup */
+    .mockup { background: white; border-radius: 20px; border: 1px solid var(--border); box-shadow: var(--shadow-lg); overflow: hidden; position: relative; }
+    .mockup-bar { background: #f8fafc; border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; gap: 8px; }
+    .mock-dot { width: 11px; height: 11px; border-radius: 50%; }
+    .mock-url { flex: 1; background: white; border: 1px solid var(--border); border-radius: 6px; padding: 3px 12px; font-size: .72rem; color: var(--text-muted); font-family: monospace; }
+    .mockup-content { padding: 1.25rem; }
+    .mock-balance { background: linear-gradient(135deg, #1d4ed8, #2563eb); border-radius: 14px; padding: 1.25rem; color: white; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: flex-start; }
+    .mock-balance-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; opacity: .8; margin-bottom: 4px; }
+    .mock-balance-val { font-size: 1.65rem; font-weight: 900; letter-spacing: -.02em; }
+    .mock-balance-sub { font-size: .72rem; opacity: .7; margin-top: 2px; }
+    .mock-badge { background: rgba(255,255,255,.15); border-radius: 6px; padding: 4px 10px; font-size: .7rem; font-weight: 700; }
+    .mock-mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: 1rem; }
+    .mock-mini { background: #f8fafc; border-radius: 12px; padding: .9rem; border: 1px solid #f1f5f9; }
+    .mock-mini-lbl { font-size: .65rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+    .mock-mini-val { font-size: 1.1rem; font-weight: 800; }
+    .mock-mini-val.g { color: var(--green); } .mock-mini-val.r { color: var(--red); }
+    .mock-mini-bar { height: 4px; background: #e2e8f0; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+    .mock-mini-bar-fill { height: 100%; border-radius: 2px; }
+    .mock-txs-lbl { font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin-bottom: .5rem; }
+    .mock-tx { display: flex; align-items: center; gap: .6rem; padding: .45rem 0; border-bottom: 1px solid #f1f5f9; }
+    .mock-tx:last-child { border-bottom: none; }
+    .mock-tx-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: .85rem; flex-shrink: 0; }
+    .mock-tx-info { flex: 1; }
+    .mock-tx-desc { font-size: .78rem; font-weight: 600; color: var(--text); }
+    .mock-tx-cat { font-size: .65rem; color: var(--text-muted); }
+    .mock-tx-val { font-size: .82rem; font-weight: 800; }
+    .mock-tx-val.g { color: var(--green); } .mock-tx-val.r { color: var(--red); }
+    .mock-float { position: absolute; background: white; border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-md); padding: .6rem .9rem; display: flex; align-items: center; gap: 8px; font-size: .75rem; font-weight: 700; color: var(--text); z-index: 10; }
+    .mock-float-top { top: 1.25rem; right: -1rem; }
+    .mock-float-bot { bottom: 2rem; left: -1rem; }
+    @media (max-width: 900px) { .mock-float { display: none; } }
+    .ia-pulse { width: 8px; height: 8px; background: var(--green); border-radius: 50%; animation: pdot 1.5s infinite; }
+    /* STATS */
+    #stats { background: var(--green); padding: 0; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+    .stat-item { text-align: center; padding: 1.75rem 1rem; border-right: 1px solid rgba(255,255,255,.2); }
+    .stat-item:last-child { border-right: none; }
+    .stat-num { font-size: 2.2rem; font-weight: 900; color: white; line-height: 1; }
+    .stat-lbl { font-size: .8rem; color: rgba(255,255,255,.8); margin-top: 5px; font-weight: 500; }
+    @media (max-width: 640px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .stat-item { border-bottom: 1px solid rgba(255,255,255,.2); }
+      .stat-item:nth-child(2) { border-right: none; }
+      .stat-item:nth-child(3) { border-right: 1px solid rgba(255,255,255,.2); }
+      .stat-item:last-child,.stat-item:nth-child(3) { border-bottom: none; }
     }
-    .splash-bar {
-      width: 120px; height: 4px; border-radius: 2px;
-      background: #e2e8f0; overflow: hidden;
+    /* FEATURES */
+    #features { background: var(--page); }
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-top: 3rem; }
+    @media (max-width: 900px) { .features-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { .features-grid { grid-template-columns: 1fr; } }
+    .feature-card { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); transition: box-shadow .2s, transform .2s, border-color .2s; }
+    .feature-card:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); border-color: rgba(16,185,129,.3); }
+    .feature-icon { width: 46px; height: 46px; border-radius: 12px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+    .feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+    .feature-card p { font-size: .875rem; color: var(--text-sec); line-height: 1.6; }
+    /* IA HIGHLIGHT */
+    #ia-highlight { background: var(--page2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .ia-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
+    @media (max-width: 768px) { .ia-grid { grid-template-columns: 1fr; gap: 2.5rem; } }
+    .ia-steps { display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1.75rem; }
+    .ia-step { display: flex; gap: 1rem; align-items: flex-start; }
+    .ia-step-num { min-width: 32px; height: 32px; border-radius: 50%; background: var(--green-light); border: 2px solid var(--green); display: flex; align-items: center; justify-content: center; font-size: .8rem; font-weight: 800; color: var(--green-dark); flex-shrink: 0; }
+    .ia-step-text h4 { font-size: .95rem; font-weight: 700; margin-bottom: 2px; }
+    .ia-step-text p { font-size: .855rem; color: var(--text-sec); }
+    .ia-visual { background: var(--page); border: 1px solid var(--border); border-radius: 20px; padding: 1.75rem; box-shadow: var(--shadow-md); position: relative; overflow: hidden; }
+    .ia-visual::before { content: ''; position: absolute; top: -60px; right: -60px; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, var(--green-glow), transparent 70%); pointer-events: none; }
+    .ia-formats { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.25rem; }
+    .ia-format-badge { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 5px 12px; font-size: .78rem; font-weight: 600; box-shadow: var(--shadow); color: var(--text); }
+    .ia-result-lbl { font-size: .65rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin-bottom: .6rem; }
+    .ia-result { display: flex; flex-direction: column; gap: 6px; }
+    .ia-result-row { display: flex; justify-content: space-between; align-items: center; background: white; border: 1px solid var(--border); border-radius: 10px; padding: .55rem .75rem; box-shadow: var(--shadow); }
+    .ia-result-desc { font-size: .8rem; color: var(--text); font-weight: 500; }
+    .ia-result-badge { font-size: .7rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+    .ia-result-badge.desp { background: rgba(239,68,68,.1); color: #dc2626; }
+    .ia-result-badge.rec { background: rgba(16,185,129,.12); color: var(--green-dark); }
+    .ia-result-footer { text-align: center; font-size: .78rem; color: var(--green-dark); font-weight: 700; margin-top: .75rem; }
+    /* PRICING */
+    #pricing { background: var(--page); }
+    .pricing-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.1rem; margin-top: 3rem; align-items: start; }
+    @media (max-width: 1000px) { .pricing-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { .pricing-grid { grid-template-columns: 1fr; } }
+    .plan-card { background: white; border: 1.5px solid var(--border); border-radius: 20px; padding: 1.75rem; position: relative; box-shadow: var(--shadow); transition: box-shadow .2s, transform .2s; }
+    .plan-card:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); }
+    .plan-card.popular { border-color: var(--green); box-shadow: 0 0 0 4px rgba(16,185,129,.08), var(--shadow-md); transform: scale(1.03); }
+    .plan-card.popular:hover { transform: scale(1.03) translateY(-3px); }
+    .plan-popular-badge { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); background: var(--green); color: #fff; font-size: .7rem; font-weight: 800; padding: 4px 14px; border-radius: 999px; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
+    .plan-name { font-size: .85rem; font-weight: 700; color: var(--text-muted); margin-bottom: .6rem; text-transform: uppercase; letter-spacing: .06em; }
+    .plan-price { display: flex; align-items: flex-end; gap: 3px; margin-bottom: .2rem; }
+    .plan-price .currency { font-size: .9rem; font-weight: 700; color: var(--text-sec); margin-bottom: 6px; }
+    .plan-price .amount { font-size: 2.7rem; font-weight: 900; line-height: 1; color: var(--text); }
+    .plan-price .period { font-size: .82rem; color: var(--text-muted); margin-bottom: 5px; }
+    .plan-desc { font-size: .8rem; color: var(--text-muted); margin-bottom: 1.5rem; min-height: 32px; }
+    .plan-btn { width: 100%; padding: .65rem; border-radius: 10px; font-size: .9rem; font-weight: 700; cursor: pointer; border: none; transition: all .15s; margin-bottom: 1.25rem; }
+    .plan-btn-free { background: var(--page); color: var(--text); border: 1.5px solid var(--border); }
+    .plan-btn-free:hover { border-color: var(--green); color: var(--green-dark); }
+    .plan-btn-paid { background: var(--green); color: white; }
+    .plan-btn-paid:hover { background: var(--green-dark); box-shadow: 0 4px 16px rgba(16,185,129,.3); }
+    .plan-features { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+    .plan-features li { display: flex; align-items: flex-start; gap: 7px; font-size: .83rem; color: var(--text-sec); }
+    .plan-features li .check { color: var(--green); font-weight: 800; min-width: 14px; }
+    .plan-features li .cross { color: var(--text-muted); min-width: 14px; }
+    .plan-features li.disabled { opacity: .45; }
+    .plan-features li .plan-limit { margin-left: auto; background: var(--green-light); color: var(--green-dark); font-size: .67rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
+    .plan-features li .inf { font-size: .9rem; min-width: 14px; line-height: 1.2; }
+    .plan-divider { border: none; border-top: 1px solid var(--border); margin: 1.1rem 0; }
+    /* TESTIMONIALS */
+    #testimonials { background: var(--page2); border-top: 1px solid var(--border); }
+    .testimonials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-top: 3rem; }
+    @media (max-width: 768px) { .testimonials-grid { grid-template-columns: 1fr; } }
+    .testimonial-card { background: var(--page); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); }
+    .testimonial-stars { font-size: .95rem; color: var(--amber); margin-bottom: .6rem; letter-spacing: 2px; }
+    .testimonial-text { font-size: .9rem; color: var(--text-sec); line-height: 1.65; margin-bottom: 1.25rem; }
+    .testimonial-author { display: flex; align-items: center; gap: 10px; }
+    .testimonial-avatar { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: .85rem; color: #fff; flex-shrink: 0; }
+    .testimonial-name { font-size: .875rem; font-weight: 700; }
+    .testimonial-role { font-size: .75rem; color: var(--text-muted); }
+    /* FINAL CTA */
+    #cta-final { background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%); text-align: center; padding: 5.5rem 0; }
+    #cta-final h2 { color: white; margin-bottom: 1rem; }
+    #cta-final p { color: rgba(255,255,255,.8); margin-bottom: 2.25rem; max-width: 460px; margin-left: auto; margin-right: auto; }
+    .cta-btns { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .btn-cta-white { background: white; color: var(--green-dark); border: none; cursor: pointer; padding: .95rem 2.25rem; border-radius: 12px; font-size: 1rem; font-weight: 800; text-decoration: none; display: inline-flex; align-items: center; gap: 7px; transition: box-shadow .15s, transform .1s; }
+    .btn-cta-white:hover { box-shadow: 0 8px 32px rgba(0,0,0,.25); transform: translateY(-2px); }
+    .btn-cta-outline { background: transparent; color: white; border: 2px solid rgba(255,255,255,.4); cursor: pointer; padding: .95rem 2.25rem; border-radius: 12px; font-size: 1rem; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 7px; transition: border-color .15s, background .15s; }
+    .btn-cta-outline:hover { border-color: rgba(255,255,255,.8); background: rgba(255,255,255,.1); }
+    .cta-trust { display: flex; align-items: center; justify-content: center; gap: 1.5rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .cta-trust-item { font-size: .78rem; color: rgba(255,255,255,.75); font-weight: 500; }
+    .cta-trust-item::before { content: '✓ '; color: rgba(255,255,255,.95); }
+    /* FOOTER */
+    footer { background: white; border-top: 1px solid var(--border); padding: 3.5rem 0 2rem; }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 3rem; margin-bottom: 2.5rem; }
+    .footer-security { display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center; padding: 1.25rem; background: var(--page); border-radius: 12px; margin-bottom: 2rem; border: 1px solid var(--border); }
+    .security-item { font-size: .8rem; font-weight: 600; color: var(--text-sec); display: flex; align-items: center; gap: 6px; }
+    @media (max-width: 768px) { .footer-grid { grid-template-columns: 1fr 1fr; gap: 2rem; } }
+    @media (max-width: 480px) { .footer-grid { grid-template-columns: 1fr; } }
+    .footer-brand p { font-size: .85rem; color: var(--text-muted); margin-top: .6rem; max-width: 220px; line-height: 1.6; }
+    .footer-col h4 { font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: .9rem; }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+    .footer-col a { color: var(--text-sec); font-size: .875rem; text-decoration: none; transition: color .15s; }
+    .footer-col a:hover { color: var(--green); }
+    .footer-bottom { padding-top: 1.5rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    .footer-bottom p { font-size: .78rem; color: var(--text-muted); }
+    /* Toast */
+    #vnd-toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--text); color: white; padding: .75rem 1.5rem; border-radius: 10px; font-size: .875rem; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,.2); z-index: 9999; transition: transform .3s; white-space: nowrap; }
+    #vnd-toast.show { transform: translateX(-50%) translateY(0); }
+    /* ─── Melhorias Mobile ───────────────────────────── */
+    @media (max-width: 768px) {
+      #hero { padding-top: 5.5rem; padding-bottom: 3.5rem; }
+      section { padding: 3rem 0; }
+      #cta-final { padding: 3.5rem 0; }
+      .hero-btns { flex-direction: column; align-items: stretch; }
+      .btn-hero { justify-content: center; }
+      .hero-btns .btn-secondary { align-self: flex-start; }
+      .plan-card.popular { transform: none; box-shadow: 0 0 0 3px rgba(16,185,129,.15), var(--shadow-md); }
+      .plan-card.popular:hover { transform: translateY(-3px); }
+      .cta-btns { flex-direction: column; align-items: stretch; }
+      .btn-cta-white, .btn-cta-outline { justify-content: center; }
+      .footer-bottom { justify-content: center; text-align: center; }
     }
-    .splash-bar-inner {
-      width: 40%; height: 100%; border-radius: 2px;
-      background: #3b82f6;
-      animation: slide-bar 1.2s ease-in-out infinite;
+    @media (max-width: 480px) {
+      .container { padding: 0 1rem; }
+      .security-item { font-size: .75rem; }
+      .footer-security { gap: 1rem; }
     }
-    @keyframes pulse-logo {
-      0%, 100% { transform: scale(1); }
-      50%      { transform: scale(1.06); }
-    }
-    @keyframes slide-bar {
-      0%   { transform: translateX(-100%); }
-      100% { transform: translateX(350%); }
-    }
-
-    /* ── Blobs (inline style para funcionar sem Tailwind build dinâmico) ── */
-    .blob {
-      position: absolute;
-      border-radius: 9999px;
-      pointer-events: none;
-      z-index: 0;
-    }
-    .blob-blue {
-      top: 0; left: 0;
-      width: 40%; height: 40%;
-      background: rgba(147,197,253,0.40);
-      filter: blur(100px);
-    }
-    .blob-cyan {
-      bottom: 0; right: 0;
-      width: 30%; height: 30%;
-      background: rgba(103,232,249,0.30);
-      filter: blur(100px);
-    }
-
-    /* ── Glass card ──────────────────────────────────────────────── */
-    .login-card {
-      background: rgba(255,255,255,0.9);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      padding: 1.5rem;
-      border-radius: 2rem;
-      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 24rem;
-      position: relative;
-      z-index: 10;
-      margin: 0 1rem;
-      border: 1px solid #fff;
-    }
-    @media (min-width: 768px) {
-      .login-card { padding: 2rem; }
-    }
-
-    /* ── Form elements ───────────────────────────────────────────── */
-    .bud-label {
-      display: block;
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: #334155;
-      margin-bottom: 0.375rem;
-    }
-    .bud-input {
-      width: 100%;
-      padding: 0.625rem 1rem;
-      border-radius: 0.75rem;
-      border: 2px solid #f1f5f9;
-      background: #f8fafc;
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: #1e293b;
-      outline: none;
-      transition: background-color .2s, border-color .2s;
-      font-family: inherit;
-    }
-    .bud-input::placeholder { color: #94a3b8; }
-    .bud-input:focus {
-      background: #fff;
-      border-color: #3b82f6;
-    }
-
-    /* ── Button ──────────────────────────────────────────────────── */
-    .bud-btn-primary {
-      width: 100%;
-      background: #2563eb;
-      color: #fff;
-      font-weight: 800;
-      padding: 0.75rem;
-      border-radius: 0.75rem;
-      border: none;
-      font-size: 1rem;
-      cursor: pointer;
-      box-shadow: 0 10px 15px -3px rgba(37,99,235,0.3);
-      transition: background-color .2s, transform .1s;
-      font-family: inherit;
-      margin-top: 0.5rem;
-    }
-    .bud-btn-primary:hover { background: #1d4ed8; }
-    .bud-btn-primary:active { transform: scale(0.98); }
-    .bud-btn-primary:disabled {
-      opacity: 0.65;
-      cursor: not-allowed;
-    }
-
-    /* ── Misc ────────────────────────────────────────────────────── */
-    .toggle-pw {
-      position: absolute;
-      right: 0.75rem;
-      top: 50%;
-      transform: translateY(-50%);
-      background: none;
-      border: none;
-      color: #94a3b8;
-      font-size: 0.875rem;
-      cursor: pointer;
-      padding: 0.25rem;
-      line-height: 1;
-    }
-    .toggle-pw:hover { color: #475569; }
-    .link-primary {
-      color: #2563eb;
-      font-weight: 700;
-      text-decoration: none;
-      transition: color .2s;
-    }
-    .link-primary:hover { color: #1d4ed8; text-decoration: underline; }
   </style>
 </head>
 <body>
 
-  <!-- ═══ Splash screen ════════════════════════════════════════════ -->
-  <div id="splash">
-    <img src="logo.png" alt="Bud Finance" style="width:56px;height:56px;object-fit:contain;animation:pulse-logo 1.8s ease-in-out infinite;">
-    <div class="splash-bar"><div class="splash-bar-inner"></div></div>
+  <nav class="nav">
+    <a href="/" class="nav-logo">
+      <img src="logo.png" alt="Bud Finance" style="height:34px;width:auto">
+      Bud Finance
+    </a>
+    <ul class="nav-links">
+      <li><a href="#features">Recursos</a></li>
+      <li><a href="#ia-highlight">Importação IA</a></li>
+      <li><a href="#pricing">Planos</a></li>
+      <li><a href="#testimonials">Depoimentos</a></li>
+    </ul>
+    <div class="nav-cta">
+      <a href="appbudfinance/" class="btn-nav-login">Entrar</a>
+      <a href="appbudfinance/cadastro.html" class="btn-primary">Começar Grátis</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section id="hero">
+    <div class="container">
+      <div class="hero-inner">
+        <div class="hero-left">
+          <div class="hero-badge">
+            <span class="hero-badge-dot"></span>
+            Importação com IA disponível
+          </div>
+          <h1>Suas finanças no<br /><span class="hl">controle total.</span></h1>
+          <p>Importe extratos, categorize gastos com IA e tenha uma visão clara do seu dinheiro — tudo em um só lugar, bonito e rápido.</p>
+          <div class="hero-btns">
+            <a href="appbudfinance/cadastro.html" class="btn-primary btn-hero">🚀 3 dias Pro grátis — Criar conta</a>
+            <a href="#pricing" class="btn-secondary btn-hero">Ver planos</a>
+          </div>
+          <div class="hero-trust">
+            <div class="hero-trust-item">Grátis para começar</div>
+            <div class="hero-trust-item">Sem cartão de crédito</div>
+            <div class="hero-trust-item">Cancele quando quiser</div>
+          </div>
+        </div>
+        <div style="position:relative">
+          <div class="mock-float mock-float-top">
+            <span class="ia-pulse"></span>
+            IA categorizando automaticamente
+          </div>
+          <div class="mockup">
+            <div class="mockup-bar">
+              <div class="mock-dot" style="background:#ef4444"></div>
+              <div class="mock-dot" style="background:#f59e0b"></div>
+              <div class="mock-dot" style="background:#22c55e"></div>
+              <span class="mock-url">budsolucoes.com.br/dashboard</span>
+            </div>
+            <div class="mockup-content">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem;padding-bottom:.75rem;border-bottom:1px solid #f1f5f9">
+                <span style="font-size:.78rem;font-weight:700;color:#1e293b">Bom dia, <span id="mockup-name" style="transition:opacity .4s ease">Andie</span> 👋</span>
+                <span style="font-size:.65rem;color:#94a3b8;background:#f1f5f9;padding:2px 8px;border-radius:999px;font-weight:600">Dashboard</span>
+              </div>
+              <div class="mock-balance">
+                <div>
+                  <div class="mock-balance-label">Saldo total</div>
+                  <div class="mock-balance-val">R$ 3.842,50</div>
+                  <div class="mock-balance-sub">↑ 12% vs. mês anterior</div>
+                </div>
+                <div class="mock-badge">Maio 2026</div>
+              </div>
+              <div class="mock-mini-grid">
+                <div class="mock-mini">
+                  <div class="mock-mini-lbl">Receitas</div>
+                  <div class="mock-mini-val g">R$ 6.200</div>
+                  <div class="mock-mini-bar"><div class="mock-mini-bar-fill" style="width:78%;background:#10b981"></div></div>
+                </div>
+                <div class="mock-mini">
+                  <div class="mock-mini-lbl">Despesas</div>
+                  <div class="mock-mini-val r">R$ 4.120</div>
+                  <div class="mock-mini-bar"><div class="mock-mini-bar-fill" style="width:53%;background:#ef4444"></div></div>
+                </div>
+              </div>
+              <div class="mock-txs-lbl">Últimas transações</div>
+              <div class="mock-tx">
+                <div class="mock-tx-icon" style="background:#fef3c7">🛒</div>
+                <div class="mock-tx-info">
+                  <div class="mock-tx-desc">Supermercado Pão de Açúcar</div>
+                  <div class="mock-tx-cat">Mercado · hoje</div>
+                </div>
+                <div class="mock-tx-val r">−R$ 187,40</div>
+              </div>
+              <div class="mock-tx">
+                <div class="mock-tx-icon" style="background:#d1fae5">💰</div>
+                <div class="mock-tx-info">
+                  <div class="mock-tx-desc">PIX recebido — Salário</div>
+                  <div class="mock-tx-cat">Renda · 01/05</div>
+                </div>
+                <div class="mock-tx-val g">+R$ 5.000</div>
+              </div>
+              <div class="mock-tx">
+                <div class="mock-tx-icon" style="background:#ede9fe">🎬</div>
+                <div class="mock-tx-info">
+                  <div class="mock-tx-desc">Netflix</div>
+                  <div class="mock-tx-cat">Streaming · 05/05</div>
+                </div>
+                <div class="mock-tx-val r">−R$ 39,90</div>
+              </div>
+            </div>
+          </div>
+          <div class="mock-float mock-float-bot">
+            📊 Score financeiro: <strong style="color:var(--green)">78/100</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <div id="stats">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-item"><div class="stat-num">40+</div><div class="stat-lbl">Categorias inteligentes</div></div>
+        <div class="stat-item"><div class="stat-num">- 3 min</div><div class="stat-lbl">Para importar seu extrato</div></div>
+        <div class="stat-item"><div class="stat-num">3 dias</div><div class="stat-lbl">Teste Pro grátis ao criar conta</div></div>
+        <div class="stat-item"><div class="stat-num">100%</div><div class="stat-lbl">Seus dados, seu controle</div></div>
+      </div>
+    </div>
   </div>
 
-  <!-- ═══ Blobs decorativos ════════════════════════════════════════ -->
-  <div class="blob blob-blue" aria-hidden="true"></div>
-  <div class="blob blob-cyan" aria-hidden="true"></div>
-
-  <!-- ═══ Card de Login ════════════════════════════════════════════ -->
-  <div class="login-card" role="main">
-
-    <!-- Logo + Título -->
-    <div style="text-align:center;margin-bottom:1.25rem;">
-      <img src="logo.png" alt="Bud Finance"
-           style="width:3.5rem;height:3.5rem;object-fit:contain;margin:0 auto 0.75rem;display:block;">
-      <h2 style="font-size:1.25rem;font-weight:800;color:#1e293b;letter-spacing:-0.025em;">Bem-vindo(a)</h2>
-      <p style="font-size:0.75rem;color:#64748b;margin-top:0.375rem;font-weight:500;">Insira seus dados de acesso</p>
-    </div>
-
-    <!-- Form -->
-    <form id="formLogin" method="post" autocomplete="on" novalidate>
-
-      <!-- Input: Email / Matrícula -->
-      <div style="margin-bottom:1rem;">
-        <label for="identificador" class="bud-label">E-mail ou Matrícula</label>
-        <input
-          type="text"
-          id="identificador"
-          name="identificador"
-          autocomplete="username"
-          placeholder="seu@email.com ou BUD-XXXX-XXXX"
-          class="bud-input"
-          required
-        >
-      </div>
-
-      <!-- Input: Senha -->
-      <div style="margin-bottom:0.25rem;">
-        <label for="senha" class="bud-label">Senha</label>
-        <div style="position:relative;">
-          <input
-            type="password"
-            id="senha"
-            name="senha"
-            autocomplete="current-password"
-            placeholder="••••••••"
-            class="bud-input"
-            style="padding-right:2.5rem;"
-            required
-          >
-          <button type="button" id="toggleSenha" class="toggle-pw" aria-label="Mostrar/ocultar senha">👁</button>
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="container">
+      <div style="text-align:center;margin-bottom:.5rem"><span class="section-tag">✦ Recursos</span></div>
+      <h2 style="text-align:center">Tudo para dominar<br /><span class="text-green">suas finanças</span></h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#d1fae5">🤖</div>
+          <h3>Assistente com IA</h3>
+          <p>Converse em português e registre gastos falando naturalmente. "Gastei R$ 85 no mercado" — a IA entende e registra tudo.</p>
         </div>
-        <div style="text-align:right;margin-top:0.375rem;">
-          <a href="recuperar-senha.html" class="link-primary" style="font-size:0.75rem;">Esqueceu a senha?</a>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#dbeafe">📥</div>
+          <h3>Importação Inteligente</h3>
+          <p>Importe extratos em CSV, OFX, PDF de fatura ou foto tirada na hora. A IA categoriza todas as transações automaticamente.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#fef3c7">💳</div>
+          <h3>Controle de Cartões</h3>
+          <p>Gerencie múltiplos cartões de crédito, acompanhe faturas, parcelas, limite disponível e pague faturas com um clique.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#ede9fe">📊</div>
+          <h3>Análises e Gráficos</h3>
+          <p>Gráficos por categoria, comparativo mensal, balanço patrimonial, relatórios e score de saúde financeira 0–100.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#fee2e2">🎯</div>
+          <h3>Metas e Limites</h3>
+          <p>Defina metas de economia com prazo e valor. Crie limites por categoria e receba alertas antes de ultrapassar.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#fce7f3">🔄</div>
+          <h3>Lançamentos Recorrentes</h3>
+          <p>Cadastre contas fixas (aluguel, streaming, academia) e elas são lançadas automaticamente todo mês no dia certo.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#ecfdf5">💸</div>
+          <h3>Controle de Dívidas</h3>
+          <p>Gerencie empréstimos e financiamentos com Tabela Price, simulador de quitação e acompanhamento de parcelas.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#e0f2fe">📈</div>
+          <h3>Investimentos</h3>
+          <p>Registre renda fixa, ações, FIIs e cripto. Acompanhe rentabilidade e veja o quanto seu patrimônio cresce.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:#f0fdf4">🎨</div>
+          <h3>8 Temas de Cor</h3>
+          <p>Padrão Gelo, Dark HBO e 6 temas coloridos imersivos. Interface glassmorphic que se adapta completamente ao seu gosto.</p>
         </div>
       </div>
-
-      <!-- Botão Login -->
-      <button type="submit" id="btnLogin" class="bud-btn-primary">
-        Acessar meu painel
-      </button>
-    </form>
-
-    <!-- Link Cadastro -->
-    <div style="text-align:center;margin-top:1rem;">
-      <p style="font-size:0.875rem;color:#64748b;font-weight:500;">
-        Novo por aqui?
-        <a href="cadastro.html" class="link-primary">Crie sua conta</a>
-      </p>
     </div>
+  </section>
 
-    <!-- Footer LGPD -->
-    <div style="text-align:center;margin-top:1rem;padding-top:0.75rem;border-top:1px solid #f1f5f9;">
-      <p style="font-size:11px;color:#94a3b8;">
-        Ao acessar, você concorda com nossa
-        <a href="politica-privacidade.html" target="_blank" rel="noopener noreferrer"
-           style="color:#3b82f6;font-weight:500;text-decoration:none;">
-          Política de Privacidade
-        </a>
-        e com o tratamento dos seus dados conforme a LGPD.
-      </p>
+  <!-- IA HIGHLIGHT -->
+  <section id="ia-highlight">
+    <div class="container">
+      <div class="ia-grid">
+        <div>
+          <span class="section-tag">✦ Importação IA</span>
+          <h2 style="margin-bottom:1rem">Importe seu extrato<br /><span class="text-green">em segundos</span></h2>
+          <p style="color:var(--text-sec);font-size:.95rem;max-width:420px">Chega de digitar transação por transação. Envie seu extrato em qualquer formato e a IA cuida do resto.</p>
+          <div class="ia-steps">
+            <div class="ia-step">
+              <div class="ia-step-num">1</div>
+              <div class="ia-step-text"><h4>Selecione o arquivo</h4><p>CSV, OFX, PDF da fatura ou foto tirada na hora com o celular</p></div>
+            </div>
+            <div class="ia-step">
+              <div class="ia-step-num">2</div>
+              <div class="ia-step-text"><h4>IA analisa e categoriza</h4><p>Reconhece comerciantes, tipos de gasto e categorias automaticamente</p></div>
+            </div>
+            <div class="ia-step">
+              <div class="ia-step-num">3</div>
+              <div class="ia-step-text"><h4>Revise e confirme</h4><p>Ajuste o que precisar antes de salvar — você tem controle total</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="ia-visual">
+          <div class="ia-formats">
+            <span class="ia-format-badge">📄 PDF</span>
+            <span class="ia-format-badge">🗂️ OFX</span>
+            <span class="ia-format-badge">📊 CSV</span>
+            <span class="ia-format-badge">🖼️ Foto</span>
+          </div>
+          <div class="ia-result-lbl">Resultado da IA — 6 itens detectados</div>
+          <div class="ia-result">
+            <div class="ia-result-row"><span class="ia-result-desc">🛒 Supermercado Carrefour</span><span class="ia-result-badge desp">Mercado · R$ 187</span></div>
+            <div class="ia-result-row"><span class="ia-result-desc">🚗 Shell Combustível</span><span class="ia-result-badge desp">Combustível · R$ 95</span></div>
+            <div class="ia-result-row"><span class="ia-result-desc">💰 PIX recebido — Salário</span><span class="ia-result-badge rec">Renda · R$ 5.000</span></div>
+            <div class="ia-result-row"><span class="ia-result-desc">🍕 iFood pedido #3847</span><span class="ia-result-badge desp">Delivery · R$ 52</span></div>
+            <div class="ia-result-row"><span class="ia-result-desc">🎬 Netflix assinatura</span><span class="ia-result-badge desp">Streaming · R$ 39</span></div>
+            <div class="ia-result-row"><span class="ia-result-desc">⚡ Enel conta de luz</span><span class="ia-result-badge desp">Moradia · R$ 143</span></div>
+          </div>
+          <div class="ia-result-footer">✓ 6 transações categorizadas automaticamente</div>
+        </div>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <!-- ═══ Scripts ══════════════════════════════════════════════════ -->
-  <!-- Firebase config (exposes window.BUD_FIREBASE_CONFIG) -->
-  <script src="js/firebase-config.js"></script>
-  <!-- Global utils (exposes window.budShowToast, window.budSanitize) -->
-  <script src="js/bud-utils.js"></script>
-  <!-- Login logic (ES Module) -->
-  <script type="module" src="js/index.js"></script>
+  <!-- PRICING -->
+  <section id="pricing">
+    <div class="container">
+      <div style="text-align:center;margin-bottom:.5rem"><span class="section-tag">✦ Planos</span></div>
+      <h2 style="text-align:center;margin-bottom:.6rem">Comece grátis.<br /><span class="text-green">Evolua quando quiser.</span></h2>
+      <p style="text-align:center;color:var(--text-muted);font-size:.9rem">Sem taxas escondidas. Cancele quando quiser.</p>
+      <div id="ref-banner" style="display:none;margin:1rem auto 0;max-width:520px;padding:.7rem 1.25rem;background:linear-gradient(135deg,#d1fae5,#a7f3d0);border-radius:12px;border:1.5px solid #10b981;text-align:center;font-size:.875rem;font-weight:600;color:#065f46">🎁 Desconto de <strong>10% off</strong> aplicado via link de indicação — preços já atualizados abaixo.</div>
+      <div class="pricing-grid">
+        <!-- FREE -->
+        <div class="plan-card">
+          <div class="plan-name">Free</div>
+          <div class="plan-price"><span class="amount" style="font-size:2.2rem">Grátis</span></div>
+          <div class="plan-desc">Para começar a se organizar</div>
+          <button id="btn-plan-free" class="plan-btn plan-btn-free" onclick="window.location.href='appbudfinance/cadastro.html'">Criar conta — 3 dias Pro grátis</button>
+          <hr class="plan-divider" />
+          <ul class="plan-features">
+            <li><span class="check">✓</span> Dashboard e lançamentos básicos</li>
+            <li><span class="check">✓</span> <span>Lançamentos</span><span class="plan-limit">30/mês</span></li>
+            <li><span class="check">✓</span> <span>Conta bancária</span><span class="plan-limit">1</span></li>
+            <li><span class="check">✓</span> <span>Cartão de crédito</span><span class="plan-limit">1</span></li>
+            <li class="disabled"><span class="cross">✗</span> Créditos IA</li>
+            <li class="disabled"><span class="cross">✗</span> Importação de extratos</li>
+            <li class="disabled"><span class="cross">✗</span> Relatórios avançados</li>
+          </ul>
+        </div>
+        <!-- STARTER -->
+        <div class="plan-card">
+          <div class="plan-name">Starter</div>
+          <div class="plan-price" id="plan-price-starter"><span class="currency">R$</span><span class="amount">9<span style="font-size:1.4rem">,99</span></span><span class="period">/mês</span></div>
+          <div class="plan-desc">Para quem quer mais controle</div>
+          <button class="plan-btn plan-btn-paid" onclick="window.assinar('starter')">Assinar Starter</button>
+          <hr class="plan-divider" />
+          <ul class="plan-features">
+            <li><span class="check">✓</span> Todos os módulos liberados</li>
+            <li><span class="check">✓</span> <span>Créditos IA</span><span class="plan-limit">30/mês</span></li>
+            <li><span class="check">✓</span> <span>Lançamentos</span><span class="plan-limit">100/mês</span></li>
+            <li><span class="check">✓</span> <span>Contas bancárias</span><span class="plan-limit">3</span></li>
+            <li><span class="check">✓</span> <span>Cartões de crédito</span><span class="plan-limit">2</span></li>
+            <li><span class="check">✓</span> <span>Importações</span><span class="plan-limit">3/mês</span></li>
+          </ul>
+        </div>
+        <!-- PRO -->
+        <div class="plan-card popular">
+          <div class="plan-popular-badge">⭐ Mais popular</div>
+          <div class="plan-name">Pro</div>
+          <div class="plan-price" id="plan-price-pro"><span class="currency">R$</span><span class="amount">29<span style="font-size:1.4rem">,90</span></span><span class="period">/mês</span></div>
+          <div class="plan-desc">Para quem leva as finanças a sério</div>
+          <button class="plan-btn plan-btn-paid" onclick="window.assinar('pro')">Assinar Pro</button>
+          <hr class="plan-divider" />
+          <ul class="plan-features">
+            <li><span class="check">✓</span> Todos os módulos liberados</li>
+            <li><span class="check">✓</span> <span>Créditos IA</span><span class="plan-limit">80/mês</span></li>
+            <li><span class="check">✓</span> <span>Lançamentos</span><span class="plan-limit">200/mês</span></li>
+            <li><span class="check">✓</span> <span>Contas bancárias</span><span class="plan-limit">5</span></li>
+            <li><span class="check">✓</span> <span>Cartões de crédito</span><span class="plan-limit">5</span></li>
+            <li><span class="check">✓</span> <span>Importações</span><span class="plan-limit">10/mês</span></li>
+          </ul>
+        </div>
+        <!-- PLUS -->
+        <div class="plan-card">
+          <div class="plan-name">Plus</div>
+          <div class="plan-price" id="plan-price-plus"><span class="currency">R$</span><span class="amount">49<span style="font-size:1.4rem">,90</span></span><span class="period">/mês</span></div>
+          <div class="plan-desc">Tudo sem limites, para sempre</div>
+          <button class="plan-btn plan-btn-paid" onclick="window.assinar('plus')">Assinar Plus</button>
+          <hr class="plan-divider" />
+          <ul class="plan-features">
+            <li><span class="check">✓</span> Todos os módulos liberados</li>
+            <li><span class="inf">♾️</span> Créditos IA ilimitados</li>
+            <li><span class="inf">♾️</span> Lançamentos ilimitados</li>
+            <li><span class="inf">♾️</span> Contas e cartões</li>
+            <li><span class="inf">♾️</span> Importações ilimitadas</li>
+            <li><span class="check">✓</span> Suporte prioritário</li>
+          </ul>
+        </div>
+      </div>
+      <p style="text-align:center;font-size:.78rem;color:var(--text-muted);margin-top:1.75rem">💡 <strong>O que são créditos IA?</strong> Cada uso do Assistente, importação por foto/PDF ou análise automática consome 1 crédito. Importações CSV/OFX não consomem créditos.</p>
+    </div>
+  </section>
 
-  <!-- Splash dismiss -->
+  <!-- TESTIMONIALS -->
+  <section id="testimonials">
+    <div class="container">
+      <div style="text-align:center;margin-bottom:.5rem"><span class="section-tag">✦ Depoimentos</span></div>
+      <h2 style="text-align:center">O que nossos usuários<br /><span class="text-green">estão dizendo</span></h2>
+      <p style="text-align:center;font-size:.78rem;color:var(--text-muted);margin-bottom:1.5rem">Exemplos de como nossos usuários usam o Bud Finance no dia a dia.</p>
+      <div class="testimonials-grid">
+        <div class="testimonial-card">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-text">"Finalmente consegui entender para onde ia meu dinheiro todo mês. A importação de PDF da fatura do cartão é incrível, economizo horas todo mês."</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar" style="background:linear-gradient(135deg,#10b981,#059669)">AM</div>
+            <div><div class="testimonial-name">Ana M.</div><div class="testimonial-role">Designer Freelancer · Plano Pro</div></div>
+          </div>
+        </div>
+        <div class="testimonial-card">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-text">"Uso há 3 meses e já economizei mais de R$ 800 só identificando gastos que não percebia. Os gráficos de comparativo mensal são sensacionais."</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">RP</div>
+            <div><div class="testimonial-name">Rafael P.</div><div class="testimonial-role">Engenheiro · Plano Starter</div></div>
+          </div>
+        </div>
+        <div class="testimonial-card">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-text">"A interface é bonita demais e o app é muito rápido. Controlo 3 cartões de crédito sem esforço nenhum. Os 8 temas de cor são um diferencial único!"</p>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">CL</div>
+            <div><div class="testimonial-name">Camila L.</div><div class="testimonial-role">Professora · Plano Plus</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section id="cta-final">
+    <div class="container">
+      <span class="section-tag" style="background:rgba(255,255,255,.15);color:white;border:1px solid rgba(255,255,255,.3)">✦ Comece agora</span>
+      <h2>Pronto para assumir o controle<br />das suas finanças?</h2>
+      <p>Crie sua conta grátis em menos de 1 minuto. Sem cartão de crédito, sem compromisso.</p>
+      <div class="cta-btns">
+        <a href="appbudfinance/cadastro.html" class="btn-cta-white">🚀 3 dias Pro grátis — Criar conta</a>
+        <a href="appbudfinance/" class="btn-cta-outline">Já tenho conta →</a>
+      </div>
+      <div class="cta-trust">
+        <div class="cta-trust-item">Grátis para começar</div>
+        <div class="cta-trust-item">Sem cartão de crédito</div>
+        <div class="cta-trust-item">Cancele quando quiser</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="/" class="nav-logo" style="margin-bottom:.6rem">
+            <img src="logo.png" alt="Bud Finance" style="height:34px;width:auto">
+            Bud Finance
+          </a>
+          <p>Controle financeiro pessoal inteligente. Feito no Brasil. 🇧🇷</p>
+          <p style="margin-top:.4rem;font-size:.75rem;color:var(--text-muted)">Bud Soluções · CNPJ em regularização</p>
+        </div>
+        <div class="footer-col">
+          <h4>Produto</h4>
+          <ul>
+            <li><a href="#features">Recursos</a></li>
+            <li><a href="#pricing">Planos e preços</a></li>
+            <li><a href="https://budsolucoes.com.br/politica-privacidade.html" target="_blank" rel="noopener">Privacidade</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Contato</h4>
+          <ul>
+            <li><a href="mailto:budsolucoes@gmail.com" style="display:flex;align-items:center;gap:7px"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg> budsolucoes@gmail.com</a></li>
+            <li><a href="https://www.instagram.com/appbudfinance" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:7px"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" style="flex-shrink:0"><defs><radialGradient id="ig-grad" cx="30%" cy="107%" r="150%"><stop offset="0%" stop-color="#fdf497"/><stop offset="45%" stop-color="#fd5949"/><stop offset="60%" stop-color="#d6249f"/><stop offset="90%" stop-color="#285AEB"/></radialGradient></defs><rect x="2" y="2" width="20" height="20" rx="5" fill="url(#ig-grad)"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="white" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.2" fill="white"/></svg> appbudfinance</a></li>
+            <li><a href="https://wa.me/5521983554954?text=Ol%C3%A1%21+Vim+do+site+Bud+Finance+e+gostaria+de+saber+mais+%F0%9F%99%82" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:7px"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" style="flex-shrink:0"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.38 5.07L2 22l5.07-1.35C8.5 21.52 10.22 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill="#25D366"/><path d="M17.41 14.86c-.27-.13-1.58-.78-1.83-.87-.24-.09-.42-.13-.6.13-.17.27-.67.87-.83 1.05-.15.17-.31.19-.57.06-.27-.13-1.13-.42-2.15-1.34-.79-.7-1.33-1.57-1.48-1.83-.16-.27-.02-.41.11-.54.12-.12.27-.31.4-.46.14-.15.18-.27.27-.45.09-.17.05-.32-.02-.46-.07-.13-.6-1.45-.82-1.98-.22-.52-.44-.45-.6-.46-.16-.01-.33-.01-.5-.01-.17 0-.45.06-.69.32-.24.27-.91.89-.91 2.16s.93 2.51 1.06 2.69c.13.17 1.83 2.79 4.43 3.91.62.27 1.1.43 1.47.55.62.2 1.18.17 1.62.1.5-.07 1.53-.62 1.75-1.23.21-.6.21-1.11.15-1.22-.07-.11-.24-.18-.5-.31z" fill="white"/></svg> WhatsApp</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-security">
+        <div class="security-item">🔒 Compra 100% segura</div>
+        <div class="security-item">💳 Pagamento via Mercado Pago</div>
+        <div class="security-item">🛡️ Garantia de 7 dias</div>
+        <div class="security-item">🔐 Dados criptografados</div>
+      </div>
+      <div class="footer-bottom">
+        <p>© 2026 Bud Finance — Bud Soluções. Todos os direitos reservados.</p>
+        <p>Feito com ☕ e muito JavaScript</p>
+      </div>
+    </div>
+  </footer>
+
+  <div id="vnd-toast"></div>
   <script>
-    (function () {
-      var splash = document.getElementById('splash');
-      if (!splash) return;
-      // Dismiss after fonts + firebase module loads (min 700ms, max 6s)
-      var minTime = 0; // sem espera mínima artificial
-      var start = Date.now();
-      window.addEventListener('load', function () {
-        var elapsed = Date.now() - start;
-        var remaining = Math.max(0, 0 - elapsed); // sem espera mínima artificial
-        setTimeout(function () {
-          splash.classList.add('hide');
-          setTimeout(function () { splash.remove(); }, 600);
-        }, remaining);
-      });
-      // Safety: force dismiss after 6s
-      setTimeout(function () {
-        if (splash.parentNode) {
-          splash.classList.add('hide');
-          setTimeout(function () { splash.remove(); }, 600);
-        }
-      }, 6000);
+    (function() {
+      var nomes = ['João','Maria','Daniel','Bruna','Carlos','Fernanda','Lucas','Ana','Pedro','Julia','Thiago','Camila','Mariana','Felipe','Larissa','Rafael','Beatriz','Diego','Sônia','André'];
+      function iniciar() {
+        var el = document.getElementById('mockup-name');
+        if (!el) return;
+        var i = 0;
+        setInterval(function() {
+          el.style.opacity = '0';
+          setTimeout(function() { i = (i + 1) % nomes.length; el.textContent = nomes[i]; el.style.opacity = '1'; }, 400);
+        }, 2500);
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+      else iniciar();
     })();
   </script>
+  <!-- fallback: garante window.assinar mesmo se o módulo falhar (ex: sem firebase-config.js em produção) -->
+  <script>
+    window.assinar = function(planKey) {
+      var ref = new URLSearchParams(location.search).get('ref');
+      var url = 'appbudfinance/cadastro.html?plano=' + encodeURIComponent(planKey);
+      if (ref) url += '&ref=' + encodeURIComponent(ref);
+      location.href = url;
+    };
+  </script>
+  <script type="module" src="appbudfinance/js/vendas.js"></script>
 </body>
 </html>

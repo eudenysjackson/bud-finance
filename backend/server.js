@@ -32,7 +32,7 @@ const EMAILJS_SERVICE_ID  = process.env.EMAILJS_SERVICE_ID  || '';
 const EMAILJS_TEMPLATE_ID           = process.env.EMAILJS_TEMPLATE_RECUPERAR_SENHA || '';
 const EMAILJS_TEMPLATE_CHAMADO      = process.env.EMAILJS_TEMPLATE_CHAMADO || '';
 const EMAILJS_TEMPLATE_BOAS_VINDAS  = process.env.EMAILJS_TEMPLATE_BOAS_VINDAS || '';
-const FRONTEND_URL                  = process.env.FRONTEND_URL || 'https://budsolucoes.com.br';
+const FRONTEND_URL                  = process.env.FRONTEND_URL || 'https://budsolucoes.com.br/appbudfinance';
 
 // ─── WhatsApp config (env vars — set on Render) ─────────────────────
 const WA_PHONE_NUMBER_ID  = process.env.WA_PHONE_NUMBER_ID  || '';
