@@ -2368,12 +2368,32 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
   // 4. external_reference: uid|planKey[|refCode] — recuperado no webhook
   var externalRef = uid + '|' + planKey + (refCode ? '|' + refCode : '');
 
+  // 4.5. Buscar dados do usuário no Firestore para enriquecer o payer (melhora aprovação)
+  var firstName = '', lastName = '', payerPhone = null;
+  try {
+    var userSnap = await db.collection('usuarios').doc(uid).get();
+    if (userSnap.exists) {
+      var ud         = userSnap.data();
+      var nomePartes = (ud.nome || '').trim().split(/\s+/);
+      firstName  = nomePartes[0] || '';
+      lastName   = nomePartes.slice(1).join(' ') || firstName;
+      var telLimpo = (ud.telefone || '').replace(/\D/g, '');
+      if (telLimpo.length >= 10) {
+        payerPhone = { area_code: telLimpo.slice(0, 2), number: telLimpo.slice(2) };
+      }
+    }
+  } catch (_e) { /* não bloqueia o fluxo */ }
+
   // 5. Criar preapproval no Mercado Pago
   var mpBody = {
-    reason:              plan.title,
-    external_reference:  externalRef,
-    payer_email:         email,
-    statement_descriptor: 'BUD FINANCE',   // exibido na fatura do cartão
+    reason:               plan.title,
+    external_reference:   externalRef,
+    payer_email:          email,
+    ...(firstName ? { payer_first_name: firstName }  : {}),
+    ...(lastName  ? { payer_last_name:  lastName  }  : {}),
+    ...(payerPhone ? { payer_phone: payerPhone }      : {}),
+    statement_descriptor: 'BUD FINANCE',
+    notification_url:     'https://bud-finance-backend.onrender.com/webhook/mercadopago',
     auto_recurring: {
       frequency:          1,
       frequency_type:     'months',
@@ -2381,9 +2401,9 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
       currency_id:        'BRL'
     },
     payment_methods_allowed: [
-      { payment_type: 'credit_card' },
-      { payment_type: 'debit_card'  },
-      { payment_type: 'account_money' }  // saldo MP
+      { payment_type: 'credit_card'    },
+      { payment_type: 'debit_card'     },
+      { payment_type: 'account_money' }
     ],
     back_url: FRONTEND_URL + '/dashboard.html',
     status:   'pending'
