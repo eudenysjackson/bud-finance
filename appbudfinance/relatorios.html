@@ -1,14 +1,14 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance — Relatórios">
-  <title>Relatórios - Bud Finance</title>
+  <meta name="description" content="Bud Finance � Relat�rios">
+  <title>Relat�rios - Bud Finance</title>
 
   <link rel="icon" type="image/png" href="logo.png">
-  <link rel="apple-touch-icon" href="logo.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.json">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -60,7 +60,7 @@
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:'Inter',system-ui,sans-serif;background-color:var(--bg-page);min-height:100vh;min-height:100dvh;overflow-x:hidden;transition:background-color 0.35s ease;}
 
-    /* ── Splash ─────────────────────────────────────────── */
+    /* -- Splash ------------------------------------------- */
     #splash{position:fixed;inset:0;background:var(--bg-page);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;z-index:99999;transition:opacity .5s ease;}
     #splash.hide{opacity:0;pointer-events:none;}
     .splash-bar{width:120px;height:4px;border-radius:2px;background:#e2e8f0;overflow:hidden;}
@@ -68,15 +68,15 @@
     @keyframes pulse-logo{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
     @keyframes slide-bar{0%{transform:translateX(-100%);}100%{transform:translateX(350%);}}
 
-    /* ── Blobs ──────────────────────────────────────────── */
+    /* -- Blobs -------------------------------------------- */
     .blob{position:fixed;border-radius:9999px;pointer-events:none;z-index:0;opacity:var(--blob-opacity,1);transition:opacity 0.35s ease;}
     .blob-blue{top:-5%;left:-5%;width:35%;height:35%;background:rgba(147,197,253,0.30);filter:blur(100px);}
     .blob-cyan{bottom:-5%;right:-5%;width:25%;height:25%;background:rgba(103,232,249,0.20);filter:blur(100px);}
 
-    /* ── Layout ─────────────────────────────────────────── */
+    /* -- Layout ------------------------------------------- */
     .dash-layout{display:flex;min-height:100vh;min-height:100dvh;}
 
-    /* ── Sidebar ────────────────────────────────────────── */
+    /* -- Sidebar ------------------------------------------ */
     .sidebar{width:260px;background:var(--sidebar-bg);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-right:1px solid var(--card-border);display:flex;flex-direction:column;padding:1.5rem 1rem;position:fixed;top:0;left:0;bottom:0;z-index:50;transition:transform .3s ease,width .3s ease,background 0.35s ease,border-color 0.35s ease;overflow:visible;}
     .sidebar-collapse-btn{display:none;position:absolute;top:50%;right:-1rem;transform:translateY(-50%);width:1rem;height:3.5rem;border-radius:0 0.5rem 0.5rem 0;background:var(--btn-bg);border:none;color:var(--btn-text);font-size:0.6rem;font-weight:700;cursor:pointer;align-items:center;justify-content:center;z-index:51;box-shadow:3px 0 12px rgba(0,0,0,0.22);transition:background 0.35s ease;flex-shrink:0;line-height:1;}
     .sidebar.collapsed{width:64px;padding-left:0.75rem;padding-right:0.75rem;align-items:center;}
@@ -109,13 +109,13 @@
     .sidebar-user-name{font-size:0.8125rem;font-weight:700;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
     .sidebar-user-id{font-size:0.6875rem;font-weight:500;color:var(--text-sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
 
-    /* ── Main ───────────────────────────────────────────── */
+    /* -- Main --------------------------------------------- */
     .dash-main{flex:1;min-width:0;margin-left:260px;padding:1.5rem;position:relative;z-index:1;transition:margin-left .3s ease;}
     .dash-main.sidebar-collapsed{margin-left:64px;}
     .hamburger-btn{display:none;width:2.5rem;height:2.5rem;border-radius:0.75rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);align-items:center;justify-content:center;font-size:1.25rem;cursor:pointer;color:var(--card-text);z-index:60;transition:background 0.35s ease,border-color 0.35s ease,color 0.35s ease;}
     .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:40;}
 
-    /* ── KPI Cards ──────────────────────────────────────── */
+    /* -- KPI Cards ---------------------------------------- */
     .cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;}
     .summary-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);transition:background 0.35s ease,border-color 0.35s ease;}
     .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;}
@@ -127,24 +127,24 @@
     .card-value{font-size:1.5rem;font-weight:800;color:var(--card-text);letter-spacing:-0.025em;transition:color 0.35s ease;}
     .card-sub{font-size:0.75rem;font-weight:500;color:var(--card-text-sec);margin-top:0.25rem;transition:color 0.35s ease;}
 
-    /* ── Section card ───────────────────────────────────── */
+    /* -- Section card ------------------------------------- */
     .section-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.5rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);margin-bottom:1rem;transition:background 0.35s ease,border-color 0.35s ease;}
     .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.5rem;}
     .section-title{font-size:1rem;font-weight:800;color:var(--text-main);transition:color 0.35s ease;}
 
-    /* ── Navegador de mês ──────────────────────────────── */
+    /* -- Navegador de m�s -------------------------------- */
     .mes-nav{display:flex;align-items:center;gap:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);border-radius:1rem;padding:0.375rem 0.75rem;backdrop-filter:blur(12px);}
     .mes-nav-btn{width:2rem;height:2rem;border:none;background:var(--input-bg);border-radius:0.5rem;cursor:pointer;font-size:1rem;color:var(--text-sec);display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s;font-family:inherit;}
     .mes-nav-btn:hover{background:var(--sidebar-link-hover-bg);color:var(--text-main);}
     #textoMes{font-size:0.9375rem;font-weight:800;color:var(--text-main);min-width:130px;text-align:center;transition:color 0.35s ease;}
     .btn-cal-mobile{display:none;width:2.5rem;height:2.5rem;border-radius:0.75rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1.5px solid var(--card-border);align-items:center;justify-content:center;font-size:1.2rem;cursor:pointer;color:var(--card-text);transition:background .2s;}
 
-    /* ── Pill bar de abas ───────────────────────────────── */
+    /* -- Pill bar de abas --------------------------------- */
     .pill-bar{display:flex;background:var(--input-bg);border:1.5px solid var(--input-border);border-radius:1rem;padding:0.25rem;gap:0.25rem;margin-bottom:1.5rem;overflow-x:auto;}
     .pill-btn{flex:1;padding:0.5rem 0.75rem;border-radius:0.75rem;border:none;font-size:0.875rem;font-weight:700;color:var(--text-sec);background:transparent;cursor:pointer;font-family:inherit;transition:all .2s;white-space:nowrap;}
     .pill-btn.ativo{background:var(--card-bg);color:var(--text-main);box-shadow:0 2px 8px -2px rgba(0,0,0,0.1);}
 
-    /* ── Comparativo barras ─────────────────────────────── */
+    /* -- Comparativo barras ------------------------------- */
     .comp-bar-wrap{display:flex;border-radius:0.5rem;overflow:hidden;height:14px;margin:0.75rem 0 0.5rem;}
     .comp-bar-rec{background:linear-gradient(90deg,#16a34a,#22c55e);transition:width .6s ease;}
     .comp-bar-dep{background:linear-gradient(90deg,#dc2626,#ef4444);transition:width .6s ease;}
@@ -152,7 +152,7 @@
     .comp-legend-item{display:flex;align-items:center;gap:0.375rem;font-size:0.8125rem;font-weight:600;color:var(--card-text-sec);}
     .comp-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
 
-    /* ── Ranking categorias ─────────────────────────────── */
+    /* -- Ranking categorias ------------------------------- */
     .cat-row{display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid var(--input-border);}
     .cat-row:last-child{border-bottom:none;}
     .cat-emoji{font-size:1.25rem;width:1.75rem;text-align:center;flex-shrink:0;}
@@ -163,7 +163,7 @@
     .cat-valor{font-size:0.8125rem;font-weight:800;color:var(--card-text);text-align:right;flex-shrink:0;}
     .cat-pct{font-size:0.6875rem;font-weight:600;color:var(--card-text-sec);text-align:right;}
 
-    /* ── Dia a Dia ──────────────────────────────────────── */
+    /* -- Dia a Dia ---------------------------------------- */
     .dia-row{display:grid;grid-template-columns:3rem 1fr 1fr 1fr;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid var(--input-border);font-size:0.8125rem;}
     .dia-row:last-child{border-bottom:none;}
     .dia-num{font-size:0.875rem;font-weight:800;color:var(--text-sec);text-align:center;}
@@ -173,11 +173,11 @@
     .dia-saldo.pos{color:#16a34a;} .dia-saldo.neg{color:#dc2626;}
     .dia-header{font-size:0.625rem;font-weight:800;text-transform:uppercase;letter-spacing:0.07em;color:var(--card-text-sec);}
 
-    /* ── Charts ─────────────────────────────────────────── */
+    /* -- Charts ------------------------------------------- */
     .charts-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
     .chart-wrap{position:relative;height:260px;}
 
-    /* ── Detalhamento barras de progresso ───────────────── */
+    /* -- Detalhamento barras de progresso ----------------- */
     .det-row{display:flex;align-items:center;gap:0.75rem;padding:0.625rem 0;border-bottom:1px solid var(--input-border);}
     .det-row:last-child{border-bottom:none;}
     .det-emoji{font-size:1.375rem;width:2rem;text-align:center;flex-shrink:0;}
@@ -189,16 +189,16 @@
     .det-valor{font-size:0.875rem;font-weight:800;color:var(--card-text);}
     .det-pct{font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);margin-top:0.1rem;}
 
-    /* ── Chips filtro ───────────────────────────────────── */
+    /* -- Chips filtro ------------------------------------- */
     .chip-filtro{padding:0.3rem 0.75rem;border-radius:9999px;background:var(--input-bg);border:1.5px solid var(--input-border);font-size:0.75rem;font-weight:700;color:var(--card-text-sec);cursor:pointer;font-family:inherit;transition:all .15s;}
     .chip-filtro.ativo{background:#2563eb;color:#fff;border-color:#2563eb;}
     .chip-tend-ativo{background:#3b82f6 !important;color:#fff !important;border-color:transparent !important;}
 
-    /* ── Paywall ─────────────────────────────────────────── */
+    /* -- Paywall ------------------------------------------- */
     #paywallContainer{display:none;}
     #conteudoPrincipal{display:block;}
 
-    /* ── Bottom-sheet seletor de mês (mobile) ───────────── */
+    /* -- Bottom-sheet seletor de m�s (mobile) ------------- */
     .bs-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:80;}
     .bs-overlay.open{display:block;}
     .bottom-sheet{position:fixed;bottom:0;left:0;right:0;background:var(--bg-page);border-radius:1.5rem 1.5rem 0 0;padding:1.25rem 1rem 2rem;z-index:81;transform:translateY(100%);transition:transform .3s ease;}
@@ -213,7 +213,7 @@
     .bs-mes-btn.ativo{background:#2563eb;color:#fff;border-color:#2563eb;}
     .bs-mes-btn:hover:not(.ativo){background:var(--sidebar-link-hover-bg);}
 
-    /* ── @media print ───────────────────────────────────── */
+    /* -- @media print ------------------------------------- */
     @media print{
       .sidebar,.sidebar-overlay,#btnHamburger,.mes-nav,.btn-cal-mobile,#btnOcultarValores,.btn-refresh,#btnExportarPDF,#btnExportarCSV,#bsOverlay,#bottomSheetMes,.blob,#splash,.pill-bar,#paywallContainer,#filtrosDiaDia{display:none !important;}
       body{background:#fff !important;}
@@ -224,7 +224,7 @@
       #painelResumo,#painelGraficos,#painelDetalhamento{display:block !important;}
     }
 
-    /* ── Responsive ─────────────────────────────────────── */
+    /* -- Responsive --------------------------------------- */
     @media(max-width:768px){
       .sidebar{transform:translateX(-100%);}
       .sidebar.open{transform:translateX(0);}
@@ -245,82 +245,82 @@
 </head>
 <body>
 
-  <!-- ═ Splash ════════════════════════════════════════════ -->
+  <!-- - Splash -------------------------------------------- -->
   <div id="splash">
     <img src="logo.png" alt="Bud Finance" style="width:56px;height:56px;object-fit:contain;animation:pulse-logo 1.8s ease-in-out infinite;">
     <div class="splash-bar"><div class="splash-bar-inner"></div></div>
   </div>
 
-  <!-- ═ Blobs ═════════════════════════════════════════════ -->
+  <!-- - Blobs --------------------------------------------- -->
   <div class="blob blob-blue" aria-hidden="true"></div>
   <div class="blob blob-cyan" aria-hidden="true"></div>
 
-  <!-- ═ Overlay sidebar mobile ════════════════════════════ -->
+  <!-- - Overlay sidebar mobile ---------------------------- -->
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <!-- ═ Bottom-sheet seletor de mês (mobile) ══════════════ -->
+  <!-- - Bottom-sheet seletor de m�s (mobile) -------------- -->
   <div class="bs-overlay" id="bsOverlay" onclick="window.fecharSeletorMes()"></div>
   <div class="bottom-sheet" id="bottomSheetMes">
     <div class="bs-handle"></div>
-    <div class="bs-title">Selecionar Mês</div>
+    <div class="bs-title">Selecionar M�s</div>
     <div class="bs-ano-nav">
-      <button class="bs-ano-btn" onclick="window.mudarAnoSeletor(-1)">◀</button>
+      <button class="bs-ano-btn" onclick="window.mudarAnoSeletor(-1)">?</button>
       <span class="bs-ano-label" id="anoSeletorLabel">2026</span>
-      <button class="bs-ano-btn" onclick="window.mudarAnoSeletor(1)">▶</button>
+      <button class="bs-ano-btn" onclick="window.mudarAnoSeletor(1)">?</button>
     </div>
     <div class="bs-meses-grid" id="gridMesesSeletor"></div>
   </div>
 
-  <!-- ═ Layout ════════════════════════════════════════════ -->
+  <!-- - Layout -------------------------------------------- -->
   <div class="dash-layout">
 
-    <!-- ─ Sidebar ──────────────────────────────────────── -->
+    <!-- - Sidebar ---------------------------------------- -->
     <aside class="sidebar" id="sidebar">
-      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">‹</button>
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">�</button>
       <div class="sidebar-logo">
         <img src="logo.png" alt="Bud Finance" width="32" height="32">
         <span class="sidebar-logo-text">Bud Finance</span>
       </div>
       <nav class="sidebar-nav">
         <a href="dashboard.html" class="sidebar-link">
-          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Dashboard</span>
         </a>
-        <div class="sidebar-group-label">Finanças</div>
+        <div class="sidebar-group-label">Finan�as</div>
         <a href="carteira.html" class="sidebar-link">
-          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Contas</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Contas</span>
         </a>
         <a href="cartoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Cart�es</span>
         </a>
         <a href="recorrentes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">🔄</span><span class="sidebar-link-text"> Recorrentes</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Recorrentes</span>
         </a>
         <a href="dividas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> D�vidas</span>
         </a>
         <a href="metas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Metas</span>
         </a>
         <a href="mercado.html" class="sidebar-link">
-          <span class="sidebar-link-icon">🛒</span><span class="sidebar-link-text"> Compras</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Compras</span>
         </a>
         <a href="categorias.html" class="sidebar-link">
-          <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
+          <span class="sidebar-link-icon">???</span><span class="sidebar-link-text"> Categorias</span>
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
         <a href="graficos.html" class="sidebar-link active">
-          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> An�lises</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <a href="assistente-ia.html" class="sidebar-link">
-          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Assistente IA</span>
         </a>
         <a href="assistente-whatsapp.html" class="sidebar-link">
-          <span class="sidebar-link-icon">💬</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
         </a>
         <div class="sidebar-nav-divider"></div>
         <a href="configuracoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Configura��es</span>
         </a>
       </nav>
       <div class="sidebar-user" style="margin-top:auto;">
@@ -331,50 +331,50 @@
         </div>
       </div>
       <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
-        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
+        <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Sair</span>
       </button>
     </aside>
 
-    <!-- ─ Main ─────────────────────────────────────────── -->
+    <!-- - Main ------------------------------------------- -->
     <main class="dash-main" id="dashMain">
 
-      <!-- ── Sub-nav Análises ───────────────────────── -->
+      <!-- -- Sub-nav An�lises ------------------------- -->
       <div style="display:flex;align-items:center;gap:0.25rem;flex-wrap:nowrap;margin-bottom:1rem;background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1rem;padding:0.5rem 0.625rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);overflow-x:auto;">
-        <span style="font-size:0.5625rem;font-weight:800;letter-spacing:0.09em;text-transform:uppercase;color:var(--card-text-sec);opacity:0.65;padding:0 0.25rem;white-space:nowrap;flex-shrink:0;">Análises</span>
-        <a href="graficos.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">📉 Gráficos</a>
-        <a href="balanco-mensal.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">📊 Balanço</a>
+        <span style="font-size:0.5625rem;font-weight:800;letter-spacing:0.09em;text-transform:uppercase;color:var(--card-text-sec);opacity:0.65;padding:0 0.25rem;white-space:nowrap;flex-shrink:0;">An�lises</span>
+        <a href="graficos.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">?? Gr�ficos</a>
+        <a href="balanco-mensal.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">?? Balan�o</a>
         <a href="comparativo.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">&#9878;&#65039; Comparativo</a>
-        <a href="relatorios.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;background:var(--btn-bg);color:var(--btn-text);box-shadow:inset 0 0 0 1.5px var(--theme-accent);font-size:0.8125rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;">📑 Relatórios</a>
-        <a href="insights.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">💡 Insights</a>
+        <a href="relatorios.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;background:var(--btn-bg);color:var(--btn-text);box-shadow:inset 0 0 0 1.5px var(--theme-accent);font-size:0.8125rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;">?? Relat�rios</a>
+        <a href="insights.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">?? Insights</a>
       </div>
 
       <!-- Header -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;">
         <div style="display:flex;align-items:center;gap:0.75rem;">
-          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">?</button>
           <div>
-            <h1 style="font-size:1.5rem;font-weight:800;color:var(--text-main);letter-spacing:-0.025em;">📑 Relatórios</h1>
-            <p style="font-size:0.8125rem;font-weight:500;color:var(--text-sec);margin-top:0.125rem;">Visão 360° das finanças do mês — só transações efetivadas</p>
+            <h1 style="font-size:1.5rem;font-weight:800;color:var(--text-main);letter-spacing:-0.025em;">?? Relat�rios</h1>
+            <p style="font-size:0.8125rem;font-weight:500;color:var(--text-sec);margin-top:0.125rem;">Vis�o 360� das finan�as do m�s � s� transa��es efetivadas</p>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
           <div class="mes-nav">
-            <button class="mes-nav-btn" onclick="window.mudarMes(-1)" aria-label="Mês anterior">◀</button>
+            <button class="mes-nav-btn" onclick="window.mudarMes(-1)" aria-label="M�s anterior">?</button>
             <span id="textoMes">Abril 2026</span>
-            <button class="mes-nav-btn" onclick="window.mudarMes(1)" aria-label="Próximo mês">▶</button>
+            <button class="mes-nav-btn" onclick="window.mudarMes(1)" aria-label="Pr�ximo m�s">?</button>
           </div>
-          <button class="btn-cal-mobile" id="btnCalMobile" onclick="window.abrirSeletorMes()" aria-label="Selecionar mês">📅</button>
+          <button class="btn-cal-mobile" id="btnCalMobile" onclick="window.abrirSeletorMes()" aria-label="Selecionar m�s">??</button>
           <button id="btnOcultarValores" onclick="window.toggleOcultarValores()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Ocultar/exibir valores">
-            👁 Valores
+            ?? Valores
           </button>
           <button class="btn-refresh" onclick="window.sincronizarDados()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Atualizar dados">
-            🔄
+            ??
           </button>
           <button id="btnExportarPDF" onclick="window.exportarPDF()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Exportar PDF">
-            🖨️
+            ???
           </button>
           <button id="btnExportarCSV" onclick="window.exportarCSV()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Exportar CSV">
-            📥 CSV
+            ?? CSV
           </button>
         </div>
       </div>
@@ -382,58 +382,58 @@
       <!-- Paywall -->
       <div id="paywallContainer">
         <div style="max-width:480px;margin:4rem auto;text-align:center;padding:2.5rem 1.5rem;background:var(--card-bg);border:1px solid var(--card-border);border-radius:1.5rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.08);">
-          <div style="font-size:3rem;margin-bottom:1rem;">🔒</div>
+          <div style="font-size:3rem;margin-bottom:1rem;">??</div>
           <div style="font-size:1.25rem;font-weight:800;color:var(--text-main);margin-bottom:0.5rem;">Recurso Bud Plus</div>
-          <div style="font-size:0.875rem;color:var(--text-sec);line-height:1.6;margin-bottom:1.5rem;">A Central de Relatórios é exclusiva para assinantes <strong>Plus</strong>. Faça upgrade para acessar Resumo, Gráficos e Detalhamento em um só lugar.</div>
+          <div style="font-size:0.875rem;color:var(--text-sec);line-height:1.6;margin-bottom:1.5rem;">A Central de Relat�rios � exclusiva para assinantes <strong>Plus</strong>. Fa�a upgrade para acessar Resumo, Gr�ficos e Detalhamento em um s� lugar.</div>
           <a href="configuracoes.html" style="display:inline-block;padding:0.75rem 1.75rem;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:0.9375rem;font-weight:800;border-radius:0.875rem;text-decoration:none;">Ver Planos</a>
         </div>
       </div>
 
-      <!-- Conteúdo principal -->
+      <!-- Conte�do principal -->
       <div id="conteudoPrincipal">
 
         <!-- KPIs (comuns a todas as abas) -->
         <div class="cards-grid">
           <div class="summary-card">
-            <div class="card-header"><span class="card-label">Receitas</span><div class="card-icon card-icon-green">💚</div></div>
+            <div class="card-header"><span class="card-label">Receitas</span><div class="card-icon card-icon-green">??</div></div>
             <div class="card-value" id="kpiReceitas" style="color:#16a34a;">R$ 0,00</div>
             <div id="kpiRecBadge"></div>
             <div class="card-sub" id="kpiReceitasSub">0 entradas</div>
           </div>
           <div class="summary-card">
-            <div class="card-header"><span class="card-label">Despesas</span><div class="card-icon card-icon-red">💔</div></div>
+            <div class="card-header"><span class="card-label">Despesas</span><div class="card-icon card-icon-red">??</div></div>
             <div class="card-value" id="kpiDespesas" style="color:#dc2626;">R$ 0,00</div>
             <div id="kpiDepBadge"></div>
-            <div class="card-sub" id="kpiDespesasSub">0 saídas</div>
+            <div class="card-sub" id="kpiDespesasSub">0 sa�das</div>
           </div>
           <div class="summary-card">
-            <div class="card-header"><span class="card-label">Saldo do Mês</span><div class="card-icon card-icon-blue">⚖️</div></div>
+            <div class="card-header"><span class="card-label">Saldo do M�s</span><div class="card-icon card-icon-blue">??</div></div>
             <div class="card-value" id="kpiSaldo">R$ 0,00</div>
             <div id="kpiSaldoBadge"></div>
-            <div class="card-sub" id="kpiSaldoSub">resultado líquido</div>
+            <div class="card-sub" id="kpiSaldoSub">resultado l�quido</div>
           </div>
         </div>
 
-        <!-- Insight automático (compartilhado) -->
+        <!-- Insight autom�tico (compartilhado) -->
         <div id="insightBanner" style="display:none;align-items:center;gap:0.875rem;padding:0.875rem 1.125rem;background:var(--card-bg);border:1.5px solid var(--card-border);border-radius:1rem;margin-bottom:1.25rem;box-shadow:0 2px 10px -3px rgba(0,0,0,0.08);">
-          <span class="insight-emoji" style="font-size:1.5rem;flex-shrink:0;">📊</span>
+          <span class="insight-emoji" style="font-size:1.5rem;flex-shrink:0;">??</span>
           <span class="insight-text" style="font-size:0.875rem;color:var(--card-text);line-height:1.5;"></span>
         </div>
 
         <!-- Pill bar de abas -->
         <div class="pill-bar">
-          <button id="abaResumo"      class="pill-btn ativo" onclick="window.trocarAba('resumo')">📋 Resumo</button>
-          <button id="abaGraficos"    class="pill-btn"       onclick="window.trocarAba('graficos')">📉 Gráficos</button>
-          <button id="abaDetalhamento" class="pill-btn"      onclick="window.trocarAba('detalhamento')">🔍 Detalhamento</button>
+          <button id="abaResumo"      class="pill-btn ativo" onclick="window.trocarAba('resumo')">?? Resumo</button>
+          <button id="abaGraficos"    class="pill-btn"       onclick="window.trocarAba('graficos')">?? Gr�ficos</button>
+          <button id="abaDetalhamento" class="pill-btn"      onclick="window.trocarAba('detalhamento')">?? Detalhamento</button>
         </div>
 
-        <!-- ══ Painel Resumo ════════════════════════════════ -->
+        <!-- -- Painel Resumo -------------------------------- -->
         <div id="painelResumo">
 
           <!-- Comparativo Receita vs Despesa -->
           <div class="section-card">
             <div class="section-header">
-              <span class="section-title">📊 Receitas vs Despesas</span>
+              <span class="section-title">?? Receitas vs Despesas</span>
             </div>
             <div class="comp-bar-wrap">
               <div class="comp-bar-rec" id="compBarRec" style="width:50%;"></div>
@@ -449,15 +449,15 @@
           <!-- Grid: Despesas + Receitas por categoria -->
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
             <div class="section-card" style="margin-bottom:0;">
-              <div class="section-header"><span class="section-title">📉 Despesas por Categoria</span></div>
+              <div class="section-header"><span class="section-title">?? Despesas por Categoria</span></div>
               <div id="catDespesasContainer">
-                <div style="text-align:center;padding:1.5rem 0;color:var(--card-text-sec);font-size:0.8125rem;">Nenhuma despesa no período</div>
+                <div style="text-align:center;padding:1.5rem 0;color:var(--card-text-sec);font-size:0.8125rem;">Nenhuma despesa no per�odo</div>
               </div>
             </div>
             <div class="section-card" style="margin-bottom:0;">
-              <div class="section-header"><span class="section-title">📈 Receitas por Categoria</span></div>
+              <div class="section-header"><span class="section-title">?? Receitas por Categoria</span></div>
               <div id="catReceitasContainer">
-                <div style="text-align:center;padding:1.5rem 0;color:var(--card-text-sec);font-size:0.8125rem;">Nenhuma receita no período</div>
+                <div style="text-align:center;padding:1.5rem 0;color:var(--card-text-sec);font-size:0.8125rem;">Nenhuma receita no per�odo</div>
               </div>
             </div>
           </div>
@@ -465,40 +465,40 @@
           <!-- Dia a Dia -->
           <div class="section-card">
             <div class="section-header">
-              <span class="section-title">📅 Fluxo Dia a Dia</span>
+              <span class="section-title">?? Fluxo Dia a Dia</span>
               <span id="diasSemGastoInfo" style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);"></span>
             </div>
             <div style="display:flex;gap:0.5rem;margin-bottom:0.875rem;flex-wrap:wrap;" id="filtrosDiaDia">
               <button class="chip-filtro ativo" id="chipTudo"     onclick="window.filtrarDiaDia('tudo')">Tudo</button>
-              <button class="chip-filtro"       id="chipReceitas" onclick="window.filtrarDiaDia('receitas')">Só Receitas</button>
-              <button class="chip-filtro"       id="chipDespesas" onclick="window.filtrarDiaDia('despesas')">Só Despesas</button>
+              <button class="chip-filtro"       id="chipReceitas" onclick="window.filtrarDiaDia('receitas')">S� Receitas</button>
+              <button class="chip-filtro"       id="chipDespesas" onclick="window.filtrarDiaDia('despesas')">S� Despesas</button>
             </div>
             <div id="diaAdiaContainer">
-              <div style="text-align:center;padding:1.5rem 0;color:var(--card-text-sec);font-size:0.8125rem;">Nenhuma movimentação no período</div>
+              <div style="text-align:center;padding:1.5rem 0;color:var(--card-text-sec);font-size:0.8125rem;">Nenhuma movimenta��o no per�odo</div>
             </div>
           </div>
 
         </div><!-- /painelResumo -->
 
-        <!-- ══ Painel Gráficos ════════════════════════════ -->
+        <!-- -- Painel Gr�ficos ---------------------------- -->
         <div id="painelGraficos" style="display:none;">
 
           <!-- Doughnut + Bar lado a lado -->
           <div class="charts-grid-2">
             <div class="section-card" style="margin-bottom:0;">
-              <div class="section-header"><h2 class="section-title">🍩 Despesas por Categoria</h2></div>
+              <div class="section-header"><h2 class="section-title">?? Despesas por Categoria</h2></div>
               <div class="chart-wrap" id="wrapCategoria"><canvas id="chartCategoria" style="position:relative;"></canvas></div>
             </div>
             <div class="section-card" style="margin-bottom:0;">
-              <div class="section-header"><h2 class="section-title">⚖️ Receitas vs Despesas</h2></div>
+              <div class="section-header"><h2 class="section-title">?? Receitas vs Despesas</h2></div>
               <div class="chart-wrap" id="wrapReceitaDespesa"><canvas id="chartReceitaDespesa" style="position:relative;"></canvas></div>
             </div>
           </div>
 
-          <!-- Tendência 6 meses -->
+          <!-- Tend�ncia 6 meses -->
           <div class="section-card">
             <div class="section-header" style="flex-wrap:wrap;gap:0.5rem;">
-              <h2 class="section-title">📊 Tendência — Últimos 6 Meses</h2>
+              <h2 class="section-title">?? Tend�ncia � �ltimos 6 Meses</h2>
               <div style="display:flex;gap:0.375rem;margin-left:auto;">
                 <button class="chip-tend chip-tend-ativo" data-filtro="ambos" onclick="window.filtrarTend('ambos')" style="padding:0.3rem 0.75rem;border-radius:9999px;font-size:0.75rem;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:all .2s;background:#3b82f6;color:#fff;">Ambos</button>
                 <button class="chip-tend" data-filtro="receitas" onclick="window.filtrarTend('receitas')" style="padding:0.3rem 0.75rem;border-radius:9999px;font-size:0.75rem;font-weight:700;cursor:pointer;border:1.5px solid var(--input-border);background:var(--card-bg);color:var(--card-text);font-family:inherit;transition:all .2s;">Receitas</button>
@@ -510,27 +510,27 @@
 
           <!-- Gastos por dia -->
           <div class="section-card">
-            <div class="section-header"><h2 class="section-title">📅 Gastos por Dia do Mês</h2></div>
+            <div class="section-header"><h2 class="section-title">?? Gastos por Dia do M�s</h2></div>
             <div class="chart-wrap" id="wrapDiario" style="height:280px;"><canvas id="chartDiario" style="position:relative;"></canvas></div>
           </div>
 
         </div><!-- /painelGraficos -->
 
-        <!-- ══ Painel Detalhamento ═══════════════════════ -->
+        <!-- -- Painel Detalhamento ----------------------- -->
         <div id="painelDetalhamento" style="display:none;">
 
           <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-            <button class="chip-filtro ativo" id="chipDetDespesas" onclick="window.filtrarDetalhamento('despesas')">📉 Despesas</button>
-            <button class="chip-filtro"       id="chipDetReceitas" onclick="window.filtrarDetalhamento('receitas')">📈 Receitas</button>
+            <button class="chip-filtro ativo" id="chipDetDespesas" onclick="window.filtrarDetalhamento('despesas')">?? Despesas</button>
+            <button class="chip-filtro"       id="chipDetReceitas" onclick="window.filtrarDetalhamento('receitas')">?? Receitas</button>
           </div>
 
           <div class="section-card">
             <div class="section-header">
-              <span class="section-title" id="detTituloSecao">🔍 Despesas por Categoria — Detalhamento</span>
+              <span class="section-title" id="detTituloSecao">?? Despesas por Categoria � Detalhamento</span>
               <span id="totalDespesasGeral" style="font-size:0.9375rem;font-weight:800;color:#dc2626;"></span>
             </div>
             <div id="containerCategorias">
-              <div style="text-align:center;padding:2rem 0;color:var(--card-text-sec);font-size:0.875rem;">Sem despesas neste mês.</div>
+              <div style="text-align:center;padding:2rem 0;color:var(--card-text-sec);font-size:0.875rem;">Sem despesas neste m�s.</div>
             </div>
           </div>
 

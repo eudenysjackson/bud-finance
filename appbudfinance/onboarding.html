@@ -1,14 +1,14 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance — Configuração Inicial">
+  <meta name="description" content="Bud Finance � Configura��o Inicial">
   <title>Bem-vindo - Bud Finance</title>
 
   <link rel="icon" type="image/png" href="logo.png">
-  <link rel="apple-touch-icon" href="logo.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.json">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="css/tailwind.css">
 
   <style>
-    /* ─── Reset ──────────────────────────────────────────────────── */
+    /* --- Reset ---------------------------------------------------- */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Inter', system-ui, sans-serif;
@@ -37,7 +37,7 @@
       position: relative;
     }
 
-    /* ─── Splash ─────────────────────────────────────────────────── */
+    /* --- Splash --------------------------------------------------- */
     #splash {
       position: fixed; inset: 0;
       background: #f0f4f8;
@@ -68,7 +68,7 @@
     @keyframes pulse-logo { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
     @keyframes slide-bar { 0%{transform:translateX(-100%)} 100%{transform:translateX(350%)} }
 
-    /* ─── Background blobs ───────────────────────────────────────── */
+    /* --- Background blobs ----------------------------------------- */
     .blob {
       position: fixed;
       border-radius: 9999px;
@@ -78,7 +78,7 @@
       opacity: 0.4;
     }
 
-    /* ─── Wrapper ────────────────────────────────────────────────── */
+    /* --- Wrapper -------------------------------------------------- */
     #obWrapper {
       position: relative;
       z-index: 1;
@@ -86,7 +86,7 @@
       max-width: 460px;
     }
 
-    /* ─── Logo header ────────────────────────────────────────────── */
+    /* --- Logo header ---------------------------------------------- */
     .ob-logo-row {
       display: flex;
       align-items: center;
@@ -110,7 +110,7 @@
       letter-spacing: -0.02em;
     }
 
-    /* ─── Card ───────────────────────────────────────────────────── */
+    /* --- Card ----------------------------------------------------- */
     .ob-card {
       background: rgba(255,255,255,0.92);
       backdrop-filter: blur(12px);
@@ -124,7 +124,7 @@
       flex-direction: column;
     }
 
-    /* ─── Progress dots ──────────────────────────────────────────── */
+    /* --- Progress dots -------------------------------------------- */
     .ob-progress {
       display: flex;
       align-items: center;
@@ -148,7 +148,7 @@
       width: 7px;
     }
 
-    /* ─── Step ───────────────────────────────────────────────────── */
+    /* --- Step ----------------------------------------------------- */
     .ob-step {
       display: none;
       flex: 1;
@@ -163,7 +163,7 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* ─── Typography ─────────────────────────────────────────────── */
+    /* --- Typography ----------------------------------------------- */
     .ob-step-icon {
       font-size: 2.5rem;
       margin-bottom: 0.875rem;
@@ -194,7 +194,7 @@
     }
     .ob-step h1 + .ob-subtitle { text-align: center; }
 
-    /* ─── Feature bullets ────────────────────────────────────────── */
+    /* --- Feature bullets ------------------------------------------ */
     .ob-features {
       display: flex;
       flex-direction: column;
@@ -214,7 +214,7 @@
       gap: 0.625rem;
     }
 
-    /* ─── Field ──────────────────────────────────────────────────── */
+    /* --- Field ---------------------------------------------------- */
     .ob-field-group { margin-bottom: 1rem; }
     .ob-label {
       display: block;
@@ -247,7 +247,7 @@
       gap: 0.75rem;
     }
 
-    /* ─── Source grid ────────────────────────────────────────────── */
+    /* --- Source grid ---------------------------------------------- */
     .ob-source-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -270,7 +270,7 @@
     .ob-source-btn:hover { border-color: #93c5fd; background: #eff6ff; }
     .ob-source-btn.selected { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; }
 
-    /* ─── Type buttons ───────────────────────────────────────────── */
+    /* --- Type buttons --------------------------------------------- */
     .ob-type-grid {
       display: flex;
       gap: 0.625rem;
@@ -295,7 +295,7 @@
     .ob-type-btn:hover { border-color: #93c5fd; background: #eff6ff; }
     .ob-type-btn.selected { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; }
 
-    /* ─── Shortcuts (step 6) ─────────────────────────────────────── */
+    /* --- Shortcuts (step 6) --------------------------------------- */
     .ob-shortcuts {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -322,7 +322,7 @@
       margin-bottom: 0.375rem;
     }
 
-    /* ─── Step 6 ─────────────────────────────────────────────────── */
+    /* --- Step 6 --------------------------------------------------- */
     .ob-step-6-inner {
       display: flex;
       flex-direction: column;
@@ -340,7 +340,7 @@
       border: 2px solid rgba(134,239,172,.5);
     }
 
-    /* ─── Controls ───────────────────────────────────────────────── */
+    /* --- Controls ------------------------------------------------- */
     .ob-controls {
       display: flex;
       align-items: center;
@@ -396,10 +396,10 @@
     .ob-btn-next.green { background: #16a34a; }
     .ob-btn-next.green:hover { background: #15803d; }
 
-    /* ─── Spacer ─────────────────────────────────────────────────── */
+    /* --- Spacer --------------------------------------------------- */
     .ob-spacer { flex: 1; }
 
-    /* ─── Toast ──────────────────────────────────────────────────── */
+    /* --- Toast ---------------------------------------------------- */
     #toastContainer {
       position: fixed;
       bottom: 1.5rem;
@@ -429,7 +429,7 @@
     .ob-toast.warning { background: #d97706; }
     @keyframes ob-toast-in { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
 
-    /* ─── Responsive ─────────────────────────────────────────────── */
+    /* --- Responsive ----------------------------------------------- */
     @media (max-width: 480px) {
       body { padding: 1.25rem 0.875rem; }
       .ob-card { padding: 1.5rem 1.25rem; }
@@ -463,16 +463,16 @@
       <!-- Progress dots -->
       <div class="ob-progress" id="obProgress"></div>
 
-      <!-- ══ Step 1: Boas-vindas + Nome ══ -->
+      <!-- -- Step 1: Boas-vindas + Nome -- -->
       <div class="ob-step active" id="step1">
-        <div class="ob-step-icon">👋</div>
+        <div class="ob-step-icon">??</div>
         <h1>Bem-vindo ao Bud Finance!</h1>
-        <p class="ob-subtitle">Vamos configurar rapidinho para você começar a controlar suas finanças com inteligência.</p>
+        <p class="ob-subtitle">Vamos configurar rapidinho para voc� come�ar a controlar suas finan�as com intelig�ncia.</p>
 
         <div class="ob-features">
-          <div class="ob-feature-item">📊 Controle completo de receitas e despesas</div>
-          <div class="ob-feature-item">🎯 Metas, investimentos e dívidas em um lugar</div>
-          <div class="ob-feature-item">📈 Relatórios, gráficos e insights personalizados</div>
+          <div class="ob-feature-item">?? Controle completo de receitas e despesas</div>
+          <div class="ob-feature-item">?? Metas, investimentos e d�vidas em um lugar</div>
+          <div class="ob-feature-item">?? Relat�rios, gr�ficos e insights personalizados</div>
         </div>
 
         <div class="ob-field-group">
@@ -483,27 +483,27 @@
         <div class="ob-spacer"></div>
       </div>
 
-      <!-- ══ Step 2: Como conheceu ══ -->
+      <!-- -- Step 2: Como conheceu -- -->
       <div class="ob-step" id="step2">
-        <h2>Como você conheceu o Bud?</h2>
-        <p class="ob-subtitle">Nos ajude a entender como chegou até nós. (Obrigatório)</p>
+        <h2>Como voc� conheceu o Bud?</h2>
+        <p class="ob-subtitle">Nos ajude a entender como chegou at� n�s. (Obrigat�rio)</p>
 
         <div class="ob-source-grid" id="sourceGrid">
-          <button class="ob-source-btn" data-value="Instagram / TikTok">📱<br>Instagram / TikTok</button>
-          <button class="ob-source-btn" data-value="Google / Busca">🔍<br>Google / Busca</button>
-          <button class="ob-source-btn" data-value="YouTube">🎬<br>YouTube</button>
-          <button class="ob-source-btn" data-value="Indicação de amigo(a)">💬<br>Indicação</button>
-          <button class="ob-source-btn" data-value="LinkedIn">💼<br>LinkedIn</button>
-          <button class="ob-source-btn" data-value="Outro">✨<br>Outro</button>
+          <button class="ob-source-btn" data-value="Instagram / TikTok">??<br>Instagram / TikTok</button>
+          <button class="ob-source-btn" data-value="Google / Busca">??<br>Google / Busca</button>
+          <button class="ob-source-btn" data-value="YouTube">??<br>YouTube</button>
+          <button class="ob-source-btn" data-value="Indica��o de amigo(a)">??<br>Indica��o</button>
+          <button class="ob-source-btn" data-value="LinkedIn">??<br>LinkedIn</button>
+          <button class="ob-source-btn" data-value="Outro">?<br>Outro</button>
         </div>
 
         <div class="ob-spacer"></div>
       </div>
 
-      <!-- ══ Step 3: Conta principal ══ -->
+      <!-- -- Step 3: Conta principal -- -->
       <div class="ob-step" id="step3">
         <h2>Sua conta principal</h2>
-        <p class="ob-subtitle">Adicione uma conta para ver saldos reais no app. Você pode adicionar mais depois em <strong>Carteira</strong>.</p>
+        <p class="ob-subtitle">Adicione uma conta para ver saldos reais no app. Voc� pode adicionar mais depois em <strong>Carteira</strong>.</p>
 
         <div class="ob-field-group">
           <label class="ob-label" for="inputContaNome">Nome da conta</label>
@@ -513,8 +513,8 @@
         <div class="ob-field-group">
           <label class="ob-label">Tipo de conta</label>
           <div class="ob-type-grid" id="contaTipoGrid">
-            <button class="ob-type-btn selected" data-value="debito" data-icon="🏦">🏦 Conta Bancária</button>
-            <button class="ob-type-btn" data-value="dinheiro" data-icon="💵">💵 Dinheiro</button>
+            <button class="ob-type-btn selected" data-value="debito" data-icon="??">?? Conta Banc�ria</button>
+            <button class="ob-type-btn" data-value="dinheiro" data-icon="??">?? Dinheiro</button>
           </div>
         </div>
 
@@ -526,23 +526,23 @@
         <div class="ob-spacer"></div>
       </div>
 
-      <!-- ══ Step 4: Renda principal ══ -->
+      <!-- -- Step 4: Renda principal -- -->
       <div class="ob-step" id="step4">
         <h2>Sua renda principal</h2>
-        <p class="ob-subtitle">Criaremos um lançamento e uma recorrente mensais automaticamente. Pode pular se preferir.</p>
+        <p class="ob-subtitle">Criaremos um lan�amento e uma recorrente mensais automaticamente. Pode pular se preferir.</p>
 
         <div class="ob-field-group">
-          <label class="ob-label" for="inputRendaDesc">Descrição</label>
-          <input id="inputRendaDesc" class="ob-input" type="text" maxlength="80" placeholder="Salário Principal">
+          <label class="ob-label" for="inputRendaDesc">Descri��o</label>
+          <input id="inputRendaDesc" class="ob-input" type="text" maxlength="80" placeholder="Sal�rio Principal">
         </div>
 
         <div class="ob-row-2">
           <div class="ob-field-group">
-            <label class="ob-label" for="inputRendaValor">Valor líquido</label>
+            <label class="ob-label" for="inputRendaValor">Valor l�quido</label>
             <input id="inputRendaValor" class="ob-input" type="text" placeholder="R$ 0,00">
           </div>
           <div class="ob-field-group">
-            <label class="ob-label" for="inputRendaDia">Dia do mês</label>
+            <label class="ob-label" for="inputRendaDia">Dia do m�s</label>
             <input id="inputRendaDia" class="ob-input" type="number" min="1" max="31" placeholder="5">
           </div>
         </div>
@@ -550,7 +550,7 @@
         <div class="ob-spacer"></div>
       </div>
 
-      <!-- ══ Step 5: Despesa fixa ══ -->
+      <!-- -- Step 5: Despesa fixa -- -->
       <div class="ob-step" id="step5">
         <h2>Principal despesa fixa</h2>
         <p class="ob-subtitle">Aluguel, financiamento ou outra despesa mensal recorrente. Pode pular se preferir.</p>
@@ -558,15 +558,15 @@
         <div class="ob-field-group">
           <label class="ob-label">Tipo</label>
           <div class="ob-type-grid" id="despesaTipoGrid">
-            <button class="ob-type-btn" data-value="Aluguel">🏠 Aluguel</button>
-            <button class="ob-type-btn" data-value="Financiamento">🏦 Financiamento</button>
-            <button class="ob-type-btn" data-value="Outra">📦 Outra</button>
+            <button class="ob-type-btn" data-value="Aluguel">?? Aluguel</button>
+            <button class="ob-type-btn" data-value="Financiamento">?? Financiamento</button>
+            <button class="ob-type-btn" data-value="Outra">?? Outra</button>
           </div>
         </div>
 
         <div class="ob-field-group" id="despesaNomeGroup" style="display:none;">
           <label class="ob-label" for="inputDespesaNome">Nome da despesa</label>
-          <input id="inputDespesaNome" class="ob-input" type="text" maxlength="80" placeholder="Ex: Escola, Plano de saúde...">
+          <input id="inputDespesaNome" class="ob-input" type="text" maxlength="80" placeholder="Ex: Escola, Plano de sa�de...">
         </div>
 
         <div class="ob-row-2">
@@ -583,28 +583,28 @@
         <div class="ob-spacer"></div>
       </div>
 
-      <!-- ══ Step 6: Tudo pronto ══ -->
+      <!-- -- Step 6: Tudo pronto -- -->
       <div class="ob-step" id="step6">
         <div class="ob-step-6-inner">
-          <div class="ob-checkmark">✅</div>
+          <div class="ob-checkmark">?</div>
           <h1>Tudo configurado!</h1>
-          <p class="ob-subtitle">Seu perfil financeiro está pronto. Explore o app:</p>
+          <p class="ob-subtitle">Seu perfil financeiro est� pronto. Explore o app:</p>
 
           <div class="ob-shortcuts">
             <a href="dashboard.html" class="ob-shortcut">
-              <span class="ob-shortcut-icon">📊</span>
+              <span class="ob-shortcut-icon">??</span>
               Dashboard
             </a>
             <a href="extrato.html" class="ob-shortcut">
-              <span class="ob-shortcut-icon">📝</span>
+              <span class="ob-shortcut-icon">??</span>
               Extrato
             </a>
             <a href="metas.html" class="ob-shortcut">
-              <span class="ob-shortcut-icon">🎯</span>
+              <span class="ob-shortcut-icon">??</span>
               Metas
             </a>
             <a href="carteira.html" class="ob-shortcut">
-              <span class="ob-shortcut-icon">💳</span>
+              <span class="ob-shortcut-icon">??</span>
               Carteira
             </a>
           </div>
@@ -613,9 +613,9 @@
 
       <!-- Controls -->
       <div class="ob-controls" id="obControls">
-        <button class="ob-btn-back" id="btnVoltar" style="display:none;">← Voltar</button>
+        <button class="ob-btn-back" id="btnVoltar" style="display:none;">? Voltar</button>
         <button class="ob-btn-skip" id="btnPular" style="display:none;">Pular etapa</button>
-        <button class="ob-btn-next" id="btnProximo">Próximo →</button>
+        <button class="ob-btn-next" id="btnProximo">Pr�ximo ?</button>
       </div>
 
     </div><!-- /.ob-card -->

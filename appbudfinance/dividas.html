@@ -1,14 +1,14 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance — Minhas Dívidas">
-  <title>Dívidas - Bud Finance</title>
+  <meta name="description" content="Bud Finance � Minhas D�vidas">
+  <title>D�vidas - Bud Finance</title>
 
   <link rel="icon" type="image/png" href="logo.png">
-  <link rel="apple-touch-icon" href="logo.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.json">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="css/tailwind.css">
   <script src="js/theme-manager.js"></script>
 
-  <!-- PDF.js (extração de texto de PDFs) -->
+  <!-- PDF.js (extra��o de texto de PDFs) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <!-- Tesseract.js (OCR de imagens) -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -39,7 +39,7 @@
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:'Inter',system-ui,sans-serif;background-color:var(--bg-page);min-height:100vh;min-height:100dvh;overflow-x:hidden;transition:background-color 0.35s ease;}
 
-    /* ── Splash ─────────────────────────────────────────── */
+    /* -- Splash ------------------------------------------- */
     #splash{position:fixed;inset:0;background:var(--bg-page);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;z-index:99999;transition:opacity .5s ease;}
     #splash.hide{opacity:0;pointer-events:none;}
     .splash-bar{width:120px;height:4px;border-radius:2px;background:#e2e8f0;overflow:hidden;}
@@ -47,15 +47,15 @@
     @keyframes pulse-logo{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
     @keyframes slide-bar{0%{transform:translateX(-100%);}100%{transform:translateX(350%);}}
 
-    /* ── Blobs ──────────────────────────────────────────── */
+    /* -- Blobs -------------------------------------------- */
     .blob{position:fixed;border-radius:9999px;pointer-events:none;z-index:0;opacity:var(--blob-opacity,1);transition:opacity 0.35s ease;}
     .blob-blue{top:-5%;left:-5%;width:35%;height:35%;background:rgba(147,197,253,0.30);filter:blur(100px);}
     .blob-cyan{bottom:-5%;right:-5%;width:25%;height:25%;background:rgba(103,232,249,0.20);filter:blur(100px);}
 
-    /* ── Layout ─────────────────────────────────────────── */
+    /* -- Layout ------------------------------------------- */
     .dash-layout{display:flex;min-height:100vh;min-height:100dvh;}
 
-    /* ── Sidebar ────────────────────────────────────────── */
+    /* -- Sidebar ------------------------------------------ */
     .sidebar{width:260px;background:var(--sidebar-bg);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-right:1px solid var(--card-border);display:flex;flex-direction:column;padding:1.5rem 1rem;position:fixed;top:0;left:0;bottom:0;z-index:50;transition:transform .3s ease,width .3s ease,background 0.35s ease,border-color 0.35s ease;overflow:visible;}
     .sidebar-collapse-btn{display:none;position:absolute;top:50%;right:-1rem;transform:translateY(-50%);width:1rem;height:3.5rem;border-radius:0 0.5rem 0.5rem 0;background:var(--btn-bg);border:none;color:var(--btn-text);font-size:0.6rem;font-weight:700;cursor:pointer;align-items:center;justify-content:center;z-index:51;box-shadow:3px 0 12px rgba(0,0,0,0.22);transition:background 0.35s ease;flex-shrink:0;line-height:1;}
     .sidebar.collapsed{width:64px;padding-left:0.75rem;padding-right:0.75rem;align-items:center;}
@@ -87,7 +87,7 @@
     .sidebar-user-name{font-size:0.8125rem;font-weight:700;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
     .sidebar-user-id{font-size:0.6875rem;font-weight:500;color:var(--text-sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
 
-    /* ── Main ───────────────────────────────────────────── */
+    /* -- Main --------------------------------------------- */
     .dash-main{flex:1;margin-left:260px;padding:1.5rem;position:relative;z-index:1;transition:margin-left .3s ease;}
     .dash-main.sidebar-collapsed{margin-left:64px;}
     .dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;}
@@ -96,7 +96,7 @@
     .hamburger-btn{display:none;width:2.5rem;height:2.5rem;border-radius:0.75rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);align-items:center;justify-content:center;font-size:1.25rem;cursor:pointer;color:var(--card-text);z-index:60;transition:background 0.35s ease,border-color 0.35s ease,color 0.35s ease;}
     .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:40;}
 
-    /* ── Cards resumo (4 colunas) ───────────────────────── */
+    /* -- Cards resumo (4 colunas) ------------------------- */
     .cards-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:1.5rem;}
     .summary-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);transition:background 0.35s ease,border-color 0.35s ease,transform .2s,box-shadow .2s;}
     .summary-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px -5px rgba(0,0,0,0.1);}
@@ -107,7 +107,7 @@
     .card-value{font-size:1.5rem;font-weight:800;color:var(--card-text);letter-spacing:-0.025em;transition:color 0.35s ease;}
     .card-sub{font-size:0.75rem;font-weight:500;color:var(--card-text-sec);margin-top:0.25rem;transition:color 0.35s ease;}
 
-    /* ── Custom Select (padrão IDV) ──────────────────── */
+    /* -- Custom Select (padr�o IDV) -------------------- */
     .custom-select{position:relative;}
     .custom-select-trigger{display:flex;align-items:center;justify-content:space-between;padding:0.3125rem 0.625rem;border:1px solid var(--input-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.6875rem;font-weight:700;cursor:pointer;user-select:none;font-family:inherit;transition:border-color .2s;white-space:nowrap;}
     .custom-select-trigger.open{border-color:#3b82f6;}
@@ -120,16 +120,16 @@
     .custom-select-option:hover{background:var(--sidebar-link-hover-bg);}
     .custom-select-option.selected{background:#eff6ff;color:#2563eb;font-weight:700;}
 
-    /* ── Section card ───────────────────────────────────── */
+    /* -- Section card ------------------------------------- */
     .section-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.5rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);margin-bottom:1rem;transition:background 0.35s ease,border-color 0.35s ease;}
     .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;}
     .section-title{font-size:1rem;font-weight:800;color:var(--text-main);transition:color 0.35s ease;}
 
-    /* ── Progress geral ─────────────────────────────────── */
+    /* -- Progress geral ----------------------------------- */
     .progress-track{width:100%;height:10px;background:var(--input-border);border-radius:999px;overflow:hidden;margin:0.5rem 0;}
     .progress-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#10b981,#059669);transition:width .5s ease;}
 
-    /* ── Modal ──────────────────────────────────────────── */
+    /* -- Modal -------------------------------------------- */
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:80;align-items:center;justify-content:center;padding:1rem;}
     .modal-overlay.open{display:flex;}
     .modal-card{background:var(--bg-page);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.75rem;width:100%;max-width:440px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.2);animation:modal-in .25s ease;max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
@@ -156,7 +156,7 @@
     .modal-btn-danger{width:100%;padding:0.625rem;border:none;border-radius:0.75rem;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;background:#fef2f2;color:#dc2626;margin-top:0.5rem;transition:background .15s;}
     .modal-btn-danger:hover{background:#fee2e2;}
 
-    /* ── Wizard ─────────────────────────────────────────── */
+    /* -- Wizard ------------------------------------------- */
     .wizard-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;margin-bottom:1.25rem;}
     .wizard-card{border:2px solid var(--input-border);border-radius:1rem;padding:1rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--input-bg);}
     .wizard-card:hover{border-color:#93c5fd;background:#eff6ff;}
@@ -172,32 +172,32 @@
     .wizard-back{width:100%;padding:0.625rem;border:none;border-radius:0.75rem;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;background:rgba(0,0,0,0.05);color:var(--text-sec);margin-top:0.5rem;transition:background .15s;}
     .wizard-back:hover{background:rgba(0,0,0,0.09);}
 
-    /* ── Tabs ───────────────────────────────────────────── */
+    /* -- Tabs --------------------------------------------- */
     .modal-tabs{display:flex;gap:0.375rem;margin-bottom:1.25rem;background:var(--input-bg);border-radius:0.75rem;padding:0.25rem;}
     .tab-btn{flex:1;padding:0.5rem;border:none;border-radius:0.5rem;font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text-sec);background:transparent;transition:all .2s;}
     .tab-btn.active{background:var(--card-bg);color:var(--text-main);box-shadow:0 1px 4px rgba(0,0,0,0.08);}
 
-    /* ── IA tabs ─────────────────────────────────────────── */
+    /* -- IA tabs ------------------------------------------- */
     .ia-tabs{display:flex;gap:0.375rem;margin-bottom:1rem;background:var(--input-bg);border-radius:0.75rem;padding:0.25rem;}
     .ia-tab-btn{flex:1;padding:0.5rem;border:none;border-radius:0.5rem;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text-sec);background:transparent;transition:all .2s;}
     .ia-tab-btn.active{background:var(--card-bg);color:var(--text-main);box-shadow:0 1px 4px rgba(0,0,0,0.08);}
 
-    /* ── Upload area ─────────────────────────────────────── */
+    /* -- Upload area --------------------------------------- */
     .upload-area{border:2px dashed var(--input-border);border-radius:1rem;padding:2rem 1rem;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;}
     .upload-area:hover{border-color:#93c5fd;background:#f8fbff;}
 
-    /* ── Detalhes resumo grid ────────────────────────────── */
+    /* -- Detalhes resumo grid ------------------------------ */
     .detalhe-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;}
     .detalhe-item{background:var(--input-bg);border-radius:0.875rem;padding:0.875rem;}
     .detalhe-item-label{font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.06em;}
     .detalhe-item-value{font-size:1.0625rem;font-weight:800;color:var(--card-text);margin-top:0.25rem;}
 
-    /* ── Action buttons ─────────────────────────────────── */
+    /* -- Action buttons ----------------------------------- */
     .action-btn{width:2rem;height:2rem;border-radius:0.5rem;border:1.5px solid var(--input-border);background:var(--input-bg);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.875rem;transition:all .15s;color:var(--card-text-sec);}
     .action-btn:hover{border-color:#93c5fd;color:#2563eb;background:#eff6ff;}
     .action-btn.delete:hover{border-color:#fca5a5;color:#dc2626;background:#fef2f2;}
 
-    /* ── Responsive ─────────────────────────────────────── */
+    /* -- Responsive --------------------------------------- */
     @media(max-width:768px){
       .sidebar{transform:translateX(-100%);}
       .sidebar.open{transform:translateX(0);}
@@ -217,69 +217,69 @@
 </head>
 <body>
 
-  <!-- ═ Splash ════════════════════════════════════════════ -->
+  <!-- - Splash -------------------------------------------- -->
   <div id="splash">
     <img src="logo.png" alt="Bud Finance" style="width:56px;height:56px;object-fit:contain;animation:pulse-logo 1.8s ease-in-out infinite;">
     <div class="splash-bar"><div class="splash-bar-inner"></div></div>
   </div>
 
-  <!-- ═ Blobs ═════════════════════════════════════════════ -->
+  <!-- - Blobs --------------------------------------------- -->
   <div class="blob blob-blue" aria-hidden="true"></div>
   <div class="blob blob-cyan" aria-hidden="true"></div>
 
-  <!-- ═ Overlay sidebar mobile ════════════════════════════ -->
+  <!-- - Overlay sidebar mobile ---------------------------- -->
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <!-- ═ Layout ════════════════════════════════════════════ -->
+  <!-- - Layout -------------------------------------------- -->
   <div class="dash-layout">
 
-    <!-- ─ Sidebar ──────────────────────────────────────── -->
+    <!-- - Sidebar ---------------------------------------- -->
     <aside class="sidebar" id="sidebar">
-      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">‹</button>
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">�</button>
       <div class="sidebar-logo">
         <img src="logo.png" alt="Bud Finance" width="32" height="32">
         <span class="sidebar-logo-text">Bud Finance</span>
       </div>
       <nav class="sidebar-nav">
         <a href="dashboard.html" class="sidebar-link">
-          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Dashboard</span>
         </a>
-        <div class="sidebar-group-label">Finanças</div>
+        <div class="sidebar-group-label">Finan�as</div>
         <a href="carteira.html" class="sidebar-link">
-          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Contas</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Contas</span>
         </a>
         <a href="cartoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Cart�es</span>
         </a>
         <a href="recorrentes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">🔄</span><span class="sidebar-link-text"> Recorrentes</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Recorrentes</span>
         </a>
         <a href="dividas.html" class="sidebar-link active">
-          <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> D�vidas</span>
         </a>
         <a href="metas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Metas</span>
         </a>
         <a href="mercado.html" class="sidebar-link">
-          <span class="sidebar-link-icon">🛒</span><span class="sidebar-link-text"> Compras</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Compras</span>
         </a>
         <a href="categorias.html" class="sidebar-link">
-          <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
+          <span class="sidebar-link-icon">???</span><span class="sidebar-link-text"> Categorias</span>
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
         <a href="graficos.html" class="sidebar-link">
-          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> An�lises</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <a href="assistente-ia.html" class="sidebar-link">
-          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Assistente IA</span>
         </a>
         <a href="assistente-whatsapp.html" class="sidebar-link">
-          <span class="sidebar-link-icon">💬</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
         </a>
         <div class="sidebar-nav-divider"></div>
         <a href="configuracoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
+          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Configura��es</span>
         </a>
       </nav>
       <div class="sidebar-user" style="margin-top:auto;">
@@ -290,53 +290,53 @@
         </div>
       </div>
       <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
-        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
+        <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Sair</span>
       </button>
     </aside>
 
-    <!-- ─ Main ─────────────────────────────────────────── -->
+    <!-- - Main ------------------------------------------- -->
     <main class="dash-main" id="dashMain">
 
       <!-- Header -->
       <div class="dash-header">
         <div style="display:flex;align-items:center;gap:0.75rem;">
-          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">?</button>
           <div class="dash-welcome">
-            <h1>💸 Dívidas</h1>
-            <p>Controle seus empréstimos e financiamentos</p>
+            <h1>?? D�vidas</h1>
+            <p>Controle seus empr�stimos e financiamentos</p>
           </div>
         </div>
-        <button id="btnNovaDivida" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:0.875rem;font-weight:700;border:none;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .2s;" title="Nova Dívida">
-          <span>+</span><span>Nova Dívida</span>
+        <button id="btnNovaDivida" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:0.875rem;font-weight:700;border:none;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .2s;" title="Nova D�vida">
+          <span>+</span><span>Nova D�vida</span>
         </button>
       </div>
 
       <!-- KPIs 4 cards -->
       <div class="cards-grid">
         <div class="summary-card">
-          <div class="card-header"><span class="card-label">Dívidas Ativas</span><div class="card-icon card-icon-red">💸</div></div>
+          <div class="card-header"><span class="card-label">D�vidas Ativas</span><div class="card-icon card-icon-red">??</div></div>
           <div class="card-value" id="kpiAtivas">0</div>
           <div class="card-sub">em aberto</div>
         </div>
         <div class="summary-card">
-          <div class="card-header"><span class="card-label">Saldo Devedor</span><div class="card-icon card-icon-red">📉</div></div>
+          <div class="card-header"><span class="card-label">Saldo Devedor</span><div class="card-icon card-icon-red">??</div></div>
           <div class="card-value" id="kpiSaldo" style="color:#dc2626;">R$ 0,00</div>
           <div class="card-sub">total a pagar</div>
         </div>
         <div class="summary-card">
-          <div class="card-header"><span class="card-label">Total Pago</span><div class="card-icon card-icon-green">✅</div></div>
+          <div class="card-header"><span class="card-label">Total Pago</span><div class="card-icon card-icon-green">?</div></div>
           <div class="card-value" id="kpiPago" style="color:#16a34a;">R$ 0,00</div>
-          <div class="card-sub">já amortizado</div>
+          <div class="card-sub">j� amortizado</div>
         </div>
         <div class="summary-card">
-          <div class="card-header"><span class="card-label">Juros Pagos</span><div class="card-icon card-icon-amber">⚠️</div></div>
+          <div class="card-header"><span class="card-label">Juros Pagos</span><div class="card-icon card-icon-amber">??</div></div>
           <div class="card-value" id="kpiJuros" style="color:#d97706;">R$ 0,00</div>
-          <div class="card-sub">custo do crédito</div>
+          <div class="card-sub">custo do cr�dito</div>
         </div>
         <div class="summary-card">
-          <div class="card-header"><span class="card-label">Mensalidade</span><div class="card-icon card-icon-purple">📅</div></div>
+          <div class="card-header"><span class="card-label">Mensalidade</span><div class="card-icon card-icon-purple">??</div></div>
           <div class="card-value" id="kpiMensalidade" style="color:#7c3aed;">R$ 0,00</div>
-          <div class="card-sub" id="kpiMensalidadeSub">comprometido/mês</div>
+          <div class="card-sub" id="kpiMensalidadeSub">comprometido/m�s</div>
         </div>
       </div>
 
@@ -348,7 +348,7 @@
         </div>
         <div class="progress-track"><div class="progress-fill" id="progressoBar" style="width:0%;"></div></div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.5rem;flex-wrap:wrap;gap:0.25rem;">
-          <div style="font-size:0.75rem;font-weight:500;color:var(--card-text-sec);" id="progressoSub">—</div>
+          <div style="font-size:0.75rem;font-weight:500;color:var(--card-text-sec);" id="progressoSub">�</div>
           <div style="font-size:0.75rem;font-weight:700;color:var(--card-text-sec);" id="progressoPrevisao" style="display:none;"></div>
         </div>
       </div>
@@ -358,10 +358,10 @@
         <div id="listaAlertas"></div>
       </div>
 
-      <!-- Lista de dívidas -->
+      <!-- Lista de d�vidas -->
       <div class="section-card">
         <div class="section-header" style="flex-wrap:wrap;gap:0.5rem;">
-          <span class="section-title">Suas Dívidas</span>
+          <span class="section-title">Suas D�vidas</span>
           <div style="display:flex;gap:0.375rem;flex-wrap:wrap;">
             <button class="filtro-divida active" data-filtro="todos" onclick="window.setFiltroDiv(this)" style="padding:0.3125rem 0.625rem;border:1px solid transparent;border-radius:0.5rem;background:var(--btn-bg,#2563eb);color:var(--btn-text,#fff);font-size:0.6875rem;font-weight:700;cursor:pointer;font-family:inherit;">Todas</button>
             <button class="filtro-divida" data-filtro="atraso" onclick="window.setFiltroDiv(this)" style="padding:0.3125rem 0.625rem;border:1px solid rgba(252,165,165,0.6);border-radius:0.5rem;background:var(--card-bg);color:#dc2626;font-size:0.6875rem;font-weight:700;cursor:pointer;font-family:inherit;">Em Atraso</button>
@@ -375,7 +375,7 @@
                 <div class="custom-select-option selected" data-value="saldo">Maior saldo</div>
                 <div class="custom-select-option" data-value="juros">Maior juros</div>
                 <div class="custom-select-option" data-value="nome">Nome A-Z</div>
-                <div class="custom-select-option" data-value="vencimento">Próximo venc.</div>
+                <div class="custom-select-option" data-value="vencimento">Pr�ximo venc.</div>
                 <div class="custom-select-option" data-value="progresso">Mais adiantadas</div>
               </div>
               <input type="hidden" id="selectOrdemDiv" value="saldo">
@@ -385,11 +385,11 @@
         <div id="listaDividas"><!-- populado por JS --></div>
       </div>
 
-      <!-- Seção Dívidas Quitadas (colapsável) -->
+      <!-- Se��o D�vidas Quitadas (colaps�vel) -->
       <div id="secQuitadas" style="display:none;margin-bottom:1rem;">
         <button id="btnToggleQuitadas" onclick="window.toggleQuitadas()" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1.125rem;background:var(--card-bg);border:1.5px solid var(--card-border);border-radius:1.125rem;cursor:pointer;font-family:inherit;transition:all .2s;">
-          <span style="font-size:0.875rem;font-weight:700;color:#16a34a;">✅ Quitadas (<span id="countQuitadas">0</span>)</span>
-          <span id="iconToggleQuitadas" style="font-size:0.75rem;color:var(--text-sec);font-weight:700;">▸ Expandir</span>
+          <span style="font-size:0.875rem;font-weight:700;color:#16a34a;">? Quitadas (<span id="countQuitadas">0</span>)</span>
+          <span id="iconToggleQuitadas" style="font-size:0.75rem;color:var(--text-sec);font-weight:700;">? Expandir</span>
         </button>
         <div id="listaQuitadas" style="display:none;padding-top:0.5rem;"><!-- populado por JS --></div>
       </div>
@@ -397,122 +397,122 @@
     </main>
   </div>
 
-  <!-- ═════════════════════════════════════════════════════
-       MODAL 1 — Wizard: Tipo de Dívida
-  ═════════════════════════════════════════════════════════ -->
+  <!-- -----------------------------------------------------
+       MODAL 1 � Wizard: Tipo de D�vida
+  --------------------------------------------------------- -->
   <div class="modal-overlay" id="modalTipo">
     <div class="modal-card">
       <div class="modal-title">
-        <span>Nova Dívida</span>
-        <button class="modal-close" onclick="fecharTodosModais()" aria-label="Fechar">✕</button>
+        <span>Nova D�vida</span>
+        <button class="modal-close" onclick="fecharTodosModais()" aria-label="Fechar">?</button>
       </div>
-      <p class="modal-subtitle">Passo 1 de 2 — Qual o tipo da dívida?</p>
+      <p class="modal-subtitle">Passo 1 de 2 � Qual o tipo da d�vida?</p>
 
       <div class="wizard-grid" id="gridTipos">
-        <div class="wizard-card" data-tipo="Empréstimo Pessoal" data-icone="💰" onclick="selecionarTipo(this)">
-          <div class="wizard-card-icon">💰</div>
-          <div class="wizard-card-label">Empréstimo</div>
+        <div class="wizard-card" data-tipo="Empr�stimo Pessoal" data-icone="??" onclick="selecionarTipo(this)">
+          <div class="wizard-card-icon">??</div>
+          <div class="wizard-card-label">Empr�stimo</div>
           <div class="wizard-card-sub">Pessoal / CDC</div>
         </div>
-        <div class="wizard-card" data-tipo="Financiamento" data-icone="🏠" onclick="selecionarTipo(this)">
-          <div class="wizard-card-icon">🏠</div>
+        <div class="wizard-card" data-tipo="Financiamento" data-icone="??" onclick="selecionarTipo(this)">
+          <div class="wizard-card-icon">??</div>
           <div class="wizard-card-label">Financiamento</div>
-          <div class="wizard-card-sub">Imóvel / Veículo</div>
+          <div class="wizard-card-sub">Im�vel / Ve�culo</div>
         </div>
-        <div class="wizard-card" data-tipo="Cartão Parcelado" data-icone="💳" onclick="selecionarTipo(this)">
-          <div class="wizard-card-icon">💳</div>
-          <div class="wizard-card-label">Cartão</div>
+        <div class="wizard-card" data-tipo="Cart�o Parcelado" data-icone="??" onclick="selecionarTipo(this)">
+          <div class="wizard-card-icon">??</div>
+          <div class="wizard-card-label">Cart�o</div>
           <div class="wizard-card-sub">Parcelado / Fatura</div>
         </div>
-        <div class="wizard-card" data-tipo="Consórcio" data-icone="🤝" onclick="selecionarTipo(this)">
-          <div class="wizard-card-icon">🤝</div>
-          <div class="wizard-card-label">Consórcio</div>
+        <div class="wizard-card" data-tipo="Cons�rcio" data-icone="??" onclick="selecionarTipo(this)">
+          <div class="wizard-card-icon">??</div>
+          <div class="wizard-card-label">Cons�rcio</div>
           <div class="wizard-card-sub">Cota / Lance</div>
         </div>
-        <div class="wizard-card" data-tipo="Dívida Informal" data-icone="🤙" onclick="selecionarTipo(this)">
-          <div class="wizard-card-icon">🤙</div>
+        <div class="wizard-card" data-tipo="D�vida Informal" data-icone="??" onclick="selecionarTipo(this)">
+          <div class="wizard-card-icon">??</div>
           <div class="wizard-card-label">Informal</div>
-          <div class="wizard-card-sub">Amigo / Família</div>
+          <div class="wizard-card-sub">Amigo / Fam�lia</div>
         </div>
-        <div class="wizard-card" data-tipo="Outro" data-icone="📄" onclick="selecionarTipo(this)">
-          <div class="wizard-card-icon">📄</div>
+        <div class="wizard-card" data-tipo="Outro" data-icone="??" onclick="selecionarTipo(this)">
+          <div class="wizard-card-icon">??</div>
           <div class="wizard-card-label">Outro</div>
-          <div class="wizard-card-sub">Outros débitos</div>
+          <div class="wizard-card-sub">Outros d�bitos</div>
         </div>
       </div>
 
-      <button class="wizard-btn-next" id="btnProximoTipo" disabled onclick="avancarParaFormato()">Próximo →</button>
+      <button class="wizard-btn-next" id="btnProximoTipo" disabled onclick="avancarParaFormato()">Pr�ximo ?</button>
       <button class="wizard-back" onclick="fecharTodosModais()">Cancelar</button>
     </div>
   </div>
 
-  <!-- ═════════════════════════════════════════════════════
-       MODAL 2 — Wizard: Formato de Cadastro
-  ═════════════════════════════════════════════════════════ -->
+  <!-- -----------------------------------------------------
+       MODAL 2 � Wizard: Formato de Cadastro
+  --------------------------------------------------------- -->
   <div class="modal-overlay" id="modalFormato">
     <div class="modal-card">
       <div class="modal-title">
-        <span id="tituloFormato">Nova Dívida</span>
-        <button class="modal-close" onclick="fecharTodosModais()" aria-label="Fechar">✕</button>
+        <span id="tituloFormato">Nova D�vida</span>
+        <button class="modal-close" onclick="fecharTodosModais()" aria-label="Fechar">?</button>
       </div>
-      <p class="modal-subtitle">Passo 2 de 2 — Como você tem os dados?</p>
+      <p class="modal-subtitle">Passo 2 de 2 � Como voc� tem os dados?</p>
 
       <div class="wizard-grid wizard-grid-2" style="margin-bottom:0.75rem;" id="gridFormatos">
         <div class="wizard-card" data-formato="ia" onclick="selecionarFormato(this)">
-          <div class="wizard-card-icon">🤖</div>
+          <div class="wizard-card-icon">??</div>
           <div class="wizard-card-label">Leitor IA</div>
           <div class="wizard-card-sub">PDF, foto ou texto</div>
         </div>
         <div class="wizard-card" data-formato="juros" onclick="selecionarFormato(this)">
-          <div class="wizard-card-icon">📈</div>
+          <div class="wizard-card-icon">??</div>
           <div class="wizard-card-label">Com Juros</div>
           <div class="wizard-card-sub">Taxa % + Tabela Price</div>
         </div>
         <div class="wizard-card" data-formato="fixas" onclick="selecionarFormato(this)">
-          <div class="wizard-card-icon">📊</div>
+          <div class="wizard-card-icon">??</div>
           <div class="wizard-card-label">Parcelas Fixas</div>
           <div class="wizard-card-sub">Valor exato da parcela</div>
         </div>
         <div class="wizard-card" data-formato="livre" onclick="selecionarFormato(this)">
-          <div class="wizard-card-icon">✍️</div>
+          <div class="wizard-card-icon">??</div>
           <div class="wizard-card-label">Entrada Livre</div>
-          <div class="wizard-card-sub">Sem cálculo automático</div>
+          <div class="wizard-card-sub">Sem c�lculo autom�tico</div>
         </div>
       </div>
 
-      <button class="wizard-btn-next" id="btnProximoFormato" disabled onclick="avancarParaForm()">Próximo →</button>
-      <button class="wizard-back" onclick="voltarParaTipo()">← Voltar</button>
+      <button class="wizard-btn-next" id="btnProximoFormato" disabled onclick="avancarParaForm()">Pr�ximo ?</button>
+      <button class="wizard-back" onclick="voltarParaTipo()">? Voltar</button>
     </div>
   </div>
 
-  <!-- ═════════════════════════════════════════════════════
-       MODAL 3 — Leitor de Contratos via IA
-  ═════════════════════════════════════════════════════════ -->
+  <!-- -----------------------------------------------------
+       MODAL 3 � Leitor de Contratos via IA
+  --------------------------------------------------------- -->
   <div class="modal-overlay" id="modalImportIA">
     <div class="modal-card modal-card-wide">
       <div class="modal-title">
-        <span>🤖 Leitor de Contratos</span>
-        <button class="modal-close" onclick="fecharTodosModais()" aria-label="Fechar">✕</button>
+        <span>?? Leitor de Contratos</span>
+        <button class="modal-close" onclick="fecharTodosModais()" aria-label="Fechar">?</button>
       </div>
 
       <!-- Abas IA -->
       <div class="ia-tabs">
-        <button class="ia-tab-btn active" id="iaTabArquivo" onclick="trocarTabIA('arquivo')">📎 Arquivo</button>
-        <button class="ia-tab-btn" id="iaTabTexto" onclick="trocarTabIA('texto')">📝 Colar Texto</button>
-        <button class="ia-tab-btn" id="iaTabCamera" onclick="trocarTabIA('camera')">📷 Câmera</button>
+        <button class="ia-tab-btn active" id="iaTabArquivo" onclick="trocarTabIA('arquivo')">?? Arquivo</button>
+        <button class="ia-tab-btn" id="iaTabTexto" onclick="trocarTabIA('texto')">?? Colar Texto</button>
+        <button class="ia-tab-btn" id="iaTabCamera" onclick="trocarTabIA('camera')">?? C�mera</button>
       </div>
 
       <!-- Aba: Arquivo -->
       <div id="iaConteudoArquivo">
         <div class="upload-area" id="iaUploadArea" onclick="document.getElementById('iaFileInput').click()">
-          <div style="font-size:2rem;margin-bottom:0.5rem;">📎</div>
+          <div style="font-size:2rem;margin-bottom:0.5rem;">??</div>
           <div style="font-size:0.875rem;font-weight:700;color:var(--text-main);">Clique para selecionar</div>
           <div style="font-size:0.75rem;font-weight:500;color:var(--text-sec);margin-top:0.25rem;">PDF, JPG, PNG, WEBP ou TXT</div>
         </div>
         <input type="file" id="iaFileInput" accept=".pdf,.jpg,.jpeg,.png,.webp,.txt" style="display:none;" onchange="processarArquivoIA(this)">
         <div id="iaFileInfo" style="display:none;background:var(--input-bg);border-radius:0.75rem;padding:0.75rem;margin-top:0.75rem;display:flex;align-items:center;justify-content:space-between;">
           <span id="iaFileName" style="font-size:0.875rem;font-weight:600;color:var(--card-text);"></span>
-          <button onclick="limparArquivoIA()" style="background:none;border:none;cursor:pointer;font-size:1.125rem;color:var(--text-sec);" title="Remover">✕</button>
+          <button onclick="limparArquivoIA()" style="background:none;border:none;cursor:pointer;font-size:1.125rem;color:var(--text-sec);" title="Remover">?</button>
         </div>
       </div>
 
@@ -522,10 +522,10 @@
         <button onclick="processarTextoIA()" style="margin-top:0.625rem;width:100%;padding:0.625rem;border:none;border-radius:0.75rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;">Analisar Texto</button>
       </div>
 
-      <!-- Aba: Câmera -->
+      <!-- Aba: C�mera -->
       <div id="iaConteudoCamera" style="display:none;">
         <div class="upload-area" onclick="document.getElementById('iaCameraInput').click()">
-          <div style="font-size:2rem;margin-bottom:0.5rem;">📷</div>
+          <div style="font-size:2rem;margin-bottom:0.5rem;">??</div>
           <div style="font-size:0.875rem;font-weight:700;color:var(--text-main);">Tirar foto do contrato</div>
           <div style="font-size:0.75rem;font-weight:500;color:var(--text-sec);margin-top:0.25rem;">Aponte para o documento</div>
         </div>
@@ -534,7 +534,7 @@
 
       <!-- Processamento (steps animados) -->
       <div id="iaProcessando" style="display:none;padding:1rem 0;text-align:center;">
-        <div style="font-size:1.5rem;margin-bottom:0.75rem;animation:pulse-logo 1.5s infinite;">🤖</div>
+        <div style="font-size:1.5rem;margin-bottom:0.75rem;animation:pulse-logo 1.5s infinite;">??</div>
         <div style="font-size:0.875rem;font-weight:700;color:var(--text-main);margin-bottom:1rem;">Analisando documento...</div>
         <div id="iaStepsList" style="display:flex;flex-direction:column;gap:0.5rem;text-align:left;"></div>
       </div>
@@ -547,29 +547,29 @@
       <!-- Resultado / Preview -->
       <div id="iaResultado" style="display:none;margin-top:0.75rem;"></div>
 
-      <button class="wizard-back" style="margin-top:0.75rem;" onclick="voltarParaFormato()">← Voltar</button>
+      <button class="wizard-back" style="margin-top:0.75rem;" onclick="voltarParaFormato()">? Voltar</button>
     </div>
   </div>
 
-  <!-- ═════════════════════════════════════════════════════
-       MODAL 4 — Formulário Manual
-  ═════════════════════════════════════════════════════════ -->
+  <!-- -----------------------------------------------------
+       MODAL 4 � Formul�rio Manual
+  --------------------------------------------------------- -->
   <div class="modal-overlay" id="modalDivida">
     <div class="modal-card">
       <div class="modal-title">
-        <span id="tituloDivida">Nova Dívida</span>
-        <button class="modal-close" onclick="fecharTodosModais()" aria-label="Fechar">✕</button>
+        <span id="tituloDivida">Nova D�vida</span>
+        <button class="modal-close" onclick="fecharTodosModais()" aria-label="Fechar">?</button>
       </div>
       <input type="hidden" id="dividaId">
 
       <div class="modal-field">
         <label class="modal-label" id="lbl-dividaNome" for="dividaNome">Nome / Credor <span style="color:#dc2626">*</span></label>
-        <input class="modal-input" type="text" id="dividaNome" placeholder="Ex: Empréstimo Nubank, Financiamento Caixa…" maxlength="80" autocomplete="off">
+        <input class="modal-input" type="text" id="dividaNome" placeholder="Ex: Empr�stimo Nubank, Financiamento Caixa�" maxlength="80" autocomplete="off">
       </div>
 
       <div class="modal-field">
-        <label class="modal-label" id="lbl-dividaInstituicao" for="dividaInstituicao">Instituição</label>
-        <input class="modal-input" type="text" id="dividaInstituicao" placeholder="Nubank, Caixa, Itaú…" maxlength="60" autocomplete="off">
+        <label class="modal-label" id="lbl-dividaInstituicao" for="dividaInstituicao">Institui��o</label>
+        <input class="modal-input" type="text" id="dividaInstituicao" placeholder="Nubank, Caixa, Ita��" maxlength="60" autocomplete="off">
       </div>
 
       <div class="modal-grid2">
@@ -578,7 +578,7 @@
           <input class="modal-input" type="text" id="dividaValorTotal" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
         </div>
         <div class="modal-field" style="margin-bottom:0;">
-          <label class="modal-label" for="dividaValorPago">Já Pagou</label>
+          <label class="modal-label" for="dividaValorPago">J� Pagou</label>
           <input class="modal-input" type="text" id="dividaValorPago" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
         </div>
       </div>
@@ -589,7 +589,7 @@
           <input class="modal-input" type="number" id="dividaParcelas" placeholder="12" min="1" max="600">
         </div>
         <div class="modal-field" style="margin-bottom:0;">
-          <label class="modal-label" id="lbl-dividaParcelasPagas" for="dividaParcelasPagas">Já Pagas</label>
+          <label class="modal-label" id="lbl-dividaParcelasPagas" for="dividaParcelasPagas">J� Pagas</label>
           <input class="modal-input" type="number" id="dividaParcelasPagas" placeholder="0" min="0">
         </div>
       </div>
@@ -597,10 +597,10 @@
       <div class="modal-grid2" id="gridValorParcela" style="margin-top:1rem;">
         <div class="modal-field" style="margin-bottom:0;">
           <label class="modal-label" id="lbl-dividaValorParcela" for="dividaValorParcela">Valor da Parcela</label>
-          <input class="modal-input" type="text" id="dividaValorParcela" placeholder="Calculado…" inputmode="decimal" autocomplete="off">
+          <input class="modal-input" type="text" id="dividaValorParcela" placeholder="Calculado�" inputmode="decimal" autocomplete="off">
         </div>
         <div class="modal-field" style="margin-bottom:0;display:flex;align-items:flex-end;">
-          <button id="btnCalcPMT" onclick="calcularPMTForm()" style="width:100%;padding:0.625rem;border:1.5px solid #93c5fd;border-radius:0.75rem;background:#eff6ff;color:#2563eb;font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;">🧮 Calcular PMT</button>
+          <button id="btnCalcPMT" onclick="calcularPMTForm()" style="width:100%;padding:0.625rem;border:1.5px solid #93c5fd;border-radius:0.75rem;background:#eff6ff;color:#2563eb;font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;">?? Calcular PMT</button>
         </div>
       </div>
 
@@ -610,29 +610,29 @@
       </div>
 
       <div class="modal-field">
-        <label class="modal-label" id="lbl-dividaVencimento" for="dividaVencimento">Data da 1ª Parcela</label>
+        <label class="modal-label" id="lbl-dividaVencimento" for="dividaVencimento">Data da 1� Parcela</label>
         <input class="modal-input" type="text" id="dividaVencimento" placeholder="DD/MM/AAAA" maxlength="10" autocomplete="off" inputmode="numeric">
       </div>
 
-      <button class="modal-submit" id="btnSalvarDivida">Salvar Dívida</button>
-      <button class="modal-btn-danger" id="btnExcluirDivida" style="display:none;" onclick="excluirDividaAtual()">🗑️ Excluir esta Dívida</button>
+      <button class="modal-submit" id="btnSalvarDivida">Salvar D�vida</button>
+      <button class="modal-btn-danger" id="btnExcluirDivida" style="display:none;" onclick="excluirDividaAtual()">??? Excluir esta D�vida</button>
       <button class="modal-cancel" onclick="fecharTodosModais()">Cancelar</button>
     </div>
   </div>
 
-  <!-- ═════════════════════════════════════════════════════
-       MODAL 5 — Detalhes da Dívida (2 abas)
-  ═════════════════════════════════════════════════════════ -->
+  <!-- -----------------------------------------------------
+       MODAL 5 � Detalhes da D�vida (2 abas)
+  --------------------------------------------------------- -->
   <div class="modal-overlay" id="modalDetalhes">
     <div class="modal-card modal-card-wide">
       <div class="modal-title">
-        <span id="detalhesNome">—</span>
-        <button class="modal-close" onclick="fecharTodosModais()" aria-label="Fechar">✕</button>
+        <span id="detalhesNome">�</span>
+        <button class="modal-close" onclick="fecharTodosModais()" aria-label="Fechar">?</button>
       </div>
 
       <div class="modal-tabs">
-        <button class="tab-btn active" data-tab="resumo" onclick="trocarTab('resumo')">📊 Resumo</button>
-        <button class="tab-btn" data-tab="parcelas" onclick="trocarTab('parcelas')">📅 Parcelas</button>
+        <button class="tab-btn active" data-tab="resumo" onclick="trocarTab('resumo')">?? Resumo</button>
+        <button class="tab-btn" data-tab="parcelas" onclick="trocarTab('parcelas')">?? Parcelas</button>
       </div>
 
       <!-- Aba Resumo -->
@@ -648,32 +648,32 @@
         <div class="detalhe-grid">
           <div class="detalhe-item">
             <div class="detalhe-item-label">Valor Original</div>
-            <div class="detalhe-item-value" id="detValorTotal">—</div>
+            <div class="detalhe-item-value" id="detValorTotal">�</div>
           </div>
           <div class="detalhe-item">
             <div class="detalhe-item-label">Saldo Devedor</div>
-            <div class="detalhe-item-value" id="detSaldo" style="color:#dc2626;">—</div>
+            <div class="detalhe-item-value" id="detSaldo" style="color:#dc2626;">�</div>
           </div>
           <div class="detalhe-item">
             <div class="detalhe-item-label">Total Pago</div>
-            <div class="detalhe-item-value" id="detPago" style="color:#16a34a;">—</div>
+            <div class="detalhe-item-value" id="detPago" style="color:#16a34a;">�</div>
           </div>
           <div class="detalhe-item">
             <div class="detalhe-item-label">Juros Pagos</div>
-            <div class="detalhe-item-value" id="detJurosPagos" style="color:#d97706;">—</div>
+            <div class="detalhe-item-value" id="detJurosPagos" style="color:#d97706;">�</div>
           </div>
         </div>
 
         <div style="display:flex;gap:0.5rem;margin-bottom:1rem;font-size:0.8125rem;font-weight:600;color:var(--text-sec);">
-          <span id="detParcelasInfo">— parcelas</span>
-          <span>·</span>
-          <span id="detTipo">—</span>
+          <span id="detParcelasInfo">� parcelas</span>
+          <span>�</span>
+          <span id="detTipo">�</span>
         </div>
 
-        <button onclick="abrirSimulador()" style="width:100%;padding:0.625rem;border:1.5px solid #93c5fd;border-radius:0.75rem;background:#eff6ff;color:#2563eb;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;margin-bottom:0.5rem;">🧮 Simular Quitação</button>
+        <button onclick="abrirSimulador()" style="width:100%;padding:0.625rem;border:1.5px solid #93c5fd;border-radius:0.75rem;background:#eff6ff;color:#2563eb;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;margin-bottom:0.5rem;">?? Simular Quita��o</button>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
-          <button onclick="editarDivida()" style="padding:0.625rem;border:1.5px solid var(--input-border);border-radius:0.75rem;background:var(--input-bg);color:var(--text-sec);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;">✏️ Editar</button>
-          <button onclick="excluirDividaAtual()" style="padding:0.625rem;border:1.5px solid #fca5a5;border-radius:0.75rem;background:#fef2f2;color:#dc2626;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;">🗑️ Excluir</button>
+          <button onclick="editarDivida()" style="padding:0.625rem;border:1.5px solid var(--input-border);border-radius:0.75rem;background:var(--input-bg);color:var(--text-sec);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;">?? Editar</button>
+          <button onclick="excluirDividaAtual()" style="padding:0.625rem;border:1.5px solid #fca5a5;border-radius:0.75rem;background:#fef2f2;color:#dc2626;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;">??? Excluir</button>
         </div>
       </div>
 
@@ -684,19 +684,19 @@
     </div>
   </div>
 
-  <!-- ═════════════════════════════════════════════════════
-       MODAL 6 — Simulador de Quitação
-  ═════════════════════════════════════════════════════════ -->
+  <!-- -----------------------------------------------------
+       MODAL 6 � Simulador de Quita��o
+  --------------------------------------------------------- -->
   <div class="modal-overlay" id="modalSimulador">
     <div class="modal-card">
       <div class="modal-title">
-        <span>🧮 Simulador</span>
-        <button class="modal-close" onclick="fecharModal('modalSimulador')" aria-label="Fechar">✕</button>
+        <span>?? Simulador</span>
+        <button class="modal-close" onclick="fecharModal('modalSimulador')" aria-label="Fechar">?</button>
       </div>
 
       <div class="modal-tabs">
-        <button class="tab-btn active" data-tab-sim="extra" onclick="trocarTabSimulador('extra')">💸 Pagamento Extra</button>
-        <button class="tab-btn" data-tab-sim="quitar" onclick="trocarTabSimulador('quitar')">🏁 Quitar Tudo</button>
+        <button class="tab-btn active" data-tab-sim="extra" onclick="trocarTabSimulador('extra')">?? Pagamento Extra</button>
+        <button class="tab-btn" data-tab-sim="quitar" onclick="trocarTabSimulador('quitar')">?? Quitar Tudo</button>
       </div>
 
       <!-- Aba Extra -->
@@ -714,11 +714,11 @@
         <div id="resultadoQuitar"></div>
       </div>
 
-      <button class="modal-cancel" onclick="fecharModal('modalSimulador');document.getElementById('modalDetalhes').classList.add('open');">← Voltar aos Detalhes</button>
+      <button class="modal-cancel" onclick="fecharModal('modalSimulador');document.getElementById('modalDetalhes').classList.add('open');">? Voltar aos Detalhes</button>
     </div>
   </div>
 
-  <!-- ═ Scripts ════════════════════════════════════════════ -->
+  <!-- - Scripts -------------------------------------------- -->
   <script src="js/firebase-config.js"></script>
   <script src="js/bud-utils.js"></script>
   <script type="module" src="js/dividas.js"></script>
