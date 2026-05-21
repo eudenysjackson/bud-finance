@@ -811,7 +811,9 @@ async function carregarPerfil(user) {
   // Buscar dados no Firestore (matrícula, plano, tema)
   try {
     const snap = await getDoc(doc(db, 'usuarios', user.uid));
-    if (snap.exists()) {
+    if (!snap.exists()) {
+      _renderizarSecaoPlano('free', {});
+    } else {
       const data = snap.data();
 
       const matricula  = data.matricula  || '—';
@@ -862,7 +864,8 @@ async function carregarPerfil(user) {
       }
     }
   } catch (_) {
-    // Firestore indisponível — exibe dados do Auth apenas
+    // Firestore indisponível — exibe dados do Auth apenas + renderiza plano como free
+    _renderizarSecaoPlano('free', {});
   }
 }
 
