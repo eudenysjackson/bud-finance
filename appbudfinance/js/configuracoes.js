@@ -823,33 +823,8 @@ async function carregarPerfil(user) {
       if (elMatricula) elMatricula.textContent = matricula;
       if (elSideId)    elSideId.textContent    = matricula;
 
-      // Plano
-      const planosLabel = { free: 'Gratuito', starter: 'Starter', pro: 'Pro', plus: 'Plus', trial: 'Período Trial' };
-      const elPlanoNome = document.getElementById('planoNome');
-      const elPlanoDesc = document.getElementById('planoDesc');
-      if (elPlanoNome) elPlanoNome.textContent = planosLabel[plano] || 'Gratuito';
-      if (elPlanoDesc) elPlanoDesc.textContent = plano === 'free'
-        ? 'Plano gratuito ativo'
-        : 'Assinatura ativa';
-
-      // Badge colorido do plano
-      const PLANO_BADGE_COLORS = { free: '#94a3b8', starter: '#3b82f6', plus: '#7c3aed', pro: '#d97706', trial: '#059669' };
-      const elBadge = document.getElementById('planoBadge');
-      if (elBadge) {
-        const badgeBg = PLANO_BADGE_COLORS[plano] || '#94a3b8';
-        elBadge.textContent = planosLabel[plano] || 'Gratuito';
-        elBadge.style.cssText = 'display:inline-block;font-size:0.625rem;font-weight:800;padding:0.15rem 0.5rem;border-radius:9999px;text-transform:uppercase;letter-spacing:0.04em;background:' + badgeBg + ';color:#fff;margin-left:0.25rem;vertical-align:middle;';
-      }
-
-      // Data de expiração do plano (Trial/Plus/Pro)
-      const elExpira = document.getElementById('planoExpira');
-      if (elExpira && data.assinaturaExpira) {
-        try {
-          const expDate = data.assinaturaExpira.toDate ? data.assinaturaExpira.toDate() : new Date(data.assinaturaExpira);
-          elExpira.textContent = 'Válido até ' + expDate.toLocaleDateString('pt-BR');
-          elExpira.style.display = 'block';
-        } catch (_) {}
-      }
+      // Plano — renderização completa da seção
+      _renderizarSecaoPlano(plano, data);
 
       // Armazenar plano e whatsapp para uso nas seções correspondentes
       _userPlano = plano.toLowerCase();
@@ -889,6 +864,153 @@ async function carregarPerfil(user) {
   } catch (_) {
     // Firestore indisponível — exibe dados do Auth apenas
   }
+}
+
+// ─── Gestão de Assinatura (PEND-075) ─────────────────────────────────────
+function _renderizarSecaoPlano(plano, data) {
+  const LABELS = { free: 'Gratuito', starter: 'Starter', pro: 'Pro', plus: 'Plus', trial: 'Período Trial' };
+  const BADGE_COLORS = { free: '#94a3b8', starter: '#3b82f6', plus: '#7c3aed', pro: '#d97706', trial: '#059669' };
+  const PLANOS_PAGOS = ['starter', 'pro', 'plus'];
+
+  const elNome   = document.getElementById('planoNome');
+  const elDesc   = document.getElementById('planoDesc');
+  const elBadge  = document.getElementById('planoBadge');
+  const elExpira = document.getElementById('planoExpira');
+  const elTrial  = document.getElementById('planoTrialAviso');
+  const elBotoes = document.getElementById('planoBotoes');
+  const elBanner = document.getElementById('planoBannerStatus');
+
+  if (!elNome) return;
+
+  // Nome + badge
+  elNome.textContent = LABELS[plano] || 'Gratuito';
+  if (elBadge) {
+    const bg = BADGE_COLORS[plano] || '#94a3b8';
+    elBadge.textContent = LABELS[plano] || 'Gratuito';
+    elBadge.style.cssText = 'display:inline-block;font-size:0.625rem;font-weight:800;padding:0.15rem 0.5rem;border-radius:9999px;text-transform:uppercase;letter-spacing:0.04em;background:' + bg + ';color:#fff;margin-left:0.25rem;vertical-align:middle;';
+  }
+
+  // Descrição
+  if (elDesc) {
+    const descs = {
+      free:    'Plano gratuito — acesso às funcionalidades básicas.',
+      starter: 'Plano Starter ativo — funcionalidades essenciais.',
+      pro:     'Plano Pro ativo — acesso completo ao Bud Finance.',
+      plus:    'Plano Plus ativo — tudo do Pro + WhatsApp.',
+      trial:   'Período de testes ativo — todas as funcionalidades Pro.'
+    };
+    elDesc.textContent = descs[plano] || 'Plano ativo.';
+  }
+
+  // Expira / trial
+  const expiraField = data.planoExpira || data.assinaturaExpira || data.trialFim;
+  if (expiraField) {
+    try {
+      const expDate = expiraField.toDate ? expiraField.toDate() : new Date(expiraField);
+      if (plano === 'trial' && elTrial) {
+        const dias = Math.ceil((expDate - new Date()) / 86400000);
+        elTrial.textContent = dias > 0 ? '⏳ ' + dias + ' dia(s) restante(s) no trial' : '⚠️ Trial encerrado';
+        elTrial.style.display = 'block';
+        elTrial.style.color = dias > 0 ? '#059669' : '#dc2626';
+      } else if (elExpira) {
+        elExpira.textContent = 'Válido até ' + expDate.toLocaleDateString('pt-BR');
+        elExpira.style.display = 'block';
+      }
+    } catch (_) {}
+  }
+
+  // Banner de status (pending / past_due)
+  const status = (data.assinaturaStatus || (data.assinatura && data.assinatura.status) || '').toLowerCase();
+  if (elBanner) {
+    if (status === 'pending') {
+      elBanner.textContent = '⏳ Pagamento em análise — sua assinatura será ativada em breve.';
+      elBanner.style.cssText = 'display:block;background:#fef9c3;border:1px solid #fde047;color:#854d0e;border-radius:0.75rem;padding:0.75rem 1rem;margin-top:0.875rem;font-size:0.8125rem;font-weight:600;';
+    } else if (status === 'past_due') {
+      elBanner.textContent = '⚠️ Problema no pagamento — verifique seus dados no Mercado Pago para não perder o acesso.';
+      elBanner.style.cssText = 'display:block;background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:0.75rem;padding:0.75rem 1rem;margin-top:0.875rem;font-size:0.8125rem;font-weight:600;';
+    } else {
+      elBanner.style.display = 'none';
+    }
+  }
+
+  // Botões de ação
+  if (!elBotoes) return;
+  elBotoes.innerHTML = '';
+
+  function _btnUpgrade(label, planoDest) {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.style.cssText = 'padding:0.5rem 1rem;background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;border:none;border-radius:0.625rem;font-size:0.8125rem;font-weight:700;cursor:pointer;white-space:nowrap;';
+    btn.onclick = function () {
+      const dest = planoDest ? '?checkout=' + planoDest : '';
+      window.location.href = '../index.html' + dest;
+    };
+    return btn;
+  }
+
+  function _btnCancelar() {
+    const btn = document.createElement('button');
+    btn.textContent = 'Cancelar assinatura';
+    btn.style.cssText = 'padding:0.5rem 1rem;background:transparent;color:#dc2626;border:1.5px solid #fca5a5;border-radius:0.625rem;font-size:0.8125rem;font-weight:600;cursor:pointer;white-space:nowrap;margin-top:0.125rem;';
+    btn.onclick = _confirmarCancelamento;
+    return btn;
+  }
+
+  if (plano === 'free') {
+    elBotoes.appendChild(_btnUpgrade('🚀 Fazer Upgrade', 'pro'));
+  } else if (plano === 'trial') {
+    elBotoes.appendChild(_btnUpgrade('🚀 Assinar Agora', 'pro'));
+  } else if (plano === 'starter') {
+    elBotoes.appendChild(_btnUpgrade('⬆️ Upgrade para Pro', 'pro'));
+    elBotoes.appendChild(_btnCancelar());
+  } else if (plano === 'pro') {
+    elBotoes.appendChild(_btnUpgrade('⬆️ Upgrade para Plus', 'plus'));
+    elBotoes.appendChild(_btnCancelar());
+  } else if (plano === 'plus') {
+    elBotoes.appendChild(_btnCancelar());
+  }
+}
+
+async function _confirmarCancelamento() {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);z-index:300;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  ov.innerHTML =
+    '<div style="background:var(--bg-page,#fff);border-radius:1.25rem;padding:1.75rem 1.5rem;max-width:400px;width:100%;border:1px solid var(--card-border,#e2e8f0);box-shadow:0 24px 64px rgba(0,0,0,.25);">'
+    + '<div style="font-size:2rem;text-align:center;margin-bottom:.625rem;">⚠️</div>'
+    + '<h3 style="font-weight:800;font-size:1rem;text-align:center;margin:0 0 .5rem;color:var(--card-text,#1e293b);">Cancelar assinatura?</h3>'
+    + '<p style="font-size:.8125rem;color:var(--card-text-sec,#64748b);text-align:center;margin:0 0 .875rem;line-height:1.5;">Você perderá acesso às funcionalidades do seu plano ao final do período pago. Esta ação não pode ser desfeita.</p>'
+    + '<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:.625rem;padding:.625rem .875rem;margin-bottom:1.25rem;font-size:.75rem;color:#991b1b;font-weight:600;">O cancelamento é imediato — o plano volta para Gratuito agora.</div>'
+    + '<div style="display:flex;gap:.75rem;">'
+    + '<button id="_cfgCancelBtn" style="flex:1;padding:.625rem;background:var(--input-bg,#f1f5f9);color:var(--card-text,#1e293b);border:none;border-radius:.625rem;font-size:.875rem;font-weight:600;cursor:pointer;">Manter plano</button>'
+    + '<button id="_cfgConfirmBtn" style="flex:1;padding:.625rem;background:#dc2626;color:#fff;border:none;border-radius:.625rem;font-size:.875rem;font-weight:700;cursor:pointer;">Sim, cancelar</button>'
+    + '</div></div>';
+  document.body.appendChild(ov);
+
+  document.getElementById('_cfgCancelBtn').onclick = function () { ov.remove(); };
+  document.getElementById('_cfgConfirmBtn').onclick = async function () {
+    const btn = document.getElementById('_cfgConfirmBtn');
+    btn.disabled = true;
+    btn.textContent = 'Cancelando...';
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const backendUrl = (window.BUD_FUNCTIONS_URL || '').replace(/\/$/, '');
+      const res = await fetch(backendUrl + '/mercadopago/cancelar-assinatura', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + idToken }
+      });
+      const json = await res.json();
+      ov.remove();
+      if (json.ok) {
+        if (window.budShowToast) window.budShowToast('Assinatura cancelada. Plano rebaixado para Gratuito.', 'success');
+        setTimeout(function () { location.reload(); }, 1500);
+      } else {
+        if (window.budShowToast) window.budShowToast('Erro: ' + (json.error || 'Tente novamente.'), 'error');
+      }
+    } catch (_) {
+      ov.remove();
+      if (window.budShowToast) window.budShowToast('Erro de conexão. Tente novamente.', 'error');
+    }
+  };
 }
 
 // ─── Resetar Toda a Conta (PEND-008) ────────────────────────────────────

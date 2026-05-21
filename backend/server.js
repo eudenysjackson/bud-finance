@@ -2660,6 +2660,63 @@ app.post('/mercadopago/sandbox-activate', async function (req, res) {
   return res.json({ ok: true, uid, planKey, mpSubscriptionId: mockSubId, planoExpira: expira.toISOString() });
 });
 
+// ─── POST /mercadopago/cancelar-assinatura ─────────────────────────
+// Cancela a assinatura ativa do usuário no Mercado Pago e rebaixa para free.
+app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req, res) {
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase não inicializado.' });
+
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
+
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+
+  var uid = decoded.uid;
+  try {
+    var userRef = db.collection('usuarios').doc(uid);
+    var snap    = await userRef.get();
+    if (!snap.exists) return res.status(404).json({ error: 'Usuário não encontrado.' });
+
+    var userData = snap.data();
+    var subId    = userData.mpSubscriptionId;
+
+    if (!subId || userData.plano === 'free') {
+      return res.status(400).json({ error: 'Nenhuma assinatura ativa para cancelar.' });
+    }
+
+    // Cancelar no Mercado Pago (pular em sandbox)
+    if (!String(subId).startsWith('SANDBOX_TEST_')) {
+      var mpRes = await fetch('https://api.mercadopago.com/preapproval/' + subId, {
+        method:  'PUT',
+        headers: { 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN, 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ status: 'cancelled' })
+      });
+      if (!mpRes.ok) {
+        var errText = await mpRes.text();
+        console.error('[cancelar-assinatura] MP error:', errText);
+        return res.status(502).json({ error: 'Erro ao cancelar no Mercado Pago. Tente novamente.' });
+      }
+    }
+
+    // Rebaixar para free no Firestore
+    await userRef.update({
+      plano:             'free',
+      mpSubscriptionId:  admin.firestore.FieldValue.delete(),
+      planoExpira:       admin.firestore.FieldValue.delete(),
+      planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      canceladoEm:       admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log('[cancelar-assinatura] Assinatura cancelada:', uid, subId);
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error('[cancelar-assinatura]', e.message);
+    return res.status(500).json({ error: 'Erro interno ao cancelar.' });
+  }
+});
+
 // ─── Start server ───────────────────────────────────────────────────
 var PORT = process.env.PORT || 3000;
 app.listen(PORT, function () {
