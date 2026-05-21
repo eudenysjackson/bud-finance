@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance � Dashboard financeiro">
+  <meta name="description" content="Bud Finance — Dashboard financeiro">
   <title>Dashboard - Bud Finance</title>
 
   <!-- Favicon -->
@@ -21,7 +21,7 @@
   <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
   <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com">
 
-  <!-- Prefetch das p�ginas da sidebar: carregadas em idle para navega��o instant�nea -->
+  <!-- Prefetch das páginas da sidebar: carregadas em idle para navegação instantânea -->
   <link rel="prefetch" href="cartoes.html">
   <link rel="prefetch" href="extrato.html">
   <link rel="prefetch" href="metas.html">
@@ -34,12 +34,12 @@
   <link rel="prefetch" href="limites.html">
   <link rel="prefetch" href="configuracoes.html">
 
-  <!-- Google Fonts � Inter -->
+  <!-- Google Fonts — Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- Tailwind CSS (build est�tico) -->
+  <!-- Tailwind CSS (build estático) -->
   <link rel="stylesheet" href="css/tailwind.css">
 
   <!-- Theme Manager (deve vir antes do body para evitar flash de cor) -->
@@ -76,7 +76,7 @@
       transition: background-color 0.35s ease;
     }
 
-    /* -- Splash screen ---------------------------------------------- */
+    /* ── Splash screen ────────────────────────────────────────────── */
     #splash {
       position: fixed; inset: 0;
       background: var(--bg-page);
@@ -104,7 +104,7 @@
       100% { transform: translateX(350%); }
     }
 
-    /* -- Blobs ------------------------------------------------------ */
+    /* ── Blobs ────────────────────────────────────────────────────── */
     .blob {
       position: fixed;
       border-radius: 9999px;
@@ -126,14 +126,14 @@
       filter: blur(100px);
     }
 
-    /* -- Layout ----------------------------------------------------- */
+    /* ── Layout ───────────────────────────────────────────────────── */
     .dash-layout {
       display: flex;
       min-height: 100vh;
       min-height: 100dvh;
     }
 
-    /* -- Sidebar ---------------------------------------------------- */
+    /* ── Sidebar ──────────────────────────────────────────────────── */
     .sidebar {
       width: 260px;
       background: var(--sidebar-bg);
@@ -149,7 +149,7 @@
       transition: transform .3s ease, width .3s ease, background 0.35s ease, border-color 0.35s ease;
       overflow: visible;
     }
-    /* Bot�o de toggle desktop � tab lateral */
+    /* Botão de toggle desktop — tab lateral */
     .sidebar-collapse-btn {
       display: none;
       position: absolute;
@@ -254,7 +254,7 @@
       transition: color 0.35s ease;
     }
 
-    /* -- Main ------------------------------------------------------- */
+    /* ── Main ─────────────────────────────────────────────────────── */
     .dash-main {
       flex: 1;
       margin-left: 260px;
@@ -265,7 +265,7 @@
     }
     .dash-main.sidebar-collapsed { margin-left: 64px; }
 
-    /* -- Header ----------------------------------------------------- */
+    /* ── Header ───────────────────────────────────────────────────── */
     .dash-header {
       display: flex; align-items: center; justify-content: space-between;
       margin-bottom: 1.5rem;
@@ -294,7 +294,7 @@
     }
     .dash-icon-btn:hover { background: rgba(255,255,255,0.97); color: #2563eb; border-color: #bfdbfe; }
 
-    /* -- Hamburger (mobile only) ------------------------------------ */
+    /* ── Hamburger (mobile only) ──────────────────────────────────── */
     .hamburger-btn {
       display: none;
       width: 2.5rem; height: 2.5rem; border-radius: 0.75rem;
@@ -311,7 +311,7 @@
       background: rgba(0,0,0,0.3); z-index: 40;
     }
 
-    /* -- Trial Banner ----------------------------------------------- */
+    /* ── Trial Banner ─────────────────────────────────────────────── */
     .trial-banner {
       display: none;
       background: linear-gradient(135deg, #fef3c7, #fde68a);
@@ -328,7 +328,7 @@
     .trial-banner.show { display: flex; }
     .trial-banner-icon { font-size: 1.25rem; }
     .trial-banner-text { flex: 1; }
-    /* -- Navega��o de m�s -------------------------------------- */
+    /* ── Navegação de mês ────────────────────────────────────── */
     .mes-nav {
       display: flex; align-items: center; justify-content: center;
       gap: 1rem; margin-bottom: 1.25rem;
@@ -356,10 +356,10 @@
       transition: color 0.35s ease;
       cursor: pointer; user-select: none;
     }
-    .mes-nav-label::after { content: ' ?'; font-size: 0.75em; opacity: 0.55; }
+    .mes-nav-label::after { content: ' ▾'; font-size: 0.75em; opacity: 0.55; }
     .mes-nav-label:hover { opacity: 0.75; }
     #mesPicker .mp-mes-btn:hover { opacity: 0.8; }
-    /* -- Cards grid ------------------------------------------------- */
+    /* ── Cards grid ───────────────────────────────────────────────── */
     .cards-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -408,7 +408,7 @@
       transition: color 0.35s ease;
     }
 
-    /* -- Placeholder sections --------------------------------------- */
+    /* ── Placeholder sections ─────────────────────────────────────── */
     .dash-section {
       background: var(--card-bg);
       backdrop-filter: blur(16px);
@@ -434,7 +434,7 @@
       font-size: 2rem; margin-bottom: 0.5rem;
     }
 
-    /* -- Quick actions grid ----------------------------------------- */
+    /* ── Quick actions grid ───────────────────────────────────────── */
     .quick-actions {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -471,7 +471,7 @@
       transition: color 0.35s ease;
     }
 
-    /* -- Responsive: Mobile ----------------------------------------- */
+    /* ── Responsive: Mobile ───────────────────────────────────────── */
     @media (max-width: 768px) {
       .sidebar {
         transform: translateX(-100%);
@@ -524,7 +524,7 @@
       .sidebar-collapse-btn { display: flex; }
     }
 
-    /* -- Modal Lan�amento ------------------------------------------- */
+    /* ── Modal Lançamento ─────────────────────────────────────────── */
     .modal-overlay {
       display: none; position: fixed; inset: 0;
       background: rgba(15,23,42,0.5);
@@ -597,7 +597,7 @@
     .modal-input.error {
       border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.1);
     }
-    /* -- Custom Select Dropdown ------------------------------- */
+    /* ── Custom Select Dropdown ─────────────────────────────── */
     .custom-select { position: relative; }
     .custom-select-trigger {
       width: 100%; padding: 0.625rem 0.875rem;
@@ -633,7 +633,7 @@
     }
     .custom-select-option:hover { background: var(--sidebar-link-hover-bg); }
     .custom-select-option.selected { background: #eff6ff; color: #2563eb; font-weight: 700; }
-    /* -- Custom Date Picker -------------------------------- */
+    /* ── Custom Date Picker ──────────────────────────────── */
     .custom-datepicker { position: relative; }
     .dp-trigger {
       width: 100%; padding: 0.625rem 0.875rem;
@@ -703,24 +703,24 @@
     .modal-submit:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
     .modal-submit:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
-    /* -- Scrollbar modal hist�rico -------------------------------- */
+    /* ── Scrollbar modal histórico ──────────────────────────────── */
     #historicoLista::-webkit-scrollbar { width: 5px; }
     #historicoLista::-webkit-scrollbar-track { background: transparent; margin-top: 1rem; margin-bottom: 1rem; }
     #historicoLista::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 999px; }
 
-    /* -- Comparativo grid -------------------------------------- */
+    /* ── Comparativo grid ────────────────────────────────────── */
     .comp-grid { display:flex; gap:0.75rem; }
     .comp-item { flex:1; min-width:0; background:var(--sidebar-link-hover-bg); border-radius:0.875rem; padding:0.75rem; text-align:center; }
     @media (max-width: 400px) {
       .comp-grid { flex-direction:column; }
       .comp-item { text-align:left; display:flex; align-items:center; justify-content:space-between; gap:0.75rem; }
     }
-    /* -- Investimentos widget grid ------------------------------ */
+    /* ── Investimentos widget grid ────────────────────────────── */
     .inv-widget-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:0.875rem; }
     @media (max-width: 400px) {
       .inv-widget-grid { grid-template-columns:1fr; }
     }
-    /* -- Quick Actions hover colorido --------------------------- */
+    /* ── Quick Actions hover colorido ─────────────────────────── */
     .quick-btn-receita:hover { background:rgba(22,163,74,0.07) !important; border-color:rgba(22,163,74,0.25) !important; }
     .quick-btn-receita:hover .quick-btn-icon-green { background:#16a34a; color:#fff; }
     .quick-btn-despesa:hover { background:rgba(220,38,38,0.07) !important; border-color:rgba(220,38,38,0.25) !important; }
@@ -730,26 +730,26 @@
 </head>
 <body>
 
-  <!-- --- Splash screen -------------------------------------------- -->
+  <!-- ═══ Splash screen ════════════════════════════════════════════ -->
   <div id="splash">
     <img src="logo.png" alt="Bud Finance" style="width:56px;height:56px;object-fit:contain;animation:pulse-logo 1.8s ease-in-out infinite;">
     <div class="splash-bar"><div class="splash-bar-inner"></div></div>
   </div>
 
-  <!-- --- Blobs decorativos ---------------------------------------- -->
+  <!-- ═══ Blobs decorativos ════════════════════════════════════════ -->
   <div class="blob blob-blue" aria-hidden="true"></div>
   <div class="blob blob-cyan" aria-hidden="true"></div>
 
-  <!-- --- Overlay sidebar mobile ----------------------------------- -->
+  <!-- ═══ Overlay sidebar mobile ═══════════════════════════════════ -->
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <!-- --- Layout --------------------------------------------------- -->
+  <!-- ═══ Layout ═══════════════════════════════════════════════════ -->
   <div class="dash-layout">
 
-    <!-- --- Sidebar ------------------------------------------------ -->
+    <!-- ─── Sidebar ──────────────────────────────────────────────── -->
     <aside class="sidebar" id="sidebar">
-      <!-- Bot�o toggle desktop -->
-      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar" title="Recolher sidebar">�</button>
+      <!-- Botão toggle desktop -->
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar" title="Recolher sidebar">‹</button>
 
       <div class="sidebar-logo">
         <img src="logo.png" alt="Bud Finance" width="32" height="32">
@@ -758,44 +758,44 @@
 
       <nav class="sidebar-nav">
         <a href="dashboard.html" class="sidebar-link active">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Dashboard</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
         </a>
-        <div class="sidebar-group-label">Finan�as</div>
+        <div class="sidebar-group-label">Finanças</div>
         <a href="carteira.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Contas</span>
+          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Contas</span>
         </a>
         <a href="cartoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Cart�es</span>
+          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
         </a>
         <a href="recorrentes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Recorrentes</span>
+          <span class="sidebar-link-icon">🔄</span><span class="sidebar-link-text"> Recorrentes</span>
         </a>
         <a href="dividas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> D�vidas</span>
+          <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
         </a>
         <a href="metas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Metas</span>
+          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
         </a>
         <a href="mercado.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Compras</span>
+          <span class="sidebar-link-icon">🛒</span><span class="sidebar-link-text"> Compras</span>
         </a>
         <a href="categorias.html" class="sidebar-link">
-          <span class="sidebar-link-icon">???</span><span class="sidebar-link-text"> Categorias</span>
+          <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
         <a href="graficos.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> An�lises</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <a href="assistente-ia.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Assistente IA</span>
+          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span>
         </a>
         <a href="assistente-whatsapp.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
+          <span class="sidebar-link-icon">💬</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
         </a>
         <div class="sidebar-nav-divider"></div>
         <a href="configuracoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Configura��es</span>
+          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
         </a>
       </nav>
 
@@ -810,40 +810,40 @@
 
       <!-- Logout -->
       <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
-        <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Sair</span>
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
       </button>
     </aside>
 
-    <!-- --- Main Content ------------------------------------------- -->
+    <!-- ─── Main Content ─────────────────────────────────────────── -->
     <main class="dash-main" id="dashMain">
 
       <!-- Header -->
       <div class="dash-header">
         <div style="display:flex;align-items:center;gap:0.75rem;">
-          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">?</button>
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
           <div class="dash-welcome">
-            <h1 id="welcomeText">Bom dia! ??</h1>
+            <h1 id="welcomeText">Bom dia! 👋</h1>
             <p id="welcomeDate">Carregando...</p>
           </div>
         </div>
         <div class="dash-header-actions">
-          <button class="dash-icon-btn" id="btnToggleValues" title="Ocultar/Mostrar valores">???</button>
-          <button class="dash-icon-btn" id="btnSync" title="Sincronizar dados">??</button>
-          <span id="streakBadge" style="display:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:0.3rem 0.625rem;border-radius:9999px;font-size:0.75rem;font-weight:700;white-space:nowrap;cursor:default;user-select:none;" title="Dias consecutivos com lan�amentos">?? <span id="streakCount">0</span>d</span>
+          <button class="dash-icon-btn" id="btnToggleValues" title="Ocultar/Mostrar valores">👁️</button>
+          <button class="dash-icon-btn" id="btnSync" title="Sincronizar dados">🔄</button>
+          <span id="streakBadge" style="display:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:0.3rem 0.625rem;border-radius:9999px;font-size:0.75rem;font-weight:700;white-space:nowrap;cursor:default;user-select:none;" title="Dias consecutivos com lançamentos">🔥 <span id="streakCount">0</span>d</span>
         </div>
       </div>
 
       <!-- Trial Banner -->
       <div class="trial-banner" id="trialBanner">
-        <span class="trial-banner-icon">?</span>
-        <span class="trial-banner-text" id="trialBannerText">Seu per�odo de testes termina em breve.</span>
+        <span class="trial-banner-icon">⏳</span>
+        <span class="trial-banner-text" id="trialBannerText">Seu período de testes termina em breve.</span>
       </div>
 
-      <!-- Navega��o de m�s -->
-      <nav class="mes-nav" aria-label="Navega��o por m�s">
-        <button class="mes-nav-btn" id="btnMesAnterior" aria-label="M�s anterior">�</button>
+      <!-- Navegação de mês -->
+      <nav class="mes-nav" aria-label="Navegação por mês">
+        <button class="mes-nav-btn" id="btnMesAnterior" aria-label="Mês anterior">‹</button>
         <span class="mes-nav-label" id="navMesAno" aria-live="polite">Carregando...</span>
-        <button class="mes-nav-btn" id="btnProximoMes" aria-label="Pr�ximo m�s">�</button>
+        <button class="mes-nav-btn" id="btnProximoMes" aria-label="Próximo mês">›</button>
       </nav>
 
       <!-- Summary Cards -->
@@ -851,33 +851,33 @@
         <!-- Saldo Total -->
         <div class="summary-card">
           <div class="card-header">
-            <span class="card-label">Resultado do M�s</span>
-            <div class="card-icon card-icon-blue">??</div>
+            <span class="card-label">Resultado do Mês</span>
+            <div class="card-icon card-icon-blue">💰</div>
           </div>
           <div class="card-value" id="cardSaldo">R$ 0,00</div>
-          <div class="card-sub" id="cardSaldoSub">�</div>
+          <div class="card-sub" id="cardSaldoSub">—</div>
           <div id="cardSaldoVariacao" style="display:none;margin-top:0.375rem;"></div>
         </div>
 
-        <!-- Entradas do M�s -->
+        <!-- Entradas do Mês -->
         <div class="summary-card">
           <div class="card-header">
-            <span class="card-label">Entradas do M�s</span>
-            <div class="card-icon card-icon-green">??</div>
+            <span class="card-label">Entradas do Mês</span>
+            <div class="card-icon card-icon-green">📈</div>
           </div>
           <div class="card-value" id="cardEntradas" style="color:#16a34a;">R$ 0,00</div>
-          <div class="card-sub" id="cardEntradasSub">�</div>
+          <div class="card-sub" id="cardEntradasSub">—</div>
           <div id="cardEntradasVariacao" style="display:none;margin-top:0.375rem;"></div>
         </div>
 
-        <!-- Sa�das do M�s -->
+        <!-- Saídas do Mês -->
         <div class="summary-card">
           <div class="card-header">
-            <span class="card-label">Sa�das do M�s</span>
-            <div class="card-icon card-icon-red">??</div>
+            <span class="card-label">Saídas do Mês</span>
+            <div class="card-icon card-icon-red">📉</div>
           </div>
           <div class="card-value" id="cardSaidas" style="color:#dc2626;">R$ 0,00</div>
-          <div class="card-sub" id="cardSaidasSub">�</div>
+          <div class="card-sub" id="cardSaidasSub">—</div>
           <div id="cardSaidasVariacao" style="display:none;margin-top:0.25rem;"></div>
           <div id="cardSaidasOrcamento" style="display:none;margin-top:0.375rem;"></div>
         </div>
@@ -893,34 +893,34 @@
           </div>
         </button>
         <button class="quick-btn quick-btn-despesa" id="btnNovaDespesa">
-          <div class="quick-btn-icon quick-btn-icon-red">-</div>
+          <div class="quick-btn-icon quick-btn-icon-red">−</div>
           <div>
             <div class="quick-btn-label">Nova Despesa</div>
-            <div class="quick-btn-sub">Registrar sa�da</div>
+            <div class="quick-btn-sub">Registrar saída</div>
           </div>
         </button>
       </div>
 
-      <!-- Banner: Receitas Pendentes de Confirma��o -->
+      <!-- Banner: Receitas Pendentes de Confirmação -->
       <div id="bannerConfirmarReceitas" style="display:none;background:rgba(234,179,8,0.1);border:1.5px solid rgba(234,179,8,0.35);border-radius:1rem;padding:0.875rem 1rem;margin-bottom:1.25rem;">
         <div style="display:flex;align-items:center;gap:0.625rem;">
           <span style="font-size:1.25rem;flex-shrink:0;">&#x23F3;</span>
           <div style="flex:1;min-width:0;">
-            <div style="font-size:0.8125rem;font-weight:700;color:#b45309;">Receitas aguardando confirma��o</div>
+            <div style="font-size:0.8125rem;font-weight:700;color:#b45309;">Receitas aguardando confirmação</div>
             <div id="bannerConfirmarReceitasTexto" style="font-size:0.75rem;color:#92400e;margin-top:0.125rem;"></div>
           </div>
           <button id="btnBannerConfirmarReceitas" style="flex-shrink:0;padding:0.375rem 0.75rem;border:none;border-radius:0.625rem;background:#d97706;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Ver</button>
         </div>
       </div>
 
-      <!-- Comparativo vs M�s Anterior -->
+      <!-- Comparativo vs Mês Anterior -->
       <div class="dash-section" id="secComparativo" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
           <div>
-            <div class="dash-section-title">?? Comparativo com M�s Anterior</div>
+            <div class="dash-section-title">📈 Comparativo com Mês Anterior</div>
             <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.125rem;">Receitas, despesas e saldo</div>
           </div>
-          <a href="comparativo.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver detalhado ?</a>
+          <a href="comparativo.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver detalhado →</a>
         </div>
         <div class="comp-grid" id="comparativoBody"></div>
       </div>
@@ -929,34 +929,34 @@
       <div class="dash-section" id="secCarteiraWidget" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
           <div>
-            <div class="dash-section-title">?? Minhas Contas</div>
-            <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.125rem;">Saldo total: <span id="carteiraWidgetTotal" style="font-weight:700;color:var(--card-text);">�</span></div>
+            <div class="dash-section-title">🏦 Minhas Contas</div>
+            <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.125rem;">Saldo total: <span id="carteiraWidgetTotal" style="font-weight:700;color:var(--card-text);">—</span></div>
           </div>
-          <a href="carteira.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver carteira ?</a>
+          <a href="carteira.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver carteira →</a>
         </div>
         <div id="listaCarteiraWidget"></div>
       </div>
 
-      <!-- Limites do M�s -->
+      <!-- Limites do Mês -->
       <div class="dash-section" id="secLimitesWidget" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
           <div>
-            <div class="dash-section-title">?? Limites do M�s</div>
+            <div class="dash-section-title">🎯 Limites do Mês</div>
             <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.25rem;" id="limitesWidgetSub"></div>
           </div>
-          <a href="limites.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver todos ?</a>
+          <a href="limites.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver todos →</a>
         </div>
         <div id="listaLimitesWidget"></div>
       </div>
 
-      <!-- D�vidas em Atraso -->
+      <!-- Dívidas em Atraso -->
       <div class="dash-section" id="secDividasAtraso" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
           <div>
-            <div class="dash-section-title">?? D�vidas em Atraso</div>
+            <div class="dash-section-title">💸 Dívidas em Atraso</div>
             <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.25rem;" id="dividasAtrasoContador"></div>
           </div>
-          <a href="dividas.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver todas ?</a>
+          <a href="dividas.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver todas →</a>
         </div>
         <div id="listaDividasAtraso"></div>
       </div>
@@ -967,10 +967,10 @@
           <div style="display:flex;align-items:center;gap:0.5rem;">
             <div>
               <div style="display:flex;align-items:center;gap:0.5rem;">
-                <span class="dash-section-title">?? Pr�ximos Vencimentos</span>
+                <span class="dash-section-title">🔔 Próximos Vencimentos</span>
                 <span id="badgeUrgLemb" style="display:none;font-size:0.6875rem;font-weight:800;padding:0.15rem 0.5rem;border-radius:9999px;background:#f59e0b;color:#fff;"></span>
               </div>
-              <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.25rem;">Nos pr�ximos 7 dias</div>
+              <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.25rem;">Nos próximos 7 dias</div>
             </div>
           </div>
         </div>
@@ -980,42 +980,42 @@
       <!-- Tudo em dia -->
       <div class="dash-section" id="secTudoEmDia" style="display:none;">
         <div style="display:flex;align-items:center;gap:0.75rem;">
-          <span style="font-size:1.5rem;">?</span>
+          <span style="font-size:1.5rem;">✅</span>
           <div>
             <div style="font-size:0.9375rem;font-weight:700;color:#16a34a;">Tudo em dia!</div>
-            <div style="font-size:0.75rem;color:#94a3b8;">Nenhuma conta vencida ou pr�xima de vencer.</div>
+            <div style="font-size:0.75rem;color:#94a3b8;">Nenhuma conta vencida ou próxima de vencer.</div>
           </div>
         </div>
       </div>
 
       <!-- Atividades recentes -->
       <div class="dash-section">
-        <!-- Linha 1: t�tulo + contador -->
+        <!-- Linha 1: título + contador -->
         <div style="display:flex;align-items:baseline;gap:0.5rem;margin-bottom:0.5rem;">
           <div class="dash-section-title" style="white-space:nowrap;">Atividades Recentes</div>
           <div style="font-size:0.75rem;color:#94a3b8;font-weight:600;" id="atividadesContador">0</div>
         </div>
-        <!-- Linha 2: filtro r�pido -->
+        <!-- Linha 2: filtro rápido -->
         <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:nowrap;">
           <button class="filtro-atividades active" data-filtro="todos" style="padding:0.375rem 0.75rem;border:1px solid transparent;border-radius:0.5rem;background:var(--btn-bg);color:var(--btn-text);font-size:0.75rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;">Todos</button>
-          <button class="filtro-atividades" data-filtro="receita" style="padding:0.375rem 0.75rem;border:1px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.75rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;">? Receitas</button>
-          <button class="filtro-atividades" data-filtro="despesa" style="padding:0.375rem 0.75rem;border:1px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.75rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;">? Despesas</button>
+          <button class="filtro-atividades" data-filtro="receita" style="padding:0.375rem 0.75rem;border:1px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.75rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;">↑ Receitas</button>
+          <button class="filtro-atividades" data-filtro="despesa" style="padding:0.375rem 0.75rem;border:1px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.75rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;">↓ Despesas</button>
         </div>
         <div class="dash-empty" id="atividadesLista">
-          <div class="dash-empty-icon">??</div>
-          <p>Nenhuma transa��o este m�s.<br>Comece adicionando uma receita ou despesa!</p>
+          <div class="dash-empty-icon">📝</div>
+          <p>Nenhuma transação este mês.<br>Comece adicionando uma receita ou despesa!</p>
         </div>
       </div>
 
-      <!-- Gr�fico Despesas por Categoria -->
+      <!-- Gráfico Despesas por Categoria -->
       <div class="dash-section">
         <div class="dash-section-title">Despesas por Categoria</div>
-        <!-- Estado vazio (exibido quando n�o h� despesas no m�s) -->
+        <!-- Estado vazio (exibido quando não há despesas no mês) -->
         <div class="dash-empty" id="graficoCategorias">
-          <div class="dash-empty-icon">??</div>
-          <p>Nenhuma despesa registrada neste m�s.</p>
+          <div class="dash-empty-icon">📊</div>
+          <p>Nenhuma despesa registrada neste mês.</p>
         </div>
-        <!-- Canvas do gr�fico (oculto quando vazio) -->
+        <!-- Canvas do gráfico (oculto quando vazio) -->
         <div id="graficoContainer" style="display:none;position:relative;height:280px;">
           <canvas id="chartCategorias"></canvas>
         </div>
@@ -1024,8 +1024,8 @@
       <!-- Meta em Destaque -->
       <div class="dash-section" id="secMetaProxima" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.875rem;">
-          <div class="dash-section-title">?? Metas em Andamento</div>
-          <a href="metas.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver metas ?</a>
+          <div class="dash-section-title">🎯 Metas em Andamento</div>
+          <a href="metas.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver metas →</a>
         </div>
         <div id="metaProximaBody"></div>
       </div>
@@ -1033,8 +1033,8 @@
       <!-- Investimentos Widget -->
       <div class="dash-section" id="secInvestimentosWidget" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.875rem;">
-          <div class="dash-section-title">?? Investimentos</div>
-          <a href="investimentos.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver carteira ?</a>
+          <div class="dash-section-title">📈 Investimentos</div>
+          <a href="investimentos.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver carteira →</a>
         </div>
         <div id="investimentosWidgetBody"></div>
       </div>
@@ -1043,20 +1043,20 @@
       <div class="dash-section" id="secEconomiaPotencial" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
           <div>
-            <div class="dash-section-title">?? Economia Potencial</div>
+            <div class="dash-section-title">💡 Economia Potencial</div>
             <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.125rem;">Reduzindo 15% nas maiores categorias</div>
           </div>
-          <div style="font-size:0.75rem;font-weight:700;padding:0.25rem 0.625rem;border-radius:9999px;background:rgba(22,163,74,0.1);color:#16a34a;">+ <span id="economiaPotencialTotal">�</span></div>
+          <div style="font-size:0.75rem;font-weight:700;padding:0.25rem 0.625rem;border-radius:9999px;background:rgba(22,163,74,0.1);color:#16a34a;">+ <span id="economiaPotencialTotal">—</span></div>
         </div>
         <div id="economiaPotencialBody"></div>
-        <a href="insights.html" style="display:block;text-align:center;margin-top:0.75rem;font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver an�lise completa ?</a>
+        <a href="insights.html" style="display:block;text-align:center;margin-top:0.75rem;font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver análise completa →</a>
       </div>
 
-      <!-- Sa�de Financeira Preview -->
+      <!-- Saúde Financeira Preview -->
       <div class="dash-section" id="secSaudeFinanceira">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.875rem;">
-          <div class="dash-section-title">?? Sa�de Financeira</div>
-          <a href="insights.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver an�lise ?</a>
+          <div class="dash-section-title">🧠 Saúde Financeira</div>
+          <a href="insights.html" style="font-size:0.8125rem;font-weight:600;color:var(--theme-accent);text-decoration:none;">Ver análise →</a>
         </div>
         <div style="display:flex;align-items:center;gap:1.25rem;">
           <div style="flex-shrink:0;position:relative;width:72px;height:72px;">
@@ -1066,11 +1066,11 @@
                 stroke-linecap="round" style="stroke-dasharray:0 176;transition:stroke-dasharray .8s ease,stroke .4s;"/>
             </svg>
             <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
-              <span id="saudeScore" style="font-size:1.125rem;font-weight:800;color:var(--card-text);">�</span>
+              <span id="saudeScore" style="font-size:1.125rem;font-weight:800;color:var(--card-text);">—</span>
             </div>
           </div>
           <div style="flex:1;">
-            <div id="saudeLabel" style="font-size:1.0625rem;font-weight:700;color:#16a34a;margin-bottom:0.3rem;">�</div>
+            <div id="saudeLabel" style="font-size:1.0625rem;font-weight:700;color:#16a34a;margin-bottom:0.3rem;">—</div>
             <div id="saudeDesc" style="font-size:0.8125rem;color:var(--card-text-sec);line-height:1.4;">Carregando...</div>
           </div>
         </div>
@@ -1079,7 +1079,7 @@
       <!-- Dica do Dia -->
       <div class="dash-section" id="secDicaDia" style="background:linear-gradient(135deg,rgba(59,130,246,0.06),rgba(139,92,246,0.06));border-left:4px solid var(--theme-accent);border-top:1px solid rgba(59,130,246,0.12);border-right:1px solid rgba(59,130,246,0.12);border-bottom:1px solid rgba(59,130,246,0.12);">
         <div style="display:flex;align-items:flex-start;gap:0.75rem;">
-          <span style="font-size:1.25rem;flex-shrink:0;margin-top:0.125rem;">??</span>
+          <span style="font-size:1.25rem;flex-shrink:0;margin-top:0.125rem;">💬</span>
           <div>
             <div style="font-size:0.6875rem;font-weight:700;color:var(--theme-accent);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.3rem;">DICA DO DIA</div>
             <div id="dicaDiaTexto" style="font-size:0.875rem;color:var(--card-text);line-height:1.5;font-weight:500;">Carregando...</div>
@@ -1090,26 +1090,26 @@
     </main>
   </div>
 
-  <!-- --- Modal Lan�amento ----------------------------------------- -->
+  <!-- ═══ Modal Lançamento ═════════════════════════════════════════ -->
   <div class="modal-overlay" id="modalLancamento" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">
     <div class="modal-card">
       <div class="modal-title">
-        <span id="modalTitulo">Nova Transa��o</span>
-        <button class="modal-close" id="btnFecharModal" aria-label="Fechar">?</button>
+        <span id="modalTitulo">Nova Transação</span>
+        <button class="modal-close" id="btnFecharModal" aria-label="Fechar">✕</button>
       </div>
 
       <!-- Tipo toggle -->
       <div class="tipo-toggle">
-        <button class="tipo-btn" id="tipoBtnReceita" type="button">? Receita</button>
-        <button class="tipo-btn" id="tipoBtnDespesa" type="button">? Despesa</button>
+        <button class="tipo-btn" id="tipoBtnReceita" type="button">↑ Receita</button>
+        <button class="tipo-btn" id="tipoBtnDespesa" type="button">↓ Despesa</button>
       </div>
 
       <form id="formLancamento" novalidate>
-        <!-- Descri��o -->
+        <!-- Descrição -->
         <div class="modal-field">
-          <label class="modal-label" for="inputDescricao">Descri��o</label>
+          <label class="modal-label" for="inputDescricao">Descrição</label>
           <input class="modal-input" type="text" id="inputDescricao"
-            placeholder="Ex: Sal�rio, Supermercado..." maxlength="100" autocomplete="off">
+            placeholder="Ex: Salário, Supermercado..." maxlength="100" autocomplete="off">
         </div>
 
         <!-- Valor -->
@@ -1150,9 +1150,9 @@
             </div>
             <div class="dp-dropdown" id="datepickerDropdown">
               <div class="dp-header">
-                <button class="dp-nav-btn" id="dpPrevMonth" type="button" aria-label="M�s anterior">�</button>
+                <button class="dp-nav-btn" id="dpPrevMonth" type="button" aria-label="Mês anterior">‹</button>
                 <span class="dp-month-year" id="dpMonthYear"></span>
-                <button class="dp-nav-btn" id="dpNextMonth" type="button" aria-label="Pr�ximo m�s">�</button>
+                <button class="dp-nav-btn" id="dpNextMonth" type="button" aria-label="Próximo mês">›</button>
               </div>
               <div class="dp-weekdays">
                 <span class="dp-weekday">D</span><span class="dp-weekday">S</span>
@@ -1166,13 +1166,13 @@
           </div>
         </div>
 
-        <!-- Conta / Cart�o -->
+        <!-- Conta / Cartão -->
         <div class="modal-field" id="fieldConta">
-          <label class="modal-label" for="contaBtn">Conta / Cart�o</label>
+          <label class="modal-label" for="contaBtn">Conta / Cartão</label>
           <div class="custom-select" id="contaWrapper">
             <div class="custom-select-trigger" id="contaBtn" tabindex="0"
               role="combobox" aria-haspopup="listbox" aria-expanded="false">
-              <span id="contaTexto">� Sem vincular �</span>
+              <span id="contaTexto">— Sem vincular —</span>
               <svg class="custom-select-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path d="M4 6L8 10L12 6" stroke="#64748b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
@@ -1186,22 +1186,22 @@
           Salvar Receita
         </button>
 
-        <!-- Bot�o excluir (s� vis�vel no modo edi��o) -->
+        <!-- Botão excluir (só visível no modo edição) -->
         <button type="button" id="btnExcluirTransacao"
           style="display:none;width:100%;margin-top:0.5rem;padding:0.75rem;background:none;border:1px solid #fca5a5;border-radius:0.75rem;color:#dc2626;font-size:0.875rem;font-weight:600;cursor:pointer;transition:background .15s;"
           onmouseenter="this.style.background='#fef2f2'" onmouseleave="this.style.background=''">
-          ??? Excluir Transa��o
+          🗑️ Excluir Transação
         </button>
       </form>
     </div>
   </div>
 
-  <!-- --- Mini-modal Confirma��o Exclus�o --------------------------- -->
+  <!-- ═══ Mini-modal Confirmação Exclusão ═══════════════════════════ -->
   <div id="modalConfirmExcluir" class="modal-overlay" role="dialog" aria-modal="true" style="z-index:90;">
     <div style="background:var(--bg-page);backdrop-filter:blur(20px);border-radius:1.25rem;padding:2rem;max-width:340px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.18);border:1px solid var(--card-border);">
-      <div style="font-size:2rem;margin-bottom:0.75rem;">??</div>
-      <div style="font-size:1rem;font-weight:700;color:var(--text-main);margin-bottom:0.5rem;">Excluir transa��o?</div>
-      <p style="font-size:0.8125rem;color:var(--text-sec);margin-bottom:1.5rem;">Essa a��o n�o pode ser desfeita.</p>
+      <div style="font-size:2rem;margin-bottom:0.75rem;">⚠️</div>
+      <div style="font-size:1rem;font-weight:700;color:var(--text-main);margin-bottom:0.5rem;">Excluir transação?</div>
+      <p style="font-size:0.8125rem;color:var(--text-sec);margin-bottom:1.5rem;">Essa ação não pode ser desfeita.</p>
       <div style="display:flex;gap:0.75rem;">
         <button id="btnCancelarExcluir" type="button"
           style="flex:1;padding:0.625rem;border:1px solid var(--input-border);border-radius:0.75rem;background:var(--sidebar-user-bg);color:var(--text-sec);font-size:0.875rem;font-weight:600;cursor:pointer;">
@@ -1215,31 +1215,31 @@
     </div>
   </div>
 
-  <!-- --- Modal Hist�rico Completo ---------------------------------- -->
+  <!-- ═══ Modal Histórico Completo ══════════════════════════════════ -->
   <div id="modalHistorico" class="modal-overlay" role="dialog" aria-modal="true">
     <div class="modal-card" style="max-height:85vh;display:flex;flex-direction:column;">
       <div class="modal-title">
-        <span>Hist�rico Completo</span>
-        <button class="modal-close" id="btnFecharHistorico" aria-label="Fechar">?</button>
+        <span>Histórico Completo</span>
+        <button class="modal-close" id="btnFecharHistorico" aria-label="Fechar">✕</button>
       </div>
       <div id="historicoLista" style="overflow-y:auto;flex:1;padding:0 0.25rem;"></div>
     </div>
   </div>
 
-  <!-- --- Modal Confirmar Receitas Pendentes ----------------------- -->
+  <!-- ═══ Modal Confirmar Receitas Pendentes ═══════════════════════ -->
   <div id="modalConfirmarPendentes" class="modal-overlay" role="dialog" aria-modal="true">
     <div class="modal-card" style="max-height:85vh;display:flex;flex-direction:column;">
       <div class="modal-title">
-        <span>? Receitas a Confirmar</span>
-        <button class="modal-close" id="btnFecharConfirmarPendentes" aria-label="Fechar">?</button>
+        <span>⏳ Receitas a Confirmar</span>
+        <button class="modal-close" id="btnFecharConfirmarPendentes" aria-label="Fechar">✕</button>
       </div>
-      <p style="font-size:0.8125rem;color:var(--text-sec);margin:0 0 1rem;">Confirme as receitas que j� foram recebidas para que entrem no seu saldo.</p>
+      <p style="font-size:0.8125rem;color:var(--text-sec);margin:0 0 1rem;">Confirme as receitas que já foram recebidas para que entrem no seu saldo.</p>
       <div id="confirmarPendentesLista" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:0.75rem;padding:0 0.25rem;margin-bottom:1rem;"></div>
-      <button id="btnConfirmarTodasReceitas" style="width:100%;padding:0.75rem;border:none;border-radius:0.875rem;background:#16a34a;color:#fff;font-size:0.875rem;font-weight:800;cursor:pointer;font-family:inherit;">Confirmar todas ?</button>
+      <button id="btnConfirmarTodasReceitas" style="width:100%;padding:0.75rem;border:none;border-radius:0.875rem;background:#16a34a;color:#fff;font-size:0.875rem;font-weight:800;cursor:pointer;font-family:inherit;">Confirmar todas ✓</button>
     </div>
   </div>
 
-  <!-- --- Firebase + Config ---------------------------------------- -->
+  <!-- ═══ Firebase + Config ════════════════════════════════════════ -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/bud-utils.js"></script>
@@ -1251,11 +1251,11 @@
     (function () {
       var splash = document.getElementById('splash');
       if (!splash) return;
-      var minTime = 0; // sem espera m�nima artificial
+      var minTime = 0; // sem espera mínima artificial
       var start = Date.now();
       window.addEventListener('load', function () {
         var elapsed = Date.now() - start;
-        var remaining = Math.max(0, 0 - elapsed); // sem espera m�nima artificial
+        var remaining = Math.max(0, 0 - elapsed); // sem espera mínima artificial
         setTimeout(function () {
           splash.classList.add('hide');
           setTimeout(function () { splash.remove(); }, 600);

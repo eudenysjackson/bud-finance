@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance � Configura��es">
-  <title>Configura��es - Bud Finance</title>
+  <meta name="description" content="Bud Finance — Configurações">
+  <title>Configurações - Bud Finance</title>
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="logo.png">
@@ -16,12 +16,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Bud Finance">
 
-  <!-- Google Fonts � Inter -->
+  <!-- Google Fonts — Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- Tailwind CSS (build est�tico) -->
+  <!-- Tailwind CSS (build estático) -->
   <link rel="stylesheet" href="css/tailwind.css">
 
   <!-- Theme Manager (deve vir antes do body para evitar flash de cor) -->
@@ -56,7 +56,7 @@
       transition: background-color 0.35s ease;
     }
 
-    /* -- Blobs decorativos ------------------------------------------- */
+    /* ── Blobs decorativos ─────────────────────────────────────────── */
     .blob {
       position: fixed; border-radius: 50%; filter: blur(80px);
       pointer-events: none; z-index: 0;
@@ -75,14 +75,14 @@
       filter: blur(100px);
     }
 
-    /* -- Layout ------------------------------------------------------ */
+    /* ── Layout ────────────────────────────────────────────────────── */
     .dash-layout {
       display: flex;
       min-height: 100vh;
       min-height: 100dvh;
     }
 
-    /* -- Sidebar ----------------------------------------------------- */
+    /* ── Sidebar ───────────────────────────────────────────────────── */
     .sidebar {
       width: 260px;
       background: var(--sidebar-bg);
@@ -199,7 +199,7 @@
       transition: color 0.35s ease;
     }
 
-    /* -- Main -------------------------------------------------------- */
+    /* ── Main ──────────────────────────────────────────────────────── */
     .dash-main {
       flex: 1;
       margin-left: 260px;
@@ -210,7 +210,7 @@
     }
     .dash-main.sidebar-collapsed { margin-left: 64px; }
 
-    /* -- Header ------------------------------------------------------ */
+    /* ── Header ────────────────────────────────────────────────────── */
     .dash-header {
       display: flex; align-items: center; justify-content: space-between;
       margin-bottom: 1.5rem;
@@ -226,7 +226,7 @@
       transition: color 0.35s ease;
     }
 
-    /* -- Hamburger (mobile only) ------------------------------------- */
+    /* ── Hamburger (mobile only) ───────────────────────────────────── */
     .hamburger-btn {
       display: none;
       width: 2.5rem; height: 2.5rem; border-radius: 0.75rem;
@@ -243,7 +243,7 @@
       background: rgba(0,0,0,0.3); z-index: 40;
     }
 
-    /* -- Abas (Tabs) ------------------------------------------------- */
+    /* ── Abas (Tabs) ───────────────────────────────────────────────── */
     .cfg-tabs {
       display: flex; gap: 0.25rem;
       background: var(--card-bg);
@@ -274,7 +274,7 @@
       color: var(--card-text);
     }
 
-    /* -- Cards de configura��o --------------------------------------- */
+    /* ── Cards de configuração ─────────────────────────────────────── */
     .cfg-card {
       background: var(--card-bg);
       backdrop-filter: blur(16px);
@@ -293,7 +293,7 @@
       transition: color 0.35s ease;
     }
 
-    /* -- Campo de leitura -------------------------------------------- */
+    /* ── Campo de leitura ──────────────────────────────────────────── */
     .cfg-field { margin-bottom: 1rem; }
     .cfg-field:last-child { margin-bottom: 0; }
     .cfg-label {
@@ -312,7 +312,7 @@
     }
     .cfg-value.muted { color: var(--card-text-sec); }
 
-    /* -- Bot�o de a��o ----------------------------------------------- */
+    /* ── Botão de ação ─────────────────────────────────────────────── */
     .cfg-action-row {
       display: flex; align-items: center; justify-content: space-between;
       padding: 0.875rem 0;
@@ -346,7 +346,7 @@
     .cfg-btn-secondary { background: var(--input-bg,#f8fafc); color: var(--card-text,#1e293b); border: 1.5px solid var(--input-border,#f1f5f9); }
     .cfg-btn-danger    { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
 
-    /* -- Personaliza��o � tema bubbles ------------------------------ */
+    /* ── Personalização — tema bubbles ────────────────────────────── */
     .cfg-theme-desc {
       font-size: 0.8125rem; font-weight: 500; color: var(--card-text-sec);
       margin-bottom: 1rem;
@@ -366,7 +366,7 @@
       transition: color 0.35s ease;
     }
 
-    /* -- Sele��o ativa � indicador de tema atual --------------------- */
+    /* ── Seleção ativa — indicador de tema atual ───────────────────── */
     .cfg-active-theme {
       margin-top: 1rem; padding: 0.625rem 0.875rem;
       background: var(--input-bg); border: 1.5px solid var(--input-border);
@@ -379,7 +379,7 @@
       width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
     }
 
-    /* -- Foto de perfil ----------------------------------------------- */
+    /* ── Foto de perfil ─────────────────────────────────────────────── */
     .cfg-avatar-wrap {
       display: flex; align-items: center; gap: 1rem;
       margin-bottom: 1.25rem;
@@ -452,20 +452,20 @@
 </head>
 <body>
 
-  <!-- --- Blobs decorativos ---------------------------------------- -->
+  <!-- ═══ Blobs decorativos ════════════════════════════════════════ -->
   <div class="blob blob-blue" aria-hidden="true"></div>
   <div class="blob blob-cyan" aria-hidden="true"></div>
 
-  <!-- --- Overlay sidebar mobile ----------------------------------- -->
+  <!-- ═══ Overlay sidebar mobile ═══════════════════════════════════ -->
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <!-- --- Layout --------------------------------------------------- -->
+  <!-- ═══ Layout ═══════════════════════════════════════════════════ -->
   <div class="dash-layout">
 
-    <!-- --- Sidebar ------------------------------------------------ -->
+    <!-- ─── Sidebar ──────────────────────────────────────────────── -->
     <aside class="sidebar" id="sidebar">
-      <!-- Bot�o toggle desktop -->
-      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar" title="Recolher sidebar">�</button>
+      <!-- Botão toggle desktop -->
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar" title="Recolher sidebar">‹</button>
 
       <div class="sidebar-logo">
         <img src="logo.png" alt="Bud Finance" width="32" height="32">
@@ -474,44 +474,44 @@
 
       <nav class="sidebar-nav">
         <a href="dashboard.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Dashboard</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
         </a>
-        <div class="sidebar-group-label">Finan�as</div>
+        <div class="sidebar-group-label">Finanças</div>
         <a href="carteira.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Contas</span>
+          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Contas</span>
         </a>
         <a href="cartoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Cart�es</span>
+          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
         </a>
         <a href="recorrentes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Recorrentes</span>
+          <span class="sidebar-link-icon">🔄</span><span class="sidebar-link-text"> Recorrentes</span>
         </a>
         <a href="dividas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> D�vidas</span>
+          <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
         </a>
         <a href="metas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Metas</span>
+          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
         </a>
         <a href="mercado.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Compras</span>
+          <span class="sidebar-link-icon">🛒</span><span class="sidebar-link-text"> Compras</span>
         </a>
         <a href="categorias.html" class="sidebar-link">
-          <span class="sidebar-link-icon">???</span><span class="sidebar-link-text"> Categorias</span>
+          <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
         <a href="graficos.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> An�lises</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <a href="assistente-ia.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Assistente IA</span>
+          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span>
         </a>
         <a href="assistente-whatsapp.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
+          <span class="sidebar-link-icon">💬</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
         </a>
         <div class="sidebar-nav-divider"></div>
         <a href="configuracoes.html" class="sidebar-link active">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Configura��es</span>
+          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
         </a>
       </nav>
 
@@ -526,50 +526,50 @@
 
       <!-- Logout -->
       <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
-        <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Sair</span>
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
       </button>
     </aside>
 
-    <!-- --- Main Content ------------------------------------------- -->
+    <!-- ─── Main Content ─────────────────────────────────────────── -->
     <main class="dash-main" id="dashMain">
 
       <!-- Header -->
       <div class="dash-header">
         <div style="display:flex;align-items:center;gap:0.75rem;">
-          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">?</button>
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
           <div class="dash-welcome">
-            <h1>Configura��es</h1>
-            <p id="welcomeDate">�</p>
+            <h1>Configurações</h1>
+            <p id="welcomeDate">—</p>
           </div>
         </div>
       </div>
 
       <!-- Abas -->
       <div class="cfg-tabs" role="tablist">
-        <button class="cfg-tab-btn active" id="tabBtnPerfil" role="tab" aria-selected="true"  aria-controls="tabPerfil"       data-tab="perfil">?? Perfil</button>
-        <button class="cfg-tab-btn"        id="tabBtnPersonalizacao" role="tab" aria-selected="false" aria-controls="tabPersonalizacao" data-tab="personalizacao">?? Personaliza��o</button>
-        <button class="cfg-tab-btn"        id="tabBtnSeguranca" role="tab" aria-selected="false" aria-controls="tabSeguranca"    data-tab="seguranca">?? Seguran�a</button>
-        <button class="cfg-tab-btn"        id="tabBtnDados"     role="tab" aria-selected="false" aria-controls="tabDados"        data-tab="dados">?? Dados</button>
+        <button class="cfg-tab-btn active" id="tabBtnPerfil" role="tab" aria-selected="true"  aria-controls="tabPerfil"       data-tab="perfil">👤 Perfil</button>
+        <button class="cfg-tab-btn"        id="tabBtnPersonalizacao" role="tab" aria-selected="false" aria-controls="tabPersonalizacao" data-tab="personalizacao">🎨 Personalização</button>
+        <button class="cfg-tab-btn"        id="tabBtnSeguranca" role="tab" aria-selected="false" aria-controls="tabSeguranca"    data-tab="seguranca">🔒 Segurança</button>
+        <button class="cfg-tab-btn"        id="tabBtnDados"     role="tab" aria-selected="false" aria-controls="tabDados"        data-tab="dados">📦 Dados</button>
       </div>
 
-      <!-- -- Tab: Perfil ------------------------------------------ -->
+      <!-- ── Tab: Perfil ────────────────────────────────────────── -->
       <div id="tabPerfil" role="tabpanel">
 
         <div class="cfg-card">
-          <div class="cfg-card-title">Informa��es da Conta</div>
+          <div class="cfg-card-title">Informações da Conta</div>
 
           <!-- Foto de Perfil -->
           <div class="cfg-avatar-wrap">
             <button class="cfg-avatar-btn" id="btnFotoPerfil" aria-label="Alterar foto de perfil" title="Alterar foto de perfil">
               <div class="cfg-avatar-img" id="avatarDisplay" style="display:flex;">?</div>
               <img id="avatarImg" alt="Foto de perfil" style="display:none;width:4.5rem;height:4.5rem;border-radius:50%;object-fit:cover;border:2.5px solid var(--card-border);">
-              <div class="cfg-avatar-overlay" aria-hidden="true">??</div>
+              <div class="cfg-avatar-overlay" aria-hidden="true">📷</div>
               <div class="cfg-avatar-spinner" id="avatarSpinner" aria-hidden="true"></div>
             </button>
             <input type="file" id="inputFotoPerfil" accept="image/jpeg,image/png,image/webp" style="display:none;">
             <div class="cfg-avatar-info">
               <div class="cfg-avatar-name" id="avatarNomeExibido">Carregando...</div>
-              <div class="cfg-avatar-hint">Clique na foto para alterar &middot; m�x. 5 MB</div>
+              <div class="cfg-avatar-hint">Clique na foto para alterar &middot; máx. 5 MB</div>
             </div>
           </div>
 
@@ -580,75 +580,75 @@
 
           <div class="cfg-field">
             <div class="cfg-label">E-mail</div>
-            <div class="cfg-value muted" id="perfilEmail">�</div>
+            <div class="cfg-value muted" id="perfilEmail">—</div>
           </div>
 
           <div class="cfg-field">
-            <div class="cfg-label">Matr�cula</div>
-            <div class="cfg-value muted" id="perfilMatricula">�</div>
+            <div class="cfg-label">Matrícula</div>
+            <div class="cfg-value muted" id="perfilMatricula">—</div>
           </div>
 
           <div class="cfg-field">
             <div class="cfg-label">Membro desde</div>
-            <div class="cfg-value muted" id="perfilCriacao">�</div>
+            <div class="cfg-value muted" id="perfilCriacao">—</div>
           </div>
 
           <div class="cfg-field">
-            <div class="cfg-label">Dia de Fechamento do M�s</div>
+            <div class="cfg-label">Dia de Fechamento do Mês</div>
             <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
-              <input class="cfg-value" type="number" id="perfilDiaFechamento" min="1" max="28" placeholder="1" style="max-width:80px;cursor:text;" title="Dia do m�s que inicia seu per�odo financeiro">
-              <span style="font-size:0.75rem;color:var(--card-text-sec);font-weight:500;line-height:1.4;">Dia do m�s em que come�a seu per�odo financeiro<br>(ex: dia do sal�rio � entre 1 e 28)</span>
+              <input class="cfg-value" type="number" id="perfilDiaFechamento" min="1" max="28" placeholder="1" style="max-width:80px;cursor:text;" title="Dia do mês que inicia seu período financeiro">
+              <span style="font-size:0.75rem;color:var(--card-text-sec);font-weight:500;line-height:1.4;">Dia do mês em que começa seu período financeiro<br>(ex: dia do salário — entre 1 e 28)</span>
             </div>
           </div>
 
           <div style="display:flex;justify-content:flex-end;margin-top:0.25rem;">
-            <button class="cfg-btn cfg-btn-primary" id="btnSalvarNome">Salvar Altera��es</button>
+            <button class="cfg-btn cfg-btn-primary" id="btnSalvarNome">Salvar Alterações</button>
           </div>
         </div>
 
       </div>
 
-      <!-- -- Tab: Dados -------------------------------------------- -->
+      <!-- ── Tab: Dados ──────────────────────────────────────────── -->
       <div id="tabDados" role="tabpanel" style="display:none;">
 
         <div class="cfg-card">
-          <div class="cfg-card-title">?? Exportar Dados</div>
+          <div class="cfg-card-title">📤 Exportar Dados</div>
           <div class="cfg-action-row">
             <div class="cfg-action-info">
-              <div class="cfg-action-label">Exportar Hist�rico</div>
-              <div class="cfg-action-desc">Baixa todas as suas transa��es em formato CSV</div>
+              <div class="cfg-action-label">Exportar Histórico</div>
+              <div class="cfg-action-desc">Baixa todas as suas transações em formato CSV</div>
             </div>
             <button class="cfg-btn cfg-btn-primary" id="btnExportarCSV">Exportar CSV</button>
           </div>
           <div class="cfg-action-row" style="margin-top:0.75rem;">
             <div class="cfg-action-info">
               <div class="cfg-action-label">Exportar Meus Dados</div>
-              <div class="cfg-action-desc">Baixa todas as suas informa��es pessoais em formato JSON (portabilidade LGPD)</div>
+              <div class="cfg-action-desc">Baixa todas as suas informações pessoais em formato JSON (portabilidade LGPD)</div>
             </div>
             <button class="cfg-btn cfg-btn-primary" id="btnExportarJSON">Exportar JSON</button>
           </div>
         </div>
 
         <div class="cfg-card">
-          <div class="cfg-card-title">??? Privacidade e LGPD</div>
+          <div class="cfg-card-title">🛡️ Privacidade e LGPD</div>
           <div class="cfg-action-row">
             <div class="cfg-action-info">
-              <div class="cfg-action-label">Pol�tica de Privacidade</div>
+              <div class="cfg-action-label">Política de Privacidade</div>
               <div class="cfg-action-desc">Como tratamos e protegemos seus dados</div>
             </div>
-            <a href="politica-privacidade.html" target="_blank" class="cfg-btn cfg-btn-secondary" style="text-decoration:none;">Ver Pol�tica</a>
+            <a href="politica-privacidade.html" target="_blank" class="cfg-btn cfg-btn-secondary" style="text-decoration:none;">Ver Política</a>
           </div>
           <div class="cfg-action-row" style="margin-top:0.75rem;">
             <div class="cfg-action-info">
-              <div class="cfg-action-label">Revogar Consentimento de Notifica��es</div>
-              <div class="cfg-action-desc">Remove sua autoriza��o de notifica��es push e registra a revoga��o (LGPD Art. 8)</div>
+              <div class="cfg-action-label">Revogar Consentimento de Notificações</div>
+              <div class="cfg-action-desc">Remove sua autorização de notificações push e registra a revogação (LGPD Art. 8)</div>
             </div>
             <button class="cfg-btn cfg-btn-secondary" id="btnRevogarNotificacoes">Revogar</button>
           </div>
         </div>
 
         <div class="cfg-card">
-          <div class="cfg-card-title">?? Plano</div>
+          <div class="cfg-card-title">💎 Plano</div>
           <div class="cfg-action-row" style="align-items:flex-start;">
             <div class="cfg-action-info">
               <div style="display:flex;align-items:center;flex-wrap:wrap;">
@@ -664,16 +664,16 @@
           <div id="planoBannerStatus" style="display:none;border-radius:0.75rem;padding:0.75rem 1rem;margin-top:0.875rem;font-size:0.8125rem;font-weight:600;"></div>
         </div>
 
-        <!-- -- WhatsApp -------------------------------------------- -->
+        <!-- ── WhatsApp ──────────────────────────────────────────── -->
         <div class="cfg-card" id="cardWhatsApp">
-          <div class="cfg-card-title">?? Assistente WhatsApp</div>
+          <div class="cfg-card-title">💬 Assistente WhatsApp</div>
 
           <!-- Gate: planos Free/Starter -->
           <div id="whatsappGate">
             <div style="background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1px solid #bbf7d0;border-radius:.875rem;padding:1.25rem;text-align:center;">
-              <div style="font-size:2rem;margin-bottom:.5rem;">??</div>
-              <div style="font-weight:800;color:#064e3b;font-size:.9375rem;margin-bottom:.375rem;">Dispon�vel no plano Plus</div>
-              <div style="font-size:.8125rem;color:#6b7280;line-height:1.5;">Vincule seu n�mero para receber alertas de vencimentos, metas e limites diretamente no WhatsApp.</div>
+              <div style="font-size:2rem;margin-bottom:.5rem;">💬</div>
+              <div style="font-weight:800;color:#064e3b;font-size:.9375rem;margin-bottom:.375rem;">Disponível no plano Plus</div>
+              <div style="font-size:.8125rem;color:#6b7280;line-height:1.5;">Vincule seu número para receber alertas de vencimentos, metas e limites diretamente no WhatsApp.</div>
             </div>
           </div>
 
@@ -681,62 +681,62 @@
           <div id="whatsappConectado" style="display:none;">
             <div class="cfg-action-row">
               <div class="cfg-action-info">
-                <div class="cfg-action-label" style="color:#059669;">? WhatsApp Vinculado</div>
-                <div class="cfg-action-desc" id="whatsappNumeroExibido">�</div>
+                <div class="cfg-action-label" style="color:#059669;">✅ WhatsApp Vinculado</div>
+                <div class="cfg-action-desc" id="whatsappNumeroExibido">—</div>
               </div>
               <button class="cfg-btn cfg-btn-danger" id="btnDesvincularWhatsApp">Desvincular</button>
             </div>
           </div>
 
-          <!-- Desconectado (usu�rio Plus) � fluxo token de pareamento -->
+          <!-- Desconectado (usuário Plus) — fluxo token de pareamento -->
           <div id="whatsappDesconectado" style="display:none;">
             <div class="cfg-action-row">
               <div class="cfg-action-info">
                 <div class="cfg-action-label">Vincular WhatsApp</div>
-                <div class="cfg-action-desc">Gere um c�digo e envie para o nosso n�mero no WhatsApp para confirmar o v�nculo.</div>
+                <div class="cfg-action-desc">Gere um código e envie para o nosso número no WhatsApp para confirmar o vínculo.</div>
               </div>
-              <button class="cfg-btn cfg-btn-primary" id="btnGerarTokenWA" style="white-space:nowrap;">?? Gerar C�digo</button>
+              <button class="cfg-btn cfg-btn-primary" id="btnGerarTokenWA" style="white-space:nowrap;">📱 Gerar Código</button>
             </div>
 
-            <!-- Pairing Box (oculto at� gerar token) -->
+            <!-- Pairing Box (oculto até gerar token) -->
             <div id="waPairingBox" style="display:none;margin-top:1.25rem;background:var(--input-bg,#f8fafc);border:1.5px solid var(--input-border,#e2e8f0);border-radius:.875rem;padding:1.25rem;text-align:center;">
-              <div style="font-size:.8125rem;color:var(--card-text-muted,#64748b);margin-bottom:.5rem;">Envie este c�digo para</div>
-              <div id="waNumeroDisplay" style="font-weight:700;color:var(--card-text,#1e293b);font-size:.9375rem;margin-bottom:.75rem;">�</div>
+              <div style="font-size:.8125rem;color:var(--card-text-muted,#64748b);margin-bottom:.5rem;">Envie este código para</div>
+              <div id="waNumeroDisplay" style="font-weight:700;color:var(--card-text,#1e293b);font-size:.9375rem;margin-bottom:.75rem;">—</div>
               <div id="waPairingCode" style="font-size:2.25rem;font-weight:900;letter-spacing:.25rem;color:var(--brand,#10b981);margin-bottom:.5rem;">BUD-XXXX</div>
-              <div style="font-size:.75rem;color:var(--card-text-muted,#94a3b8);margin-bottom:1rem;" id="waPairingExpiry">v�lido por 24 horas</div>
+              <div style="font-size:.75rem;color:var(--card-text-muted,#94a3b8);margin-bottom:1rem;" id="waPairingExpiry">válido por 24 horas</div>
               <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;">
                 <a id="waLinkBtn" href="#" target="_blank" rel="noopener noreferrer"
-                   class="cfg-btn cfg-btn-success" style="text-decoration:none;">?? Abrir WhatsApp</a>
-                <button class="cfg-btn cfg-btn-secondary" id="btnNovoTokenWA">? Novo c�digo</button>
+                   class="cfg-btn cfg-btn-success" style="text-decoration:none;">📲 Abrir WhatsApp</a>
+                <button class="cfg-btn cfg-btn-secondary" id="btnNovoTokenWA">↩ Novo código</button>
               </div>
-              <div id="waPairingStatus" style="margin-top:1rem;font-size:.8125rem;color:var(--card-text-muted,#64748b);">? Aguardando confirma��o�</div>
+              <div id="waPairingStatus" style="margin-top:1rem;font-size:.8125rem;color:var(--card-text-muted,#64748b);">⏳ Aguardando confirmação…</div>
             </div>
           </div>
         </div>
 
       </div>
 
-      <!-- -- Tab: Personaliza��o --------------------------------- -->
+      <!-- ── Tab: Personalização ───────────────────────────────── -->
       <div id="tabPersonalizacao" role="tabpanel" style="display:none;">
 
         <div class="cfg-card">
-          <div class="cfg-card-title">?? Prefer�ncias do App</div>
+          <div class="cfg-card-title">🔔 Preferências do App</div>
 
           <div class="cfg-action-row">
             <div class="cfg-action-info">
               <div class="cfg-action-label">Tutorial do App</div>
               <div class="cfg-action-desc">Reinicia o guia passo a passo das telas principais</div>
             </div>
-            <button class="cfg-btn cfg-btn-secondary" id="btnReiniciarTutorial">?? Reiniciar Tutorial</button>
+            <button class="cfg-btn cfg-btn-secondary" id="btnReiniciarTutorial">🔄 Reiniciar Tutorial</button>
           </div>
 
           <div class="cfg-action-row" style="margin-top:0.75rem;">
             <div class="cfg-action-info">
-              <div class="cfg-action-label">?? Modo Privacidade</div>
+              <div class="cfg-action-label">👁 Modo Privacidade</div>
               <div class="cfg-action-desc">Oculta valores financeiros em todas as telas</div>
             </div>
             <label style="position:relative;display:inline-block;width:46px;height:26px;flex-shrink:0;margin-left:1rem;cursor:pointer;" title="Ativar/desativar modo privacidade">
-              <input type="checkbox" id="chkOcultarSaldo" style="opacity:0;width:0;height:0;position:absolute;" role="switch" aria-label="Modo privacidade � ocultar saldos">
+              <input type="checkbox" id="chkOcultarSaldo" style="opacity:0;width:0;height:0;position:absolute;" role="switch" aria-label="Modo privacidade — ocultar saldos">
               <span id="sliderOcultarSaldo" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#cbd5e1;transition:background .25s;border-radius:13px;"></span>
               <span id="knobOcultarSaldo" style="position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .25s;"></span>
             </label>
@@ -744,7 +744,7 @@
 
           <div class="cfg-action-row" style="margin-top:0.75rem;">
             <div class="cfg-action-info">
-              <div class="cfg-action-label">Notifica��es Push</div>
+              <div class="cfg-action-label">Notificações Push</div>
               <div class="cfg-action-desc" id="pushStatusDesc">Receba alertas de vencimentos, metas e limites</div>
             </div>
             <span style="font-size:0.6875rem;font-weight:700;padding:0.25rem 0.625rem;border-radius:9999px;background:#e0f2fe;color:#0369a1;white-space:nowrap;">Em breve</span>
@@ -754,38 +754,38 @@
 
         <div class="cfg-card">
           <div class="cfg-card-title">Tema do App</div>
-          <p class="cfg-theme-desc">Escolha a cor que mais combina com voc�. A prefer�ncia � salva automaticamente.</p>
+          <p class="cfg-theme-desc">Escolha a cor que mais combina com você. A preferência é salva automaticamente.</p>
 
           <div id="cfgThemeBubbles"></div>
 
           <div class="cfg-active-theme" id="cfgActiveTheme">
             <span class="cfg-active-dot" id="cfgActiveDot"></span>
-            <span id="cfgActiveLabel">�</span>
+            <span id="cfgActiveLabel">—</span>
           </div>
         </div>
 
       </div>
 
-      <!-- -- Tab: Seguran�a -------------------------------------- -->
+      <!-- ── Tab: Segurança ────────────────────────────────────── -->
       <div id="tabSeguranca" role="tabpanel" style="display:none;">
 
-        <div class="cfg-card">          <div class="cfg-card-title">Informa��es da Sess�o</div>
+        <div class="cfg-card">          <div class="cfg-card-title">Informações da Sessão</div>
           <div class="cfg-field">
-            <div class="cfg-label">�ltimo Acesso</div>
-            <div class="cfg-value muted" id="ultimoAcesso">�</div>
+            <div class="cfg-label">Último Acesso</div>
+            <div class="cfg-value muted" id="ultimoAcesso">—</div>
           </div>
           <div class="cfg-field">
             <div class="cfg-label">Dispositivo Atual</div>
-            <div class="cfg-value muted" id="infoDispositivo">�</div>
+            <div class="cfg-value muted" id="infoDispositivo">—</div>
           </div>
         </div>
 
-        <div class="cfg-card">          <div class="cfg-card-title">Acesso � Conta</div>
+        <div class="cfg-card">          <div class="cfg-card-title">Acesso à Conta</div>
 
           <div class="cfg-action-row">
             <div class="cfg-action-info">
               <div class="cfg-action-label">Redefinir Senha</div>
-              <div class="cfg-action-desc">Enviaremos um link de redefini��o para o seu e-mail</div>
+              <div class="cfg-action-desc">Enviaremos um link de redefinição para o seu e-mail</div>
             </div>
             <button class="cfg-btn cfg-btn-primary" id="btnResetSenha">Enviar link</button>
           </div>
@@ -793,7 +793,7 @@
           <div class="cfg-action-row">
             <div class="cfg-action-info">
               <div class="cfg-action-label">Sair da Conta</div>
-              <div class="cfg-action-desc">Encerra a sess�o neste dispositivo</div>
+              <div class="cfg-action-desc">Encerra a sessão neste dispositivo</div>
             </div>
             <button class="cfg-btn cfg-btn-danger" id="btnLogoutSeg">Sair</button>
           </div>
@@ -801,7 +801,7 @@
           <div class="cfg-action-row" style="margin-top:0.75rem;border-top:1px solid var(--card-border);padding-top:0.75rem;">
             <div class="cfg-action-info">
               <div class="cfg-action-label" style="color:#f59e0b;">Resetar Toda a Conta</div>
-              <div class="cfg-action-desc">Apaga todas as transa��es e dados financeiros. Sua conta permanece ativa.</div>
+              <div class="cfg-action-desc">Apaga todas as transações e dados financeiros. Sua conta permanece ativa.</div>
             </div>
             <button class="cfg-btn" id="btnResetarConta" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-weight:700;">Resetar Dados</button>
           </div>
@@ -809,16 +809,16 @@
           <div class="cfg-action-row" style="margin-top:0.75rem;border-top:1px solid var(--card-border);padding-top:0.75rem;">
             <div class="cfg-action-info">
               <div class="cfg-action-label" style="color:#dc2626;">Excluir Conta Permanentemente</div>
-              <div class="cfg-action-desc">Remove todos os seus dados do Bud Finance. Esta a��o n�o pode ser desfeita.</div>
+              <div class="cfg-action-desc">Remove todos os seus dados do Bud Finance. Esta ação não pode ser desfeita.</div>
             </div>
-            <button class="cfg-btn cfg-btn-danger" id="btnExcluirConta">??? Excluir Conta</button>
+            <button class="cfg-btn cfg-btn-danger" id="btnExcluirConta">🗑️ Excluir Conta</button>
           </div>
 
         </div>
 
       </div>
 
-      <!-- Rodap� -->
+      <!-- Rodapé -->
       <div style="text-align:center;padding:1.5rem 0 0.75rem;">
         <span id="budVersionDisplay" style="font-size:0.6875rem;font-weight:500;color:var(--card-text-sec);opacity:0.4;">Bud Finance v1.0.0</span>
       </div>
@@ -826,19 +826,19 @@
     </main>
   </div>
 
-  <!-- --- Modal: Confirmar Exclus�o de Conta --------------------------- -->
+  <!-- ═══ Modal: Confirmar Exclusão de Conta ═══════════════════════════ -->
   <div id="modalExcluirConta" role="dialog" aria-modal="true" aria-labelledby="modalExcluirContaTitulo" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:1rem;">
     <div style="background:var(--bg-page,#fff);border:1px solid var(--card-border,#e2e8f0);border-radius:1.5rem;padding:2rem 1.75rem;width:100%;max-width:420px;box-shadow:0 24px 64px -12px rgba(0,0,0,0.3);">
-      <!-- �cone -->
-      <div style="width:4rem;height:4rem;border-radius:9999px;background:#fee2e2;display:flex;align-items:center;justify-content:center;font-size:1.75rem;margin:0 auto 1rem;">?????</div>
+      <!-- Ícone -->
+      <div style="width:4rem;height:4rem;border-radius:9999px;background:#fee2e2;display:flex;align-items:center;justify-content:center;font-size:1.75rem;margin:0 auto 1rem;">🧑‍💻</div>
       <h2 id="modalExcluirContaTitulo" style="font-size:1.1875rem;font-weight:800;color:var(--card-text,#1e293b);text-align:center;margin:0 0 0.5rem;">Excluir conta permanentemente?</h2>
-      <p style="font-size:0.8125rem;color:var(--card-text-sec,#64748b);text-align:center;margin:0 0 1.25rem;line-height:1.55;">Conforme a LGPD (Art. 18), voc� tem o direito de solicitar a exclus�o dos seus dados. Esta a��o � <strong>irrevers�vel</strong>.</p>
-      <!-- Lista do que ser� exclu�do -->
+      <p style="font-size:0.8125rem;color:var(--card-text-sec,#64748b);text-align:center;margin:0 0 1.25rem;line-height:1.55;">Conforme a LGPD (Art. 18), você tem o direito de solicitar a exclusão dos seus dados. Esta ação é <strong>irreversível</strong>.</p>
+      <!-- Lista do que será excluído -->
       <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:0.875rem;padding:0.875rem 1rem;margin-bottom:1.25rem;">
-        <div style="font-size:0.8125rem;color:#dc2626;font-weight:600;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.5rem;">?? Seus dados pessoais (nome, e-mail, telefone)</div>
-        <div style="font-size:0.8125rem;color:#dc2626;font-weight:600;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.5rem;">?? Todas as transa��es e dados financeiros</div>
-        <div style="font-size:0.8125rem;color:#dc2626;font-weight:600;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.5rem;">?? Sua conta de acesso ao Bud Finan�as</div>
-        <div style="font-size:0.8125rem;color:#dc2626;font-weight:600;display:flex;align-items:center;gap:0.5rem;">?? Relat�rios, metas, investimentos e configura��es</div>
+        <div style="font-size:0.8125rem;color:#dc2626;font-weight:600;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.5rem;">🧑 Seus dados pessoais (nome, e-mail, telefone)</div>
+        <div style="font-size:0.8125rem;color:#dc2626;font-weight:600;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.5rem;">💰 Todas as transações e dados financeiros</div>
+        <div style="font-size:0.8125rem;color:#dc2626;font-weight:600;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.5rem;">🔑 Sua conta de acesso ao Bud Finanças</div>
+        <div style="font-size:0.8125rem;color:#dc2626;font-weight:600;display:flex;align-items:center;gap:0.5rem;">📊 Relatórios, metas, investimentos e configurações</div>
       </div>
       <p style="font-size:0.8125rem;font-weight:700;color:var(--card-text,#1e293b);margin:0 0 0.5rem;">Digite <strong>EXCLUIR</strong> para confirmar:</p>
       <input id="confirmacaoExcluir" type="text" autocomplete="off" placeholder="EXCLUIR"
@@ -850,31 +850,31 @@
     </div>
   </div>
 
-  <!-- --- Modal: Resetar Toda a Conta ------------------------------ -->
+  <!-- ═══ Modal: Resetar Toda a Conta ══════════════════════════════ -->
   <div id="modalResetarConta" role="dialog" aria-modal="true" aria-labelledby="modalResetarContaTitulo" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:1rem;">
     <div style="background:var(--bg-page,#fff);border:1px solid var(--card-border,#e2e8f0);border-radius:1.5rem;padding:2rem 1.75rem;width:100%;max-width:420px;box-shadow:0 24px 64px -12px rgba(0,0,0,0.3);">
-      <!-- �cone -->
-      <div style="width:4rem;height:4rem;border-radius:9999px;background:#fee2e2;display:flex;align-items:center;justify-content:center;font-size:1.75rem;margin:0 auto 1rem;">??</div>
+      <!-- Ícone -->
+      <div style="width:4rem;height:4rem;border-radius:9999px;background:#fee2e2;display:flex;align-items:center;justify-content:center;font-size:1.75rem;margin:0 auto 1rem;">⚠️</div>
       <h2 id="modalResetarContaTitulo" style="font-size:1.1875rem;font-weight:800;color:var(--card-text,#1e293b);text-align:center;margin:0 0 0.5rem;">Resetar toda a conta?</h2>
-      <p style="font-size:0.8125rem;color:var(--card-text-sec,#64748b);text-align:center;margin:0 0 1rem;line-height:1.55;">Essa a��o n�o pode ser desfeita. Todos os dados abaixo ser�o apagados permanentemente:</p>
-      <!-- Lista do que ser� apagado -->
+      <p style="font-size:0.8125rem;color:var(--card-text-sec,#64748b);text-align:center;margin:0 0 1rem;line-height:1.55;">Essa ação não pode ser desfeita. Todos os dados abaixo serão apagados permanentemente:</p>
+      <!-- Lista do que será apagado -->
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.875rem;padding:0.875rem 1rem;margin-bottom:1rem;">
-        <div style="font-size:0.8125rem;color:var(--card-text,#1e293b);font-weight:600;margin-bottom:0.5rem;">??? Todas as transa��es</div>
-        <div style="font-size:0.8125rem;color:var(--card-text,#1e293b);font-weight:600;margin-bottom:0.5rem;">?? Cart�es cadastrados</div>
-        <div style="font-size:0.8125rem;color:var(--card-text,#1e293b);font-weight:600;margin-bottom:0.5rem;">??? Categorias personalizadas</div>
-        <div style="font-size:0.8125rem;color:var(--card-text,#1e293b);font-weight:600;margin-bottom:0.5rem;">?? Investimentos</div>
-        <div style="font-size:0.8125rem;color:var(--card-text,#1e293b);font-weight:600;margin-bottom:0.5rem;">?? Metas e limites</div>
-        <div style="font-size:0.8125rem;color:var(--card-text,#1e293b);font-weight:600;margin-bottom:0.5rem;">?? D�vidas</div>
-        <div style="font-size:0.8125rem;color:var(--card-text,#1e293b);font-weight:600;">?? Configura��es do perfil</div>
+        <div style="font-size:0.8125rem;color:var(--card-text,#1e293b);font-weight:600;margin-bottom:0.5rem;">🗑️ Todas as transações</div>
+        <div style="font-size:0.8125rem;color:var(--card-text,#1e293b);font-weight:600;margin-bottom:0.5rem;">💳 Cartões cadastrados</div>
+        <div style="font-size:0.8125rem;color:var(--card-text,#1e293b);font-weight:600;margin-bottom:0.5rem;">🏷️ Categorias personalizadas</div>
+        <div style="font-size:0.8125rem;color:var(--card-text,#1e293b);font-weight:600;margin-bottom:0.5rem;">📈 Investimentos</div>
+        <div style="font-size:0.8125rem;color:var(--card-text,#1e293b);font-weight:600;margin-bottom:0.5rem;">🎯 Metas e limites</div>
+        <div style="font-size:0.8125rem;color:var(--card-text,#1e293b);font-weight:600;margin-bottom:0.5rem;">💸 Dívidas</div>
+        <div style="font-size:0.8125rem;color:var(--card-text,#1e293b);font-weight:600;">⚙️ Configurações do perfil</div>
       </div>
-      <p style="font-size:0.75rem;color:var(--card-text-sec,#64748b);text-align:center;margin:0 0 1.25rem;font-style:italic;">Ap�s o reset, voc� ser� redirecionado para a tela inicial como um novo usu�rio.</p>
+      <p style="font-size:0.75rem;color:var(--card-text-sec,#64748b);text-align:center;margin:0 0 1.25rem;font-style:italic;">Após o reset, você será redirecionado para a tela inicial como um novo usuário.</p>
       <div style="display:flex;gap:0.75rem;">
         <button id="btnFecharModalReset" class="cfg-btn cfg-btn-secondary" style="flex:1;">Cancelar</button>
         <button id="btnConfirmarReset" class="cfg-btn cfg-btn-danger" style="flex:1;">Sim, resetar tudo</button>
       </div>
     </div>
   </div>
-  <!-- --- Firebase + Config ---------------------------------------- -->
+  <!-- ═══ Firebase + Config ════════════════════════════════════════ -->
   <script src="js/firebase-config.js"></script>
   <script src="js/bud-utils.js"></script>
   <script type="module" src="js/configuracoes.js?v=2"></script>

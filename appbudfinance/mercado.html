@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance � Compras de Mercado">
+  <meta name="description" content="Bud Finance — Compras de Mercado">
   <title>Compras - Bud Finance</title>
 
   <link rel="icon" type="image/png" href="logo.png">
@@ -34,7 +34,7 @@
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:'Inter',system-ui,sans-serif;background-color:var(--bg-page);min-height:100vh;min-height:100dvh;overflow-x:hidden;transition:background-color 0.35s ease;}
 
-    /* -- Splash ------------------------------------------- */
+    /* ── Splash ─────────────────────────────────────────── */
     #splash{position:fixed;inset:0;background:var(--bg-page);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;z-index:99999;transition:opacity .5s ease;}
     #splash.hide{opacity:0;pointer-events:none;}
     .splash-bar{width:120px;height:4px;border-radius:2px;background:#e2e8f0;overflow:hidden;}
@@ -42,15 +42,15 @@
     @keyframes pulse-logo{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
     @keyframes slide-bar{0%{transform:translateX(-100%);}100%{transform:translateX(350%);}}
 
-    /* -- Blobs -------------------------------------------- */
+    /* ── Blobs ──────────────────────────────────────────── */
     .blob{position:fixed;border-radius:9999px;pointer-events:none;z-index:0;opacity:var(--blob-opacity,1);transition:opacity 0.35s ease;}
     .blob-blue{top:-5%;left:-5%;width:35%;height:35%;background:rgba(147,197,253,0.30);filter:blur(100px);}
     .blob-cyan{bottom:-5%;right:-5%;width:25%;height:25%;background:rgba(103,232,249,0.20);filter:blur(100px);}
 
-    /* -- Layout ------------------------------------------- */
+    /* ── Layout ─────────────────────────────────────────── */
     .dash-layout{display:flex;min-height:100vh;min-height:100dvh;}
 
-    /* -- Sidebar ------------------------------------------ */
+    /* ── Sidebar ────────────────────────────────────────── */
     .sidebar{width:260px;background:var(--sidebar-bg);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-right:1px solid var(--card-border);display:flex;flex-direction:column;padding:1.5rem 1rem;position:fixed;top:0;left:0;bottom:0;z-index:50;transition:transform .3s ease,width .3s ease,background 0.35s ease,border-color 0.35s ease;overflow:visible;}
     .sidebar-collapse-btn{display:none;position:absolute;top:50%;right:-1rem;transform:translateY(-50%);width:1rem;height:3.5rem;border-radius:0 0.5rem 0.5rem 0;background:var(--btn-bg);border:none;color:var(--btn-text);font-size:0.6rem;font-weight:700;cursor:pointer;align-items:center;justify-content:center;z-index:51;box-shadow:3px 0 12px rgba(0,0,0,0.22);transition:background 0.35s ease;flex-shrink:0;line-height:1;}
     .sidebar.collapsed{width:64px;padding-left:0.75rem;padding-right:0.75rem;align-items:center;}
@@ -82,7 +82,7 @@
     .sidebar-user-name{font-size:0.8125rem;font-weight:700;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
     .sidebar-user-id{font-size:0.6875rem;font-weight:500;color:var(--text-sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
 
-    /* -- Main --------------------------------------------- */
+    /* ── Main ───────────────────────────────────────────── */
     .dash-main{flex:1;margin-left:260px;padding:1.5rem;position:relative;z-index:1;transition:margin-left .3s ease;}
     .dash-main.sidebar-collapsed{margin-left:64px;}
     .dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;}
@@ -91,13 +91,13 @@
     .hamburger-btn{display:none;width:2.5rem;height:2.5rem;border-radius:0.75rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);align-items:center;justify-content:center;font-size:1.25rem;cursor:pointer;color:var(--card-text);z-index:60;transition:background 0.35s ease,border-color 0.35s ease,color 0.35s ease;}
     .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:40;}
 
-    /* -- Tabs (Lista | Compras) --------------------------- */
+    /* ── Tabs (Lista | Compras) ─────────────────────────── */
     .tabs-bar{display:flex;gap:0.375rem;background:var(--card-bg);border:1px solid var(--card-border);border-radius:1rem;padding:0.375rem;margin-bottom:1.25rem;width:fit-content;}
     .tab-btn{padding:0.5rem 1.25rem;border-radius:0.75rem;border:none;background:transparent;font-size:0.8125rem;font-weight:700;cursor:pointer;color:var(--card-text-sec);font-family:inherit;transition:all .15s;display:flex;align-items:center;gap:0.375rem;}
     .tab-btn:hover{color:var(--card-text);}
     .tab-btn.active{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,0.25);}
 
-    /* -- Cards resumo ------------------------------------- */
+    /* ── Cards resumo ───────────────────────────────────── */
     .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:1rem;margin-bottom:1.5rem;}
     .summary-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);transition:background 0.35s ease,border-color 0.35s ease,transform .2s,box-shadow .2s;}
     .summary-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px -5px rgba(0,0,0,0.1);}
@@ -111,12 +111,12 @@
     .card-value{font-size:1.5rem;font-weight:800;color:var(--card-text);letter-spacing:-0.025em;transition:color 0.35s ease;}
     .card-sub{font-size:0.75rem;font-weight:500;color:var(--card-text-sec);margin-top:0.25rem;transition:color 0.35s ease;}
 
-    /* -- Section card ------------------------------------- */
+    /* ── Section card ───────────────────────────────────── */
     .section-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.5rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);margin-bottom:1rem;transition:background 0.35s ease,border-color 0.35s ease;}
     .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.5rem;}
     .section-title{font-size:1rem;font-weight:800;color:var(--text-main);transition:color 0.35s ease;}
 
-    /* -- Compra card -------------------------------------- */
+    /* ── Compra card ────────────────────────────────────── */
     .compra-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:1rem;padding:1rem 1.25rem;display:flex;align-items:center;gap:1rem;margin-bottom:0.625rem;cursor:pointer;transition:transform .2s,box-shadow .2s,background 0.35s ease,border-color 0.35s ease;}
     .compra-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px -5px rgba(0,0,0,0.1);}
     .compra-icon{width:2.75rem;height:2.75rem;border-radius:0.875rem;background:#fee2e2;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;}
@@ -126,7 +126,7 @@
     .compra-badge{font-size:0.6875rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:999px;background:#f1f5f9;color:#475569;}
     .compra-valor{font-size:1rem;font-weight:800;color:#dc2626;white-space:nowrap;flex-shrink:0;}
 
-    /* -- Lista card --------------------------------------- */
+    /* ── Lista card ─────────────────────────────────────── */
     .lista-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:1rem;padding:1rem 1.25rem;margin-bottom:0.625rem;transition:background 0.35s ease,border-color 0.35s ease;}
     .lista-card.concluida{opacity:0.65;}
     .lista-header{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
@@ -141,18 +141,18 @@
     .lista-action-btn.primary:hover{background:#1d4ed8;border-color:#1d4ed8;color:#fff;}
     .lista-action-btn.danger:hover{border-color:#fca5a5;color:#dc2626;background:#fef2f2;}
 
-    /* -- Action buttons ----------------------------------- */
+    /* ── Action buttons ─────────────────────────────────── */
     .action-btn{width:2rem;height:2rem;border-radius:0.5rem;border:1.5px solid var(--input-border);background:var(--input-bg);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.875rem;transition:all .15s;color:var(--card-text-sec);}
     .action-btn:hover{border-color:#93c5fd;color:#2563eb;background:#eff6ff;}
     .action-btn.delete:hover{border-color:#fca5a5;color:#dc2626;background:#fef2f2;}
 
-    /* -- Empty state -------------------------------------- */
+    /* ── Empty state ────────────────────────────────────── */
     .empty-state{text-align:center;padding:3rem 1rem;}
     .empty-state-icon{font-size:2.5rem;margin-bottom:0.75rem;}
     .empty-state-title{font-size:0.9375rem;font-weight:700;color:var(--card-text);transition:color 0.35s ease;}
     .empty-state-sub{font-size:0.8125rem;font-weight:500;color:var(--card-text-sec);margin-top:0.25rem;transition:color 0.35s ease;}
 
-    /* -- Modal -------------------------------------------- */
+    /* ── Modal ──────────────────────────────────────────── */
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:80;align-items:center;justify-content:center;padding:1rem;}
     .modal-overlay.open{display:flex;}
     .modal-card{background:var(--bg-page);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.75rem;width:100%;max-width:520px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.2);animation:modal-in .25s ease;max-height:90vh;overflow-y:auto;}
@@ -178,7 +178,7 @@
     .modal-cancel{width:100%;padding:0.625rem;border:none;border-radius:0.75rem;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;background:rgba(0,0,0,0.05);color:var(--text-sec);margin-top:0.5rem;transition:background .15s;}
     .modal-cancel:hover{background:rgba(0,0,0,0.09);}
 
-    /* -- Custom select ------------------------------------ */
+    /* ── Custom select ──────────────────────────────────── */
     .custom-select{position:relative;}
     .custom-select-trigger{width:100%;padding:0.625rem 0.875rem;border:1.5px solid var(--input-border);border-radius:0.75rem;font-size:0.875rem;font-weight:600;color:var(--card-text-sec);background:var(--input-bg);font-family:inherit;transition:border-color .2s,box-shadow .2s;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;box-sizing:border-box;}
     .custom-select-trigger.has-value{color:var(--card-text);}
@@ -192,7 +192,7 @@
     .custom-select-option:hover{background:var(--sidebar-link-hover-bg);}
     .custom-select-option.selected{background:#eff6ff;color:#2563eb;font-weight:700;}
 
-    /* -- Itens da lista (Modo Compras) -------------------- */
+    /* ── Itens da lista (Modo Compras) ──────────────────── */
     .item-row{display:flex;align-items:center;gap:0.75rem;padding:0.75rem;border-radius:0.75rem;background:var(--input-bg);border:1.5px solid var(--input-border);margin-bottom:0.5rem;transition:all .15s;}
     .item-row.preenchido{background:#f0fdf4;border-color:#86efac;}
     .item-check{width:1.25rem;height:1.25rem;border-radius:0.375rem;border:2px solid var(--card-border);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.75rem;color:#fff;transition:all .15s;}
@@ -205,14 +205,14 @@
     .item-remove{width:1.75rem;height:1.75rem;border-radius:0.5rem;border:none;background:transparent;cursor:pointer;color:#dc2626;font-size:0.875rem;flex-shrink:0;transition:background .15s;}
     .item-remove:hover{background:#fef2f2;}
 
-    /* -- Add item inline ---------------------------------- */
+    /* ── Add item inline ────────────────────────────────── */
     .add-item-row{display:flex;gap:0.5rem;margin-top:0.75rem;}
     .add-item-row input{flex:1;padding:0.5625rem 0.875rem;border:1.5px solid var(--input-border);border-radius:0.75rem;font-size:0.875rem;font-weight:500;color:var(--card-text);background:var(--input-bg);font-family:inherit;outline:none;transition:border-color .15s;}
     .add-item-row input:focus{border-color:#3b82f6;}
     .add-item-btn{padding:0.5625rem 1rem;border-radius:0.75rem;background:#2563eb;color:#fff;border:none;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;transition:opacity .15s;}
     .add-item-btn:hover{opacity:0.9;}
 
-    /* -- Hist�rico de pre�o ------------------------------- */
+    /* ── Histórico de preço ─────────────────────────────── */
     .preco-row{display:flex;align-items:center;justify-content:space-between;padding:0.625rem 0.875rem;border-bottom:1px solid var(--input-border);font-size:0.8125rem;}
     .preco-row:last-child{border-bottom:none;}
     .preco-nome{font-weight:600;color:var(--card-text);}
@@ -222,7 +222,7 @@
     .preco-var-up{color:#dc2626;font-size:0.6875rem;}
     .preco-var-down{color:#16a34a;font-size:0.6875rem;}
 
-    /* -- Importar IA: tabs internas e dropzone ------------ */
+    /* ── Importar IA: tabs internas e dropzone ──────────── */
     .ia-tabs{display:flex;gap:0.25rem;background:var(--input-bg);border:1px solid var(--input-border);border-radius:0.75rem;padding:0.25rem;margin-bottom:1rem;}
     .ia-tab{flex:1;padding:0.5rem 0.5rem;border:none;background:transparent;border-radius:0.5rem;font-size:0.75rem;font-weight:700;cursor:pointer;color:var(--card-text-sec);font-family:inherit;display:flex;align-items:center;justify-content:center;gap:0.25rem;transition:all .15s;}
     .ia-tab.active{background:#fff;color:#2563eb;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
@@ -248,7 +248,7 @@
     .ia-quota.low{color:#f59e0b;}
     .ia-quota.zero{color:#dc2626;}
 
-    /* -- Review IA ---------------------------------------- */
+    /* ── Review IA ──────────────────────────────────────── */
     .review-row{display:grid;grid-template-columns:24px 1fr 60px 90px 110px 24px;gap:0.4rem;align-items:center;padding:0.5rem;border-bottom:1px solid var(--input-border);}
     .review-row:hover{background:var(--input-bg);}
     .review-check{width:1rem;height:1rem;cursor:pointer;}
@@ -270,7 +270,7 @@
       .hide-on-mobile{display:none;}
     }
 
-    /* -- Responsive --------------------------------------- */
+    /* ── Responsive ─────────────────────────────────────── */
     @media(max-width:768px){
       .sidebar{transform:translateX(-100%);}
       .sidebar.open{transform:translateX(0);}
@@ -286,24 +286,24 @@
     @media(max-width:480px){.cards-grid{grid-template-columns:1fr;}}
     @media(min-width:769px){.sidebar-collapse-btn{display:flex;}}
 
-    /* -- Filtros ------------------------------------------ */
+    /* ── Filtros ────────────────────────────────────────── */
     .filtro-bar{display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap;align-items:center;}
     .filtro-chip{padding:0.375rem 0.75rem;border-radius:9999px;border:1.5px solid var(--input-border);background:var(--input-bg);font-size:0.75rem;font-weight:700;color:var(--text-sec);cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap;}
     .filtro-chip.ativo{border-color:#2563eb;background:#eff6ff;color:#2563eb;}
     .filtro-chip:hover:not(.ativo){border-color:#94a3b8;color:var(--text-main);}
     .filtro-search{flex:1;min-width:160px;padding:0.4375rem 0.75rem;border:1.5px solid var(--input-border);border-radius:0.75rem;font-size:0.8125rem;font-weight:500;color:var(--card-text);background:var(--input-bg);font-family:inherit;outline:none;transition:border-color .15s;}
     .filtro-search:focus{border-color:#3b82f6;}
-    /* -- Alerta de pre�o ---------------------------------- */
+    /* ── Alerta de preço ────────────────────────────────── */
     .preco-row.preco-alerta{background:rgba(220,38,38,0.05);padding-left:0.5rem;border-left:3px solid #dc2626;}
-    .preco-row.preco-alerta .preco-nome::after{content:" ??";font-size:0.7rem;}
-    /* -- Comparativo entre lojas -------------------------- */
+    .preco-row.preco-alerta .preco-nome::after{content:" 🚨";font-size:0.7rem;}
+    /* ── Comparativo entre lojas ────────────────────────── */
     .comp-loja-row{padding:0.625rem 0.875rem;border-bottom:1px solid var(--input-border);}
     .comp-loja-row:last-child{border-bottom:none;}
     .comp-loja-nome{font-size:0.8125rem;font-weight:700;color:var(--card-text);margin-bottom:0.375rem;}
     .comp-loja-stores{display:flex;flex-wrap:wrap;gap:0.375rem;}
     .comp-loja-store{display:flex;align-items:center;gap:0.25rem;padding:0.25rem 0.625rem;border-radius:0.5rem;font-size:0.75rem;font-weight:600;background:var(--input-bg);border:1.5px solid var(--input-border);color:var(--card-text-sec);}
     .comp-loja-store.mais-barato{border-color:#16a34a;background:#f0fdf4;color:#15803d;}
-    /* -- Detalhe da compra -------------------------------- */
+    /* ── Detalhe da compra ──────────────────────────────── */
     .detalhe-cat-header{font-size:0.6875rem;font-weight:800;text-transform:uppercase;color:var(--text-sec);letter-spacing:.06em;padding:0.5rem 0 0.125rem;opacity:.65;}
     .detalhe-item-row{display:flex;align-items:center;gap:0.5rem;padding:0.375rem 0.375rem;border-radius:0.375rem;}
     .detalhe-item-row:hover{background:var(--input-bg);}
@@ -314,13 +314,13 @@
 </head>
 <body>
 
-  <!-- - Splash -------------------------------------------- -->
+  <!-- ═ Splash ════════════════════════════════════════════ -->
   <div id="splash">
     <img src="logo.png" alt="Bud Finance" style="width:56px;height:56px;object-fit:contain;animation:pulse-logo 1.8s ease-in-out infinite;">
     <div class="splash-bar"><div class="splash-bar-inner"></div></div>
   </div>
 
-  <!-- - Blobs --------------------------------------------- -->
+  <!-- ═ Blobs ═════════════════════════════════════════════ -->
   <div class="blob blob-blue" aria-hidden="true"></div>
   <div class="blob blob-cyan" aria-hidden="true"></div>
 
@@ -328,53 +328,53 @@
 
   <div class="dash-layout">
 
-    <!-- - Sidebar ---------------------------------------- -->
+    <!-- ─ Sidebar ──────────────────────────────────────── -->
     <aside class="sidebar" id="sidebar">
-      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">�</button>
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">‹</button>
       <div class="sidebar-logo">
         <img src="logo.png" alt="Bud Finance" width="32" height="32">
         <span class="sidebar-logo-text">Bud Finance</span>
       </div>
       <nav class="sidebar-nav">
         <a href="dashboard.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Dashboard</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
         </a>
-        <div class="sidebar-group-label">Finan�as</div>
+        <div class="sidebar-group-label">Finanças</div>
         <a href="carteira.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Contas</span>
+          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Contas</span>
         </a>
         <a href="cartoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Cart�es</span>
+          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
         </a>
         <a href="recorrentes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Recorrentes</span>
+          <span class="sidebar-link-icon">🔄</span><span class="sidebar-link-text"> Recorrentes</span>
         </a>
         <a href="dividas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> D�vidas</span>
+          <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
         </a>
         <a href="metas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Metas</span>
+          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
         </a>
         <a href="mercado.html" class="sidebar-link active">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Compras</span>
+          <span class="sidebar-link-icon">🛒</span><span class="sidebar-link-text"> Compras</span>
         </a>
         <a href="categorias.html" class="sidebar-link">
-          <span class="sidebar-link-icon">???</span><span class="sidebar-link-text"> Categorias</span>
+          <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
         <a href="graficos.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> An�lises</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <a href="assistente-ia.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Assistente IA</span>
+          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span>
         </a>
         <a href="assistente-whatsapp.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
+          <span class="sidebar-link-icon">💬</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
         </a>
         <div class="sidebar-nav-divider"></div>
         <a href="configuracoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Configura��es</span>
+          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
         </a>
       </nav>
       <div class="sidebar-user" style="margin-top:auto;">
@@ -385,24 +385,24 @@
         </div>
       </div>
       <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
-        <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Sair</span>
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
       </button>
     </aside>
 
-    <!-- - Main ------------------------------------------- -->
+    <!-- ─ Main ─────────────────────────────────────────── -->
     <main class="dash-main" id="dashMain">
 
       <div class="dash-header">
         <div style="display:flex;align-items:center;gap:0.75rem;">
-          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">?</button>
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
           <div class="dash-welcome">
-            <h1>?? Compras</h1>
-            <p>Mercado, listas e hist�rico de pre�os</p>
+            <h1>🛒 Compras</h1>
+            <p>Mercado, listas e histórico de preços</p>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:0.5rem;">
           <button id="btnImportarIA" title="Importar nota fiscal por IA" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;backdrop-filter:blur(12px);">
-            <span>??</span><span class="hide-on-mobile">Importar nota</span>
+            <span>📷</span><span class="hide-on-mobile">Importar nota</span>
           </button>
           <button id="btnPrincipal" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:0.875rem;font-weight:700;border:none;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .2s;">
             <span>+</span><span id="btnPrincipalLabel">Nova Compra</span>
@@ -412,35 +412,35 @@
 
       <!-- Tabs -->
       <div class="tabs-bar" role="tablist">
-        <button class="tab-btn active" id="tabCompras" role="tab" aria-selected="true">?? Compras</button>
-        <button class="tab-btn" id="tabListas" role="tab" aria-selected="false">?? Listas</button>
+        <button class="tab-btn active" id="tabCompras" role="tab" aria-selected="true">🧾 Compras</button>
+        <button class="tab-btn" id="tabListas" role="tab" aria-selected="false">📝 Listas</button>
       </div>
 
-      <!-- ---- Aba Compras ---- -->
+      <!-- ════ Aba Compras ════ -->
       <section id="paneCompras">
 
         <!-- Cards resumo -->
         <div class="cards-grid">
           <div class="summary-card">
             <div class="card-header">
-              <span class="card-label">Total no M�s</span>
-              <div class="card-icon card-icon-red">??</div>
+              <span class="card-label">Total no Mês</span>
+              <div class="card-icon card-icon-red">💰</div>
             </div>
             <div class="card-value" id="cardTotalMes" style="color:#dc2626;">R$ 0,00</div>
-            <div class="card-sub" id="cardTotalMesSub">� compras</div>
+            <div class="card-sub" id="cardTotalMesSub">— compras</div>
           </div>
           <div class="summary-card">
             <div class="card-header">
-              <span class="card-label">Compras (M�s)</span>
-              <div class="card-icon card-icon-blue">??</div>
+              <span class="card-label">Compras (Mês)</span>
+              <div class="card-icon card-icon-blue">🧾</div>
             </div>
             <div class="card-value" id="cardQtdMes">0</div>
-            <div class="card-sub" id="cardQtdMesSub">no m�s atual</div>
+            <div class="card-sub" id="cardQtdMesSub">no mês atual</div>
           </div>
           <div class="summary-card">
             <div class="card-header">
-              <span class="card-label">Ticket M�dio</span>
-              <div class="card-icon card-icon-purple">??</div>
+              <span class="card-label">Ticket Médio</span>
+              <div class="card-icon card-icon-purple">📊</div>
             </div>
             <div class="card-value" id="cardTicket">R$ 0,00</div>
             <div class="card-sub">por compra</div>
@@ -448,18 +448,18 @@
           <div class="summary-card">
             <div class="card-header">
               <span class="card-label">Maior Compra</span>
-              <div class="card-icon card-icon-green">??</div>
+              <div class="card-icon card-icon-green">🏆</div>
             </div>
             <div class="card-value" id="cardMaior">R$ 0,00</div>
-            <div class="card-sub" id="cardMaiorSub">�</div>
+            <div class="card-sub" id="cardMaiorSub">—</div>
           </div>
           <div class="summary-card">
             <div class="card-header">
-              <span class="card-label">+ Comprado (M�s)</span>
-              <div class="card-icon card-icon-blue">???</div>
+              <span class="card-label">+ Comprado (Mês)</span>
+              <div class="card-icon card-icon-blue">🛍️</div>
             </div>
-            <div class="card-value" id="cardItemTop" style="font-size:0.875rem;line-height:1.25;word-break:break-word;">�</div>
-            <div class="card-sub" id="cardItemTopSub">no m�s atual</div>
+            <div class="card-value" id="cardItemTop" style="font-size:0.875rem;line-height:1.25;word-break:break-word;">—</div>
+            <div class="card-sub" id="cardItemTopSub">no mês atual</div>
           </div>
         </div>
 
@@ -469,17 +469,17 @@
         <!-- Lista de compras -->
         <div class="section-card">
           <div class="section-header">
-            <span class="section-title">�ltimas Compras</span>
+            <span class="section-title">Últimas Compras</span>
             <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);" id="comprasContador">0 compras</span>
           </div>
           <div id="listaCompras"></div>
         </div>
 
-        <!-- Gr�fico de categorias -->
+        <!-- Gráfico de categorias -->
         <div class="section-card" id="secaoGrafico">
           <div class="section-header">
-            <span class="section-title">?? Gastos por Categoria</span>
-            <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">este m�s</span>
+            <span class="section-title">📊 Gastos por Categoria</span>
+            <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">este mês</span>
           </div>
           <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;padding:0.5rem 0;">
             <div style="width:160px;height:160px;flex-shrink:0;">
@@ -489,11 +489,11 @@
           </div>
         </div>
 
-        <!-- Hist�rico de pre�os -->
+        <!-- Histórico de preços -->
         <div class="section-card">
           <div class="section-header">
-            <span class="section-title">?? Varia��o de Pre�os</span>
-            <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">produtos comprados = 2x</span>
+            <span class="section-title">📈 Variação de Preços</span>
+            <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">produtos comprados ≥ 2x</span>
           </div>
           <div id="historicoPrecos"></div>
         </div>
@@ -501,15 +501,15 @@
         <!-- Comparativo entre lojas -->
         <div class="section-card">
           <div class="section-header">
-            <span class="section-title">?? Comparativo por Loja</span>
-            <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">mesmo item, pre�os diferentes</span>
+            <span class="section-title">🏪 Comparativo por Loja</span>
+            <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">mesmo item, preços diferentes</span>
           </div>
           <div id="comparativoLojas"></div>
         </div>
 
       </section>
 
-      <!-- ---- Aba Listas ---- -->
+      <!-- ════ Aba Listas ════ -->
       <section id="paneListas" style="display:none;">
 
         <div class="section-card">
@@ -521,8 +521,8 @@
 
         <div class="section-card">
           <div class="section-header">
-            <span class="section-title">Listas Conclu�das</span>
-            <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">�ltimas 10</span>
+            <span class="section-title">Listas Concluídas</span>
+            <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">últimas 10</span>
           </div>
           <div id="listasConcluidas"></div>
         </div>
@@ -532,12 +532,12 @@
     </main>
   </div>
 
-  <!-- - Modal Nova Compra -------------------------------- -->
+  <!-- ═ Modal Nova Compra ════════════════════════════════ -->
   <div class="modal-overlay" id="modalCompra">
     <div class="modal-card">
       <div class="modal-title">
         <span id="modalCompraTitulo">Nova Compra</span>
-        <button class="modal-close" id="btnFecharModalCompra" aria-label="Fechar">?</button>
+        <button class="modal-close" id="btnFecharModalCompra" aria-label="Fechar">✕</button>
       </div>
       <input type="hidden" id="compraId">
 
@@ -555,11 +555,11 @@
 
       <div class="modal-grid2">
         <div class="modal-field">
-          <label class="modal-label">Conta / Cart�o</label>
+          <label class="modal-label">Conta / Cartão</label>
           <div class="custom-select" id="csForma">
             <div class="custom-select-trigger" id="csFormaTrigger" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false">
-              <span id="csFormaLabel">Selecione�</span>
-              <span class="custom-select-chevron">?</span>
+              <span id="csFormaLabel">Selecione…</span>
+              <span class="custom-select-chevron">▾</span>
             </div>
             <div class="custom-select-dropdown" id="csFormaDropdown" role="listbox"></div>
           </div>
@@ -571,13 +571,13 @@
         </div>
       </div>
 
-      <!-- Cart�o (legado: s� quando cr�dito sem carteira cadastrada) -->
+      <!-- Cartão (legado: só quando crédito sem carteira cadastrada) -->
       <div class="modal-field" id="fieldCartao" style="display:none;">
-        <label class="modal-label">Cart�o de Cr�dito</label>
+        <label class="modal-label">Cartão de Crédito</label>
         <div class="custom-select" id="csCartao">
           <div class="custom-select-trigger" id="csCartaoTrigger" tabindex="0" role="button">
-            <span id="csCartaoLabel">Selecione o cart�o�</span>
-            <span class="custom-select-chevron">?</span>
+            <span id="csCartaoLabel">Selecione o cartão…</span>
+            <span class="custom-select-chevron">▾</span>
           </div>
           <div class="custom-select-dropdown" id="csCartaoDropdown" role="listbox"></div>
         </div>
@@ -604,12 +604,12 @@
     </div>
   </div>
 
-  <!-- - Modal Nova Lista --------------------------------- -->
+  <!-- ═ Modal Nova Lista ═════════════════════════════════ -->
   <div class="modal-overlay" id="modalLista">
     <div class="modal-card">
       <div class="modal-title">
         <span id="modalListaTitulo">Nova Lista</span>
-        <button class="modal-close" id="btnFecharModalLista" aria-label="Fechar">?</button>
+        <button class="modal-close" id="btnFecharModalLista" aria-label="Fechar">✕</button>
       </div>
       <input type="hidden" id="listaId">
 
@@ -624,7 +624,7 @@
       </div>
 
       <div class="modal-field">
-        <label class="modal-label" style="display:flex;justify-content:space-between;align-items:center;"><span>Itens</span><button type="button" id="btnOrdenarLista" style="font-size:0.6875rem;padding:0.15rem 0.5rem;border:1px solid var(--input-border);border-radius:0.375rem;background:transparent;color:var(--text-sec);cursor:pointer;font-family:inherit;">? Ordenar</button></label>
+        <label class="modal-label" style="display:flex;justify-content:space-between;align-items:center;"><span>Itens</span><button type="button" id="btnOrdenarLista" style="font-size:0.6875rem;padding:0.15rem 0.5rem;border:1px solid var(--input-border);border-radius:0.375rem;background:transparent;color:var(--text-sec);cursor:pointer;font-family:inherit;">↕ Ordenar</button></label>
         <div id="itensListaContainer"></div>
         <div class="add-item-row">
           <input type="text" id="novoItemListaNome" placeholder="Nome do item" maxlength="60">
@@ -637,12 +637,12 @@
     </div>
   </div>
 
-  <!-- - Modal Modo Compras ------------------------------- -->
+  <!-- ═ Modal Modo Compras ═══════════════════════════════ -->
   <div class="modal-overlay" id="modalModoCompras">
     <div class="modal-card" style="max-width:560px;">
       <div class="modal-title">
-        <span>?? <span id="modoComprasTitulo">Modo Compras</span></span>
-        <button class="modal-close" id="btnFecharModoCompras" aria-label="Fechar">?</button>
+        <span>🛒 <span id="modoComprasTitulo">Modo Compras</span></span>
+        <button class="modal-close" id="btnFecharModoCompras" aria-label="Fechar">✕</button>
       </div>
 
       <!-- Progresso -->
@@ -657,7 +657,7 @@
       <div id="itensModoComprasContainer" style="max-height:50vh;overflow-y:auto;margin-bottom:1rem;"></div>
 
       <div class="add-item-row">
-        <input type="text" id="modoNovoItemNome" placeholder="Adicionar item r�pido" maxlength="60">
+        <input type="text" id="modoNovoItemNome" placeholder="Adicionar item rápido" maxlength="60">
         <button type="button" class="add-item-btn" id="btnAddItemModo">+</button>
       </div>
 
@@ -666,26 +666,26 @@
     </div>
   </div>
 
-  <!-- - Modal Importar IA (3 abas) ----------------------- -->
+  <!-- ═ Modal Importar IA (3 abas) ═══════════════════════ -->
   <div class="modal-overlay" id="modalImportIA">
     <div class="modal-card" style="max-width:560px;">
       <div class="modal-title">
-        <span>?? Importar Nota / Print</span>
-        <button class="modal-close" id="btnFecharImportIA" aria-label="Fechar">?</button>
+        <span>📷 Importar Nota / Print</span>
+        <button class="modal-close" id="btnFecharImportIA" aria-label="Fechar">✕</button>
       </div>
 
       <div class="ia-tabs" role="tablist">
-        <button class="ia-tab active" data-iatab="foto" role="tab">?? Foto</button>
-        <button class="ia-tab" data-iatab="pdf" role="tab">?? PDF</button>
-        <button class="ia-tab" data-iatab="texto" role="tab">?? Texto</button>
+        <button class="ia-tab active" data-iatab="foto" role="tab">📷 Foto</button>
+        <button class="ia-tab" data-iatab="pdf" role="tab">📄 PDF</button>
+        <button class="ia-tab" data-iatab="texto" role="tab">📝 Texto</button>
       </div>
 
       <!-- Pane Foto -->
       <div class="ia-pane active" data-iapane="foto">
         <div class="ia-dropzone" id="iaDropzoneFoto">
-          <div class="ia-dropzone-icon">??</div>
+          <div class="ia-dropzone-icon">📷</div>
           <div class="ia-dropzone-title">Tirar foto ou enviar imagens</div>
-          <div class="ia-dropzone-sub">Cupom fiscal ou print de app � at� 3 imagens (8MB cada)</div>
+          <div class="ia-dropzone-sub">Cupom fiscal ou print de app — até 3 imagens (8MB cada)</div>
           <div class="ia-thumbs" id="iaThumbsFoto"></div>
         </div>
         <input type="file" id="inputFotoIA" accept="image/*" capture="environment" multiple style="display:none;">
@@ -694,7 +694,7 @@
       <!-- Pane PDF -->
       <div class="ia-pane" data-iapane="pdf">
         <div class="ia-dropzone" id="iaDropzonePdf">
-          <div class="ia-dropzone-icon">??</div>
+          <div class="ia-dropzone-icon">📄</div>
           <div class="ia-dropzone-title">Selecionar PDF</div>
           <div class="ia-dropzone-sub">Cupom fiscal ou nota de mercado em PDF (8MB)</div>
           <div class="ia-thumbs" id="iaThumbsPdf"></div>
@@ -711,33 +711,33 @@
       <!-- Progress -->
       <div class="ia-progress" id="iaProgress">
         <div class="ia-progress-bar-wrap"><div class="ia-progress-bar" id="iaProgressBar"></div></div>
-        <div class="ia-progress-text" id="iaProgressText">Enviando�</div>
+        <div class="ia-progress-text" id="iaProgressText">Enviando…</div>
       </div>
 
-      <div class="ia-quota" id="iaQuota">�</div>
+      <div class="ia-quota" id="iaQuota">—</div>
 
       <button class="modal-submit" id="btnEnviarIA" disabled>Analisar com IA</button>
       <button class="modal-cancel" id="btnCancelarImportIA">Cancelar</button>
     </div>
   </div>
 
-  <!-- - Modal Review IA ---------------------------------- -->
+  <!-- ═ Modal Review IA ══════════════════════════════════ -->
   <div class="modal-overlay" id="modalReviewIA">
     <div class="modal-card" style="max-width:680px;">
       <div class="modal-title">
-        <span>? Revisar Itens Extra�dos</span>
-        <button class="modal-close" id="btnFecharReviewIA" aria-label="Fechar">?</button>
+        <span>✨ Revisar Itens Extraídos</span>
+        <button class="modal-close" id="btnFecharReviewIA" aria-label="Fechar">✕</button>
       </div>
 
       <div style="font-size:0.75rem;color:var(--card-text-sec);margin-bottom:0.875rem;">
-        Confira os itens, ajuste valores ou desmarque para ignorar. As corre��es s�o aprendidas para pr�ximas notas.
+        Confira os itens, ajuste valores ou desmarque para ignorar. As correções são aprendidas para próximas notas.
       </div>
 
       <div class="review-mercado-row">
         <div>
           <label class="modal-label" for="reviewMercado">Mercado</label>
           <input class="modal-input" type="text" id="reviewMercado" placeholder="Nome do mercado" maxlength="60">
-          <small style="color:var(--card-text-sec);font-size:0.7rem;">Edite para um nome curto � ser� lembrado para futuros cupons deste mercado</small>
+          <small style="color:var(--card-text-sec);font-size:0.7rem;">Edite para um nome curto — será lembrado para futuros cupons deste mercado</small>
         </div>
         <div>
           <label class="modal-label" for="reviewData">Data</label>
@@ -746,7 +746,7 @@
       </div>
 
       <div style="display:grid;grid-template-columns:24px 1fr 60px 90px 110px 24px;gap:0.4rem;align-items:center;padding:0.375rem 0.5rem;font-size:0.625rem;font-weight:800;text-transform:uppercase;color:var(--card-text-sec);letter-spacing:0.04em;border-bottom:1.5px solid var(--input-border);">
-        <span>?</span><span>Item</span><span style="text-align:center;">Qtd</span><span style="text-align:right;">Valor</span><span>Categoria</span><span></span>
+        <span>✓</span><span>Item</span><span style="text-align:center;">Qtd</span><span style="text-align:right;">Valor</span><span>Categoria</span><span></span>
       </div>
 
       <div id="reviewItensContainer" style="max-height:42vh;overflow-y:auto;"></div>
@@ -763,32 +763,32 @@
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.875rem;">
-        <button class="modal-cancel" id="btnVoltarReviewIA" style="margin-top:0;">? Voltar</button>
-        <button class="modal-submit" id="btnConfirmarReviewIA" style="margin-top:0;">Continuar ?</button>
+        <button class="modal-cancel" id="btnVoltarReviewIA" style="margin-top:0;">← Voltar</button>
+        <button class="modal-submit" id="btnConfirmarReviewIA" style="margin-top:0;">Continuar →</button>
       </div>
     </div>
   </div>
 
-  <!-- - Modal Detalhe Compra ----------------------------- -->
+  <!-- ═ Modal Detalhe Compra ═════════════════════════════ -->
   <div class="modal-overlay" id="modalDetalheCompra">
     <div class="modal-card" style="max-width:520px;">
       <div class="modal-title">
         <span id="detalheCompraNome">Compra</span>
-        <button class="modal-close" id="btnFecharDetalheCompra" aria-label="Fechar">?</button>
+        <button class="modal-close" id="btnFecharDetalheCompra" aria-label="Fechar">✕</button>
       </div>
       <div id="detalheCompraMeta"></div>
       <div id="detalheCompraItens" style="max-height:50vh;overflow-y:auto;"></div>
       <div id="detalheCompraTotal"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.875rem;">
         <button class="modal-cancel" id="btnFecharDetalheCompra2" style="margin-top:0;">Fechar</button>
-        <button class="modal-submit" id="btnCriarListaDaCompra" style="margin-top:0;background:linear-gradient(135deg,#16a34a,#15803d);">?? Criar Lista</button>
+        <button class="modal-submit" id="btnCriarListaDaCompra" style="margin-top:0;background:linear-gradient(135deg,#16a34a,#15803d);">📝 Criar Lista</button>
       </div>
     </div>
   </div>
 
   <datalist id="mercadosDatalist"></datalist>
 
-  <!-- - Scripts ------------------------------------------- -->
+  <!-- ═ Scripts ═══════════════════════════════════════════ -->
   <!-- Chart.js 4.4.1 via CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>

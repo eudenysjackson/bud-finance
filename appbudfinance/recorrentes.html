@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance � Transa��es Recorrentes">
+  <meta name="description" content="Bud Finance — Transações Recorrentes">
   <title>Recorrentes - Bud Finance</title>
 
   <link rel="icon" type="image/png" href="logo.png">
@@ -34,7 +34,7 @@
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:'Inter',system-ui,sans-serif;background-color:var(--bg-page);min-height:100vh;min-height:100dvh;overflow-x:hidden;transition:background-color 0.35s ease;}
 
-    /* -- Splash ------------------------------------------- */
+    /* ── Splash ─────────────────────────────────────────── */
     #splash{position:fixed;inset:0;background:var(--bg-page);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;z-index:99999;transition:opacity .5s ease;}
     #splash.hide{opacity:0;pointer-events:none;}
     .splash-bar{width:120px;height:4px;border-radius:2px;background:#e2e8f0;overflow:hidden;}
@@ -42,15 +42,15 @@
     @keyframes pulse-logo{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
     @keyframes slide-bar{0%{transform:translateX(-100%);}100%{transform:translateX(350%);}}
 
-    /* -- Blobs -------------------------------------------- */
+    /* ── Blobs ──────────────────────────────────────────── */
     .blob{position:fixed;border-radius:9999px;pointer-events:none;z-index:0;opacity:var(--blob-opacity,1);transition:opacity 0.35s ease;}
     .blob-blue{top:-5%;left:-5%;width:35%;height:35%;background:rgba(147,197,253,0.30);filter:blur(100px);}
     .blob-cyan{bottom:-5%;right:-5%;width:25%;height:25%;background:rgba(103,232,249,0.20);filter:blur(100px);}
 
-    /* -- Layout ------------------------------------------- */
+    /* ── Layout ─────────────────────────────────────────── */
     .dash-layout{display:flex;min-height:100vh;min-height:100dvh;}
 
-    /* -- Sidebar ------------------------------------------ */
+    /* ── Sidebar ────────────────────────────────────────── */
     .sidebar{width:260px;background:var(--sidebar-bg);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-right:1px solid var(--card-border);display:flex;flex-direction:column;padding:1.5rem 1rem;position:fixed;top:0;left:0;bottom:0;z-index:50;transition:transform .3s ease,width .3s ease,background 0.35s ease,border-color 0.35s ease;overflow:visible;}
     .sidebar-collapse-btn{display:none;position:absolute;top:50%;right:-1rem;transform:translateY(-50%);width:1rem;height:3.5rem;border-radius:0 0.5rem 0.5rem 0;background:var(--btn-bg);border:none;color:var(--btn-text);font-size:0.6rem;font-weight:700;cursor:pointer;align-items:center;justify-content:center;z-index:51;box-shadow:3px 0 12px rgba(0,0,0,0.22);transition:background 0.35s ease;flex-shrink:0;line-height:1;}
     .sidebar.collapsed{width:64px;padding-left:0.75rem;padding-right:0.75rem;align-items:center;}
@@ -82,7 +82,7 @@
     .sidebar-user-name{font-size:0.8125rem;font-weight:700;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
     .sidebar-user-id{font-size:0.6875rem;font-weight:500;color:var(--text-sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
 
-    /* -- Main --------------------------------------------- */
+    /* ── Main ───────────────────────────────────────────── */
     .dash-main{flex:1;margin-left:260px;padding:1.5rem;position:relative;z-index:1;transition:margin-left .3s ease;}
     .dash-main.sidebar-collapsed{margin-left:64px;}
     .dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;}
@@ -91,7 +91,7 @@
     .hamburger-btn{display:none;width:2.5rem;height:2.5rem;border-radius:0.75rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);align-items:center;justify-content:center;font-size:1.25rem;cursor:pointer;color:var(--card-text);z-index:60;transition:background 0.35s ease,border-color 0.35s ease,color 0.35s ease;}
     .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:40;}
 
-    /* -- Cards resumo ------------------------------------- */
+    /* ── Cards resumo ───────────────────────────────────── */
     .cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;}
     .summary-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);transition:background 0.35s ease,border-color 0.35s ease,transform .2s,box-shadow .2s;}
     .summary-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px -5px rgba(0,0,0,0.1);}
@@ -102,12 +102,12 @@
     .card-value{font-size:1.5rem;font-weight:800;color:var(--card-text);letter-spacing:-0.025em;transition:color 0.35s ease;}
     .card-sub{font-size:0.75rem;font-weight:500;color:var(--card-text-sec);margin-top:0.25rem;transition:color 0.35s ease;}
 
-    /* -- Section card ------------------------------------- */
+    /* ── Section card ───────────────────────────────────── */
     .section-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.5rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);margin-bottom:1rem;transition:background 0.35s ease,border-color 0.35s ease;}
     .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;}
     .section-title{font-size:1rem;font-weight:800;color:var(--text-main);transition:color 0.35s ease;}
 
-    /* -- Cards de recorrente ------------------------------ */
+    /* ── Cards de recorrente ────────────────────────────── */
     .rec-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:1rem;padding:1rem 1.25rem;display:flex;align-items:center;gap:1rem;transition:transform .2s,box-shadow .2s,opacity .2s,background 0.35s ease,border-color 0.35s ease;}
     .rec-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px -5px rgba(0,0,0,0.1);}
     .rec-card.inativa{opacity:0.55;}
@@ -128,7 +128,7 @@
     .rec-valor-receita{color:#16a34a;}
     .rec-actions{display:flex;align-items:center;gap:0.5rem;flex-shrink:0;}
 
-    /* -- Toggle pill -------------------------------------- */
+    /* ── Toggle pill ────────────────────────────────────── */
     .toggle-pill{position:relative;width:40px;height:22px;flex-shrink:0;cursor:pointer;}
     .toggle-pill input{opacity:0;width:0;height:0;position:absolute;}
     .toggle-pill-track{position:absolute;inset:0;border-radius:999px;background:#e2e8f0;transition:background .2s;}
@@ -136,18 +136,18 @@
     .toggle-pill-thumb{position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:transform .2s;}
     .toggle-pill input:checked ~ .toggle-pill-thumb{transform:translateX(18px);}
 
-    /* -- Action buttons ----------------------------------- */
+    /* ── Action buttons ─────────────────────────────────── */
     .action-btn{width:2rem;height:2rem;border-radius:0.5rem;border:1.5px solid var(--input-border);background:var(--input-bg);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:0.875rem;transition:all .15s;color:var(--card-text-sec);}
     .action-btn:hover{border-color:#93c5fd;color:#2563eb;background:#eff6ff;}
     .action-btn.delete:hover{border-color:#fca5a5;color:#dc2626;background:#fef2f2;}
 
-    /* -- Empty state -------------------------------------- */
+    /* ── Empty state ────────────────────────────────────── */
     .empty-state{text-align:center;padding:3rem 1rem;}
     .empty-state-icon{font-size:2.5rem;margin-bottom:0.75rem;}
     .empty-state-title{font-size:0.9375rem;font-weight:700;color:var(--card-text);transition:color 0.35s ease;}
     .empty-state-sub{font-size:0.8125rem;font-weight:500;color:var(--card-text-sec);margin-top:0.25rem;transition:color 0.35s ease;}
 
-    /* -- Plan gate ---------------------------------------- */
+    /* ── Plan gate ──────────────────────────────────────── */
     .plan-gate{background:var(--card-bg);border:1px solid var(--card-border);border-radius:1.5rem;padding:3rem 2rem;text-align:center;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);}
     .plan-gate-icon{font-size:3rem;margin-bottom:1rem;}
     .plan-gate-title{font-size:1.25rem;font-weight:800;color:var(--text-main);margin-bottom:0.5rem;transition:color 0.35s ease;}
@@ -155,7 +155,7 @@
     .plan-gate-btn{display:inline-flex;align-items:center;gap:0.5rem;padding:0.75rem 1.5rem;border-radius:0.75rem;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;font-size:0.9375rem;font-weight:800;text-decoration:none;border:none;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .2s;}
     .plan-gate-btn:hover{opacity:0.9;transform:translateY(-1px);}
 
-    /* -- Modal -------------------------------------------- */
+    /* ── Modal ──────────────────────────────────────────── */
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:80;align-items:center;justify-content:center;padding:1rem;}
     .modal-overlay.open{display:flex;}
     .modal-card{background:var(--bg-page);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.75rem;width:100%;max-width:440px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.2);animation:modal-in .25s ease;max-height:90vh;overflow-y:auto;}
@@ -179,7 +179,7 @@
     .modal-cancel{width:100%;padding:0.625rem;border:none;border-radius:0.75rem;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;background:rgba(0,0,0,0.05);color:var(--text-sec);margin-top:0.5rem;transition:background .15s;}
     .modal-cancel:hover{background:rgba(0,0,0,0.09);}
 
-    /* -- Custom select ------------------------------------ */
+    /* ── Custom select ──────────────────────────────────── */
     .custom-select{position:relative;}
     .custom-select-trigger{width:100%;padding:0.625rem 0.875rem;border:1.5px solid var(--input-border);border-radius:0.75rem;font-size:0.875rem;font-weight:600;color:var(--card-text-sec);background:var(--input-bg);font-family:inherit;transition:border-color .2s,box-shadow .2s;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;box-sizing:border-box;}
     .custom-select-trigger.has-value{color:var(--card-text);}
@@ -193,7 +193,7 @@
     .custom-select-option:hover{background:var(--sidebar-link-hover-bg);}
     .custom-select-option.selected{background:#eff6ff;color:#2563eb;font-weight:700;}
 
-    /* -- Responsive --------------------------------------- */
+    /* ── Responsive ─────────────────────────────────────── */
     @media(max-width:768px){
       .sidebar{transform:translateX(-100%);}
       .sidebar.open{transform:translateX(0);}
@@ -210,12 +210,12 @@
     }
     @media(min-width:769px){.sidebar-collapse-btn{display:flex;}}
     @media(min-width:769px) and (max-width:1024px){.cards-grid{grid-template-columns:repeat(2,1fr);}}
-    /* -- Filtro chips ------------------------------------- */
+    /* ── Filtro chips ───────────────────────────────────── */
     .rec-chip{padding:0.25rem 0.625rem;border-radius:9999px;font-size:0.75rem;font-weight:700;cursor:pointer;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--text-sec);font-family:inherit;transition:all .15s;white-space:nowrap;}
     .rec-chip.active{background:rgba(37,99,235,0.1);color:#2563eb;border-color:#93c5fd;}
     .rec-chip:hover:not(.active){background:var(--sidebar-link-hover-bg);}
     .rec-card-urgente{border-color:rgba(245,158,11,0.55) !important;}
-    /* Scrollbar: n�o vaza al�m do border-radius do modal */
+    /* Scrollbar: não vaza além do border-radius do modal */
     .modal-card::-webkit-scrollbar{width:6px;}
     .modal-card::-webkit-scrollbar-track{background:transparent;margin-top:1.5rem;margin-bottom:1.5rem;}
     .modal-card::-webkit-scrollbar-thumb{background:rgba(100,116,139,0.25);border-radius:999px;}
@@ -224,69 +224,69 @@
 </head>
 <body>
 
-  <!-- - Splash -------------------------------------------- -->
+  <!-- ═ Splash ════════════════════════════════════════════ -->
   <div id="splash">
     <img src="logo.png" alt="Bud Finance" style="width:56px;height:56px;object-fit:contain;animation:pulse-logo 1.8s ease-in-out infinite;">
     <div class="splash-bar"><div class="splash-bar-inner"></div></div>
   </div>
 
-  <!-- - Blobs --------------------------------------------- -->
+  <!-- ═ Blobs ═════════════════════════════════════════════ -->
   <div class="blob blob-blue" aria-hidden="true"></div>
   <div class="blob blob-cyan" aria-hidden="true"></div>
 
-  <!-- - Overlay sidebar mobile ---------------------------- -->
+  <!-- ═ Overlay sidebar mobile ════════════════════════════ -->
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <!-- - Layout -------------------------------------------- -->
+  <!-- ═ Layout ════════════════════════════════════════════ -->
   <div class="dash-layout">
 
-    <!-- - Sidebar ---------------------------------------- -->
+    <!-- ─ Sidebar ──────────────────────────────────────── -->
     <aside class="sidebar" id="sidebar">
-      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">�</button>
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">‹</button>
       <div class="sidebar-logo">
         <img src="logo.png" alt="Bud Finance" width="32" height="32">
         <span class="sidebar-logo-text">Bud Finance</span>
       </div>
       <nav class="sidebar-nav">
         <a href="dashboard.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Dashboard</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
         </a>
-        <div class="sidebar-group-label">Finan�as</div>
+        <div class="sidebar-group-label">Finanças</div>
         <a href="carteira.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Contas</span>
+          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Contas</span>
         </a>
         <a href="cartoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Cart�es</span>
+          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
         </a>
         <a href="recorrentes.html" class="sidebar-link active">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Recorrentes</span>
+          <span class="sidebar-link-icon">🔄</span><span class="sidebar-link-text"> Recorrentes</span>
         </a>
         <a href="dividas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> D�vidas</span>
+          <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
         </a>
         <a href="metas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Metas</span>
+          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
         </a>
         <a href="mercado.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Compras</span>
+          <span class="sidebar-link-icon">🛒</span><span class="sidebar-link-text"> Compras</span>
         </a>
         <a href="categorias.html" class="sidebar-link">
-          <span class="sidebar-link-icon">???</span><span class="sidebar-link-text"> Categorias</span>
+          <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
         <a href="graficos.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> An�lises</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <a href="assistente-ia.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Assistente IA</span>
+          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span>
         </a>
         <a href="assistente-whatsapp.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
+          <span class="sidebar-link-icon">💬</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
         </a>
         <div class="sidebar-nav-divider"></div>
         <a href="configuracoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Configura��es</span>
+          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
         </a>
       </nav>
       <div class="sidebar-user" style="margin-top:auto;">
@@ -297,31 +297,31 @@
         </div>
       </div>
       <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
-        <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Sair</span>
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
       </button>
     </aside>
 
-    <!-- - Main ------------------------------------------- -->
+    <!-- ─ Main ─────────────────────────────────────────── -->
     <main class="dash-main" id="dashMain">
 
-      <!-- -- Sub-nav Recorrentes ------------------------------------- -->
+      <!-- ── Sub-nav Recorrentes ───────────────────────────────────── -->
       <div style="display:flex;align-items:center;gap:0.25rem;margin-bottom:1rem;background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1rem;padding:0.5rem 0.625rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);">
-        <a href="recorrentes.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;background:var(--btn-bg);color:var(--btn-text);box-shadow:inset 0 0 0 1.5px var(--theme-accent);font-size:0.8125rem;font-weight:700;text-decoration:none;white-space:nowrap;">?? Recorrentes</a>
-        <a href="limites.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;">?? Limites</a>
+        <a href="recorrentes.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;background:var(--btn-bg);color:var(--btn-text);box-shadow:inset 0 0 0 1.5px var(--theme-accent);font-size:0.8125rem;font-weight:700;text-decoration:none;white-space:nowrap;">🔄 Recorrentes</a>
+        <a href="limites.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;">🎯 Limites</a>
       </div>
 
       <!-- Header -->
       <div class="dash-header">
         <div style="display:flex;align-items:center;gap:0.75rem;">
-          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">?</button>
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
           <div class="dash-welcome">
-            <h1>?? Recorrentes</h1>
-            <p>Despesas e receitas autom�ticas</p>
+            <h1>🔄 Recorrentes</h1>
+            <p>Despesas e receitas automáticas</p>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;">
           <button id="btnProcessarHoje" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:var(--card-bg);border:1px solid var(--card-border);color:var(--card-text);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .2s;" title="Processar contas que vencem hoje">
-            <span>??</span><span>Processar Hoje</span>
+            <span>⚙️</span><span>Processar Hoje</span>
           </button>
           <button id="btnNovaRec" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:0.875rem;font-weight:700;border:none;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .2s;" title="Nova Recorrente">
             <span>+</span><span>Nova Recorrente</span>
@@ -332,14 +332,14 @@
       <!-- Plan gate (plano free/starter) -->
       <div id="planGate" style="display:none;">
         <div class="plan-gate">
-          <div class="plan-gate-icon">??</div>
-          <div class="plan-gate-title">Recurso Exclusivo � Pro / Plus</div>
-          <div class="plan-gate-sub">Recorrentes automatizam suas contas fixas. Dispon�vel nos planos Pro e Plus.</div>
-          <a href="/" class="plan-gate-btn">?? Ver Planos</a>
+          <div class="plan-gate-icon">🔒</div>
+          <div class="plan-gate-title">Recurso Exclusivo — Pro / Plus</div>
+          <div class="plan-gate-sub">Recorrentes automatizam suas contas fixas. Disponível nos planos Pro e Plus.</div>
+          <a href="/" class="plan-gate-btn">🚀 Ver Planos</a>
         </div>
       </div>
 
-      <!-- Conte�do principal -->
+      <!-- Conteúdo principal -->
       <div id="mainContent" style="display:none;">
 
         <!-- Processamento status -->
@@ -350,31 +350,31 @@
           <div class="summary-card">
             <div class="card-header">
               <span class="card-label">Ativas</span>
-              <div class="card-icon card-icon-blue">??</div>
+              <div class="card-icon card-icon-blue">🔄</div>
             </div>
             <div class="card-value" id="cardAtivas">0</div>
             <div class="card-sub">recorrentes ativas</div>
           </div>
           <div class="summary-card">
             <div class="card-header">
-              <span class="card-label">Despesas / M�s</span>
-              <div class="card-icon card-icon-red">??</div>
+              <span class="card-label">Despesas / Mês</span>
+              <div class="card-icon card-icon-red">📉</div>
             </div>
             <div class="card-value" id="cardDespesas" style="color:#dc2626;">R$ 0,00</div>
             <div class="card-sub">estimativa mensal</div>
           </div>
           <div class="summary-card">
             <div class="card-header">
-              <span class="card-label">Receitas / M�s</span>
-              <div class="card-icon card-icon-green">??</div>
+              <span class="card-label">Receitas / Mês</span>
+              <div class="card-icon card-icon-green">📈</div>
             </div>
             <div class="card-value" id="cardReceitas" style="color:#16a34a;">R$ 0,00</div>
             <div class="card-sub">estimativa mensal</div>
           </div>
           <div class="summary-card">
             <div class="card-header">
-              <span class="card-label">Saldo L�quido</span>
-              <div class="card-icon card-icon-purple">??</div>
+              <span class="card-label">Saldo Líquido</span>
+              <div class="card-icon card-icon-purple">⚖️</div>
             </div>
             <div class="card-value" id="cardSaldo" style="color:#16a34a;">R$ 0,00</div>
             <div class="card-sub" id="cardSaldoSub">saldo positivo mensal</div>
@@ -388,19 +388,19 @@
               <span class="section-title">Suas Recorrentes</span>
               <span id="recContagem" style="font-size:0.75rem;font-weight:600;color:var(--text-sec);white-space:nowrap;"></span>
             </div>
-            <input type="text" id="recBusca" placeholder="?? Buscar por descri��o ou categoria..." style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid var(--input-border);border-radius:0.625rem;font-size:0.8125rem;font-weight:600;color:var(--card-text);background:var(--input-bg);font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .2s;">
+            <input type="text" id="recBusca" placeholder="🔍 Buscar por descrição ou categoria..." style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid var(--input-border);border-radius:0.625rem;font-size:0.8125rem;font-weight:600;color:var(--card-text);background:var(--input-bg);font-family:inherit;outline:none;box-sizing:border-box;transition:border-color .2s;">
             <div style="display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap;">
               <button class="rec-chip active" id="rct-todos" onclick="window.recFiltroTipo('todos')">Todos</button>
-              <button class="rec-chip" id="rct-despesa" onclick="window.recFiltroTipo('despesa')">? Despesas</button>
-              <button class="rec-chip" id="rct-receita" onclick="window.recFiltroTipo('receita')">? Receitas</button>
+              <button class="rec-chip" id="rct-despesa" onclick="window.recFiltroTipo('despesa')">↓ Despesas</button>
+              <button class="rec-chip" id="rct-receita" onclick="window.recFiltroTipo('receita')">↑ Receitas</button>
               <span style="width:1px;height:0.875rem;background:var(--card-border);display:inline-block;margin:0 0.1rem;flex-shrink:0;"></span>
               <button class="rec-chip active" id="rcs-todas" onclick="window.recFiltroStatus('todas')">Todas</button>
               <button class="rec-chip" id="rcs-ativas" onclick="window.recFiltroStatus('ativas')">Ativas</button>
               <button class="rec-chip" id="rcs-pausadas" onclick="window.recFiltroStatus('pausadas')">Pausadas</button>
               <span style="width:1px;height:0.875rem;background:var(--card-border);display:inline-block;margin:0 0.1rem;flex-shrink:0;"></span>
-              <button class="rec-chip active" id="rco-nome" onclick="window.recOrdem('nome')">A?Z</button>
+              <button class="rec-chip active" id="rco-nome" onclick="window.recOrdem('nome')">A→Z</button>
               <button class="rec-chip" id="rco-valor" onclick="window.recOrdem('valor')">Maior valor</button>
-              <button class="rec-chip" id="rco-proxima" onclick="window.recOrdem('proxima')">Pr�x. data</button>
+              <button class="rec-chip" id="rco-proxima" onclick="window.recOrdem('proxima')">Próx. data</button>
             </div>
           </div>
           <div id="listaRecorrentes">
@@ -413,25 +413,25 @@
     </main>
   </div>
 
-  <!-- - Modal Criar/Editar ---------------------------------- -->
+  <!-- ═ Modal Criar/Editar ══════════════════════════════════ -->
   <div class="modal-overlay" id="modalRec">
     <div class="modal-card">
       <div class="modal-title">
         <span id="modalRecTitulo">Nova Recorrente</span>
-        <button class="modal-close" id="btnFecharModalRec" aria-label="Fechar">?</button>
+        <button class="modal-close" id="btnFecharModalRec" aria-label="Fechar">✕</button>
       </div>
       <input type="hidden" id="recId">
 
       <!-- Tipo -->
       <div class="tipo-toggle">
-        <button type="button" class="tipo-btn active-despesa" id="btnTipoDespesa" onclick="window.recSetTipo('despesa')">? Despesa</button>
-        <button type="button" class="tipo-btn" id="btnTipoReceita" onclick="window.recSetTipo('receita')">? Receita</button>
+        <button type="button" class="tipo-btn active-despesa" id="btnTipoDespesa" onclick="window.recSetTipo('despesa')">↓ Despesa</button>
+        <button type="button" class="tipo-btn" id="btnTipoReceita" onclick="window.recSetTipo('receita')">↑ Receita</button>
       </div>
 
-      <!-- Descri��o -->
+      <!-- Descrição -->
       <div class="modal-field">
-        <label class="modal-label" for="recDescricao">Descri��o</label>
-        <input class="modal-input" type="text" id="recDescricao" placeholder="Ex: Netflix, Aluguel, Sal�rio�" autocomplete="off" maxlength="80">
+        <label class="modal-label" for="recDescricao">Descrição</label>
+        <input class="modal-input" type="text" id="recDescricao" placeholder="Ex: Netflix, Aluguel, Salário…" autocomplete="off" maxlength="80">
       </div>
 
       <!-- Valor -->
@@ -445,22 +445,22 @@
         <label class="modal-label">Categoria</label>
         <div class="custom-select" id="csCategoria">
           <div class="custom-select-trigger" id="csCatTrigger" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false">
-            <span id="csCatLabel">Selecione�</span>
-            <span class="custom-select-chevron">?</span>
+            <span id="csCatLabel">Selecione…</span>
+            <span class="custom-select-chevron">▾</span>
           </div>
           <div class="custom-select-dropdown" id="csCatDropdown" role="listbox"></div>
         </div>
         <input type="hidden" id="recCategoria">
       </div>
 
-      <!-- Grid: Conta/Cart�o + Periodicidade -->
+      <!-- Grid: Conta/Cartão + Periodicidade -->
       <div class="modal-grid2">
         <div class="modal-field" style="margin-bottom:0;">
-          <label class="modal-label">Conta / Cart�o</label>
+          <label class="modal-label">Conta / Cartão</label>
           <div class="custom-select" id="csConta">
             <div class="custom-select-trigger" id="csContaTrigger" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false">
-              <span id="csContaLabel">Selecione�</span>
-              <span class="custom-select-chevron">?</span>
+              <span id="csContaLabel">Selecione…</span>
+              <span class="custom-select-chevron">▾</span>
             </div>
             <div class="custom-select-dropdown" id="csContaDropdown" role="listbox"></div>
           </div>
@@ -472,8 +472,8 @@
           <label class="modal-label">Periodicidade</label>
           <div class="custom-select" id="csPeriodo">
             <div class="custom-select-trigger" id="csPeriodoTrigger" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false">
-              <span id="csPeriodoLabel">?? Mensal</span>
-              <span class="custom-select-chevron">?</span>
+              <span id="csPeriodoLabel">📅 Mensal</span>
+              <span class="custom-select-chevron">▾</span>
             </div>
             <div class="custom-select-dropdown" id="csPeriodoDropdown" role="listbox"></div>
           </div>
@@ -481,25 +481,25 @@
         </div>
       </div>
 
-      <!-- Dia do vencimento (s� mensal) -->
+      <!-- Dia do vencimento (só mensal) -->
       <div class="modal-field" id="fieldDiaVenc" style="margin-top:1rem;">
         <label class="modal-label" for="recDia">Dia do Vencimento</label>
         <input class="modal-input" type="number" id="recDia" min="1" max="31" value="1" placeholder="1">
       </div>
 
-      <!-- Observa��o (opcional) -->
+      <!-- Observação (opcional) -->
       <div class="modal-field" style="margin-top:1rem;">
-        <label class="modal-label" for="recObservacao">Observa��o <span style="font-weight:500;text-transform:none;letter-spacing:0;font-size:0.6875rem;">(opcional)</span></label>
-        <textarea class="modal-input" id="recObservacao" placeholder="Ex: Parcela 2/12, renova��o autom�tica, contrato n� 123�" rows="2" style="resize:none;height:3.5rem;"></textarea>
+        <label class="modal-label" for="recObservacao">Observação <span style="font-weight:500;text-transform:none;letter-spacing:0;font-size:0.6875rem;">(opcional)</span></label>
+        <textarea class="modal-input" id="recObservacao" placeholder="Ex: Parcela 2/12, renovação automática, contrato nº 123…" rows="2" style="resize:none;height:3.5rem;"></textarea>
       </div>
 
-      <!-- Bot�es -->
+      <!-- Botões -->
       <button class="modal-submit" id="btnSalvarRec">Salvar Recorrente</button>
       <button class="modal-cancel" id="btnCancelarRec">Cancelar</button>
     </div>
   </div>
 
-  <!-- - Scripts -------------------------------------------- -->
+  <!-- ═ Scripts ════════════════════════════════════════════ -->
   <script src="js/firebase-config.js"></script>
   <script src="js/bud-utils.js"></script>
   <script src="js/categorias-padrao.js"></script>

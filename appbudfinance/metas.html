@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance � Metas Financeiras">
+  <meta name="description" content="Bud Finance — Metas Financeiras">
   <title>Metas - Bud Finance</title>
 
   <link rel="icon" type="image/png" href="logo.png">
@@ -21,7 +21,7 @@
 
   <link rel="stylesheet" href="css/tailwind.css">
 
-  <!-- Theme Manager � deve vir antes do body para evitar flash -->
+  <!-- Theme Manager — deve vir antes do body para evitar flash -->
   <script src="js/theme-manager.js"></script>
 
   <style>
@@ -48,7 +48,7 @@
       transition: background-color 0.35s ease;
     }
 
-    /* -- Blobs ---------------------------------------------------- */
+    /* ── Blobs ──────────────────────────────────────────────────── */
     .blob {
       position: fixed; border-radius: 50%; filter: blur(80px);
       pointer-events: none; z-index: 0;
@@ -57,10 +57,10 @@
     .blob-blue  { top:-8%; left:-5%; width:32%; height:32%; background:rgba(99,102,241,0.18); }
     .blob-cyan  { bottom:-5%; right:-5%; width:25%; height:25%; background:rgba(103,232,249,0.20); filter:blur(100px); }
 
-    /* -- Layout --------------------------------------------------- */
+    /* ── Layout ─────────────────────────────────────────────────── */
     .dash-layout { display:flex; min-height:100vh; min-height:100dvh; }
 
-    /* -- Sidebar -------------------------------------------------- */
+    /* ── Sidebar ────────────────────────────────────────────────── */
     .sidebar {
       width:260px; background:var(--sidebar-bg);
       backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
@@ -143,14 +143,14 @@
       white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color 0.35s ease;
     }
 
-    /* -- Main ----------------------------------------------------- */
+    /* ── Main ───────────────────────────────────────────────────── */
     .dash-main { flex:1; margin-left:260px; padding:1.5rem; position:relative; z-index:1; transition:margin-left .3s ease; }
     .dash-main.sidebar-collapsed { margin-left:64px; }
     .dash-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; }
     .dash-welcome h1 { font-size:1.5rem; font-weight:800; color:var(--text-main); letter-spacing:-0.025em; transition:color 0.35s ease; }
     .dash-welcome p { font-size:0.8125rem; font-weight:500; color:var(--text-sec); margin-top:0.125rem; transition:color 0.35s ease; }
 
-    /* -- Hamburger ------------------------------------------------ */
+    /* ── Hamburger ──────────────────────────────────────────────── */
     .hamburger-btn {
       display:none; width:2.5rem; height:2.5rem; border-radius:0.75rem;
       background:var(--card-bg); backdrop-filter:blur(12px);
@@ -161,7 +161,7 @@
     }
     .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:40; }
 
-    /* -- Cards de resumo ------------------------------------------ */
+    /* ── Cards de resumo ────────────────────────────────────────── */
     .summary-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
     .summary-card {
       background:var(--card-bg); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
@@ -183,10 +183,10 @@
       margin-top:0.25rem; transition:color 0.35s ease;
     }
 
-    /* -- Grid de metas -------------------------------------------- */
+    /* ── Grid de metas ──────────────────────────────────────────── */
     .metas-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:1.25rem; }
 
-    /* -- Card de meta --------------------------------------------- */
+    /* ── Card de meta ───────────────────────────────────────────── */
     .meta-card {
       background:var(--card-bg); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
       border:1px solid var(--card-border); border-radius:1.5rem; padding:1.5rem;
@@ -208,7 +208,7 @@
     .meta-icon-btn:hover { background:rgba(0,0,0,0.08); }
     .meta-icon-btn.danger:hover { background:#fef2f2; color:#dc2626; }
 
-    /* -- Barra de progresso --------------------------------------- */
+    /* ── Barra de progresso ─────────────────────────────────────── */
     .meta-progress-wrap { display:flex; flex-direction:column; gap:0.5rem; }
     .meta-progress-bar-bg {
       width:100%; height:0.625rem; border-radius:999px;
@@ -225,14 +225,14 @@
     .meta-progress-pct { font-size:0.75rem; font-weight:800; color:var(--card-text); transition:color 0.35s ease; }
     .meta-progress-vals { font-size:0.75rem; font-weight:500; color:var(--card-text-sec); transition:color 0.35s ease; }
 
-    /* -- Badge de gamifica��o ------------------------------------- */
+    /* ── Badge de gamificação ───────────────────────────────────── */
     .meta-badge {
       display:inline-flex; align-items:center; gap:0.25rem;
       padding:0.25rem 0.625rem; border-radius:999px;
       font-size:0.6875rem; font-weight:700;
     }
 
-    /* -- Prazo e aporte sugerido --------------------------------- */
+    /* ── Prazo e aporte sugerido ───────────────────────────────── */
     .meta-deadline { font-size:0.75rem; font-weight:500; color:var(--card-text-sec); transition:color 0.35s ease; }
     .meta-sugestao {
       background:rgba(245,158,11,0.10); border:1px solid rgba(245,158,11,0.25);
@@ -240,7 +240,7 @@
       font-size:0.75rem; font-weight:600; color:var(--card-text);
     }
 
-    /* -- Bot�o aportar -------------------------------------------- */
+    /* ── Botão aportar ──────────────────────────────────────────── */
     .btn-aportar {
       width:100%; padding:0.625rem; border-radius:0.75rem;
       border:2px dashed var(--input-focus); background:transparent;
@@ -250,7 +250,7 @@
     }
     .btn-aportar:hover { background:var(--sidebar-link-hover-bg); border-color:var(--input-focus); }
 
-    /* -- Estado vazio --------------------------------------------- */
+    /* ── Estado vazio ───────────────────────────────────────────── */
     .metas-empty {
       text-align:center; padding:4rem 2rem;
       background:var(--card-bg); backdrop-filter:blur(16px);
@@ -261,7 +261,7 @@
     .metas-empty-title { font-size:1.125rem; font-weight:700; color:var(--card-text); margin-bottom:0.5rem; transition:color 0.35s ease; }
     .metas-empty-sub { font-size:0.875rem; font-weight:500; color:var(--card-text-sec); transition:color 0.35s ease; }
 
-    /* -- Modal base ----------------------------------------------- */
+    /* ── Modal base ─────────────────────────────────────────────── */
     .modal-overlay {
       display:none; position:fixed; inset:0;
       background:rgba(0,0,0,0.45); backdrop-filter:blur(4px);
@@ -292,7 +292,7 @@
       transition:color 0.35s ease;
     }
 
-    /* -- Campos do modal ----------------------------------------- */
+    /* ── Campos do modal ───────────────────────────────────────── */
     .modal-field { margin-bottom:1rem; }
     .modal-field:last-child { margin-bottom:0; }
     .modal-label {
@@ -310,7 +310,7 @@
     .modal-input:focus { border-color:var(--input-focus); }
     .modal-input:disabled { opacity:0.55; cursor:not-allowed; }
 
-    /* -- Sugest�es populares -------------------------------------- */
+    /* ── Sugestões populares ────────────────────────────────────── */
     .sugestoes-grid { display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem; }
     .sugestao-chip {
       padding:0.375rem 0.75rem; border-radius:999px;
@@ -321,7 +321,7 @@
     }
     .sugestao-chip:hover,.sugestao-chip.selected { border-color:var(--btn-bg); color:var(--btn-bg); background:rgba(37,99,235,0.06); }
 
-    /* -- Emoji picker --------------------------------------------- */
+    /* ── Emoji picker ───────────────────────────────────────────── */
     .emoji-grid {
       display:grid; grid-template-columns:repeat(8,1fr); gap:0.375rem;
       max-height:160px; overflow-y:auto; padding:0.5rem;
@@ -337,7 +337,7 @@
     .emoji-btn:hover { background:rgba(0,0,0,0.06); }
     .emoji-btn.selected { background:rgba(37,99,235,0.15); outline:2px solid var(--input-focus); outline-offset:1px; }
 
-    /* -- Custom select -------------------------------------------- */
+    /* ── Custom select ──────────────────────────────────────────── */
     .custom-select-wrap { position:relative; }
     .custom-select-trigger {
       width:100%; padding:0.625rem 2.5rem 0.625rem 0.875rem;
@@ -371,7 +371,7 @@
     .custom-select-option:last-child  { border-radius:0 0 0.625rem 0.625rem; }
     .custom-select-sep { padding:0.25rem 0.875rem; font-size:0.6875rem; font-weight:700; color:var(--card-text-sec); opacity:0.6; }
 
-    /* -- Custom datepicker ---------------------------------------- */
+    /* ── Custom datepicker ──────────────────────────────────────── */
     .dp-trigger {
       width:100%; padding:0.625rem 0.875rem;
       border:1.5px solid var(--input-border); border-radius:0.75rem;
@@ -411,7 +411,7 @@
     .dp-clear { width:100%; margin-top:0.5rem; padding:0.375rem; border:none; background:rgba(0,0,0,0.04); border-radius:0.5rem; font-size:0.75rem; font-weight:600; color:var(--card-text-sec); cursor:pointer; font-family:inherit; transition:background .1s; }
     .dp-clear:hover { background:rgba(0,0,0,0.08); }
 
-    /* -- Hist�rico de aportes ------------------------------------- */
+    /* ── Histórico de aportes ───────────────────────────────────── */
     .historico-item {
       display:flex; justify-content:space-between; align-items:center;
       padding:0.75rem 0; border-bottom:1px solid var(--input-border);
@@ -421,14 +421,14 @@
     .historico-valor { font-size:0.9375rem; font-weight:700; color:#10b981; }
     .historico-meta { font-size:0.75rem; font-weight:500; color:var(--card-text-sec); transition:color 0.35s ease; }
 
-    /* -- Confetti ------------------------------------------------- */
+    /* ── Confetti ───────────────────────────────────────────────── */
     @keyframes confettiDrop {
       0%   { transform:translateY(-20px) rotate(0deg); opacity:1; }
       100% { transform:translateY(100vh) rotate(720deg); opacity:0; }
     }
     .confetti-piece { position:fixed; pointer-events:none; z-index:9999; border-radius:2px; animation:confettiDrop 3s ease-in forwards; }
 
-    /* -- Bot�o principal ------------------------------------------ */
+    /* ── Botão principal ────────────────────────────────────────── */
     .btn-primary {
       padding:0.625rem 1.25rem; border-radius:0.75rem;
       background:var(--btn-bg); color:var(--btn-text);
@@ -447,7 +447,7 @@
     }
     .btn-secondary:hover { background:rgba(0,0,0,0.09); }
 
-    /* -- Responsivo ----------------------------------------------- */
+    /* ── Responsivo ─────────────────────────────────────────────── */
     @media (max-width: 767px) {
       .sidebar { transform:translateX(-100%); width:260px; }
       .sidebar.open { transform:translateX(0); }
@@ -472,53 +472,53 @@
 
   <div class="dash-layout">
 
-    <!-- --- Sidebar ------------------------------------------------ -->
+    <!-- ─── Sidebar ──────────────────────────────────────────────── -->
     <aside class="sidebar" id="sidebar">
-      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar" title="Recolher sidebar">�</button>
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar" title="Recolher sidebar">‹</button>
       <div class="sidebar-logo">
         <img src="logo.png" alt="Bud Finance" width="32" height="32">
         <span class="sidebar-logo-text">Bud Finance</span>
       </div>
       <nav class="sidebar-nav">
         <a href="dashboard.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Dashboard</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
         </a>
-        <div class="sidebar-group-label">Finan�as</div>
+        <div class="sidebar-group-label">Finanças</div>
         <a href="carteira.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Contas</span>
+          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Contas</span>
         </a>
         <a href="cartoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Cart�es</span>
+          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
         </a>
         <a href="recorrentes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Recorrentes</span>
+          <span class="sidebar-link-icon">🔄</span><span class="sidebar-link-text"> Recorrentes</span>
         </a>
         <a href="dividas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> D�vidas</span>
+          <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
         </a>
         <a href="metas.html" class="sidebar-link active">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Metas</span>
+          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
         </a>
         <a href="mercado.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Compras</span>
+          <span class="sidebar-link-icon">🛒</span><span class="sidebar-link-text"> Compras</span>
         </a>
         <a href="categorias.html" class="sidebar-link">
-          <span class="sidebar-link-icon">???</span><span class="sidebar-link-text"> Categorias</span>
+          <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
         <a href="graficos.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> An�lises</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <a href="assistente-ia.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Assistente IA</span>
+          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span>
         </a>
         <a href="assistente-whatsapp.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
+          <span class="sidebar-link-icon">💬</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
         </a>
         <div class="sidebar-nav-divider"></div>
         <a href="configuracoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Configura��es</span>
+          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
         </a>
       </nav>
       <div class="sidebar-user" style="margin-top:auto;">
@@ -529,26 +529,26 @@
         </div>
       </div>
       <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
-        <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Sair</span>
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
       </button>
     </aside>
 
-    <!-- --- Main --------------------------------------------------- -->
+    <!-- ─── Main ─────────────────────────────────────────────────── -->
     <main class="dash-main" id="dashMain">
 
-      <!-- -- Sub-nav Metas ------------------------------------------- -->
+      <!-- ── Sub-nav Metas ─────────────────────────────────────────── -->
       <div style="display:flex;align-items:center;gap:0.25rem;margin-bottom:1rem;background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1rem;padding:0.5rem 0.625rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);">
-        <a href="metas.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;background:var(--btn-bg);color:var(--btn-text);box-shadow:inset 0 0 0 1.5px var(--theme-accent);font-size:0.8125rem;font-weight:700;text-decoration:none;white-space:nowrap;">?? Metas</a>
-        <a href="investimentos.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;">?? Investimentos</a>
+        <a href="metas.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;background:var(--btn-bg);color:var(--btn-text);box-shadow:inset 0 0 0 1.5px var(--theme-accent);font-size:0.8125rem;font-weight:700;text-decoration:none;white-space:nowrap;">🏆 Metas</a>
+        <a href="investimentos.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;">📈 Investimentos</a>
       </div>
 
       <!-- Header -->
       <div class="dash-header">
         <div style="display:flex;align-items:center;gap:0.75rem;">
-          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">?</button>
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
           <div class="dash-welcome">
-            <h1>?? Metas</h1>
-            <p id="dataHoje">�</p>
+            <h1>🏆 Metas</h1>
+            <p id="dataHoje">—</p>
           </div>
         </div>
         <button class="btn-primary" id="btnNovaMeta">+ Nova Meta</button>
@@ -572,7 +572,7 @@
           <div class="summary-card-sub">para atingir os alvos</div>
         </div>
         <div class="summary-card">
-          <div class="summary-card-label">Progresso M�dio</div>
+          <div class="summary-card-label">Progresso Médio</div>
           <div class="summary-card-value" id="summaryProgresso">0%</div>
           <div class="summary-card-sub">de progresso geral</div>
         </div>
@@ -580,30 +580,30 @@
 
       <!-- Grid de metas -->
       <div id="metasContainer">
-        <!-- Chips de ordena��o -->
+        <!-- Chips de ordenação -->
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;">
-          <button id="ordenBtn-default"  onclick="window.ordenarMetas('default')"  style="padding:0.375rem 0.875rem;border-radius:999px;border:1.5px solid var(--accent);background:var(--accent);color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;">? Padr�o</button>
-          <button id="ordenBtn-prazo"    onclick="window.ordenarMetas('prazo')"    style="padding:0.375rem 0.875rem;border-radius:999px;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--text-sec);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;">? Prazo</button>
-          <button id="ordenBtn-progresso" onclick="window.ordenarMetas('progresso')" style="padding:0.375rem 0.875rem;border-radius:999px;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--text-sec);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;">?? Progresso</button>
-          <button id="ordenBtn-valor"    onclick="window.ordenarMetas('valor')"    style="padding:0.375rem 0.875rem;border-radius:999px;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--text-sec);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;">?? Maior valor</button>
+          <button id="ordenBtn-default"  onclick="window.ordenarMetas('default')"  style="padding:0.375rem 0.875rem;border-radius:999px;border:1.5px solid var(--accent);background:var(--accent);color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;">⭐ Padrão</button>
+          <button id="ordenBtn-prazo"    onclick="window.ordenarMetas('prazo')"    style="padding:0.375rem 0.875rem;border-radius:999px;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--text-sec);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;">⏰ Prazo</button>
+          <button id="ordenBtn-progresso" onclick="window.ordenarMetas('progresso')" style="padding:0.375rem 0.875rem;border-radius:999px;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--text-sec);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;">📊 Progresso</button>
+          <button id="ordenBtn-valor"    onclick="window.ordenarMetas('valor')"    style="padding:0.375rem 0.875rem;border-radius:999px;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--text-sec);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;">💰 Maior valor</button>
         </div>
         <div class="metas-empty" id="metasEmpty" style="display:none;">
-          <div class="metas-empty-icon">??</div>
+          <div class="metas-empty-icon">🏆</div>
           <div class="metas-empty-title">Nenhuma meta criada ainda</div>
           <div class="metas-empty-sub">Crie sua primeira meta financeira e acompanhe seu progresso!</div>
         </div>
         <div class="metas-grid" id="metasGrid"></div>
       </div>
 
-      <!-- Metas Alcan�adas (collapsible) -->
+      <!-- Metas Alcançadas (collapsible) -->
       <div id="secMetasAlcancadas" style="display:none;margin-top:1.5rem;">
         <div onclick="window.toggleMetasAlcancadas()" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:0.875rem 1.25rem;background:rgba(16,185,129,0.06);border:1.5px solid rgba(16,185,129,0.25);border-radius:1rem;user-select:none;">
           <div style="display:flex;align-items:center;gap:0.5rem;">
-            <span style="font-size:1.125rem;">??</span>
-            <span style="font-size:0.9375rem;font-weight:700;color:#059669;">Metas Alcan�adas</span>
+            <span style="font-size:1.125rem;">🏆</span>
+            <span style="font-size:0.9375rem;font-weight:700;color:#059669;">Metas Alcançadas</span>
             <span id="alcancadasCount" style="font-size:0.75rem;font-weight:700;background:rgba(16,185,129,0.15);color:#059669;padding:0.2rem 0.5rem;border-radius:999px;"></span>
           </div>
-          <span id="btnToggleAlcancadas" style="color:#059669;font-size:0.875rem;transition:transform .2s;">?</span>
+          <span id="btnToggleAlcancadas" style="color:#059669;font-size:0.875rem;transition:transform .2s;">▼</span>
         </div>
         <div id="metasAlcancadasGrid" class="metas-grid" style="display:none;margin-top:0.875rem;"></div>
       </div>
@@ -611,15 +611,15 @@
     </main>
   </div>
 
-  <!-- ----------- MODAL: CRIAR / EDITAR META --------------------- -->
+  <!-- ═══════════ MODAL: CRIAR / EDITAR META ═════════════════════ -->
   <div class="modal-overlay" id="modalMeta" role="dialog" aria-modal="true" aria-labelledby="modalMetaTitle">
     <div class="modal-box">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;">
         <span class="modal-title" id="modalMetaTitle" style="margin-bottom:0;">Nova Meta</span>
-        <button class="modal-close" id="btnFecharModalMeta" aria-label="Fechar">?</button>
+        <button class="modal-close" id="btnFecharModalMeta" aria-label="Fechar">✕</button>
       </div>
 
-      <!-- Sugest�es populares -->
+      <!-- Sugestões populares -->
       <div class="sugestoes-grid" id="sugestoesGrid"></div>
 
       <form id="formMeta" novalidate>
@@ -627,13 +627,13 @@
 
         <div class="modal-field">
           <label class="modal-label" for="metaNome">Nome do objetivo</label>
-          <input class="modal-input" type="text" id="metaNome" placeholder="Ex: Viagem para o Jap�o" maxlength="60" required>
+          <input class="modal-input" type="text" id="metaNome" placeholder="Ex: Viagem para o Japão" maxlength="60" required>
         </div>
 
         <div class="modal-field">
-          <label class="modal-label">�cone</label>
+          <label class="modal-label">Ícone</label>
           <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem;">
-            <div id="emojiSelecionado" style="font-size:2rem;line-height:1;min-width:2.5rem;text-align:center;">??</div>
+            <div id="emojiSelecionado" style="font-size:2rem;line-height:1;min-width:2.5rem;text-align:center;">🎯</div>
             <span style="font-size:0.75rem;font-weight:500;color:var(--card-text-sec);">Clique para escolher</span>
           </div>
           <div class="emoji-grid" id="emojiGrid"></div>
@@ -645,23 +645,23 @@
         </div>
 
         <div class="modal-field">
-          <label class="modal-label" for="metaValorAtual">J� guardado (R$)</label>
+          <label class="modal-label" for="metaValorAtual">Já guardado (R$)</label>
           <input class="modal-input" type="text" id="metaValorAtual" placeholder="R$ 0,00" inputmode="decimal">
         </div>
 
-        <!-- Datepicker customizado � prazo (opcional) -->
+        <!-- Datepicker customizado — prazo (opcional) -->
         <div class="modal-field">
           <label class="modal-label">Prazo (opcional)</label>
           <div style="position:relative;">
             <button type="button" class="dp-trigger" id="dpMetaTrigger">
               <span id="dpMetaLabel">Sem prazo</span>
-              <span style="font-size:0.875rem;">??</span>
+              <span style="font-size:0.875rem;">📅</span>
             </button>
             <div class="dp-calendar" id="dpMetaCalendar">
               <div class="dp-header">
-                <button type="button" class="dp-nav-btn" id="dpMetaPrev">�</button>
-                <span class="dp-month-label" id="dpMetaMonthLabel">�</span>
-                <button type="button" class="dp-nav-btn" id="dpMetaNext">�</button>
+                <button type="button" class="dp-nav-btn" id="dpMetaPrev">‹</button>
+                <span class="dp-month-label" id="dpMetaMonthLabel">—</span>
+                <button type="button" class="dp-nav-btn" id="dpMetaNext">›</button>
               </div>
               <div class="dp-weekdays">
                 <div class="dp-weekday">D</div><div class="dp-weekday">S</div>
@@ -684,12 +684,12 @@
     </div>
   </div>
 
-  <!-- ----------- MODAL: APORTE ---------------------------------- -->
+  <!-- ═══════════ MODAL: APORTE ══════════════════════════════════ -->
   <div class="modal-overlay" id="modalAporte" role="dialog" aria-modal="true" aria-labelledby="modalAporteTitle">
     <div class="modal-box" style="max-width:400px;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;">
-        <span class="modal-title" id="modalAporteTitle" style="margin-bottom:0;">?? Depositar</span>
-        <button class="modal-close" id="btnFecharModalAporte" aria-label="Fechar">?</button>
+        <span class="modal-title" id="modalAporteTitle" style="margin-bottom:0;">💰 Depositar</span>
+        <button class="modal-close" id="btnFecharModalAporte" aria-label="Fechar">✕</button>
       </div>
 
       <form id="formAporte" novalidate>
@@ -700,19 +700,19 @@
           <input class="modal-input" type="text" id="aporteValor" placeholder="R$ 0,00" inputmode="decimal" required>
         </div>
 
-        <!-- Datepicker customizado � data do aporte -->
+        <!-- Datepicker customizado — data do aporte -->
         <div class="modal-field">
           <label class="modal-label">Data</label>
           <div style="position:relative;">
             <button type="button" class="dp-trigger" id="dpAporteTrigger">
               <span id="dpAporteLabel">Hoje</span>
-              <span style="font-size:0.875rem;">??</span>
+              <span style="font-size:0.875rem;">📅</span>
             </button>
             <div class="dp-calendar" id="dpAporteCalendar">
               <div class="dp-header">
-                <button type="button" class="dp-nav-btn" id="dpAportePrev">�</button>
-                <span class="dp-month-label" id="dpAporteMonthLabel">�</span>
-                <button type="button" class="dp-nav-btn" id="dpAporteNext">�</button>
+                <button type="button" class="dp-nav-btn" id="dpAportePrev">‹</button>
+                <span class="dp-month-label" id="dpAporteMonthLabel">—</span>
+                <button type="button" class="dp-nav-btn" id="dpAporteNext">›</button>
               </div>
               <div class="dp-weekdays">
                 <div class="dp-weekday">D</div><div class="dp-weekday">S</div>
@@ -726,13 +726,13 @@
           <input type="hidden" id="aporteData">
         </div>
 
-        <!-- Custom select � carteira -->
+        <!-- Custom select — carteira -->
         <div class="modal-field">
           <label class="modal-label">Pago com</label>
           <div class="custom-select-wrap" id="carteiraSelectWrap">
             <button type="button" class="custom-select-trigger" id="carteiraSelectTrigger" role="combobox" aria-haspopup="listbox">
               <span id="carteiraSelectLabel">Selecione uma conta</span>
-              <span class="custom-select-arrow">?</span>
+              <span class="custom-select-arrow">▼</span>
             </button>
             <div class="custom-select-dropdown" id="carteiraSelectDropdown" role="listbox" style="top:auto;bottom:calc(100% + 4px);"></div>
           </div>
@@ -747,12 +747,12 @@
     </div>
   </div>
 
-  <!-- ----------- MODAL: HIST�RICO ------------------------------- -->
+  <!-- ═══════════ MODAL: HISTÓRICO ═══════════════════════════════ -->
   <div class="modal-overlay" id="modalHistorico" role="dialog" aria-modal="true" aria-labelledby="modalHistoricoTitle">
     <div class="modal-box" style="max-width:420px;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;">
-        <span class="modal-title" id="modalHistoricoTitle" style="margin-bottom:0;">?? Hist�rico</span>
-        <button class="modal-close" id="btnFecharHistorico" aria-label="Fechar">?</button>
+        <span class="modal-title" id="modalHistoricoTitle" style="margin-bottom:0;">📋 Histórico</span>
+        <button class="modal-close" id="btnFecharHistorico" aria-label="Fechar">✕</button>
       </div>
       <div id="historicoList">
         <p style="text-align:center;color:var(--card-text-sec);font-size:0.875rem;padding:2rem 0;">Carregando...</p>

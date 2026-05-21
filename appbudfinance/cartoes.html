@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance � Cart�es de Cr�dito">
-  <title>Cart�es - Bud Finance</title>
+  <meta name="description" content="Bud Finance — Cartões de Crédito">
+  <title>Cartões - Bud Finance</title>
 
   <link rel="icon" type="image/png" href="logo.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -21,7 +21,7 @@
 
   <link rel="stylesheet" href="css/tailwind.css">
 
-  <!-- Theme Manager � deve vir antes do body para evitar flash -->
+  <!-- Theme Manager — deve vir antes do body para evitar flash -->
   <script src="js/theme-manager.js"></script>
 
   <style>
@@ -50,7 +50,7 @@
       transition: background-color 0.35s ease;
     }
 
-    /* -- Blobs ---------------------------------------------------- */
+    /* ── Blobs ──────────────────────────────────────────────────── */
     .blob {
       position: fixed; border-radius: 50%; filter: blur(80px);
       pointer-events: none; z-index: 0;
@@ -59,10 +59,10 @@
     .blob-blue  { top:-8%; left:-5%; width:32%; height:32%; background:rgba(99,102,241,0.18); }
     .blob-cyan  { bottom:-5%; right:-5%; width:25%; height:25%; background:rgba(103,232,249,0.20); filter:blur(100px); }
 
-    /* -- Layout --------------------------------------------------- */
+    /* ── Layout ─────────────────────────────────────────────────── */
     .dash-layout { display:flex; min-height:100vh; min-height:100dvh; }
 
-    /* -- Sidebar -------------------------------------------------- */
+    /* ── Sidebar ────────────────────────────────────────────────── */
     .sidebar {
       width:260px; background:var(--sidebar-bg);
       backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
@@ -145,14 +145,14 @@
       white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color 0.35s ease;
     }
 
-    /* -- Main ----------------------------------------------------- */
+    /* ── Main ───────────────────────────────────────────────────── */
     .dash-main { flex:1; margin-left:260px; padding:1.5rem; position:relative; z-index:1; transition:margin-left .3s ease; }
     .dash-main.sidebar-collapsed { margin-left:64px; }
     .dash-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; }
     .dash-welcome h1 { font-size:1.5rem; font-weight:800; color:var(--text-main); letter-spacing:-0.025em; transition:color 0.35s ease; }
     .dash-welcome p { font-size:0.8125rem; font-weight:500; color:var(--text-sec); margin-top:0.125rem; transition:color 0.35s ease; }
 
-    /* -- Hamburger ------------------------------------------------ */
+    /* ── Hamburger ──────────────────────────────────────────────── */
     .hamburger-btn {
       display:none; width:2.5rem; height:2.5rem; border-radius:0.75rem;
       background:var(--card-bg); backdrop-filter:blur(12px);
@@ -163,7 +163,7 @@
     }
     .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:40; }
 
-    /* -- Navega��o de m�s ----------------------------------------- */
+    /* ── Navegação de mês ───────────────────────────────────────── */
     .mes-nav {
       display:flex; align-items:center; justify-content:space-between;
       background:var(--card-bg); backdrop-filter:blur(16px);
@@ -184,7 +184,7 @@
       letter-spacing:-0.01em; transition:color 0.35s ease;
     }
 
-    /* -- Banner de resumo ----------------------------------------- */
+    /* ── Banner de resumo ───────────────────────────────────────── */
     .banner-resumo {
       background:var(--banner-grad);
       border-radius:1.5rem; padding:1.5rem; margin-bottom:1.5rem;
@@ -196,7 +196,7 @@
     .banner-stat-value { font-size:1.5rem; font-weight:800; color:#fff; letter-spacing:-0.025em; }
     .banner-stat-sub { font-size:0.75rem; font-weight:500; color:rgba(255,255,255,0.7); }
 
-    /* -- Bot�o principal ------------------------------------------ */
+    /* ── Botão principal ────────────────────────────────────────── */
     .btn-primary {
       padding:0.625rem 1.25rem; border-radius:0.75rem;
       background:var(--btn-bg); color:var(--btn-text);
@@ -224,14 +224,14 @@
     }
     .btn-secondary:hover { background:rgba(0,0,0,0.09); }
 
-    /* -- Grid de cart�es ------------------------------------------ */
+    /* ── Grid de cartões ────────────────────────────────────────── */
     .cartoes-grid {
       display:grid;
       grid-template-columns:repeat(auto-fill,minmax(340px,1fr));
       gap:1.5rem;
     }
 
-    /* -- Wrapper do card ------------------------------------------ */
+    /* ── Wrapper do card ────────────────────────────────────────── */
     @keyframes cardFadeIn {
       from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0); }
@@ -248,7 +248,7 @@
       .cartao-wrapper:hover { transform:translateY(-2px); box-shadow:0 8px 32px -8px rgba(0,0,0,0.12); }
     }
 
-    /* -- Visual do cart�o f�sico ---------------------------------- */
+    /* ── Visual do cartão físico ────────────────────────────────── */
     .credit-card {
       width:100%; aspect-ratio:1.586;
       border-radius:1rem; padding:1.25rem 1.5rem;
@@ -293,7 +293,7 @@
     .card-valid-label { font-size:0.5625rem; font-weight:600; color:rgba(255,255,255,0.6); text-transform:uppercase; }
     .card-valid-value { font-size:0.75rem; font-weight:700; color:rgba(255,255,255,0.9); }
 
-    /* -- Info abaixo do cart�o ------------------------------------ */
+    /* ── Info abaixo do cartão ──────────────────────────────────── */
     .cartao-info { display:flex; flex-direction:column; gap:0.75rem; }
     .cartao-fatura-row { display:flex; align-items:baseline; justify-content:space-between; gap:0.5rem; }
     .cartao-fatura-label { font-size:0.6875rem; font-weight:700; color:var(--card-text-sec); text-transform:uppercase; letter-spacing:0.05em; transition:color 0.35s ease; }
@@ -303,14 +303,14 @@
       border-radius:999px;
     }
 
-    /* -- Barra de limite ------------------------------------------ */
+    /* ── Barra de limite ────────────────────────────────────────── */
     .limite-wrap { display:flex; flex-direction:column; gap:0.375rem; }
     .limite-bar-bg { width:100%; height:0.375rem; border-radius:999px; background:rgba(0,0,0,0.06); overflow:hidden; transition:background 0.35s ease; }
     .limite-bar-fill { height:100%; border-radius:999px; transition:width .5s cubic-bezier(.4,0,.2,1),background .3s; }
     .limite-labels { display:flex; justify-content:space-between; }
     .limite-label { font-size:0.6875rem; font-weight:600; color:var(--card-text-sec); transition:color 0.35s ease; }
 
-    /* -- Bot�es de a��o do cart�o --------------------------------- */
+    /* ── Botões de ação do cartão ───────────────────────────────── */
     .cartao-actions { display:flex; gap:0.5rem; }
     .cartao-btn {
       flex:1; padding:0.5rem 0.75rem; border-radius:0.75rem;
@@ -321,16 +321,16 @@
     }
     .cartao-btn:hover { border-color:var(--input-focus); color:var(--input-focus); background:var(--sidebar-link-hover-bg); }
     .cartao-btn-danger:hover { border-color:#ef4444; color:#ef4444; background:#fef2f2; }
-    /* bot�o de a��o destaque (Pagar Fatura) */
+    /* botão de ação destaque (Pagar Fatura) */
     .cartao-btn-cta {
       flex:2; border-color:var(--input-focus);
     }
-    /* �cone-only: excluir cart�o */
+    /* ícone-only: excluir cartão */
     .cartao-btn-icon {
       flex:none; width:2.25rem; padding:0; font-size:1rem;
     }
 
-    /* -- Gastos do cart�o ----------------------------------------- */
+    /* ── Gastos do cartão ───────────────────────────────────────── */
     .gastos-toggle {
       width:100%; display:flex; align-items:center; justify-content:space-between;
       padding:0.625rem 0.75rem; border-radius:0.75rem;
@@ -365,7 +365,7 @@
     .gasto-edit-btn:hover   { background:rgba(59,130,246,0.1); color:#2563eb; }
     .gasto-status-btn:hover { background:rgba(245,158,11,0.1); color:#d97706; }
 
-    /* -- Estado vazio --------------------------------------------- */
+    /* ── Estado vazio ───────────────────────────────────────────── */
     .cartoes-empty {
       text-align:center; padding:4rem 2rem;
       background:var(--card-bg); backdrop-filter:blur(16px);
@@ -391,7 +391,7 @@
       bottom:0; left:50%; transform:translateX(-50%);
     }
 
-    /* -- Skeleton loader ------------------------------------------ */
+    /* ── Skeleton loader ────────────────────────────────────────── */
     @keyframes shimmer {
       0%   { background-position: -400px 0; }
       100% { background-position:  400px 0; }
@@ -426,7 +426,7 @@
     .cartoes-empty-title { font-size:1.125rem; font-weight:700; color:var(--card-text); margin-bottom:0.5rem; transition:color 0.35s ease; }
     .cartoes-empty-sub { font-size:0.875rem; font-weight:500; color:var(--card-text-sec); transition:color 0.35s ease; }
 
-    /* -- Modal base ----------------------------------------------- */
+    /* ── Modal base ─────────────────────────────────────────────── */
     .modal-overlay {
       display:none; position:fixed; inset:0;
       background:rgba(0,0,0,0.45); backdrop-filter:blur(4px);
@@ -454,7 +454,7 @@
       transition:color 0.35s ease;
     }
 
-    /* -- Campos do modal ------------------------------------------ */
+    /* ── Campos do modal ────────────────────────────────────────── */
     .modal-field { margin-bottom:1rem; }
     .modal-field:last-child { margin-bottom:0; }
     .modal-label {
@@ -474,7 +474,7 @@
     .modal-row { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; }
     .modal-hint { font-size:0.6875rem; font-weight:500; color:var(--card-text-sec); margin-top:0.25rem; }
 
-    /* -- Seletor de cor ------------------------------------------- */
+    /* ── Seletor de cor ─────────────────────────────────────────── */
     .cor-picker { display:flex; flex-wrap:wrap; gap:0.5rem; }
     .cor-pill {
       width:2rem; height:2rem; border-radius:50%; cursor:pointer;
@@ -483,7 +483,7 @@
     .cor-pill:hover { transform:scale(1.1); }
     .cor-pill.selected { border-color:var(--input-focus); transform:scale(1.1); }
 
-    /* -- Custom select -------------------------------------------- */
+    /* ── Custom select ──────────────────────────────────────────── */
     .custom-select-wrap { position:relative; }
     .custom-select-trigger {
       width:100%; padding:0.625rem 2.5rem 0.625rem 0.875rem;
@@ -518,7 +518,7 @@
     .custom-select-option:last-child  { border-radius:0 0 0.625rem 0.625rem; }
     .custom-select-sep { padding:0.25rem 0.875rem; font-size:0.6875rem; font-weight:700; color:var(--card-text-sec); opacity:0.6; }
 
-    /* -- Custom datepicker ---------------------------------------- */
+    /* ── Custom datepicker ──────────────────────────────────────── */
     .dp-trigger {
       width:100%; padding:0.625rem 0.875rem;
       border:1.5px solid var(--input-border); border-radius:0.75rem;
@@ -559,7 +559,7 @@
     .dp-clear { width:100%; margin-top:0.5rem; padding:0.375rem; border:none; background:rgba(0,0,0,0.04); border-radius:0.5rem; font-size:0.75rem; font-weight:600; color:var(--card-text-sec); cursor:pointer; font-family:inherit; transition:background .1s; }
     .dp-clear:hover { background:rgba(0,0,0,0.08); }
 
-    /* -- Modal de confirma��o (pagar/excluir) --------------------- */
+    /* ── Modal de confirmação (pagar/excluir) ───────────────────── */
     .confirm-modal-overlay {
       display:none; position:fixed; inset:0;
       background:rgba(0,0,0,0.5); backdrop-filter:blur(4px);
@@ -577,12 +577,12 @@
     .confirm-sub { font-size:0.8125rem; font-weight:500; color:var(--card-text-sec); margin-bottom:1.25rem; }
     .confirm-btns { display:flex; gap:0.625rem; justify-content:flex-end; }
 
-    /* -- Checkbox ------------------------------------------------- */
+    /* ── Checkbox ───────────────────────────────────────────────── */
     .checkbox-wrap { display:flex; align-items:center; gap:0.5rem; cursor:pointer; }
     .checkbox-wrap input[type="checkbox"] { width:1rem; height:1rem; cursor:pointer; }
     .checkbox-label { font-size:0.8125rem; font-weight:600; color:var(--card-text); }
 
-    /* -- Responsivo ----------------------------------------------- */
+    /* ── Responsivo ─────────────────────────────────────────────── */
     @media (max-width: 767px) {
       .sidebar { transform:translateX(-100%); width:260px; }
       .sidebar.open { transform:translateX(0); }
@@ -608,53 +608,53 @@
 
   <div class="dash-layout">
 
-    <!-- --- Sidebar ------------------------------------------------ -->
+    <!-- ─── Sidebar ──────────────────────────────────────────────── -->
     <aside class="sidebar" id="sidebar">
-      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar" title="Recolher sidebar">�</button>
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar" title="Recolher sidebar">‹</button>
       <div class="sidebar-logo">
         <img src="logo.png" alt="Bud Finance" width="32" height="32">
         <span class="sidebar-logo-text">Bud Finance</span>
       </div>
       <nav class="sidebar-nav">
         <a href="dashboard.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Dashboard</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
         </a>
-        <div class="sidebar-group-label">Finan�as</div>
+        <div class="sidebar-group-label">Finanças</div>
         <a href="carteira.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Contas</span>
+          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Contas</span>
         </a>
         <a href="cartoes.html" class="sidebar-link active">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Cart�es</span>
+          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
         </a>
         <a href="recorrentes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Recorrentes</span>
+          <span class="sidebar-link-icon">🔄</span><span class="sidebar-link-text"> Recorrentes</span>
         </a>
         <a href="dividas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> D�vidas</span>
+          <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
         </a>
         <a href="metas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Metas</span>
+          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
         </a>
         <a href="mercado.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Compras</span>
+          <span class="sidebar-link-icon">🛒</span><span class="sidebar-link-text"> Compras</span>
         </a>
         <a href="categorias.html" class="sidebar-link">
-          <span class="sidebar-link-icon">???</span><span class="sidebar-link-text"> Categorias</span>
+          <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
         <a href="graficos.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> An�lises</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <a href="assistente-ia.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Assistente IA</span>
+          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span>
         </a>
         <a href="assistente-whatsapp.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
+          <span class="sidebar-link-icon">💬</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
         </a>
         <div class="sidebar-nav-divider"></div>
         <a href="configuracoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Configura��es</span>
+          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
         </a>
       </nav>
       <div class="sidebar-user" style="margin-top:auto;">
@@ -665,40 +665,40 @@
         </div>
       </div>
       <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
-        <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Sair</span>
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
       </button>
     </aside>
 
-    <!-- --- Main --------------------------------------------------- -->
+    <!-- ─── Main ─────────────────────────────────────────────────── -->
     <main class="dash-main" id="dashMain">
 
       <!-- Header -->
       <div class="dash-header">
         <div style="display:flex;align-items:center;gap:0.75rem;">
-          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">?</button>
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
           <div class="dash-welcome">
-            <h1>?? Cart�es</h1>
-            <p id="dataHoje">�</p>
+            <h1>💳 Cartões</h1>
+            <p id="dataHoje">—</p>
           </div>
         </div>
         <button class="btn-primary" id="btnNovoCartao" style="display:flex;align-items:center;gap:0.375rem;">
-          <span style="font-size:1rem;">+</span> Novo Cart�o
+          <span style="font-size:1rem;">+</span> Novo Cartão
         </button>
       </div>
 
-      <!-- Navega��o de m�s -->
+      <!-- Navegação de mês -->
       <div class="mes-nav">
-        <button class="mes-nav-btn" id="btnMesAnterior" aria-label="M�s anterior">�</button>
-        <span class="mes-nav-label" id="labelMesAtual">�</span>
+        <button class="mes-nav-btn" id="btnMesAnterior" aria-label="Mês anterior">‹</button>
+        <span class="mes-nav-label" id="labelMesAtual">—</span>
         <div style="display:flex;align-items:center;gap:0.5rem;">
-          <button class="mes-nav-btn" id="btnHoje" title="Ir para o m�s atual" style="font-size:0.625rem;font-weight:800;padding:0 0.625rem;width:auto;letter-spacing:0.03em;">Hoje</button>
-          <button class="mes-nav-btn" id="btnProximoMes" aria-label="Pr�ximo m�s">�</button>
+          <button class="mes-nav-btn" id="btnHoje" title="Ir para o mês atual" style="font-size:0.625rem;font-weight:800;padding:0 0.625rem;width:auto;letter-spacing:0.03em;">Hoje</button>
+          <button class="mes-nav-btn" id="btnProximoMes" aria-label="Próximo mês">›</button>
         </div>
       </div>
 
-      <!-- Alerta de m�s hist�rico -->
+      <!-- Alerta de mês histórico -->
       <div id="alertaMesHistorico" style="display:none;margin-bottom:1.25rem;padding:0.5rem 1rem;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:0.875rem;font-size:0.75rem;font-weight:700;color:#d97706;text-align:center;">
-        ?? Visualizando m�s hist�rico: <span id="alertaMesNome"></span>
+        📅 Visualizando mês histórico: <span id="alertaMesNome"></span>
       </div>
 
       <!-- Banner de resumo -->
@@ -706,21 +706,21 @@
         <div class="banner-stat">
           <span class="banner-stat-label">Total de Faturas</span>
           <span class="banner-stat-value" id="totalFaturas">R$ 0,00</span>
-          <span class="banner-stat-sub" id="totalFaturasSub">0 cart�es com gastos</span>
+          <span class="banner-stat-sub" id="totalFaturasSub">0 cartões com gastos</span>
         </div>
         <div class="banner-stat" style="text-align:center;">
-          <span class="banner-stat-label">Limite Dispon�vel</span>
+          <span class="banner-stat-label">Limite Disponível</span>
           <span class="banner-stat-value" id="limiteDisponivel">R$ 0,00</span>
           <span class="banner-stat-sub" id="limiteDisponivelSub">de R$ 0,00 total</span>
         </div>
         <div class="banner-stat" style="text-align:right;">
           <span class="banner-stat-label">Faturas Pagas</span>
           <span class="banner-stat-value" id="faturasPagasCount">0 / 0</span>
-          <span class="banner-stat-sub" id="faturasPagasSub">neste m�s</span>
+          <span class="banner-stat-sub" id="faturasPagasSub">neste mês</span>
         </div>
       </div>
 
-      <!-- Grid de cart�es (renderizado por JS) -->
+      <!-- Grid de cartões (renderizado por JS) -->
       <div id="cartoesGrid" class="cartoes-grid" style="display:none;"></div>
 
       <!-- Estado vazio -->
@@ -730,9 +730,9 @@
           <div class="ev-card ev-card-2"></div>
           <div class="ev-card ev-card-3"></div>
         </div>
-        <div class="cartoes-empty-title">Nenhum cart�o cadastrado</div>
-        <div class="cartoes-empty-sub" style="max-width:320px;margin:0.5rem auto 0;">Adicione seus cart�es de cr�dito para controlar faturas, limites e gastos em um s� lugar.</div>
-        <button class="btn-primary" id="btnNovoCartaoEmpty" style="margin-top:1.5rem;padding:0.75rem 2rem;font-size:0.9375rem;">?? Adicionar meu primeiro Cart�o</button>
+        <div class="cartoes-empty-title">Nenhum cartão cadastrado</div>
+        <div class="cartoes-empty-sub" style="max-width:320px;margin:0.5rem auto 0;">Adicione seus cartões de crédito para controlar faturas, limites e gastos em um só lugar.</div>
+        <button class="btn-primary" id="btnNovoCartaoEmpty" style="margin-top:1.5rem;padding:0.75rem 2rem;font-size:0.9375rem;">💳 Adicionar meu primeiro Cartão</button>
         <div style="margin-top:1rem;font-size:0.75rem;font-weight:500;color:var(--card-text-sec);opacity:0.7;">Suporta Visa, Mastercard, Elo, Amex e mais</div>
       </div>
 
@@ -757,16 +757,16 @@
     </main>
   </div>
 
-  <!-- --- Modal: Novo / Editar Cart�o ---------------------------- -->
+  <!-- ─── Modal: Novo / Editar Cartão ──────────────────────────── -->
   <div class="modal-overlay" id="modalCartao" role="dialog" aria-modal="true" aria-labelledby="titleModalCartao">
     <div class="modal-box">
-      <button class="modal-close" id="btnFecharModalCartao" aria-label="Fechar">?</button>
-      <div class="modal-title" id="titleModalCartao">Novo Cart�o</div>
+      <button class="modal-close" id="btnFecharModalCartao" aria-label="Fechar">✕</button>
+      <div class="modal-title" id="titleModalCartao">Novo Cartão</div>
 
       <form id="formCartao" novalidate>
         <div class="modal-field">
-          <label class="modal-label" for="inputNomeCartao">Nome do Cart�o</label>
-          <input class="modal-input" id="inputNomeCartao" type="text" placeholder="Ex: Nubank, Ita� Black..." maxlength="50" autocomplete="off" required>
+          <label class="modal-label" for="inputNomeCartao">Nome do Cartão</label>
+          <input class="modal-input" id="inputNomeCartao" type="text" placeholder="Ex: Nubank, Itaú Black..." maxlength="50" autocomplete="off" required>
         </div>
 
         <div class="modal-row">
@@ -775,7 +775,7 @@
             <div class="custom-select-wrap" id="wrapBandeira">
               <button type="button" class="custom-select-trigger" id="triggerBandeira" aria-haspopup="listbox" aria-expanded="false">
                 <span id="triggerBandeiraText">Selecione...</span>
-                <span class="custom-select-arrow">?</span>
+                <span class="custom-select-arrow">▼</span>
               </button>
               <div class="custom-select-dropdown" id="dropdownBandeira" role="listbox">
                 <div class="custom-select-option" role="option" data-value="visa">Visa</div>
@@ -798,17 +798,17 @@
           <div class="modal-field">
             <label class="modal-label" for="inputDiaFechamento">Dia de Fechamento</label>
             <input class="modal-input" id="inputDiaFechamento" type="number" placeholder="Ex: 1" min="1" max="31" autocomplete="off" required>
-            <span class="modal-hint">Dia em que a fatura fecha (1�31)</span>
+            <span class="modal-hint">Dia em que a fatura fecha (1–31)</span>
           </div>
           <div class="modal-field">
             <label class="modal-label" for="inputDiaVencimento">Dia de Vencimento</label>
             <input class="modal-input" id="inputDiaVencimento" type="number" placeholder="Ex: 10" min="1" max="31" autocomplete="off" required>
-            <span class="modal-hint">Dia em que a fatura vence (1�31)</span>
+            <span class="modal-hint">Dia em que a fatura vence (1–31)</span>
           </div>
         </div>
 
         <div class="modal-field">
-          <label class="modal-label">Cor do Cart�o</label>
+          <label class="modal-label">Cor do Cartão</label>
           <div class="cor-picker" id="corPicker">
             <button type="button" class="cor-pill" data-cor="roxo"    style="background:linear-gradient(135deg,#7c3aed,#4c1d95);" title="Roxo"></button>
             <button type="button" class="cor-pill" data-cor="azul"    style="background:linear-gradient(135deg,#2563eb,#1e3a8a);" title="Azul"></button>
@@ -826,22 +826,22 @@
 
         <div style="display:flex;gap:0.625rem;margin-top:1.5rem;">
           <button type="button" class="btn-secondary" id="btnCancelarCartao" style="flex:1;">Cancelar</button>
-          <button type="submit" class="btn-primary" id="btnSalvarCartao" style="flex:2;">Salvar Cart�o</button>
+          <button type="submit" class="btn-primary" id="btnSalvarCartao" style="flex:2;">Salvar Cartão</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- --- Modal: Novo Gasto --------------------------------------- -->
+  <!-- ─── Modal: Novo Gasto ─────────────────────────────────────── -->
   <div class="modal-overlay" id="modalGasto" role="dialog" aria-modal="true" aria-labelledby="titleModalGasto">
     <div class="modal-box">
-      <button class="modal-close" id="btnFecharModalGasto" aria-label="Fechar">?</button>
+      <button class="modal-close" id="btnFecharModalGasto" aria-label="Fechar">✕</button>
       <div class="modal-title" id="titleModalGasto">Novo Gasto</div>
-      <div style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);margin-top:-0.75rem;margin-bottom:1.25rem;" id="subtitleModalGasto">�</div>
+      <div style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);margin-top:-0.75rem;margin-bottom:1.25rem;" id="subtitleModalGasto">—</div>
 
       <form id="formGasto" novalidate>
         <div class="modal-field">
-          <label class="modal-label" for="inputDescGasto">Descri��o</label>
+          <label class="modal-label" for="inputDescGasto">Descrição</label>
           <input class="modal-input" id="inputDescGasto" type="text" placeholder="Ex: Supermercado Extra" maxlength="100" autocomplete="off" required>
         </div>
 
@@ -854,7 +854,7 @@
             <label class="modal-label">Data</label>
             <button type="button" class="dp-trigger" id="dpGastoTrigger" aria-haspopup="true">
               <span id="dpGastoLabel">Hoje</span>
-              <span style="font-size:0.75rem;color:var(--card-text-sec);">??</span>
+              <span style="font-size:0.75rem;color:var(--card-text-sec);">📅</span>
             </button>
             <div class="dp-calendar" id="dpGastoCalendar"></div>
             <input type="hidden" id="dpGastoHidden" name="dataGasto">
@@ -866,7 +866,7 @@
           <div class="custom-select-wrap" id="wrapCatGasto">
             <button type="button" class="custom-select-trigger" id="triggerCatGasto" aria-haspopup="listbox" aria-expanded="false">
               <span id="triggerCatGastoText">Selecione...</span>
-              <span class="custom-select-arrow">?</span>
+              <span class="custom-select-arrow">▼</span>
             </button>
             <div class="custom-select-dropdown" id="dropdownCatGasto" role="listbox">
               <!-- preenchido por JS -->
@@ -882,7 +882,7 @@
             Parcelada?
           </label>
           <div id="wrapNParcelas" style="display:none;margin-top:0.625rem;">
-            <label class="modal-label" for="inputNParcelas">N�mero de parcelas</label>
+            <label class="modal-label" for="inputNParcelas">Número de parcelas</label>
             <input class="modal-input" id="inputNParcelas" type="number" min="2" max="48" value="2" placeholder="Ex: 12">
           </div>
         </div>
@@ -895,32 +895,32 @@
     </div>
   </div>
 
-  <!-- --- Modal: Pagar Fatura ------------------------------------ -->
+  <!-- ─── Modal: Pagar Fatura ──────────────────────────────────── -->
   <div class="confirm-modal-overlay" id="modalPagarFatura" role="dialog" aria-modal="true">
     <div class="confirm-box">
       <div class="confirm-title" id="titlePagarFatura">Pagar Fatura</div>
       <div class="confirm-sub" id="subPagarFatura">Selecione de qual conta deseja pagar a fatura.</div>
       <div id="infoPagarFatura" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);border-radius:0.75rem;padding:0.75rem;margin-bottom:1.25rem;font-size:0.875rem;font-weight:700;color:#059669;text-align:center;"></div>
-      <!-- Sele��o de conta (mostrado ao pagar, oculto ao desfazer) -->
+      <!-- Seleção de conta (mostrado ao pagar, oculto ao desfazer) -->
       <div id="wrapContaFatura" style="display:none;margin-bottom:1.25rem;">
         <div style="font-size:0.8125rem;font-weight:600;color:var(--card-text);margin-bottom:0.625rem;">De qual conta deseja pagar?</div>
         <div id="selectContaFatura" style="display:flex;flex-direction:column;gap:0.5rem;max-height:220px;overflow-y:auto;"></div>
       </div>
       <div class="confirm-btns">
         <button class="btn-secondary" id="btnCancelarPagarFatura">Cancelar</button>
-        <button class="btn-primary" id="btnConfirmarPagarFatura" style="background:#10b981;">? Confirmar Pagamento</button>
+        <button class="btn-primary" id="btnConfirmarPagarFatura" style="background:#10b981;">✓ Confirmar Pagamento</button>
       </div>
     </div>
   </div>
 
-  <!-- --- Modal: Excluir Cart�o ---------------------------------- -->
+  <!-- ─── Modal: Excluir Cartão ────────────────────────────────── -->
   <div class="confirm-modal-overlay" id="modalExcluirCartao" role="dialog" aria-modal="true">
     <div class="confirm-box">
-      <div class="confirm-title">?? Excluir Cart�o?</div>
-      <div class="confirm-sub" id="subExcluirCartao">Todos os gastos deste cart�o ser�o exclu�dos permanentemente. Esta a��o n�o pode ser desfeita.</div>
+      <div class="confirm-title">⚠️ Excluir Cartão?</div>
+      <div class="confirm-sub" id="subExcluirCartao">Todos os gastos deste cartão serão excluídos permanentemente. Esta ação não pode ser desfeita.</div>
       <label class="checkbox-wrap" style="margin-bottom:1.25rem;">
         <input type="checkbox" id="checkConfirmarExclusaoCartao">
-        <span class="checkbox-label">Entendo que esta a��o � permanente</span>
+        <span class="checkbox-label">Entendo que esta ação é permanente</span>
       </label>
       <div class="confirm-btns">
         <button class="btn-secondary" id="btnCancelarExcluirCartao">Cancelar</button>
@@ -929,11 +929,11 @@
     </div>
   </div>
 
-  <!-- --- Modal: Excluir Gasto ----------------------------------- -->
+  <!-- ─── Modal: Excluir Gasto ─────────────────────────────────── -->
   <div class="confirm-modal-overlay" id="modalExcluirGasto" role="dialog" aria-modal="true">
     <div class="confirm-box">
       <div class="confirm-title">Excluir este gasto?</div>
-      <div class="confirm-sub" id="subExcluirGasto">Esta a��o n�o pode ser desfeita.</div>
+      <div class="confirm-sub" id="subExcluirGasto">Esta ação não pode ser desfeita.</div>
       <div class="confirm-btns">
         <button class="btn-secondary" id="btnCancelarExcluirGasto">Cancelar</button>
         <button class="btn-primary" id="btnConfirmarExcluirGasto" style="background:#ef4444;">Excluir</button>
@@ -941,28 +941,28 @@
     </div>
   </div>
 
-  <!-- --- Modal: Status Gasto (Estornar / Cancelar) ------------ -->
+  <!-- ─── Modal: Status Gasto (Estornar / Cancelar) ──────────── -->
   <div class="modal-overlay" id="modalStatusGasto" role="dialog" aria-modal="true" aria-labelledby="titleStatusGasto">
     <div class="modal-box" style="max-width:380px;">
-      <button class="modal-close" id="btnFecharModalStatusGasto" aria-label="Fechar">?</button>
+      <button class="modal-close" id="btnFecharModalStatusGasto" aria-label="Fechar">✕</button>
       <div class="modal-title" id="titleStatusGasto">Alterar Status</div>
-      <div style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);margin-top:-0.75rem;margin-bottom:1.25rem;" id="subStatusGasto">�</div>
+      <div style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);margin-top:-0.75rem;margin-bottom:1.25rem;" id="subStatusGasto">—</div>
 
       <p style="font-size:0.8125rem;font-weight:500;color:var(--card-text);margin-bottom:1.25rem;line-height:1.5;">
-        Escolha o novo status para este gasto. Estornos e cancelamentos s�o mantidos no hist�rico mas n�o somam na fatura.
+        Escolha o novo status para este gasto. Estornos e cancelamentos são mantidos no histórico mas não somam na fatura.
       </p>
 
       <div style="display:flex;flex-direction:column;gap:0.5rem;">
         <button type="button" id="btnEstornarGasto" style="padding:0.75rem 1rem;border-radius:0.875rem;border:1.5px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.1);font-size:0.875rem;font-weight:700;color:#d97706;cursor:pointer;font-family:inherit;text-align:left;">
-          ? Marcar como Estorno
-          <span style="display:block;font-size:0.6875rem;font-weight:500;margin-top:0.125rem;color:var(--card-text-sec);">Transa��o revertida / cr�dito recebido</span>
+          ↩ Marcar como Estorno
+          <span style="display:block;font-size:0.6875rem;font-weight:500;margin-top:0.125rem;color:var(--card-text-sec);">Transação revertida / crédito recebido</span>
         </button>
         <button type="button" id="btnCancelarGastoStatus" style="padding:0.75rem 1rem;border-radius:0.875rem;border:1.5px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.08);font-size:0.875rem;font-weight:700;color:#dc2626;cursor:pointer;font-family:inherit;text-align:left;">
-          ? Marcar como Cancelado
-          <span style="display:block;font-size:0.6875rem;font-weight:500;margin-top:0.125rem;color:var(--card-text-sec);">Compra n�o concretizada / cancelada</span>
+          ✕ Marcar como Cancelado
+          <span style="display:block;font-size:0.6875rem;font-weight:500;margin-top:0.125rem;color:var(--card-text-sec);">Compra não concretizada / cancelada</span>
         </button>
         <button type="button" id="btnReativarGasto" style="display:none;padding:0.75rem 1rem;border-radius:0.875rem;border:1.5px solid rgba(16,185,129,0.4);background:rgba(16,185,129,0.1);font-size:0.875rem;font-weight:700;color:#059669;cursor:pointer;font-family:inherit;text-align:left;">
-          ? Reativar Gasto
+          ✓ Reativar Gasto
           <span style="display:block;font-size:0.6875rem;font-weight:500;margin-top:0.125rem;color:var(--card-text-sec);">Voltar para status ativo na fatura</span>
         </button>
         <button type="button" id="btnCancelarStatusGasto" class="btn-secondary" style="margin-top:0.25rem;">Fechar</button>
@@ -970,26 +970,26 @@
     </div>
   </div>
 
-  <!-- --- Modal: Upload IA (PDF / Imagem) ----------------------- -->
+  <!-- ─── Modal: Upload IA (PDF / Imagem) ─────────────────────── -->
   <div class="modal-overlay" id="modalImportIA" role="dialog" aria-modal="true" aria-labelledby="titleModalImportIA">
     <div class="modal-box">
-      <button class="modal-close" id="btnFecharModalImportIA" aria-label="Fechar">?</button>
-      <div class="modal-title" id="titleModalImportIA">?? Importar Fatura com IA</div>
-      <div style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);margin-top:-0.75rem;margin-bottom:1.25rem;" id="subtitleModalImportIA">�</div>
+      <button class="modal-close" id="btnFecharModalImportIA" aria-label="Fechar">✕</button>
+      <div class="modal-title" id="titleModalImportIA">📥 Importar Fatura com IA</div>
+      <div style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);margin-top:-0.75rem;margin-bottom:1.25rem;" id="subtitleModalImportIA">—</div>
 
       <div id="importIA-upload-area" style="border:2px dashed var(--input-border);border-radius:1rem;padding:2rem;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;" onclick="document.getElementById('inputArquivoIA').click()">
-        <div style="font-size:2rem;margin-bottom:0.5rem;">??</div>
+        <div style="font-size:2rem;margin-bottom:0.5rem;">📄</div>
         <div style="font-size:0.9375rem;font-weight:700;color:var(--card-text);margin-bottom:0.25rem;">Clique para selecionar arquivo</div>
-        <div style="font-size:0.8125rem;font-weight:500;color:var(--card-text-sec);">PDF, imagem (JPG, PNG, WEBP, HEIC) ou OFX/QFX � m�x. 10MB</div>
+        <div style="font-size:0.8125rem;font-weight:500;color:var(--card-text-sec);">PDF, imagem (JPG, PNG, WEBP, HEIC) ou OFX/QFX — máx. 10MB</div>
         <div id="importIA-filename" style="margin-top:0.75rem;font-size:0.8125rem;font-weight:700;color:var(--btn-bg);display:none;"></div>
       </div>
       <div style="margin-top:0.875rem;padding:0.625rem 0.875rem;background:var(--input-bg);border:1px solid var(--input-border);border-radius:0.625rem;font-size:0.75rem;color:var(--card-text-sec);line-height:1.5;">
-        ?? <strong>Para maior precis�o:</strong> prefira <strong>OFX/QFX</strong> (mais assertivo) ou <strong>PDF</strong>. Imagens t�m precis�o limitada pois dependem de leitura visual da IA.
+        💡 <strong>Para maior precisão:</strong> prefira <strong>OFX/QFX</strong> (mais assertivo) ou <strong>PDF</strong>. Imagens têm precisão limitada pois dependem de leitura visual da IA.
       </div>
       <input type="file" id="inputArquivoIA" accept=".pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif,.ofx,.qfx" style="display:none;">
 
       <div id="importIA-progress" style="display:none;margin-top:1.25rem;text-align:center;">
-        <div style="font-size:1.5rem;margin-bottom:0.5rem;">?</div>
+        <div style="font-size:1.5rem;margin-bottom:0.5rem;">⏳</div>
         <div style="font-size:0.875rem;font-weight:700;color:var(--card-text);" id="importIA-progress-text">Enviando para IA...</div>
         <div style="margin-top:0.75rem;height:4px;background:var(--input-border);border-radius:2px;overflow:hidden;">
         <div id="importIA-progress-bar" style="height:100%;background:linear-gradient(90deg,transparent 0%,var(--btn-bg) 50%,transparent 100%);background-size:200% 100%;animation:progressSlide 1.4s infinite linear;border-radius:2px;"></div>
@@ -1003,26 +1003,26 @@
     </div>
   </div>
 
-  <!-- --- Modal: Review IA (lista de transa��es extra�das) ------- -->
+  <!-- ─── Modal: Review IA (lista de transações extraídas) ─────── -->
   <div class="modal-overlay" id="modalReviewIA" role="dialog" aria-modal="true" aria-labelledby="titleModalReviewIA">
     <div class="modal-box" style="max-width:min(640px,100%);width:100%;">
-      <button class="modal-close" id="btnFecharModalReviewIA" aria-label="Fechar">?</button>
-      <div class="modal-title" id="titleModalReviewIA">? Revisar Transa��es Extra�das</div>
+      <button class="modal-close" id="btnFecharModalReviewIA" aria-label="Fechar">✕</button>
+      <div class="modal-title" id="titleModalReviewIA">✅ Revisar Transações Extraídas</div>
       <div style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);margin-top:-0.75rem;margin-bottom:1rem;" id="subtitleModalReviewIA">Revise e edite antes de salvar</div>
 
-      <!-- M�s/Ano de refer�ncia -->
+      <!-- Mês/Ano de referência -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.625rem;margin-bottom:1.25rem;">
         <div class="modal-field">
-          <label class="modal-label">M�s da Fatura</label>
+          <label class="modal-label">Mês da Fatura</label>
           <div class="custom-select-wrap" id="iaMesWrapper">
             <button type="button" class="custom-select-trigger" id="iaMesBtn" tabindex="0" role="combobox" aria-haspopup="listbox" aria-expanded="false">
               <span id="iaMesTexto">Junho</span>
-              <span class="custom-select-arrow">?</span>
+              <span class="custom-select-arrow">▼</span>
             </button>
             <div class="custom-select-dropdown" id="iaMesDropdown" role="listbox">
               <div class="custom-select-option" role="option" data-value="01">Janeiro</div>
               <div class="custom-select-option" role="option" data-value="02">Fevereiro</div>
-              <div class="custom-select-option" role="option" data-value="03">Mar�o</div>
+              <div class="custom-select-option" role="option" data-value="03">Março</div>
               <div class="custom-select-option" role="option" data-value="04">Abril</div>
               <div class="custom-select-option" role="option" data-value="05">Maio</div>
               <div class="custom-select-option" role="option" data-value="06">Junho</div>
@@ -1048,9 +1048,9 @@
         <span id="iaResumoTotal">Total: R$ 0,00</span>
       </div>
 
-      <!-- Total declarado na fatura (PDF) � refer�ncia -->
+      <!-- Total declarado na fatura (PDF) — referência -->
       <div id="iaFaturaTotalPdf" style="display:none;justify-content:space-between;align-items:center;padding:0.5rem 0.875rem;background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.2);border-radius:0.75rem;margin-bottom:1rem;font-size:0.75rem;font-weight:600;color:var(--card-text);">
-        <span id="iaFaturaTotalPdfLabel" style="opacity:0.75;">?? Total da fatura (PDF)</span>
+        <span id="iaFaturaTotalPdfLabel" style="opacity:0.75;">📄 Total da fatura (PDF)</span>
         <span id="iaFaturaTotalPdfValor" style="font-weight:700;">R$ 0,00</span>
       </div>
 
@@ -1063,14 +1063,14 @@
       </div>
 
       <div style="display:flex;gap:0.625rem;margin-top:1.25rem;">
-        <button type="button" class="btn-secondary" id="btnVoltarReviewIA" style="flex:1;">? Voltar</button>
-        <button type="button" class="btn-primary" id="btnSalvarTransacoesIA" style="flex:2;">?? Salvar Selecionados</button>
+        <button type="button" class="btn-secondary" id="btnVoltarReviewIA" style="flex:1;">← Voltar</button>
+        <button type="button" class="btn-primary" id="btnSalvarTransacoesIA" style="flex:2;">💾 Salvar Selecionados</button>
       </div>
     </div>
   </div>
 
   <script src="js/categorias-padrao.js"></script>
-  <!-- pdf.js para extra��o client-side de "Total a pagar" / "Total de compras" da fatura -->
+  <!-- pdf.js para extração client-side de "Total a pagar" / "Total de compras" da fatura -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script>
     if (window.pdfjsLib) {

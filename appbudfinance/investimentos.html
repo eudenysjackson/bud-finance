@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance � Investimentos">
+  <meta name="description" content="Bud Finance — Investimentos">
   <title>Investimentos - Bud Finance</title>
 
   <link rel="icon" type="image/png" href="logo.png">
@@ -39,7 +39,7 @@
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:'Inter',system-ui,sans-serif;background-color:var(--bg-page);min-height:100vh;min-height:100dvh;overflow-x:hidden;transition:background-color 0.35s ease;}
 
-    /* -- Splash ------------------------------------------- */
+    /* ── Splash ─────────────────────────────────────────── */
     #splash{position:fixed;inset:0;background:var(--bg-page);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;z-index:99999;transition:opacity .5s ease;}
     #splash.hide{opacity:0;pointer-events:none;}
     .splash-bar{width:120px;height:4px;border-radius:2px;background:#e2e8f0;overflow:hidden;}
@@ -47,15 +47,15 @@
     @keyframes pulse-logo{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
     @keyframes slide-bar{0%{transform:translateX(-100%);}100%{transform:translateX(350%);}}
 
-    /* -- Blobs -------------------------------------------- */
+    /* ── Blobs ──────────────────────────────────────────── */
     .blob{position:fixed;border-radius:9999px;pointer-events:none;z-index:0;opacity:var(--blob-opacity,1);transition:opacity 0.35s ease;}
     .blob-blue{top:-5%;left:-5%;width:35%;height:35%;background:rgba(147,197,253,0.30);filter:blur(100px);}
     .blob-cyan{bottom:-5%;right:-5%;width:25%;height:25%;background:rgba(103,232,249,0.20);filter:blur(100px);}
 
-    /* -- Layout ------------------------------------------- */
+    /* ── Layout ─────────────────────────────────────────── */
     .dash-layout{display:flex;min-height:100vh;min-height:100dvh;}
 
-    /* -- Sidebar ------------------------------------------ */
+    /* ── Sidebar ────────────────────────────────────────── */
     .sidebar{width:260px;background:var(--sidebar-bg);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-right:1px solid var(--card-border);display:flex;flex-direction:column;padding:1.5rem 1rem;position:fixed;top:0;left:0;bottom:0;z-index:50;transition:transform .3s ease,width .3s ease,background 0.35s ease,border-color 0.35s ease;overflow:visible;}
     .sidebar-collapse-btn{display:none;position:absolute;top:50%;right:-1rem;transform:translateY(-50%);width:1rem;height:3.5rem;border-radius:0 0.5rem 0.5rem 0;background:var(--btn-bg);border:none;color:var(--btn-text);font-size:0.6rem;font-weight:700;cursor:pointer;align-items:center;justify-content:center;z-index:51;box-shadow:3px 0 12px rgba(0,0,0,0.22);transition:background 0.35s ease;flex-shrink:0;line-height:1;}
     .sidebar.collapsed{width:64px;padding-left:0.75rem;padding-right:0.75rem;align-items:center;}
@@ -87,7 +87,7 @@
     .sidebar-user-name{font-size:0.8125rem;font-weight:700;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
     .sidebar-user-id{font-size:0.6875rem;font-weight:500;color:var(--text-sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
 
-    /* -- Main --------------------------------------------- */
+    /* ── Main ───────────────────────────────────────────── */
     .dash-main{flex:1;margin-left:260px;padding:1.5rem;position:relative;z-index:1;transition:margin-left .3s ease;}
     .dash-main.sidebar-collapsed{margin-left:64px;}
     .dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;}
@@ -96,7 +96,7 @@
     .hamburger-btn{display:none;width:2.5rem;height:2.5rem;border-radius:0.75rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);align-items:center;justify-content:center;font-size:1.25rem;cursor:pointer;color:var(--card-text);z-index:60;transition:background 0.35s ease,border-color 0.35s ease,color 0.35s ease;}
     .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:40;}
 
-    /* -- KPI Cards ---------------------------------------- */
+    /* ── KPI Cards ──────────────────────────────────────── */
     .cards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;}
     .summary-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);transition:background 0.35s ease,border-color 0.35s ease,transform .2s,box-shadow .2s;}
     .summary-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px -5px rgba(0,0,0,0.1);}
@@ -110,15 +110,15 @@
     .card-value{font-size:1.5rem;font-weight:800;color:var(--card-text);letter-spacing:-0.025em;transition:color 0.35s ease;}
     .card-sub{font-size:0.75rem;font-weight:500;color:var(--card-text-sec);margin-top:0.25rem;transition:color 0.35s ease;}
 
-    /* -- Section card ------------------------------------- */
+    /* ── Section card ───────────────────────────────────── */
     .section-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.5rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);margin-bottom:1rem;transition:background 0.35s ease,border-color 0.35s ease;}
     .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.5rem;}
     .section-title{font-size:1rem;font-weight:800;color:var(--text-main);transition:color 0.35s ease;}
 
-    /* -- Grid 2 colunas ------------------------------------ */
+    /* ── Grid 2 colunas ──────────────────────────────────── */
     .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
 
-    /* -- Modal -------------------------------------------- */
+    /* ── Modal ──────────────────────────────────────────── */
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:80;align-items:center;justify-content:center;padding:1rem;}
     .modal-overlay.open{display:flex;}
     .modal-card{background:var(--bg-page);border:1px solid var(--card-border);border-radius:1.5rem;width:100%;max-width:460px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.2);animation:modal-in .25s ease;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;}
@@ -144,7 +144,7 @@
     .modal-btn-danger:hover{background:#fee2e2;}
     .modal-row-2{display:grid;grid-template-columns:1fr 1fr;gap:0.875rem;}
 
-    /* -- Custom dropdown ----------------------------------- */
+    /* ── Custom dropdown ─────────────────────────────────── */
     .custom-select-wrap{position:relative;}
     .custom-select-trigger{width:100%;padding:0.625rem 0.875rem;border:1.5px solid var(--input-border);border-radius:0.75rem;font-size:0.875rem;font-weight:600;color:var(--card-text);background:var(--input-bg);font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;transition:border-color .2s,box-shadow .2s;}
     .custom-select-trigger.open{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.12);}
@@ -153,7 +153,7 @@
     .custom-select-item{padding:0.5rem 0.875rem;font-size:0.875rem;font-weight:600;color:var(--card-text);cursor:pointer;display:flex;align-items:center;gap:0.5rem;transition:background .12s;}
     .custom-select-item:hover{background:var(--sidebar-link-hover-bg);}
 
-    /* -- Datepicker ---------------------------------------- */
+    /* ── Datepicker ──────────────────────────────────────── */
     .dp-wrap{position:relative;}
     .dp-panel{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--bg-page);border:1.5px solid var(--card-border);border-radius:0.875rem;box-shadow:0 12px 32px -5px rgba(0,0,0,0.15);z-index:91;padding:0.875rem;display:none;min-width:240px;}
     .dp-panel.open{display:block;}
@@ -173,10 +173,10 @@
     .dp-btn-today{background:var(--input-bg);color:var(--text-sec);}
     .dp-btn-clear{background:#fef2f2;color:#dc2626;}
 
-    /* -- Alerta diversifica��o ----------------------------- */
+    /* ── Alerta diversificação ───────────────────────────── */
     #alertaDiversificacao{border-radius:1rem;padding:0.875rem 1rem;font-size:0.875rem;font-weight:600;display:none;margin-bottom:1rem;}
 
-    /* -- Cota��es ------------------------------------------ */
+    /* ── Cotações ────────────────────────────────────────── */
     .cotacoes-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;}
     .cotacao-card{background:var(--input-bg);border:1px solid var(--input-border);border-radius:1rem;padding:0.875rem;transition:background 0.35s ease,border-color 0.35s ease;}
     .cotacao-label{font-size:0.6875rem;font-weight:800;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.25rem;}
@@ -184,7 +184,7 @@
     .cotacao-var{font-size:0.75rem;font-weight:700;}
     .cotacao-var.pos{color:#16a34a;} .cotacao-var.neg{color:#dc2626;}
 
-    /* -- Indicadores --------------------------------------- */
+    /* ── Indicadores ─────────────────────────────────────── */
     .indicadores-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0.75rem;margin-top:1rem;}
     .indicador-card{background:var(--input-bg);border:1px solid var(--input-border);border-radius:1rem;padding:0.875rem;transition:background 0.35s ease,border-color 0.35s ease;}
     .indicador-emoji{font-size:1.25rem;margin-bottom:0.25rem;}
@@ -192,10 +192,10 @@
     .indicador-valor{font-size:0.9375rem;font-weight:800;color:var(--card-text);margin-top:0.125rem;}
     .indicador-sub{font-size:0.6875rem;font-weight:500;color:var(--card-text-sec);}
 
-    /* -- Preview rendimento -------------------------------- */
+    /* ── Preview rendimento ──────────────────────────────── */
     #rendCalcPreview{padding:0.5rem 0.75rem;background:var(--input-bg);border-radius:0.625rem;font-size:0.8125rem;font-weight:600;color:var(--text-sec);margin-top:0.375rem;}
 
-    /* -- Lista de investimentos ---------------------------- */
+    /* ── Lista de investimentos ──────────────────────────── */
     .inv-item{display:flex;align-items:center;gap:1rem;padding:0.875rem 1rem;border-radius:1rem;background:var(--input-bg);border:1px solid var(--input-border);margin-bottom:0.5rem;cursor:pointer;transition:background .15s,border-color .15s,transform .15s;}
     .inv-item:hover{background:var(--sidebar-link-hover-bg);transform:translateX(2px);}
     .inv-emoji{font-size:1.75rem;flex-shrink:0;width:2.5rem;text-align:center;}
@@ -210,16 +210,16 @@
     .badge-cdi{background:#eff6ff;color:#2563eb;}
     .badge-ipca{background:#f0fdf4;color:#16a34a;}
 
-    /* -- Empty state --------------------------------------- */
+    /* ── Empty state ─────────────────────────────────────── */
     .empty-state{text-align:center;padding:2.5rem 1rem;color:var(--text-sec);}
     .empty-icon{font-size:2.5rem;margin-bottom:0.75rem;}
     .empty-title{font-size:0.9375rem;font-weight:700;color:var(--text-main);margin-bottom:0.375rem;}
     .empty-sub{font-size:0.8125rem;font-weight:500;}
 
-    /* -- Anima��o ------------------------------------------ */
+    /* ── Animação ────────────────────────────────────────── */
     @keyframes fadeInUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
 
-    /* -- Responsive --------------------------------------- */
+    /* ── Responsive ─────────────────────────────────────── */
     @media(max-width:768px){
       .sidebar{transform:translateX(-100%);}
       .sidebar.open{transform:translateX(0);}
@@ -228,7 +228,7 @@
       .dash-main{margin-left:0 !important;padding:1rem;}
       .hamburger-btn{display:flex;}
       .sidebar-collapse-btn{display:none !important;}
-      .cards-grid{grid-template-columns:repeat(2,1fr);} /* 4?2 cols em tablet */
+      .cards-grid{grid-template-columns:repeat(2,1fr);} /* 4→2 cols em tablet */
       .grid-2{grid-template-columns:1fr;}
       .cotacoes-grid{grid-template-columns:1fr 1fr;}
       .indicadores-grid{grid-template-columns:repeat(2,1fr);}
@@ -240,69 +240,69 @@
 </head>
 <body>
 
-  <!-- - Splash -------------------------------------------- -->
+  <!-- ═ Splash ════════════════════════════════════════════ -->
   <div id="splash">
     <img src="logo.png" alt="Bud Finance" style="width:56px;height:56px;object-fit:contain;animation:pulse-logo 1.8s ease-in-out infinite;">
     <div class="splash-bar"><div class="splash-bar-inner"></div></div>
   </div>
 
-  <!-- - Blobs --------------------------------------------- -->
+  <!-- ═ Blobs ═════════════════════════════════════════════ -->
   <div class="blob blob-blue" aria-hidden="true"></div>
   <div class="blob blob-cyan" aria-hidden="true"></div>
 
-  <!-- - Overlay sidebar mobile ---------------------------- -->
+  <!-- ═ Overlay sidebar mobile ════════════════════════════ -->
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <!-- - Layout -------------------------------------------- -->
+  <!-- ═ Layout ════════════════════════════════════════════ -->
   <div class="dash-layout">
 
-    <!-- - Sidebar ---------------------------------------- -->
+    <!-- ─ Sidebar ──────────────────────────────────────── -->
     <aside class="sidebar" id="sidebar">
-      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">�</button>
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">‹</button>
       <div class="sidebar-logo">
         <img src="logo.png" alt="Bud Finance" width="32" height="32">
         <span class="sidebar-logo-text">Bud Finance</span>
       </div>
       <nav class="sidebar-nav">
         <a href="dashboard.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Dashboard</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
         </a>
-        <div class="sidebar-group-label">Finan�as</div>
+        <div class="sidebar-group-label">Finanças</div>
         <a href="carteira.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Contas</span>
+          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Contas</span>
         </a>
         <a href="cartoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Cart�es</span>
+          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
         </a>
         <a href="recorrentes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Recorrentes</span>
+          <span class="sidebar-link-icon">🔄</span><span class="sidebar-link-text"> Recorrentes</span>
         </a>
         <a href="dividas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> D�vidas</span>
+          <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
         </a>
         <a href="metas.html" class="sidebar-link active">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Metas</span>
+          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
         </a>
         <a href="mercado.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Compras</span>
+          <span class="sidebar-link-icon">🛒</span><span class="sidebar-link-text"> Compras</span>
         </a>
         <a href="categorias.html" class="sidebar-link">
-          <span class="sidebar-link-icon">???</span><span class="sidebar-link-text"> Categorias</span>
+          <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
         <a href="graficos.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> An�lises</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <a href="assistente-ia.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Assistente IA</span>
+          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span>
         </a>
         <a href="assistente-whatsapp.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
+          <span class="sidebar-link-icon">💬</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
         </a>
         <div class="sidebar-nav-divider"></div>
         <a href="configuracoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Configura��es</span>
+          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
         </a>
       </nav>
       <div class="sidebar-user" style="margin-top:auto;">
@@ -313,31 +313,31 @@
         </div>
       </div>
       <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
-        <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Sair</span>
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
       </button>
     </aside>
 
-    <!-- - Main ------------------------------------------- -->
+    <!-- ─ Main ─────────────────────────────────────────── -->
     <main class="dash-main" id="dashMain">
 
-      <!-- -- Sub-nav Investimentos ----------------------------------- -->
+      <!-- ── Sub-nav Investimentos ─────────────────────────────────── -->
       <div style="display:flex;align-items:center;gap:0.25rem;margin-bottom:1rem;background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1rem;padding:0.5rem 0.625rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);">
-        <a href="metas.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;">?? Metas</a>
-        <a href="investimentos.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;background:var(--btn-bg);color:var(--btn-text);box-shadow:inset 0 0 0 1.5px var(--theme-accent);font-size:0.8125rem;font-weight:700;text-decoration:none;white-space:nowrap;">?? Investimentos</a>
+        <a href="metas.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;">🏆 Metas</a>
+        <a href="investimentos.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;background:var(--btn-bg);color:var(--btn-text);box-shadow:inset 0 0 0 1.5px var(--theme-accent);font-size:0.8125rem;font-weight:700;text-decoration:none;white-space:nowrap;">📈 Investimentos</a>
       </div>
 
       <!-- Header -->
       <div class="dash-header">
         <div style="display:flex;align-items:center;gap:0.75rem;">
-          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">?</button>
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
           <div class="dash-welcome">
-            <h1>?? Investimentos</h1>
+            <h1>📈 Investimentos</h1>
             <p>Acompanhe sua carteira e o mercado</p>
           </div>
         </div>
         <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
           <button id="btnOcultarValores" onclick="window.toggleOcultarValores()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Ocultar/exibir valores">
-            ?? Valores
+            👁 Valores
           </button>
           <button onclick="window.abrirModal(null)" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:0.875rem;font-weight:700;border:none;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .2s;">
             + Novo Investimento
@@ -345,41 +345,41 @@
         </div>
       </div>
 
-      <!-- Alerta de diversifica��o -->
+      <!-- Alerta de diversificação -->
       <div id="alertaDiversificacao"></div>
 
       <!-- KPIs -->
       <div class="cards-grid">
         <div class="summary-card">
-          <div class="card-header"><span class="card-label">Total Investido</span><div class="card-icon card-icon-blue">??</div></div>
+          <div class="card-header"><span class="card-label">Total Investido</span><div class="card-icon card-icon-blue">💰</div></div>
           <div class="card-value" id="kpiInvestido">R$ 0,00</div>
           <div class="card-sub" id="kpiInvestidoSub">0 investimentos</div>
         </div>
         <div class="summary-card">
-          <div class="card-header"><span class="card-label">Valor Atual</span><div class="card-icon card-icon-green">??</div></div>
+          <div class="card-header"><span class="card-label">Valor Atual</span><div class="card-icon card-icon-green">📊</div></div>
           <div class="card-value" id="kpiAtual">R$ 0,00</div>
-          <div class="card-sub" id="kpiAtualSub">patrim�nio atual</div>
+          <div class="card-sub" id="kpiAtualSub">patrimônio atual</div>
         </div>
         <div class="summary-card">
-          <div class="card-header"><span class="card-label">Rendimento Total</span><div class="card-icon card-icon-emerald">??</div></div>
+          <div class="card-header"><span class="card-label">Rendimento Total</span><div class="card-icon card-icon-emerald">📈</div></div>
           <div class="card-value" id="kpiRendimento">R$ 0,00</div>
           <div class="card-sub" id="kpiRendimentoPct">0,00%</div>
           <div id="kpiCdiBeat" style="font-size:0.6875rem;font-weight:600;color:var(--text-sec);margin-top:0.25rem;"></div>
         </div>
         <div class="summary-card">
-          <div class="card-header"><span class="card-label">Liquidez Dispon�vel</span><div class="card-icon" style="background:rgba(20,184,166,0.12);">??</div></div>
+          <div class="card-header"><span class="card-label">Liquidez Disponível</span><div class="card-icon" style="background:rgba(20,184,166,0.12);">💧</div></div>
           <div class="card-value" id="kpiLiquidez">R$ 0,00</div>
           <div class="card-sub" id="kpiLiquidezSub">resgate imediato</div>
         </div>
       </div>
 
-      <!-- Grid: Gr�fico + Mercado -->
+      <!-- Grid: Gráfico + Mercado -->
       <div class="grid-2">
 
-        <!-- Gr�fico de aloca��o -->
+        <!-- Gráfico de alocação -->
         <div class="section-card">
           <div class="section-header">
-            <span class="section-title">Aloca��o por Tipo</span>
+            <span class="section-title">Alocação por Tipo</span>
           </div>
           <div style="position:relative;max-height:260px;display:flex;align-items:center;justify-content:center;">
             <canvas id="chartAlocacao" style="max-width:260px;max-height:260px;"></canvas>
@@ -387,22 +387,22 @@
           <div id="legendaAlocacao" style="margin-top:1rem;display:flex;flex-direction:column;gap:0.375rem;"></div>
         </div>
 
-        <!-- Cota��es de mercado -->
+        <!-- Cotações de mercado -->
         <div class="section-card">
           <div class="section-header">
-            <span class="section-title">Cota��es</span>
+            <span class="section-title">Cotações</span>
             <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
               <span id="cotacaoHora" style="font-size:0.6875rem;font-weight:600;color:var(--text-sec);"></span>
-              <button onclick="window.carregarMercado(true)" style="padding:0.375rem 0.75rem;border-radius:0.625rem;background:var(--input-bg);border:1.5px solid var(--input-border);color:var(--text-sec);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;">? Atualizar</button>
+              <button onclick="window.carregarMercado(true)" style="padding:0.375rem 0.75rem;border-radius:0.625rem;background:var(--input-bg);border:1.5px solid var(--input-border);color:var(--text-sec);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;">↻ Atualizar</button>
             </div>
           </div>
           <div id="cotacoesContainer" class="cotacoes-grid">
-            <div style="text-align:center;color:var(--text-sec);font-size:0.8125rem;padding:1rem;grid-column:span 3;">Carregando cota��es...</div>
+            <div style="text-align:center;color:var(--text-sec);font-size:0.8125rem;padding:1rem;grid-column:span 3;">Carregando cotações...</div>
           </div>
 
-          <!-- Indicadores de refer�ncia -->
+          <!-- Indicadores de referência -->
           <div style="margin-top:1.25rem;">
-            <div style="font-size:0.6875rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sec);margin-bottom:0.625rem;">Indicadores de Refer�ncia</div>
+            <div style="font-size:0.6875rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-sec);margin-bottom:0.625rem;">Indicadores de Referência</div>
             <div class="indicadores-grid" id="indicadoresContainer"></div>
           </div>
         </div>
@@ -416,18 +416,18 @@
           <div style="display:flex;gap:0.375rem;flex-wrap:wrap;">
             <button id="filtroTodos" onclick="window.setFiltro('')" style="padding:0.375rem 0.75rem;border-radius:0.625rem;border:1.5px solid var(--input-border);background:var(--input-bg);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text-sec);transition:all .15s;">Todos</button>
             <button id="filtroRendaFixa" onclick="window.setFiltro('Renda Fixa')" style="padding:0.375rem 0.75rem;border-radius:0.625rem;border:1.5px solid var(--input-border);background:var(--input-bg);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text-sec);transition:all .15s;">Renda Fixa</button>
-            <button id="filtroAcoes" onclick="window.setFiltro('A��es')" style="padding:0.375rem 0.75rem;border-radius:0.625rem;border:1.5px solid var(--input-border);background:var(--input-bg);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text-sec);transition:all .15s;">A��es</button>
+            <button id="filtroAcoes" onclick="window.setFiltro('Ações')" style="padding:0.375rem 0.75rem;border-radius:0.625rem;border:1.5px solid var(--input-border);background:var(--input-bg);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text-sec);transition:all .15s;">Ações</button>
             <button id="filtroCripto" onclick="window.setFiltro('Cripto')" style="padding:0.375rem 0.75rem;border-radius:0.625rem;border:1.5px solid var(--input-border);background:var(--input-bg);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text-sec);transition:all .15s;">Cripto</button>
           </div>
         </div>
         <div id="listaInvestimentos"><!-- populado por JS --></div>
       </div>
 
-      <!-- Vencimentos pr�ximos (pr�ximos 30 dias) -->
+      <!-- Vencimentos próximos (próximos 30 dias) -->
       <div id="secVencimentos" style="display:none;">
         <div class="section-card">
           <div class="section-header">
-            <span class="section-title">? Vencimentos Pr�ximos</span>
+            <span class="section-title">⏰ Vencimentos Próximos</span>
             <span id="secVencimentosCount" style="font-size:0.75rem;font-weight:700;background:rgba(239,68,68,0.1);color:#dc2626;padding:0.25rem 0.625rem;border-radius:999px;"></span>
           </div>
           <div id="listaVencimentos"></div>
@@ -437,8 +437,8 @@
       <!-- Simulador de Juros Compostos -->
       <div class="section-card">
         <div class="section-header" onclick="window.toggleSimulador()" style="cursor:pointer;user-select:none;">
-          <span class="section-title">?? Simulador de Juros Compostos</span>
-          <button id="btnToggleSim" style="background:none;border:none;cursor:pointer;font-size:1rem;color:var(--text-sec);transition:transform .2s;" title="Expandir">?</button>
+          <span class="section-title">🧮 Simulador de Juros Compostos</span>
+          <button id="btnToggleSim" style="background:none;border:none;cursor:pointer;font-size:1rem;color:var(--text-sec);transition:transform .2s;" title="Expandir">▼</button>
         </div>
         <div id="simBody" style="display:none;">
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.75rem;margin-top:1rem;">
@@ -467,15 +467,15 @@
     </main>
   </div>
 
-  <!-- -----------------------------------------------------
-       MODAL � Criar / Editar Investimento
-  --------------------------------------------------------- -->
+  <!-- ═════════════════════════════════════════════════════
+       MODAL — Criar / Editar Investimento
+  ═════════════════════════════════════════════════════════ -->
   <div class="modal-overlay" id="modalInvestimento">
     <div class="modal-card">
       <div class="modal-scroll-body">
       <div class="modal-title">
         <span id="modalInvestTitulo">Novo Investimento</span>
-        <button class="modal-close" onclick="window.fecharModal()" aria-label="Fechar">?</button>
+        <button class="modal-close" onclick="window.fecharModal()" aria-label="Fechar">✕</button>
       </div>
 
       <!-- Tipo (dropdown) -->
@@ -484,7 +484,7 @@
         <div class="custom-select-wrap">
           <div class="custom-select-trigger" id="tipoTrigger" onclick="window._toggleTipoDD()">
             <span id="tipoLabel" style="color:var(--card-text-sec);">Selecione o tipo</span>
-            <span>?</span>
+            <span>▾</span>
           </div>
           <div class="custom-select-dropdown" id="tipoDropdown"></div>
         </div>
@@ -525,7 +525,7 @@
         <div class="custom-select-wrap">
           <div class="custom-select-trigger" id="liquidezTrigger" onclick="window._toggleLiquidezDD()">
             <span id="liquidezLabel" style="color:var(--card-text-sec);">Selecione a liquidez</span>
-            <span>?</span>
+            <span>▾</span>
           </div>
           <div class="custom-select-dropdown" id="liquidezDropdown"></div>
         </div>
@@ -558,12 +558,12 @@
       <div class="modal-footer">
         <button class="modal-submit" id="btnSalvarInvest" onclick="window.salvarInvestimento()">Salvar Investimento</button>
         <button class="modal-cancel" onclick="window.fecharModal()">Cancelar</button>
-        <button class="modal-btn-danger" id="btnExcluirInvest" style="display:none;" onclick="window.excluirInvestimento()">??? Excluir Investimento</button>
+        <button class="modal-btn-danger" id="btnExcluirInvest" style="display:none;" onclick="window.excluirInvestimento()">🗑️ Excluir Investimento</button>
       </div>
     </div>
   </div>
 
-  <!-- Firebase config + m�dulo principal -->
+  <!-- Firebase config + módulo principal -->
   <script src="js/firebase-config.js"></script>
   <script type="module" src="js/investimentos.js"></script>
 </body>

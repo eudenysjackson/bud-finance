@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance � Controle financeiro inteligente">
+  <meta name="description" content="Bud Finance — Controle financeiro inteligente">
   <title>Login - Bud Finance</title>
 
   <!-- Favicon -->
@@ -16,12 +16,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Bud Finance">
 
-  <!-- Google Fonts � Inter -->
+  <!-- Google Fonts — Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- Tailwind CSS (build est�tico) -->
+  <!-- Tailwind CSS (build estático) -->
   <link rel="stylesheet" href="css/tailwind.css">
 
   <!-- Inline critical styles (fallback + splash + blobs) -->
@@ -38,7 +38,7 @@
       overflow-y: auto;
     }
 
-    /* -- Splash screen ---------------------------------------------- */
+    /* ── Splash screen ────────────────────────────────────────────── */
     #splash {
       position: fixed; inset: 0;
       background: #f0f4f8;
@@ -75,7 +75,7 @@
       100% { transform: translateX(350%); }
     }
 
-    /* -- Blobs (inline style para funcionar sem Tailwind build din�mico) -- */
+    /* ── Blobs (inline style para funcionar sem Tailwind build dinâmico) ── */
     .blob {
       position: absolute;
       border-radius: 9999px;
@@ -95,7 +95,7 @@
       filter: blur(100px);
     }
 
-    /* -- Glass card ------------------------------------------------ */
+    /* ── Glass card ──────────────────────────────────────────────── */
     .login-card {
       background: rgba(255,255,255,0.9);
       backdrop-filter: blur(24px);
@@ -114,7 +114,7 @@
       .login-card { padding: 2rem; }
     }
 
-    /* -- Form elements --------------------------------------------- */
+    /* ── Form elements ───────────────────────────────────────────── */
     .bud-label {
       display: block;
       font-size: 0.75rem;
@@ -141,7 +141,7 @@
       border-color: #3b82f6;
     }
 
-    /* -- Button ---------------------------------------------------- */
+    /* ── Button ──────────────────────────────────────────────────── */
     .bud-btn-primary {
       width: 100%;
       background: #2563eb;
@@ -164,7 +164,7 @@
       cursor: not-allowed;
     }
 
-    /* -- Misc ------------------------------------------------------ */
+    /* ── Misc ────────────────────────────────────────────────────── */
     .toggle-pw {
       position: absolute;
       right: 0.75rem;
@@ -190,20 +190,20 @@
 </head>
 <body>
 
-  <!-- --- Splash screen -------------------------------------------- -->
+  <!-- ═══ Splash screen ════════════════════════════════════════════ -->
   <div id="splash">
     <img src="logo.png" alt="Bud Finance" style="width:56px;height:56px;object-fit:contain;animation:pulse-logo 1.8s ease-in-out infinite;">
     <div class="splash-bar"><div class="splash-bar-inner"></div></div>
   </div>
 
-  <!-- --- Blobs decorativos ---------------------------------------- -->
+  <!-- ═══ Blobs decorativos ════════════════════════════════════════ -->
   <div class="blob blob-blue" aria-hidden="true"></div>
   <div class="blob blob-cyan" aria-hidden="true"></div>
 
-  <!-- --- Card de Login -------------------------------------------- -->
+  <!-- ═══ Card de Login ════════════════════════════════════════════ -->
   <div class="login-card" role="main">
 
-    <!-- Logo + T�tulo -->
+    <!-- Logo + Título -->
     <div style="text-align:center;margin-bottom:1.25rem;">
       <img src="logo.png" alt="Bud Finance"
            style="width:3.5rem;height:3.5rem;object-fit:contain;margin:0 auto 0.75rem;display:block;">
@@ -214,9 +214,9 @@
     <!-- Form -->
     <form id="formLogin" method="post" autocomplete="on" novalidate>
 
-      <!-- Input: Email / Matr�cula -->
+      <!-- Input: Email / Matrícula -->
       <div style="margin-bottom:1rem;">
-        <label for="identificador" class="bud-label">E-mail ou Matr�cula</label>
+        <label for="identificador" class="bud-label">E-mail ou Matrícula</label>
         <input
           type="text"
           id="identificador"
@@ -237,19 +237,19 @@
             id="senha"
             name="senha"
             autocomplete="current-password"
-            placeholder="��������"
+            placeholder="••••••••"
             class="bud-input"
             style="padding-right:2.5rem;"
             required
           >
-          <button type="button" id="toggleSenha" class="toggle-pw" aria-label="Mostrar/ocultar senha">??</button>
+          <button type="button" id="toggleSenha" class="toggle-pw" aria-label="Mostrar/ocultar senha">👁</button>
         </div>
         <div style="text-align:right;margin-top:0.375rem;">
           <a href="recuperar-senha.html" class="link-primary" style="font-size:0.75rem;">Esqueceu a senha?</a>
         </div>
       </div>
 
-      <!-- Bot�o Login -->
+      <!-- Botão Login -->
       <button type="submit" id="btnLogin" class="bud-btn-primary">
         Acessar meu painel
       </button>
@@ -266,17 +266,17 @@
     <!-- Footer LGPD -->
     <div style="text-align:center;margin-top:1rem;padding-top:0.75rem;border-top:1px solid #f1f5f9;">
       <p style="font-size:11px;color:#94a3b8;">
-        Ao acessar, voc� concorda com nossa
+        Ao acessar, você concorda com nossa
         <a href="politica-privacidade.html" target="_blank" rel="noopener noreferrer"
            style="color:#3b82f6;font-weight:500;text-decoration:none;">
-          Pol�tica de Privacidade
+          Política de Privacidade
         </a>
         e com o tratamento dos seus dados conforme a LGPD.
       </p>
     </div>
   </div>
 
-  <!-- --- Scripts -------------------------------------------------- -->
+  <!-- ═══ Scripts ══════════════════════════════════════════════════ -->
   <!-- Firebase config (exposes window.BUD_FIREBASE_CONFIG) -->
   <script src="js/firebase-config.js"></script>
   <!-- Global utils (exposes window.budShowToast, window.budSanitize) -->
@@ -290,11 +290,11 @@
       var splash = document.getElementById('splash');
       if (!splash) return;
       // Dismiss after fonts + firebase module loads (min 700ms, max 6s)
-      var minTime = 0; // sem espera m�nima artificial
+      var minTime = 0; // sem espera mínima artificial
       var start = Date.now();
       window.addEventListener('load', function () {
         var elapsed = Date.now() - start;
-        var remaining = Math.max(0, 0 - elapsed); // sem espera m�nima artificial
+        var remaining = Math.max(0, 0 - elapsed); // sem espera mínima artificial
         setTimeout(function () {
           splash.classList.add('hide');
           setTimeout(function () { splash.remove(); }, 600);

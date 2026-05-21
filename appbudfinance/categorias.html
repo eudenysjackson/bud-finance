@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance � Categorias">
+  <meta name="description" content="Bud Finance — Categorias">
   <title>Categorias - Bud Finance</title>
 
   <link rel="icon" type="image/png" href="logo.png">
@@ -21,7 +21,7 @@
 
   <link rel="stylesheet" href="css/tailwind.css">
 
-  <!-- Theme Manager � deve vir antes do body para evitar flash -->
+  <!-- Theme Manager — deve vir antes do body para evitar flash -->
   <script src="js/theme-manager.js"></script>
 
   <style>
@@ -48,7 +48,7 @@
       transition: background-color 0.35s ease;
     }
 
-    /* -- Blobs --------------------------------------------------- */
+    /* ── Blobs ─────────────────────────────────────────────────── */
     .blob {
       position: fixed; border-radius: 50%; filter: blur(80px);
       pointer-events: none; z-index: 0;
@@ -57,10 +57,10 @@
     .blob-blue  { top:-8%; left:-5%; width:32%; height:32%; background:rgba(99,102,241,0.18); }
     .blob-cyan  { bottom:-5%; right:-5%; width:25%; height:25%; background:rgba(103,232,249,0.20); filter:blur(100px); }
 
-    /* -- Layout -------------------------------------------------- */
+    /* ── Layout ────────────────────────────────────────────────── */
     .dash-layout { display:flex; min-height:100vh; min-height:100dvh; }
 
-    /* -- Sidebar ------------------------------------------------- */
+    /* ── Sidebar ───────────────────────────────────────────────── */
     .sidebar {
       width:260px; background:var(--sidebar-bg);
       backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
@@ -136,14 +136,14 @@
       white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:color 0.35s ease;
     }
 
-    /* -- Main ---------------------------------------------------- */
+    /* ── Main ──────────────────────────────────────────────────── */
     .dash-main { flex:1; margin-left:260px; padding:1.5rem; position:relative; z-index:1; transition:margin-left .3s ease; }
     .dash-main.sidebar-collapsed { margin-left:64px; }
     .dash-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; }
     .dash-welcome h1 { font-size:1.5rem; font-weight:800; color:var(--text-main); letter-spacing:-0.025em; transition:color 0.35s ease; }
     .dash-welcome p { font-size:0.8125rem; font-weight:500; color:var(--text-sec); margin-top:0.125rem; transition:color 0.35s ease; }
 
-    /* -- Hamburger ----------------------------------------------- */
+    /* ── Hamburger ─────────────────────────────────────────────── */
     .hamburger-btn {
       display:none; width:2.5rem; height:2.5rem; border-radius:0.75rem;
       background:var(--card-bg); backdrop-filter:blur(12px);
@@ -154,7 +154,7 @@
     }
     .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:40; }
 
-    /* -- Bot�es -------------------------------------------------- */
+    /* ── Botões ────────────────────────────────────────────────── */
     .btn-primary {
       padding:0.625rem 1.25rem; border-radius:0.75rem;
       background:var(--btn-bg); color:var(--btn-text);
@@ -173,7 +173,7 @@
     }
     .btn-secondary:hover { background:rgba(0,0,0,0.09); }
 
-    /* -- Tabs ---------------------------------------------------- */
+    /* ── Tabs ──────────────────────────────────────────────────── */
     .tabs-wrap {
       display:flex; gap:0.375rem; padding:0.375rem;
       background:rgba(0,0,0,0.05); border-radius:1rem;
@@ -191,7 +191,7 @@
       box-shadow:0 2px 8px -2px rgba(0,0,0,0.12);
     }
 
-    /* -- Card de categoria --------------------------------------- */
+    /* ── Card de categoria ─────────────────────────────────────── */
     .cat-card {
       background:var(--card-bg); backdrop-filter:blur(12px);
       border:1px solid var(--card-border); border-radius:1rem;
@@ -229,7 +229,7 @@
       background:transparent; color:#f87171;
       font-size:0.875rem;
       transition:background .15s,color .15s;
-      /* Sempre vis�vel no mobile; no desktop aparece com hover do card */
+      /* Sempre visível no mobile; no desktop aparece com hover do card */
     }
     .cat-delete-btn:hover { background:#fef2f2; color:#dc2626; }
     @media (min-width:768px) {
@@ -237,14 +237,14 @@
       .cat-card.personalizada:hover .cat-delete-btn { opacity:1; }
     }
 
-    /* -- Grid de categorias -------------------------------------- */
+    /* ── Grid de categorias ────────────────────────────────────── */
     .cat-grid {
       display:grid;
       grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
       gap:0.75rem;
     }
 
-    /* -- Se��o --------------------------------------------------- */
+    /* ── Seção ─────────────────────────────────────────────────── */
     .section-card {
       background:var(--card-bg); backdrop-filter:blur(16px);
       border:1px solid var(--card-border); border-radius:1.5rem;
@@ -258,7 +258,7 @@
     .section-title { font-size:1rem; font-weight:800; color:var(--card-text); transition:color 0.35s ease; }
     .section-sub { font-size:0.8125rem; font-weight:500; color:var(--card-text-sec); margin-top:0.125rem; transition:color 0.35s ease; }
 
-    /* -- Empty state --------------------------------------------- */
+    /* ── Empty state ───────────────────────────────────────────── */
     .empty-state {
       text-align:center; padding:2.5rem 1rem;
       border:2px dashed var(--input-border); border-radius:1rem;
@@ -268,7 +268,7 @@
     .empty-state-title { font-size:0.9375rem; font-weight:700; color:var(--card-text); transition:color 0.35s ease; }
     .empty-state-sub { font-size:0.8125rem; font-weight:500; color:var(--card-text-sec); margin-top:0.25rem; transition:color 0.35s ease; }
 
-    /* -- Modal --------------------------------------------------- */
+    /* ── Modal ─────────────────────────────────────────────────── */
     .modal-backdrop {
       position:fixed; inset:0; z-index:70;
       display:flex; align-items:center; justify-content:center;
@@ -303,7 +303,7 @@
     }
     .modal-close-btn:hover { background:rgba(0,0,0,0.12); }
 
-    /* -- Emoji picker -------------------------------------------- */
+    /* ── Emoji picker ──────────────────────────────────────────── */
     .emoji-trigger {
       width:3.5rem; height:3.5rem; border-radius:1rem;
       border:2px solid var(--input-border); background:var(--input-bg);
@@ -346,7 +346,7 @@
     .emoji-btn:hover { background:rgba(0,0,0,0.07); }
     .emoji-btn.selected { background:rgba(16,185,129,0.2); }
 
-    /* -- Form input ---------------------------------------------- */
+    /* ── Form input ────────────────────────────────────────────── */
     .form-label {
       display:block; font-size:0.8125rem; font-weight:700;
       color:var(--card-text-sec); margin-bottom:0.375rem;
@@ -361,19 +361,19 @@
     }
     .form-input:focus { border-color:var(--input-focus); }
 
-    /* -- Preview ------------------------------------------------- */
+    /* ── Preview ───────────────────────────────────────────────── */
     .preview-card {
       background:rgba(0,0,0,0.03); border-radius:1rem; padding:0.875rem 1rem;
       display:flex; align-items:center; gap:0.75rem;
       transition:background 0.35s ease;
     }
 
-    /* -- Footer modal -------------------------------------------- */
+    /* ── Footer modal ──────────────────────────────────────────── */
     .modal-footer {
       display:flex; gap:0.75rem; margin-top:1.5rem;
     }
 
-    /* -- Responsivo ---------------------------------------------- */
+    /* ── Responsivo ────────────────────────────────────────────── */
     @media (max-width: 767px) {
       .sidebar { transform:translateX(-100%); width:260px; }
       .sidebar.open { transform:translateX(0); }
@@ -386,7 +386,7 @@
       .sidebar-collapse-btn { display:flex; }
     }
 
-    /* -- Skeleton loader ----------------------------------------- */
+    /* ── Skeleton loader ───────────────────────────────────────── */
     @keyframes shimmer {
       0%   { background-position:-400px 0; }
       100% { background-position: 400px 0; }
@@ -397,7 +397,7 @@
       border-radius:1rem; height:3.5rem;
     }
 
-    /* -- Highlight de categoria nova ----------------------------- */
+    /* ── Highlight de categoria nova ───────────────────────────── */
     @keyframes highlightPop {
       0%   { box-shadow:0 0 0 3px rgba(16,185,129,0.65); }
       70%  { box-shadow:0 0 0 3px rgba(16,185,129,0.25); }
@@ -405,7 +405,7 @@
     }
     .cat-new-highlight { animation:highlightPop 2.2s ease-out forwards; }
 
-    /* -- Badge "N usos" ------------------------------------------ */
+    /* ── Badge "N usos" ────────────────────────────────────────── */
     .cat-usos-badge {
       font-size:0.6rem; font-weight:600;
       padding:0.15rem 0.45rem; border-radius:999px;
@@ -413,7 +413,7 @@
       flex-shrink:0; white-space:nowrap;
     }
 
-    /* -- Swatches de cor ----------------------------------------- */
+    /* ── Swatches de cor ───────────────────────────────────────── */
     .cor-swatch {
       width:1.75rem; height:1.75rem; border-radius:50%;
       border:2.5px solid transparent; cursor:pointer;
@@ -422,7 +422,7 @@
     .cor-swatch:hover   { transform:scale(1.15); }
     .cor-swatch.selected { border-color:var(--card-text); box-shadow:0 0 0 2px var(--card-bg); }
 
-    /* -- Bot�es ?? de ordena��o ---------------------------------- */
+    /* ── Botões ▲▼ de ordenação ────────────────────────────────── */
     .cat-order-btn {
       flex-shrink:0; width:1.375rem; height:1.375rem;
       border-radius:0.375rem; border:none; cursor:pointer;
@@ -447,53 +447,53 @@
 
   <div class="dash-layout">
 
-    <!-- --- Sidebar ----------------------------------------------- -->
+    <!-- ─── Sidebar ─────────────────────────────────────────────── -->
     <aside class="sidebar" id="sidebar">
-      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar" title="Recolher sidebar">�</button>
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar" title="Recolher sidebar">‹</button>
       <div class="sidebar-logo">
         <img src="logo.png" alt="Bud Finance" width="32" height="32">
         <span class="sidebar-logo-text">Bud Finance</span>
       </div>
       <nav class="sidebar-nav">
         <a href="dashboard.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Dashboard</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
         </a>
-        <div class="sidebar-group-label">Finan�as</div>
+        <div class="sidebar-group-label">Finanças</div>
         <a href="carteira.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Contas</span>
+          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Contas</span>
         </a>
         <a href="cartoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Cart�es</span>
+          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
         </a>
         <a href="recorrentes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Recorrentes</span>
+          <span class="sidebar-link-icon">🔄</span><span class="sidebar-link-text"> Recorrentes</span>
         </a>
         <a href="dividas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> D�vidas</span>
+          <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
         </a>
         <a href="metas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Metas</span>
+          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
         </a>
         <a href="mercado.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Compras</span>
+          <span class="sidebar-link-icon">🛒</span><span class="sidebar-link-text"> Compras</span>
         </a>
         <a href="categorias.html" class="sidebar-link active">
-          <span class="sidebar-link-icon">???</span><span class="sidebar-link-text"> Categorias</span>
+          <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
         <a href="graficos.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> An�lises</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <a href="assistente-ia.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Assistente IA</span>
+          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span>
         </a>
         <a href="assistente-whatsapp.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
+          <span class="sidebar-link-icon">💬</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
         </a>
         <div class="sidebar-nav-divider"></div>
         <a href="configuracoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Configura��es</span>
+          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
         </a>
       </nav>
       <div class="sidebar-user" style="margin-top:auto;">
@@ -504,20 +504,20 @@
         </div>
       </div>
       <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
-        <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Sair</span>
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
       </button>
     </aside>
 
-    <!-- --- Main -------------------------------------------------- -->
+    <!-- ─── Main ────────────────────────────────────────────────── -->
     <main class="dash-main" id="dashMain">
 
       <!-- Header -->
       <div class="dash-header">
         <div style="display:flex;align-items:center;gap:0.75rem;">
-          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">?</button>
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
           <div class="dash-welcome">
-            <h1>??? Categorias</h1>
-            <p id="dataHoje">�</p>
+            <h1>🏷️ Categorias</h1>
+            <p id="dataHoje">—</p>
           </div>
         </div>
         <button class="btn-primary" id="btnNova">+ Nova Categoria</button>
@@ -525,11 +525,11 @@
 
       <!-- Tabs Despesas / Receitas -->
       <div class="tabs-wrap" style="margin-bottom:1.5rem;">
-        <button class="tab-btn tab-active" id="tabDespesa" onclick="switchTab('despesa')">?? Despesas</button>
-        <button class="tab-btn" id="tabReceita" onclick="switchTab('receita')">?? Receitas</button>
+        <button class="tab-btn tab-active" id="tabDespesa" onclick="switchTab('despesa')">📉 Despesas</button>
+        <button class="tab-btn" id="tabReceita" onclick="switchTab('receita')">📈 Receitas</button>
       </div>
 
-      <!-- Se��o: Personalizadas -->
+      <!-- Seção: Personalizadas -->
       <div class="section-card" style="margin-bottom:1.25rem;">
         <div class="section-header">
           <div>
@@ -540,7 +540,7 @@
         <!-- Busca categorias personalizadas -->
         <div id="buscaPersonalizadaWrap" style="display:none;margin-bottom:0.875rem;">
           <input type="text" id="buscaPersonalizada" class="form-input"
-                 placeholder="?? Buscar nas suas categorias..."
+                 placeholder="🔍 Buscar nas suas categorias..."
                  autocomplete="off" style="font-size:0.875rem;">
         </div>
         <!-- Skeleton loader -->
@@ -551,7 +551,7 @@
         </div>
         <!-- Empty state -->
         <div class="empty-state" id="emptyState">
-          <div class="empty-state-icon">???</div>
+          <div class="empty-state-icon">🏷️</div>
           <div class="empty-state-title">Nenhuma categoria personalizada ainda</div>
           <div class="empty-state-sub">Clique em "+ Nova Categoria" para criar a primeira</div>
         </div>
@@ -559,17 +559,17 @@
         <div class="cat-grid" id="listaPersonalizadas"></div>
       </div>
 
-      <!-- Se��o: Padr�o -->
+      <!-- Seção: Padrão -->
       <div class="section-card">
         <div class="section-header">
           <div>
-            <div class="section-title">Categorias padr�o</div>
-            <div class="section-sub">Categorias pr�-definidas usadas em todo o app � somente leitura</div>
+            <div class="section-title">Categorias padrão</div>
+            <div class="section-sub">Categorias pré-definidas usadas em todo o app — somente leitura</div>
           </div>
         </div>
         <div style="margin-bottom:0.875rem;">
           <input type="text" id="buscaPadrao" class="form-input"
-                 placeholder="?? Buscar nas categorias padr�o..."
+                 placeholder="🔍 Buscar nas categorias padrão..."
                  autocomplete="off" style="font-size:0.875rem;">
         </div>
         <div class="cat-grid" id="listaPadrao"></div>
@@ -578,18 +578,18 @@
     </main>
   </div>
 
-  <!-- --- Modal: Criar / Editar Categoria ---------------------------- -->
+  <!-- ─── Modal: Criar / Editar Categoria ──────────────────────────── -->
   <div class="modal-backdrop hidden" id="modalCategoria">
     <div class="modal-overlay" id="modalOverlay"></div>
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="tituloModal">
-      <button class="modal-close-btn" id="btnFecharModal" aria-label="Fechar">?</button>
+      <button class="modal-close-btn" id="btnFecharModal" aria-label="Fechar">✕</button>
       <div class="modal-title" id="tituloModal">Nova Categoria de Despesa</div>
 
       <!-- Emoji picker -->
       <div style="margin-bottom:1rem;">
-        <label class="form-label">�cone</label>
+        <label class="form-label">Ícone</label>
         <div style="display:flex;align-items:center;gap:0.75rem;">
-          <button type="button" class="emoji-trigger" id="emojiTrigger" aria-label="Escolher emoji">??</button>
+          <button type="button" class="emoji-trigger" id="emojiTrigger" aria-label="Escolher emoji">📦</button>
           <span style="font-size:0.8125rem;font-weight:500;color:var(--card-text-sec);">Clique para escolher</span>
         </div>
         <div class="emoji-picker-wrap hidden" id="emojiPicker">
@@ -612,11 +612,11 @@
         <div id="corSwatches" style="display:flex;gap:0.5rem;flex-wrap:wrap;"></div>
       </div>
 
-      <!-- Pr�via -->
+      <!-- Prévia -->
       <div style="margin-bottom:0.25rem;">
-        <label class="form-label">Pr�via</label>
+        <label class="form-label">Prévia</label>
         <div class="preview-card">
-          <span id="previewEmoji" style="font-size:1.375rem;">??</span>
+          <span id="previewEmoji" style="font-size:1.375rem;">📦</span>
           <span id="previewNome" style="font-size:0.875rem;font-weight:700;color:var(--card-text-sec);transition:color 0.35s ease;">Nome da categoria</span>
           <span id="previewBadge" class="cat-badge cat-badge-custom" style="margin-left:auto;">personalizada</span>
         </div>

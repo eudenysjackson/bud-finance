@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance � Comparativo de Meses">
+  <meta name="description" content="Bud Finance — Comparativo de Meses">
   <title>Comparativo - Bud Finance</title>
 
   <link rel="icon" type="image/png" href="logo.png">
@@ -57,7 +57,7 @@
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:'Inter',system-ui,sans-serif;background-color:var(--bg-page);min-height:100vh;min-height:100dvh;overflow-x:hidden;transition:background-color 0.35s ease;}
 
-    /* -- Splash ------------------------------------------- */
+    /* ── Splash ─────────────────────────────────────────── */
     #splash{position:fixed;inset:0;background:var(--bg-page);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;z-index:99999;transition:opacity .5s ease;}
     #splash.hide{opacity:0;pointer-events:none;}
     .splash-bar{width:120px;height:4px;border-radius:2px;background:#e2e8f0;overflow:hidden;}
@@ -65,15 +65,15 @@
     @keyframes pulse-logo{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
     @keyframes slide-bar{0%{transform:translateX(-100%);}100%{transform:translateX(350%);}}
 
-    /* -- Blobs -------------------------------------------- */
+    /* ── Blobs ──────────────────────────────────────────── */
     .blob{position:fixed;border-radius:9999px;pointer-events:none;z-index:0;opacity:var(--blob-opacity,1);transition:opacity 0.35s ease;}
     .blob-blue{top:-5%;left:-5%;width:35%;height:35%;background:rgba(147,197,253,0.30);filter:blur(100px);}
     .blob-cyan{bottom:-5%;right:-5%;width:25%;height:25%;background:rgba(103,232,249,0.20);filter:blur(100px);}
 
-    /* -- Layout ------------------------------------------- */
+    /* ── Layout ─────────────────────────────────────────── */
     .dash-layout{display:flex;min-height:100vh;min-height:100dvh;}
 
-    /* -- Sidebar ------------------------------------------ */
+    /* ── Sidebar ────────────────────────────────────────── */
     .sidebar{width:260px;background:var(--sidebar-bg);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-right:1px solid var(--card-border);display:flex;flex-direction:column;padding:1.5rem 1rem;position:fixed;top:0;left:0;bottom:0;z-index:50;transition:transform .3s ease,width .3s ease,background 0.35s ease,border-color 0.35s ease;overflow:visible;}
     .sidebar-collapse-btn{display:none;position:absolute;top:50%;right:-1rem;transform:translateY(-50%);width:1rem;height:3.5rem;border-radius:0 0.5rem 0.5rem 0;background:var(--btn-bg);border:none;color:var(--btn-text);font-size:0.6rem;font-weight:700;cursor:pointer;align-items:center;justify-content:center;z-index:51;box-shadow:3px 0 12px rgba(0,0,0,0.22);transition:background 0.35s ease;flex-shrink:0;line-height:1;}
     .sidebar.collapsed{width:64px;padding-left:0.75rem;padding-right:0.75rem;align-items:center;}
@@ -105,18 +105,18 @@
     .sidebar-user-name{font-size:0.8125rem;font-weight:700;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
     .sidebar-user-id{font-size:0.6875rem;font-weight:500;color:var(--text-sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
 
-    /* -- Main --------------------------------------------- */
+    /* ── Main ───────────────────────────────────────────── */
     .dash-main{flex:1;min-width:0;margin-left:260px;padding:1.5rem;position:relative;z-index:1;transition:margin-left .3s ease;}
     .dash-main.sidebar-collapsed{margin-left:64px;}
     .hamburger-btn{display:none;width:2.5rem;height:2.5rem;border-radius:0.75rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);align-items:center;justify-content:center;font-size:1.25rem;cursor:pointer;color:var(--card-text);z-index:60;transition:background 0.35s ease,border-color 0.35s ease,color 0.35s ease;}
     .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:40;}
 
-    /* -- Select de m�s ------------------------------------ */
+    /* ── Select de mês ──────────────────────────────────── */
     .select-mes{padding:0.5rem 2rem 0.5rem 0.75rem;border-radius:0.75rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1.5px solid var(--card-border);color:var(--text-main);font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:inherit;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%2364748b' d='M5 7L0 2h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 0.625rem center;min-width:148px;transition:border-color .2s;}
     .select-mes:focus{outline:none;border-color:var(--input-focus);box-shadow:0 0 0 3px rgba(59,130,246,0.1);}
     .vs-label{font-size:0.8125rem;font-weight:800;color:var(--text-sec);padding:0 0.25rem;}
 
-    /* -- Custom Select IDV -------------------------------- */
+    /* ── Custom Select IDV ──────────────────────────────── */
     .custom-select{position:relative;display:inline-block;}
     .custom-select-btn{display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1.5px solid var(--card-border);color:var(--text-main);font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:inherit;min-width:148px;transition:border-color .2s,background 0.35s,color 0.35s;}
     .custom-select-btn:focus{outline:none;border-color:var(--input-focus);box-shadow:0 0 0 3px rgba(59,130,246,0.1);}
@@ -134,7 +134,7 @@
     #mesMobileRow .custom-select{flex:1;}
     #mesMobileRow .custom-select-btn{min-width:0;width:100%;}
 
-    /* -- KPI cards ---------------------------------------- */
+    /* ── KPI cards ──────────────────────────────────────── */
     .comp-cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
     .comp-kpi-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);transition:background 0.35s ease,border-color 0.35s ease;}
     .comp-kpi-card.mes1{border-top:3px solid #3b82f6;}
@@ -143,12 +143,12 @@
     .comp-kpi-label{font-size:0.625rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--card-text-sec);margin-bottom:0.125rem;}
     .comp-kpi-value{font-size:1rem;font-weight:800;}
 
-    /* -- Section card ------------------------------------- */
+    /* ── Section card ───────────────────────────────────── */
     .section-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.5rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);margin-bottom:1rem;transition:background 0.35s ease,border-color 0.35s ease;}
     .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.5rem;}
     .section-title{font-size:1rem;font-weight:800;color:var(--text-main);transition:color 0.35s ease;}
 
-    /* -- Comparativo por categoria ------------------------ */
+    /* ── Comparativo por categoria ──────────────────────── */
     .cat-comp-row{padding:0.75rem 0;border-bottom:1px solid var(--input-border);}
     .cat-comp-row:last-child{border-bottom:none;}
     .cat-comp-head{display:flex;align-items:center;gap:0.625rem;margin-bottom:0.5rem;}
@@ -168,18 +168,18 @@
     .cat-bar-fill{height:100%;border-radius:9999px;transition:width .5s ease;}
     .cat-bar-val{font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);width:80px;text-align:right;flex-shrink:0;}
 
-    /* -- Gr�fico container --------------------------------- */
+    /* ── Gráfico container ───────────────────────────────── */
     .chart-wrap{position:relative;height:260px;}
     .chart-placeholder{display:flex;align-items:center;justify-content:center;height:260px;font-size:0.875rem;font-weight:600;color:var(--card-text-sec);}
 
-    /* -- Empty state -------------------------------------- */
+    /* ── Empty state ────────────────────────────────────── */
     .empty-state{text-align:center;padding:2rem 1rem;color:var(--text-sec);}
     .empty-icon{font-size:2.5rem;margin-bottom:0.75rem;}
 
-    /* -- Paywall ------------------------------------------ */
+    /* ── Paywall ────────────────────────────────────────── */
     #paywallContainer{display:none;}
 
-    /* -- @media print ------------------------------------- */
+    /* ── @media print ───────────────────────────────────── */
     @media print{
       .sidebar,.sidebar-overlay,#btnHamburger,#mesMobileRow,#btnOcultarValores,.btn-refresh,#paywallContainer,.blob,#splash,#btnInverter,#btnAnoPassado,.chip-filtro{display:none !important;}
       body{background:#fff !important;}
@@ -189,7 +189,7 @@
       .comp-cards-grid{grid-template-columns:1fr 1fr !important;}
     }
 
-    /* -- Responsive --------------------------------------- */
+    /* ── Responsive ─────────────────────────────────────── */
     @media(max-width:768px){
       .sidebar{transform:translateX(-100%);}
       .sidebar.open{transform:translateX(0);}
@@ -213,69 +213,69 @@
 </head>
 <body>
 
-  <!-- - Splash -------------------------------------------- -->
+  <!-- ═ Splash ════════════════════════════════════════════ -->
   <div id="splash">
     <img src="logo.png" alt="Bud Finance" style="width:56px;height:56px;object-fit:contain;animation:pulse-logo 1.8s ease-in-out infinite;">
     <div class="splash-bar"><div class="splash-bar-inner"></div></div>
   </div>
 
-  <!-- - Blobs --------------------------------------------- -->
+  <!-- ═ Blobs ═════════════════════════════════════════════ -->
   <div class="blob blob-blue" aria-hidden="true"></div>
   <div class="blob blob-cyan" aria-hidden="true"></div>
 
-  <!-- - Overlay sidebar mobile ---------------------------- -->
+  <!-- ═ Overlay sidebar mobile ════════════════════════════ -->
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <!-- - Layout -------------------------------------------- -->
+  <!-- ═ Layout ════════════════════════════════════════════ -->
   <div class="dash-layout">
 
-    <!-- - Sidebar ---------------------------------------- -->
+    <!-- ─ Sidebar ──────────────────────────────────────── -->
     <aside class="sidebar" id="sidebar">
-      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">�</button>
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">‹</button>
       <div class="sidebar-logo">
         <img src="logo.png" alt="Bud Finance" width="32" height="32">
         <span class="sidebar-logo-text">Bud Finance</span>
       </div>
       <nav class="sidebar-nav">
         <a href="dashboard.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Dashboard</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
         </a>
-        <div class="sidebar-group-label">Finan�as</div>
+        <div class="sidebar-group-label">Finanças</div>
         <a href="carteira.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Contas</span>
+          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Contas</span>
         </a>
         <a href="cartoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Cart�es</span>
+          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
         </a>
         <a href="recorrentes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Recorrentes</span>
+          <span class="sidebar-link-icon">🔄</span><span class="sidebar-link-text"> Recorrentes</span>
         </a>
         <a href="dividas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> D�vidas</span>
+          <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
         </a>
         <a href="metas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Metas</span>
+          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
         </a>
         <a href="mercado.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Compras</span>
+          <span class="sidebar-link-icon">🛒</span><span class="sidebar-link-text"> Compras</span>
         </a>
         <a href="categorias.html" class="sidebar-link">
-          <span class="sidebar-link-icon">???</span><span class="sidebar-link-text"> Categorias</span>
+          <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
         <a href="graficos.html" class="sidebar-link active">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> An�lises</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <a href="assistente-ia.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Assistente IA</span>
+          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span>
         </a>
         <a href="assistente-whatsapp.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
+          <span class="sidebar-link-icon">💬</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
         </a>
         <div class="sidebar-nav-divider"></div>
         <a href="configuracoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Configura��es</span>
+          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
         </a>
       </nav>
       <div class="sidebar-user" style="margin-top:auto;">
@@ -286,72 +286,72 @@
         </div>
       </div>
       <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
-        <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Sair</span>
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
       </button>
     </aside>
 
-    <!-- - Main ------------------------------------------- -->
+    <!-- ─ Main ─────────────────────────────────────────── -->
     <main class="dash-main" id="dashMain">
 
-      <!-- -- Sub-nav An�lises ------------------------- -->
+      <!-- ── Sub-nav Análises ───────────────────────── -->
       <div style="display:flex;align-items:center;gap:0.25rem;flex-wrap:nowrap;margin-bottom:1rem;background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1rem;padding:0.5rem 0.625rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);overflow-x:auto;">
-        <span style="font-size:0.5625rem;font-weight:800;letter-spacing:0.09em;text-transform:uppercase;color:var(--card-text-sec);opacity:0.65;padding:0 0.25rem;white-space:nowrap;flex-shrink:0;">An�lises</span>
-        <a href="graficos.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">?? Gr�ficos</a>
-        <a href="balanco-mensal.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">?? Balan�o</a>
+        <span style="font-size:0.5625rem;font-weight:800;letter-spacing:0.09em;text-transform:uppercase;color:var(--card-text-sec);opacity:0.65;padding:0 0.25rem;white-space:nowrap;flex-shrink:0;">Análises</span>
+        <a href="graficos.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">📉 Gráficos</a>
+        <a href="balanco-mensal.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">📊 Balanço</a>
         <a href="comparativo.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;background:var(--btn-bg);color:var(--btn-text);box-shadow:inset 0 0 0 1.5px var(--theme-accent);font-size:0.8125rem;font-weight:700;text-decoration:none;white-space:nowrap;flex-shrink:0;">&#9878;&#65039; Comparativo</a>
-        <a href="relatorios.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">?? Relat�rios</a>
-        <a href="insights.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">?? Insights</a>
+        <a href="relatorios.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">📑 Relatórios</a>
+        <a href="insights.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;flex-shrink:0;">💡 Insights</a>
       </div>
 
       <!-- Header -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
         <div style="display:flex;align-items:center;gap:0.75rem;">
-          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">?</button>
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
           <div>
-            <h1 style="font-size:1.5rem;font-weight:800;color:var(--text-main);letter-spacing:-0.025em;">?? Comparativo</h1>
-            <p style="font-size:0.8125rem;font-weight:500;color:var(--text-sec);margin-top:0.125rem;">Dois meses lado a lado � s� transa��es efetivadas</p>
+            <h1 style="font-size:1.5rem;font-weight:800;color:var(--text-main);letter-spacing:-0.025em;">⚖️ Comparativo</h1>
+            <p style="font-size:0.8125rem;font-weight:500;color:var(--text-sec);margin-top:0.125rem;">Dois meses lado a lado — só transações efetivadas</p>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:nowrap;overflow-x:auto;">
-          <!-- Seletores de m�s (desktop) -->
+          <!-- Seletores de mês (desktop) -->
           <div class="selects-desktop" style="display:flex;align-items:center;gap:0.375rem;">
             <div class="custom-select" id="cs-mes1">
-              <button type="button" class="custom-select-btn" aria-haspopup="listbox" aria-label="M�s 1">
-                <span class="custom-select-label">�</span>
-                <span class="custom-select-arrow">?</span>
+              <button type="button" class="custom-select-btn" aria-haspopup="listbox" aria-label="Mês 1">
+                <span class="custom-select-label">—</span>
+                <span class="custom-select-arrow">▾</span>
               </button>
               <div class="custom-select-dropdown" role="listbox"></div>
             </div>
-            <select id="mes1" aria-label="M�s 1" style="display:none;"></select>
+            <select id="mes1" aria-label="Mês 1" style="display:none;"></select>
             <span class="vs-label">vs</span>
             <div class="custom-select" id="cs-mes2">
-              <button type="button" class="custom-select-btn" aria-haspopup="listbox" aria-label="M�s 2">
-                <span class="custom-select-label">�</span>
-                <span class="custom-select-arrow">?</span>
+              <button type="button" class="custom-select-btn" aria-haspopup="listbox" aria-label="Mês 2">
+                <span class="custom-select-label">—</span>
+                <span class="custom-select-arrow">▾</span>
               </button>
               <div class="custom-select-dropdown" role="listbox"></div>
             </div>
-            <select id="mes2" aria-label="M�s 2" style="display:none;"></select>
+            <select id="mes2" aria-label="Mês 2" style="display:none;"></select>
           </div>
           <!-- Inverter meses -->
-          <button id="btnInverter" onclick="window.inverterMeses()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Inverter M�s 1 e M�s 2">
-            ? Inverter
+          <button id="btnInverter" onclick="window.inverterMeses()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Inverter Mês 1 e Mês 2">
+            ⇄ Inverter
           </button>
           <!-- Vs ano passado -->
-          <button id="btnAnoPassado" onclick="window.vsAnoPassado()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Comparar com mesmo m�s do ano passado">
-            ?? Ano passado
+          <button id="btnAnoPassado" onclick="window.vsAnoPassado()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Comparar com mesmo mês do ano passado">
+            🕐 Ano passado
           </button>
           <!-- Ocultar valores -->
           <button id="btnOcultarValores" onclick="window.toggleOcultarValores()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Ocultar/exibir valores">
-            ?? Valores
+            👁 Valores
           </button>
           <!-- Refresh -->
           <button class="btn-refresh" onclick="window.sincronizarDados()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Atualizar dados">
-            ??
+            🔄
           </button>
           <!-- Exportar PDF -->
           <button class="btn-refresh" onclick="window.print()" style="padding:0.5rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Exportar PDF">
-            ???
+            🖶️
           </button>
         </div>
       </div>
@@ -359,43 +359,43 @@
       <!-- Seletores mobile (linha separada) -->
       <div id="mesMobileRow" style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
         <div class="custom-select" id="cs-mes1Mobile">
-          <button type="button" class="custom-select-btn" aria-haspopup="listbox" aria-label="M�s 1">
-            <span class="custom-select-label">�</span>
-            <span class="custom-select-arrow">?</span>
+          <button type="button" class="custom-select-btn" aria-haspopup="listbox" aria-label="Mês 1">
+            <span class="custom-select-label">—</span>
+            <span class="custom-select-arrow">▾</span>
           </button>
           <div class="custom-select-dropdown" role="listbox"></div>
         </div>
-        <select id="mes1Mobile" aria-label="M�s 1 mobile" style="display:none;"></select>
+        <select id="mes1Mobile" aria-label="Mês 1 mobile" style="display:none;"></select>
         <span class="vs-label">vs</span>
         <div class="custom-select" id="cs-mes2Mobile">
-          <button type="button" class="custom-select-btn" aria-haspopup="listbox" aria-label="M�s 2">
-            <span class="custom-select-label">�</span>
-            <span class="custom-select-arrow">?</span>
+          <button type="button" class="custom-select-btn" aria-haspopup="listbox" aria-label="Mês 2">
+            <span class="custom-select-label">—</span>
+            <span class="custom-select-arrow">▾</span>
           </button>
           <div class="custom-select-dropdown" role="listbox"></div>
         </div>
-        <select id="mes2Mobile" aria-label="M�s 2 mobile" style="display:none;"></select>
+        <select id="mes2Mobile" aria-label="Mês 2 mobile" style="display:none;"></select>
       </div>
 
       <!-- Paywall -->
       <div id="paywallContainer">
         <div style="max-width:480px;margin:4rem auto;text-align:center;padding:2.5rem 1.5rem;background:var(--card-bg);border:1px solid var(--card-border);border-radius:1.5rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.08);">
-          <div style="font-size:3rem;margin-bottom:1rem;">??</div>
+          <div style="font-size:3rem;margin-bottom:1rem;">🔒</div>
           <div style="font-size:1.25rem;font-weight:800;color:var(--text-main);margin-bottom:0.5rem;">Recurso Bud Plus</div>
-          <div style="font-size:0.875rem;color:var(--text-sec);line-height:1.6;margin-bottom:1.5rem;">O Comparativo de Meses � exclusivo para assinantes <strong>Plus</strong>. Fa�a upgrade para comparar per�odos e entender a evolu��o dos seus h�bitos financeiros.</div>
+          <div style="font-size:0.875rem;color:var(--text-sec);line-height:1.6;margin-bottom:1.5rem;">O Comparativo de Meses é exclusivo para assinantes <strong>Plus</strong>. Faça upgrade para comparar períodos e entender a evolução dos seus hábitos financeiros.</div>
           <a href="configuracoes.html" style="display:inline-block;padding:0.75rem 1.75rem;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:0.9375rem;font-weight:800;border-radius:0.875rem;text-decoration:none;">Ver Planos</a>
         </div>
       </div>
 
-      <!-- Conte�do principal -->
+      <!-- Conteúdo principal -->
       <div id="conteudoPrincipal">
 
-        <!-- KPI cards: M�s 1 (azul) e M�s 2 (violeta) -->
+        <!-- KPI cards: Mês 1 (azul) e Mês 2 (violeta) -->
         <div class="comp-cards-grid">
-          <!-- M�s 1 -->
+          <!-- Mês 1 -->
           <div class="comp-kpi-card mes1">
             <div style="font-size:0.6875rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#3b82f6;">
-              M�s 1 � <span id="nomeM1">�</span>
+              Mês 1 — <span id="nomeM1">—</span>
             </div>
             <div class="comp-kpi-grid">
               <div>
@@ -411,19 +411,19 @@
                 <div class="comp-kpi-value" id="m1Saldo">R$ 0,00</div>
               </div>
               <div>
-                <div class="comp-kpi-label">Transa��es</div>
+                <div class="comp-kpi-label">Transações</div>
                 <div class="comp-kpi-value" style="color:var(--card-text);" id="m1Trans">0</div>
               </div>
             </div>
             <div id="avisoVazioM1" style="display:none;align-items:center;gap:0.5rem;margin-top:0.875rem;padding:0.625rem 0.75rem;background:rgba(148,163,184,0.1);border-radius:0.625rem;">
               <span style="font-size:1rem;">&#x1F4ED;</span>
-              <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">Sem transa��es neste m�s</span>
+              <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">Sem transações neste mês</span>
             </div>
           </div>
-          <!-- M�s 2 -->
+          <!-- Mês 2 -->
           <div class="comp-kpi-card mes2">
             <div style="font-size:0.6875rem;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#8b5cf6;">
-              M�s 2 � <span id="nomeM2">�</span>
+              Mês 2 — <span id="nomeM2">—</span>
             </div>
             <div class="comp-kpi-grid">
               <div>
@@ -448,13 +448,13 @@
                 </div>
               </div>
               <div>
-                <div class="comp-kpi-label">Transa��es</div>
+                <div class="comp-kpi-label">Transações</div>
                 <div class="comp-kpi-value" style="color:var(--card-text);" id="m2Trans">0</div>
               </div>
             </div>
             <div id="avisoVazioM2" style="display:none;align-items:center;gap:0.5rem;margin-top:0.875rem;padding:0.625rem 0.75rem;background:rgba(148,163,184,0.1);border-radius:0.625rem;">
               <span style="font-size:1rem;">&#x1F4ED;</span>
-              <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">Sem transa��es neste m�s</span>
+              <span style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);">Sem transações neste mês</span>
             </div>
           </div>
         </div>
@@ -463,15 +463,15 @@
         <div id="insightDestaque" style="display:none;background:rgba(251,191,36,0.10);border:1.5px solid rgba(251,191,36,0.25);border-radius:1rem;padding:0.875rem 1.25rem;margin-bottom:1rem;align-items:flex-start;gap:0.75rem;">
           <span style="font-size:1.25rem;flex-shrink:0;">&#x1F4A1;</span>
           <div>
-            <div style="font-size:0.8125rem;font-weight:800;color:var(--text-main);" id="insightTitulo">�</div>
-            <div style="font-size:0.75rem;color:var(--text-sec);margin-top:0.2rem;" id="insightDesc">�</div>
+            <div style="font-size:0.8125rem;font-weight:800;color:var(--text-main);" id="insightTitulo">—</div>
+            <div style="font-size:0.75rem;color:var(--text-sec);margin-top:0.2rem;" id="insightDesc">—</div>
           </div>
         </div>
 
-        <!-- Gr�fico � Receitas, Despesas e Saldo -->
+        <!-- Gráfico — Receitas, Despesas e Saldo -->
         <div class="section-card">
           <div class="section-header">
-            <span class="section-title">?? Receitas, Despesas e Saldo</span>
+            <span class="section-title">📊 Receitas, Despesas e Saldo</span>
             <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
               <span id="legendaGrafico" style="font-size:0.75rem;color:var(--card-text-sec);"></span>
               <div style="display:flex;gap:0.25rem;">
@@ -489,29 +489,29 @@
         <!-- Comparativo de despesas por categoria -->
         <div class="section-card">
           <div class="section-header">
-            <span class="section-title">?? Despesas por Categoria</span>
+            <span class="section-title">📉 Despesas por Categoria</span>
             <span style="font-size:0.75rem;color:var(--card-text-sec);">Top 10</span>
           </div>
           <div id="catDepContainer">
-            <div class="empty-state"><div class="empty-icon">??</div><div style="font-size:0.875rem;color:var(--text-sec);">Nenhuma despesa para comparar</div></div>
+            <div class="empty-state"><div class="empty-icon">💸</div><div style="font-size:0.875rem;color:var(--text-sec);">Nenhuma despesa para comparar</div></div>
           </div>
         </div>
 
         <!-- Comparativo de receitas por categoria (BUG 7 fix) -->
         <div class="section-card">
           <div class="section-header">
-            <span class="section-title">?? Receitas por Categoria</span>
+            <span class="section-title">📈 Receitas por Categoria</span>
             <span style="font-size:0.75rem;color:var(--card-text-sec);">Top 10</span>
           </div>
           <div id="catRecContainer">
-            <div class="empty-state"><div class="empty-icon">??</div><div style="font-size:0.875rem;color:var(--text-sec);">Nenhuma receita para comparar</div></div>
+            <div class="empty-state"><div class="empty-icon">💰</div><div style="font-size:0.875rem;color:var(--text-sec);">Nenhuma receita para comparar</div></div>
           </div>
         </div>
 
-        <!-- Gr�fico � Top despesas por categoria -->
+        <!-- Gráfico — Top despesas por categoria -->
         <div class="section-card">
           <div class="section-header">
-            <span class="section-title">?? Varia��o por Categoria (Despesas)</span>
+            <span class="section-title">📋 Variação por Categoria (Despesas)</span>
           </div>
           <div id="chartCategoriasWrap">
             <div class="chart-wrap"><canvas id="chartCategorias"></canvas></div>

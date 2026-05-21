@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance � Minhas Contas">
+  <meta name="description" content="Bud Finance — Minhas Contas">
   <title>Contas - Bud Finance</title>
 
   <link rel="icon" type="image/png" href="logo.png">
@@ -29,7 +29,7 @@
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'js/vendor/pdf.worker.min.js';
       console.log('[pdf.js] carregado v' + window.pdfjsLib.version + ' (local)');
     } else {
-      console.error('[pdf.js] N�O carregou � PDF cair� no backend e perder� precis�o');
+      console.error('[pdf.js] NÃO carregou — PDF cairá no backend e perderá precisão');
     }
   </script>
 
@@ -45,7 +45,7 @@
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:'Inter',system-ui,sans-serif;background-color:var(--bg-page);min-height:100vh;min-height:100dvh;overflow-x:hidden;transition:background-color 0.35s ease;}
 
-    /* -- Splash -------------------------------------------- */
+    /* ── Splash ──────────────────────────────────────────── */
     #splash{position:fixed;inset:0;background:var(--bg-page);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;z-index:99999;transition:opacity .5s ease;}
     #splash.hide{opacity:0;pointer-events:none;}
     .splash-bar{width:120px;height:4px;border-radius:2px;background:#e2e8f0;overflow:hidden;}
@@ -53,15 +53,15 @@
     @keyframes pulse-logo{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
     @keyframes slide-bar{0%{transform:translateX(-100%);}100%{transform:translateX(350%);}}
 
-    /* -- Blobs --------------------------------------------- */
+    /* ── Blobs ───────────────────────────────────────────── */
     .blob{position:fixed;border-radius:9999px;pointer-events:none;z-index:0;opacity:var(--blob-opacity,1);transition:opacity 0.35s ease;}
     .blob-blue{top:-5%;left:-5%;width:35%;height:35%;background:rgba(147,197,253,0.30);filter:blur(100px);}
     .blob-cyan{bottom:-5%;right:-5%;width:25%;height:25%;background:rgba(103,232,249,0.20);filter:blur(100px);}
 
-    /* -- Layout -------------------------------------------- */
+    /* ── Layout ──────────────────────────────────────────── */
     .dash-layout{display:flex;min-height:100vh;min-height:100dvh;}
 
-    /* -- Sidebar ------------------------------------------- */
+    /* ── Sidebar ─────────────────────────────────────────── */
     .sidebar{width:260px;background:var(--sidebar-bg);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-right:1px solid var(--card-border);display:flex;flex-direction:column;padding:1.5rem 1rem;position:fixed;top:0;left:0;bottom:0;z-index:50;transition:transform .3s ease,width .3s ease,background 0.35s ease,border-color 0.35s ease;overflow:visible;}
     .sidebar-collapse-btn{display:none;position:absolute;top:50%;right:-1rem;transform:translateY(-50%);width:1rem;height:3.5rem;border-radius:0 0.5rem 0.5rem 0;background:var(--btn-bg);border:none;color:var(--btn-text);font-size:0.6rem;font-weight:700;cursor:pointer;align-items:center;justify-content:center;z-index:51;box-shadow:3px 0 12px rgba(0,0,0,0.22);transition:background 0.35s ease;flex-shrink:0;line-height:1;}
     .sidebar.collapsed{width:64px;padding-left:0.75rem;padding-right:0.75rem;align-items:center;}
@@ -93,7 +93,7 @@
     .sidebar-user-name{font-size:0.8125rem;font-weight:700;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
     .sidebar-user-id{font-size:0.6875rem;font-weight:500;color:var(--text-sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 0.35s ease;}
 
-    /* -- Main ---------------------------------------------- */
+    /* ── Main ────────────────────────────────────────────── */
     .dash-main{flex:1;min-width:0;margin-left:260px;padding:1.5rem;position:relative;z-index:1;transition:margin-left .3s ease;}
     .dash-main.sidebar-collapsed{margin-left:64px;}
     .dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;}
@@ -102,7 +102,7 @@
     .hamburger-btn{display:none;width:2.5rem;height:2.5rem;border-radius:0.75rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);align-items:center;justify-content:center;font-size:1.25rem;cursor:pointer;color:var(--card-text);z-index:60;transition:background 0.35s ease,border-color 0.35s ease,color 0.35s ease;}
     .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:40;}
 
-    /* -- Cards resumo -------------------------------------- */
+    /* ── Cards resumo ────────────────────────────────────── */
     .cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;}
     .summary-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);transition:background 0.35s ease,border-color 0.35s ease,transform .2s,box-shadow .2s;}
     .summary-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px -5px rgba(0,0,0,0.1);}
@@ -115,10 +115,10 @@
     .card-value{font-size:1.5rem;font-weight:800;color:var(--card-text);letter-spacing:-0.025em;transition:color 0.35s ease;}
     .card-sub{font-size:0.75rem;font-weight:500;color:var(--card-text-sec);margin-top:0.25rem;transition:color 0.35s ease;}
 
-    /* -- Section card -------------------------------------- */
+    /* ── Section card ────────────────────────────────────── */
     .section-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.5rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);margin-bottom:1rem;transition:background 0.35s ease,border-color 0.35s ease;}
 
-    /* -- Contas grid --------------------------------------- */
+    /* ── Contas grid ─────────────────────────────────────── */
     .contas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem;}
     .conta-card{background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.25rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);transition:background 0.35s ease,border-color 0.35s ease,transform .2s,box-shadow .2s;}
     .conta-card:hover{transform:translateY(-2px);box-shadow:0 8px 30px -5px rgba(0,0,0,0.1);}
@@ -136,16 +136,16 @@
     .conta-import-btn{width:100%;padding:0.625rem;border:1.5px solid #3b82f6;border-radius:0.75rem;background:transparent;color:#2563eb;font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:0.375rem;}
     .conta-import-btn:hover{background:#eff6ff;}
 
-    /* -- Empty state --------------------------------------- */
+    /* ── Empty state ─────────────────────────────────────── */
     .empty-state{text-align:center;padding:3rem 1rem;}
     .empty-state-icon{font-size:2.5rem;margin-bottom:0.75rem;}
     .empty-state-title{font-size:0.9375rem;font-weight:700;color:var(--card-text);transition:color 0.35s ease;}
     .empty-state-sub{font-size:0.8125rem;font-weight:500;color:var(--card-text-sec);margin-top:0.25rem;transition:color 0.35s ease;}
 
-    /* -- Modal --------------------------------------------- */
+    /* ── Modal ───────────────────────────────────────────── */
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:80;align-items:center;justify-content:center;padding:1rem;}
     .modal-overlay.open{display:flex;}
-    .modal-card{background:var(--bg-page);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.75rem;width:100%;max-width:440px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.2);animation:modal-in .25s ease;max-height:90vh;overflow-y:auto;}      .nova-conta-text{display:inline;}    /* Fix: barra de scroll n�o vaza al�m do border-radius */
+    .modal-card{background:var(--bg-page);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.75rem;width:100%;max-width:440px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.2);animation:modal-in .25s ease;max-height:90vh;overflow-y:auto;}      .nova-conta-text{display:inline;}    /* Fix: barra de scroll não vaza além do border-radius */
     .modal-card::-webkit-scrollbar{width:5px;}
     .modal-card::-webkit-scrollbar-track{background:transparent;margin-top:1.5rem;margin-bottom:1.5rem;}
     .modal-card::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.15);border-radius:999px;}
@@ -166,7 +166,7 @@
     .modal-cancel{width:100%;padding:0.625rem;border:none;border-radius:0.75rem;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;background:rgba(0,0,0,0.05);color:var(--text-sec);margin-top:0.5rem;transition:background .15s;}
     .modal-cancel:hover{background:rgba(0,0,0,0.09);}
 
-    /* -- Custom select ------------------------------------- */
+    /* ── Custom select ───────────────────────────────────── */
     .custom-select{position:relative;}
     .custom-select-trigger{width:100%;padding:0.625rem 0.875rem;border:1.5px solid var(--input-border);border-radius:0.75rem;font-size:0.875rem;font-weight:600;color:var(--card-text-sec);background:var(--input-bg);font-family:inherit;transition:border-color .2s,box-shadow .2s;cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;box-sizing:border-box;}
     .custom-select-trigger.has-value{color:var(--card-text);}
@@ -180,7 +180,7 @@
     .custom-select-option:hover{background:var(--sidebar-link-hover-bg);}
     .custom-select-option.selected{background:#eff6ff;color:#2563eb;font-weight:700;}
 
-    /* -- Import modal steps -------------------------------- */
+    /* ── Import modal steps ──────────────────────────────── */
     .import-step{display:none;}
     .import-step.active{display:block;}
     .import-stepper{display:flex;align-items:center;gap:0.5rem;margin-bottom:1.5rem;overflow:hidden;}
@@ -202,7 +202,7 @@
     .import-preview-table td{padding:0.5rem 0.625rem;border-bottom:1px solid var(--input-border);color:var(--card-text);vertical-align:middle;}
     .import-preview-table tr:hover td{background:rgba(0,0,0,0.02);}
     .import-preview-table tr.skipped td{opacity:0.4;}
-    /* -- Custom dropdown por linha (categoria) --------------- */
+    /* ── Custom dropdown por linha (categoria) ─────────────── */
     .row-cat-btn{-webkit-appearance:none;appearance:none;border:1.5px solid var(--input-border);border-radius:0.625rem;padding:0.3rem 2rem 0.3rem 0.625rem;font-size:0.75rem;font-weight:600;background:var(--input-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 0.5rem center;color:var(--card-text);font-family:inherit;width:175px;cursor:pointer;outline:none;transition:border-color .2s,box-shadow .2s;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;}
     .row-cat-btn:focus,.row-cat-btn.open{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.12);}
     #rowCatSharedDd{position:fixed;z-index:99999;background:var(--card-bg);border:1.5px solid var(--card-border);border-radius:0.875rem;box-shadow:0 8px 32px rgba(0,0,0,0.14);max-height:280px;overflow-y:auto;display:none;backdrop-filter:blur(12px);}
@@ -212,7 +212,7 @@
     .row-cat-option{padding:0.45rem 0.875rem;font-size:0.8125rem;font-weight:500;cursor:pointer;color:var(--card-text);transition:background .1s;white-space:nowrap;}
     .row-cat-option:hover{background:rgba(59,130,246,0.07);}
     .row-cat-option.selected{background:#eff6ff;color:#2563eb;font-weight:700;}
-    /* -- Cor-picker (contas) ----------------------------------- */
+    /* ── Cor-picker (contas) ─────────────────────────────────── */
     .conta-cor-picker{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.25rem;}
     .conta-cor-pill{width:1.75rem;height:1.75rem;border-radius:50%;border:2.5px solid transparent;cursor:pointer;transition:transform .15s,border-color .15s;outline:none;}
     .conta-cor-pill:hover{transform:scale(1.15);}
@@ -227,20 +227,20 @@
     .import-pag-info{font-size:0.75rem;font-weight:600;color:var(--card-text-sec);}
     .import-global-row{display:flex;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap;align-items:flex-end;}
 
-    /* -- Duplication badge --------------------------------- */
+    /* ── Duplication badge ───────────────────────────────── */
     .dedup-badge{display:inline-flex;align-items:center;gap:0.25rem;padding:0.25rem 0.625rem;border-radius:999px;font-size:0.6875rem;font-weight:700;}
     .dedup-badge-warn{background:#fef9c3;color:#854d0e;}
     .dedup-badge-ok{background:#dcfce7;color:#14532d;}
 
-    /* -- Filter pills --------------------------------------- */
+    /* ── Filter pills ─────────────────────────────────────── */
     .conta-filter-pills{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:0.5rem;margin-bottom:1rem;padding-bottom:0.125rem;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
     .conta-filter-pills::-webkit-scrollbar{display:none;}
     .conta-filter-pill{padding:0.3125rem 0.75rem;border-radius:999px;font-size:0.75rem;font-weight:700;cursor:pointer;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--card-text-sec);font-family:inherit;transition:all .15s;white-space:nowrap;flex-shrink:0;}
     .conta-filter-pill.active{background:var(--sidebar-link-active-bg);border-color:var(--theme-accent,#3b82f6);color:var(--sidebar-link-active-color);}
-    /* -- Card buttons grid --------------------------------- */
+    /* ── Card buttons grid ───────────────────────────────── */
     .conta-btns-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;}
 
-    /* -- Responsive ---------------------------------------- */
+    /* ── Responsive ──────────────────────────────────────── */
     @media(max-width:768px){
       .sidebar{transform:translateX(-100%);}
       .sidebar.open{transform:translateX(0);}
@@ -269,69 +269,69 @@
 </head>
 <body>
 
-  <!-- - Splash -------------------------------------------- -->
+  <!-- ═ Splash ════════════════════════════════════════════ -->
   <div id="splash">
     <img src="logo.png" alt="Bud Finance" style="width:56px;height:56px;object-fit:contain;animation:pulse-logo 1.8s ease-in-out infinite;">
     <div class="splash-bar"><div class="splash-bar-inner"></div></div>
   </div>
 
-  <!-- - Blobs --------------------------------------------- -->
+  <!-- ═ Blobs ═════════════════════════════════════════════ -->
   <div class="blob blob-blue" aria-hidden="true"></div>
   <div class="blob blob-cyan" aria-hidden="true"></div>
 
-  <!-- - Overlay sidebar mobile ---------------------------- -->
+  <!-- ═ Overlay sidebar mobile ════════════════════════════ -->
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <!-- - Layout -------------------------------------------- -->
+  <!-- ═ Layout ════════════════════════════════════════════ -->
   <div class="dash-layout">
 
-    <!-- - Sidebar ---------------------------------------- -->
+    <!-- ─ Sidebar ──────────────────────────────────────── -->
     <aside class="sidebar" id="sidebar">
-      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">�</button>
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">‹</button>
       <div class="sidebar-logo">
         <img src="logo.png" alt="Bud Finance" width="32" height="32">
         <span class="sidebar-logo-text">Bud Finance</span>
       </div>
       <nav class="sidebar-nav">
         <a href="dashboard.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Dashboard</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
         </a>
-        <div class="sidebar-group-label">Finan�as</div>
+        <div class="sidebar-group-label">Finanças</div>
         <a href="carteira.html" class="sidebar-link active">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Contas</span>
+          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Contas</span>
         </a>
         <a href="cartoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Cart�es</span>
+          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
         </a>
         <a href="recorrentes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Recorrentes</span>
+          <span class="sidebar-link-icon">🔄</span><span class="sidebar-link-text"> Recorrentes</span>
         </a>
         <a href="dividas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> D�vidas</span>
+          <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
         </a>
         <a href="metas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Metas</span>
+          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
         </a>
         <a href="mercado.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Compras</span>
+          <span class="sidebar-link-icon">🛒</span><span class="sidebar-link-text"> Compras</span>
         </a>
         <a href="categorias.html" class="sidebar-link">
-          <span class="sidebar-link-icon">???</span><span class="sidebar-link-text"> Categorias</span>
+          <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
         <a href="graficos.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> An�lises</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <a href="assistente-ia.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Assistente IA</span>
+          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span>
         </a>
         <a href="assistente-whatsapp.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
+          <span class="sidebar-link-icon">💬</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
         </a>
         <div class="sidebar-nav-divider"></div>
         <a href="configuracoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Configura��es</span>
+          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
         </a>
       </nav>
       <div class="sidebar-user" style="margin-top:auto;">
@@ -342,31 +342,31 @@
         </div>
       </div>
       <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
-        <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Sair</span>
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
       </button>
     </aside>
 
-    <!-- - Main ------------------------------------------- -->
+    <!-- ─ Main ─────────────────────────────────────────── -->
     <main class="dash-main" id="dashMain">
 
-      <!-- -- Sub-nav Contas ---------------------------- -->
+      <!-- ── Sub-nav Contas ──────────────────────────── -->
       <div style="display:flex;align-items:center;gap:0.25rem;margin-bottom:1rem;background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1rem;padding:0.5rem 0.625rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);">
-        <a href="carteira.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;background:var(--btn-bg);color:var(--btn-text);box-shadow:inset 0 0 0 1.5px var(--theme-accent);font-size:0.8125rem;font-weight:700;text-decoration:none;white-space:nowrap;">?? Contas</a>
-        <a href="extrato.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;">?? Extrato</a>
+        <a href="carteira.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;background:var(--btn-bg);color:var(--btn-text);box-shadow:inset 0 0 0 1.5px var(--theme-accent);font-size:0.8125rem;font-weight:700;text-decoration:none;white-space:nowrap;">🏦 Contas</a>
+        <a href="extrato.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;">📋 Extrato</a>
       </div>
 
       <!-- Header -->
       <div class="dash-header">
         <div style="display:flex;align-items:center;gap:0.75rem;">
-          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">?</button>
+          <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
           <div class="dash-welcome">
-            <h1>?? Minhas Contas</h1>
+            <h1>🏦 Minhas Contas</h1>
             <p>Gerencie suas contas e importe extratos</p>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:0.5rem;">
-          <button id="btnToggleValues" style="width:2.25rem;height:2.25rem;border-radius:0.625rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);display:flex;align-items:center;justify-content:center;font-size:1rem;cursor:pointer;color:var(--card-text-sec);transition:all .2s;" title="Ocultar/Mostrar valores">???</button>
-          <button id="btnSync" style="width:2.25rem;height:2.25rem;border-radius:0.625rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);display:flex;align-items:center;justify-content:center;font-size:1rem;cursor:pointer;color:var(--card-text-sec);transition:all .2s;" title="Sincronizar">??</button>
+          <button id="btnToggleValues" style="width:2.25rem;height:2.25rem;border-radius:0.625rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);display:flex;align-items:center;justify-content:center;font-size:1rem;cursor:pointer;color:var(--card-text-sec);transition:all .2s;" title="Ocultar/Mostrar valores">👁️</button>
+          <button id="btnSync" style="width:2.25rem;height:2.25rem;border-radius:0.625rem;background:var(--card-bg);backdrop-filter:blur(12px);border:1px solid var(--card-border);display:flex;align-items:center;justify-content:center;font-size:1rem;cursor:pointer;color:var(--card-text-sec);transition:all .2s;" title="Sincronizar">🔄</button>
           <button id="btnNovaConta" style="display:flex;align-items:center;gap:0.375rem;padding:0.5rem 1rem;border-radius:0.75rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);border:none;color:#fff;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Nova conta">+ <span class="nova-conta-text">Nova Conta</span></button>
         </div>
       </div>
@@ -375,8 +375,8 @@
       <div class="cards-grid">
         <div class="summary-card">
           <div class="card-header">
-            <span class="card-label">Total Dispon�vel</span>
-            <div class="card-icon card-icon-green">??</div>
+            <span class="card-label">Total Disponível</span>
+            <div class="card-icon card-icon-green">💰</div>
           </div>
           <div class="card-value" id="kpiTotal" style="color:#16a34a;">R$ 0,00</div>
           <div class="card-sub" id="kpiTotalSub">0 contas</div>
@@ -384,17 +384,17 @@
         <div class="summary-card">
           <div class="card-header">
             <span class="card-label">Contas Ativas</span>
-            <div class="card-icon card-icon-blue">??</div>
+            <div class="card-icon card-icon-blue">🏦</div>
           </div>
           <div class="card-value" id="kpiContas">0</div>
           <div class="card-sub" id="kpiContasSub">Nenhuma conta cadastrada</div>
         </div>
         <div class="summary-card">
           <div class="card-header">
-            <span class="card-label">�ltima Importa��o</span>
-            <div class="card-icon card-icon-purple">??</div>
+            <span class="card-label">Última Importação</span>
+            <div class="card-icon card-icon-purple">📥</div>
           </div>
-          <div class="card-value" id="kpiUltImport" style="font-size:1.125rem;">�</div>
+          <div class="card-value" id="kpiUltImport" style="font-size:1.125rem;">—</div>
           <div class="card-sub" id="kpiUltImportSub">Nenhum extrato importado</div>
         </div>
       </div>
@@ -404,51 +404,51 @@
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem;">
           <div style="font-size:1rem;font-weight:800;color:var(--card-text);">Suas Contas</div>
           <div style="display:flex;align-items:center;gap:0.5rem;">
-            <div style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);" id="contasContador">�</div>
-            <button id="btnSortContas" style="padding:0.25rem 0.625rem;border:1.5px solid var(--input-border);border-radius:0.5rem;background:var(--input-bg);font-size:0.75rem;font-weight:700;color:var(--card-text-sec);cursor:pointer;font-family:inherit;transition:all .15s;" title="Ordenar contas">? Cria��o</button>
-            <button id="btnTransferencia" style="padding:0.25rem 0.625rem;border:1.5px solid var(--input-border);border-radius:0.5rem;background:var(--input-bg);font-size:0.75rem;font-weight:700;color:var(--card-text-sec);cursor:pointer;font-family:inherit;transition:all .15s;" title="Transfer�ncia entre contas">?? Transferir</button>
+            <div style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);" id="contasContador">—</div>
+            <button id="btnSortContas" style="padding:0.25rem 0.625rem;border:1.5px solid var(--input-border);border-radius:0.5rem;background:var(--input-bg);font-size:0.75rem;font-weight:700;color:var(--card-text-sec);cursor:pointer;font-family:inherit;transition:all .15s;" title="Ordenar contas">↕ Criação</button>
+            <button id="btnTransferencia" style="padding:0.25rem 0.625rem;border:1.5px solid var(--input-border);border-radius:0.5rem;background:var(--input-bg);font-size:0.75rem;font-weight:700;color:var(--card-text-sec);cursor:pointer;font-family:inherit;transition:all .15s;" title="Transferência entre contas">↔️ Transferir</button>
           </div>
         </div>
         <div class="conta-filter-pills" id="contaFilterPills">
           <button class="conta-filter-pill active" data-tipo="todos">Todas</button>
-          <button class="conta-filter-pill" data-tipo="debito">?? D�bito</button>
-          <button class="conta-filter-pill" data-tipo="dinheiro">?? Dinheiro</button>
-          <button class="conta-filter-pill" data-tipo="beneficio">??? Benef�cios</button>
-          <button class="conta-filter-pill" data-tipo="transporte">?? Transporte</button>
+          <button class="conta-filter-pill" data-tipo="debito">🏦 Débito</button>
+          <button class="conta-filter-pill" data-tipo="dinheiro">💵 Dinheiro</button>
+          <button class="conta-filter-pill" data-tipo="beneficio">🍽️ Benefícios</button>
+          <button class="conta-filter-pill" data-tipo="transporte">🚌 Transporte</button>
         </div>
         <div class="contas-grid" id="contasGrid">
           <div class="empty-state">
-            <div class="empty-state-icon">?</div>
+            <div class="empty-state-icon">⏳</div>
             <div class="empty-state-title">Carregando...</div>
           </div>
         </div>
       </div>
 
-      <!-- Hist�rico de Importa��es -->
+      <!-- Histórico de Importações -->
       <div class="section-card" id="sectionHistoricoImport">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
           <div>
-            <div style="font-size:1rem;font-weight:800;color:var(--card-text);">?? Hist�rico de Importa��es</div>
-            <div style="font-size:0.75rem;font-weight:500;color:var(--card-text-sec);margin-top:0.125rem;">�ltimas 20 importa��es realizadas</div>
+            <div style="font-size:1rem;font-weight:800;color:var(--card-text);">📂 Histórico de Importações</div>
+            <div style="font-size:0.75rem;font-weight:500;color:var(--card-text-sec);margin-top:0.125rem;">Últimas 20 importações realizadas</div>
           </div>
         </div>
         <div id="historicoImportLista" style="display:none;"></div>
         <div id="historicoImportVazio" class="empty-state" style="display:block;padding:2rem 1rem;">
-          <div class="empty-state-icon">??</div>
-          <div class="empty-state-title">Nenhuma importa��o realizada</div>
-          <div class="empty-state-sub">Os extratos importados aparecer�o aqui.</div>
+          <div class="empty-state-icon">📭</div>
+          <div class="empty-state-title">Nenhuma importação realizada</div>
+          <div class="empty-state-sub">Os extratos importados aparecerão aqui.</div>
         </div>
       </div>
 
     </main>
   </div>
 
-  <!-- - Modal Transfer�ncia entre Contas ---------------- -->
+  <!-- ═ Modal Transferência entre Contas ════════════════ -->
   <div class="modal-overlay" id="modalTransferencia" role="dialog" aria-modal="true" aria-labelledby="tituloTransferencia">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:400px;">
       <div class="modal-title">
-        <span id="tituloTransferencia">?? Transfer�ncia entre Contas</span>
-        <button class="modal-close" id="btnFecharTransferencia" aria-label="Fechar">?</button>
+        <span id="tituloTransferencia">↔️ Transferência entre Contas</span>
+        <button class="modal-close" id="btnFecharTransferencia" aria-label="Fechar">✕</button>
       </div>
       <div class="modal-field">
         <label class="modal-label">De (Origem)</label>
@@ -483,38 +483,38 @@
         </div>
       </div>
       <div class="modal-field">
-        <label class="modal-label">Descri��o (opcional)</label>
-        <input type="text" class="modal-input" id="inputDescTransf" placeholder="Ex: transfer�ncia para reserva" maxlength="120" autocomplete="off">
+        <label class="modal-label">Descrição (opcional)</label>
+        <input type="text" class="modal-input" id="inputDescTransf" placeholder="Ex: transferência para reserva" maxlength="120" autocomplete="off">
       </div>
-      <button class="modal-submit" id="btnConfirmarTransferencia">?? Transferir</button>
+      <button class="modal-submit" id="btnConfirmarTransferencia">↔️ Transferir</button>
       <button class="modal-cancel" id="btnCancelarTransferencia">Cancelar</button>
     </div>
   </div>
 
-  <!-- - Modal Confirmar Saldo R�pido ---------------------- -->
+  <!-- ═ Modal Confirmar Saldo Rápido ══════════════════════ -->
   <div class="modal-overlay" id="modalSaldoRapido" role="dialog" aria-modal="true">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:360px;">
       <div class="modal-title">
-        <span>?? Confirmar Saldo</span>
-        <button class="modal-close" id="btnFecharSaldoRapido" aria-label="Fechar">?</button>
+        <span>💰 Confirmar Saldo</span>
+        <button class="modal-close" id="btnFecharSaldoRapido" aria-label="Fechar">✕</button>
       </div>
-      <div style="font-size:0.8125rem;font-weight:600;color:var(--card-text-sec);margin-bottom:1rem;padding:0.625rem 0.875rem;background:var(--input-bg);border-radius:0.75rem;border:1px solid var(--input-border);" id="saldoRapidoContaNome">�</div>
+      <div style="font-size:0.8125rem;font-weight:600;color:var(--card-text-sec);margin-bottom:1rem;padding:0.625rem 0.875rem;background:var(--input-bg);border-radius:0.75rem;border:1px solid var(--input-border);" id="saldoRapidoContaNome">—</div>
       <input type="hidden" id="saldoRapidoContaId">
       <div class="modal-field">
         <label class="modal-label">Saldo atual (conforme extrato ou app do banco)</label>
         <input type="tel" class="modal-input" id="inputSaldoRapido" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
       </div>
-      <button class="modal-submit" id="btnConfirmarSaldoRapido">? Confirmar Saldo</button>
+      <button class="modal-submit" id="btnConfirmarSaldoRapido">✅ Confirmar Saldo</button>
       <button class="modal-cancel" id="btnCancelarSaldoRapido">Cancelar</button>
     </div>
   </div>
 
-  <!-- - Modal Nova / Editar Conta ------------------------- -->
+  <!-- ═ Modal Nova / Editar Conta ═════════════════════════ -->
   <div class="modal-overlay" id="modalConta" role="dialog" aria-modal="true" aria-labelledby="modalContaTitulo">
     <div class="modal-card" onclick="event.stopPropagation()">
       <div class="modal-title">
-        <span id="modalContaTitulo">? Nova Conta</span>
-        <button class="modal-close" id="btnFecharModalConta" aria-label="Fechar">?</button>
+        <span id="modalContaTitulo">➕ Nova Conta</span>
+        <button class="modal-close" id="btnFecharModalConta" aria-label="Fechar">✕</button>
       </div>
       <input type="hidden" id="contaEditId">
 
@@ -528,11 +528,11 @@
           </button>
           <input type="hidden" id="contaTipoValue">
           <div class="custom-select-dropdown" id="contaTipoDropdown">
-            <div class="custom-select-option" data-value="dinheiro">?? Dinheiro / Carteira</div>
-            <div class="custom-select-option" data-value="debito">?? Conta Banc�ria (D�bito)</div>
-            <div class="custom-select-option" data-value="vale_refeicao">??? Vale Refei��o</div>
-            <div class="custom-select-option" data-value="vale_alimentacao">?? Vale Alimenta��o</div>
-            <div class="custom-select-option" data-value="transporte">?? Transporte / VT</div>
+            <div class="custom-select-option" data-value="dinheiro">💵 Dinheiro / Carteira</div>
+            <div class="custom-select-option" data-value="debito">🏦 Conta Bancária (Débito)</div>
+            <div class="custom-select-option" data-value="vale_refeicao">🍽️ Vale Refeição</div>
+            <div class="custom-select-option" data-value="vale_alimentacao">🛒 Vale Alimentação</div>
+            <div class="custom-select-option" data-value="transporte">🚌 Transporte / VT</div>
           </div>
         </div>
       </div>
@@ -551,9 +551,9 @@
 
       <!-- Cor da Conta -->
       <div class="modal-field">
-        <label class="modal-label">Cor de Identifica��o</label>
+        <label class="modal-label">Cor de Identificação</label>
         <div class="conta-cor-picker" id="contaCorPicker">
-          <button type="button" class="conta-cor-pill" data-cor="sem_cor" style="background:var(--input-bg);border-color:var(--input-border);" title="Sem cor">?</button>
+          <button type="button" class="conta-cor-pill" data-cor="sem_cor" style="background:var(--input-bg);border-color:var(--input-border);" title="Sem cor">✕</button>
           <button type="button" class="conta-cor-pill" data-cor="roxo"    style="background:linear-gradient(135deg,#7c3aed,#4c1d95);" title="Roxo"></button>
           <button type="button" class="conta-cor-pill" data-cor="azul"    style="background:linear-gradient(135deg,#2563eb,#1e3a8a);" title="Azul"></button>
           <button type="button" class="conta-cor-pill" data-cor="teal"    style="background:linear-gradient(135deg,#0d9488,#134e4a);" title="Teal"></button>
@@ -572,13 +572,13 @@
     </div>
   </div>
 
-  <!-- - Modal Importar Extrato ---------------------------- -->
+  <!-- ═ Modal Importar Extrato ════════════════════════════ -->
   <div class="modal-overlay" id="modalImport" role="dialog" aria-modal="true" aria-labelledby="modalImportTitulo">
     <div class="modal-card modal-card-lg" onclick="event.stopPropagation()" style="max-height:90vh;overflow-y:auto;">
 
       <div class="modal-title">
-        <span id="modalImportTitulo">?? Importar Extrato</span>
-        <button class="modal-close" id="btnFecharModalImport" aria-label="Fechar">?</button>
+        <span id="modalImportTitulo">📥 Importar Extrato</span>
+        <button class="modal-close" id="btnFecharModalImport" aria-label="Fechar">✕</button>
       </div>
 
       <!-- Stepper -->
@@ -593,36 +593,36 @@
       <!-- Step 1: Upload -->
       <div class="import-step active" id="importStep1">
         <div style="font-size:0.875rem;font-weight:600;color:var(--card-text-sec);margin-bottom:1rem;">
-          Conta: <strong id="importContaNome" style="color:var(--card-text);">�</strong>
+          Conta: <strong id="importContaNome" style="color:var(--card-text);">—</strong>
         </div>
         <div class="drop-zone" id="dropZone">
-          <div class="drop-zone-icon">??</div>
+          <div class="drop-zone-icon">📂</div>
           <div class="drop-zone-title">Arraste seu arquivo aqui</div>
           <div class="drop-zone-sub">CSV, OFX, QFX, PDF ou imagem</div>
           <div style="margin-top:0.875rem;">
             <label style="display:inline-flex;align-items:center;gap:0.375rem;padding:0.5rem 1.125rem;border-radius:0.75rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:inherit;">
-              ?? Escolher arquivo
+              📁 Escolher arquivo
               <input type="file" id="fileInput" accept=".csv,.ofx,.qfx,.pdf,.jpg,.jpeg,.png" style="display:none;">
             </label>
           </div>
         </div>
         <div class="file-chosen" id="fileChosen">
-          <span style="font-size:1.25rem;">??</span>
+          <span style="font-size:1.25rem;">📄</span>
           <span id="fileChosenName" style="font-size:0.875rem;font-weight:600;color:#16a34a;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-          <button id="btnRemoveFile" style="background:none;border:none;cursor:pointer;font-size:1rem;color:#dc2626;">?</button>
+          <button id="btnRemoveFile" style="background:none;border:none;cursor:pointer;font-size:1rem;color:#dc2626;">✕</button>
         </div>
         <div id="importStep1Error" style="display:none;margin-top:0.75rem;padding:0.625rem 0.875rem;border-radius:0.75rem;background:#fef2f2;color:#dc2626;font-size:0.8125rem;font-weight:600;"></div>
-        <button class="modal-submit" id="btnImportStep1Next" disabled style="margin-top:1.25rem;">Continuar ?</button>
+        <button class="modal-submit" id="btnImportStep1Next" disabled style="margin-top:1.25rem;">Continuar →</button>
         <button class="modal-cancel" id="btnCancelarImport">Cancelar</button>
       </div>
 
       <!-- Step 2: Preview -->
       <div class="import-step" id="importStep2">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem;">
-          <div style="font-size:0.9375rem;font-weight:800;color:var(--card-text);">Revisar Transa��es</div>
+          <div style="font-size:0.9375rem;font-weight:800;color:var(--card-text);">Revisar Transações</div>
           <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-            <span id="previewCount" class="dedup-badge dedup-badge-ok">0 transa��es</span>
-            <span id="previewDedupBadge" class="dedup-badge dedup-badge-warn" style="display:none;">?? 0 duplicatas</span>
+            <span id="previewCount" class="dedup-badge dedup-badge-ok">0 transações</span>
+            <span id="previewDedupBadge" class="dedup-badge dedup-badge-warn" style="display:none;">⚠️ 0 duplicatas</span>
             <span id="importConfiabilidadeBadge" style="display:none;"></span>
           </div>
         </div>
@@ -632,8 +632,8 @@
           <div style="flex:1;min-width:150px;">
             <div class="modal-label" style="margin-bottom:0.375rem;">Tipo Global</div>
             <div style="display:flex;gap:0.375rem;">
-              <button class="tipo-pill tipo-pill-receita" id="globalTipoReceita" onclick="setGlobalTipo('receita')">? Receita</button>
-              <button class="tipo-pill tipo-pill-despesa" id="globalTipoDespesa" onclick="setGlobalTipo('despesa')">? Despesa</button>
+              <button class="tipo-pill tipo-pill-receita" id="globalTipoReceita" onclick="setGlobalTipo('receita')">↑ Receita</button>
+              <button class="tipo-pill tipo-pill-despesa" id="globalTipoDespesa" onclick="setGlobalTipo('despesa')">↓ Despesa</button>
               <button style="padding:0.2rem 0.5rem;border-radius:999px;font-size:0.6875rem;font-weight:700;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--text-sec);cursor:pointer;font-family:inherit;" id="globalTipoAuto" onclick="setGlobalTipo('auto')">Auto</button>
             </div>
           </div>
@@ -657,7 +657,7 @@
               <tr>
                 <th style="width:24px;"><input type="checkbox" id="chkAll" title="Selecionar todos"></th>
                 <th>Data</th>
-                <th>Descri��o</th>
+                <th>Descrição</th>
                 <th>Tipo</th>
                 <th>Valor</th>
                 <th>Categoria</th>
@@ -667,45 +667,45 @@
           </table>
         </div>
 
-        <!-- Pagina��o -->
+        <!-- Paginação -->
         <div class="import-pagination">
-          <button class="import-pag-btn" id="btnPrevPage" onclick="previewNavPage(-1)">� Anterior</button>
-          <span class="import-pag-info" id="previewPageInfo">P�gina 1 de 1</span>
-          <button class="import-pag-btn" id="btnNextPage" onclick="previewNavPage(1)">Pr�ximo �</button>
+          <button class="import-pag-btn" id="btnPrevPage" onclick="previewNavPage(-1)">‹ Anterior</button>
+          <span class="import-pag-info" id="previewPageInfo">Página 1 de 1</span>
+          <button class="import-pag-btn" id="btnNextPage" onclick="previewNavPage(1)">Próximo ›</button>
         </div>
 
-        <button class="modal-submit" id="btnImportStep2Next" style="margin-top:1rem;">Importar Selecionados ?</button>
-        <button class="modal-cancel" id="btnImportStep2Back">? Voltar</button>
+        <button class="modal-submit" id="btnImportStep2Next" style="margin-top:1rem;">Importar Selecionados →</button>
+        <button class="modal-cancel" id="btnImportStep2Back">← Voltar</button>
       </div>
 
       <!-- Step 3: Resultado -->
       <div class="import-step" id="importStep3">
         <div style="text-align:center;padding:1.5rem 0;">
-          <div id="importResultIcon" style="font-size:3rem;margin-bottom:0.75rem;">?</div>
+          <div id="importResultIcon" style="font-size:3rem;margin-bottom:0.75rem;">⏳</div>
           <div id="importResultTitle" style="font-size:1.125rem;font-weight:800;color:var(--text-main);margin-bottom:0.375rem;">Importando...</div>
-          <div id="importResultSub" style="font-size:0.875rem;font-weight:500;color:var(--text-sec);">Aguarde, salvando transa��es...</div>
+          <div id="importResultSub" style="font-size:0.875rem;font-weight:500;color:var(--text-sec);">Aguarde, salvando transações...</div>
         </div>
         <div id="importResultDetails" style="display:none;background:var(--input-bg);border:1.5px solid var(--input-border);border-radius:0.75rem;padding:1rem;margin-bottom:1rem;font-size:0.8125rem;font-weight:600;color:var(--card-text);">
         </div>
-        <!-- Confirma��o de saldo: usu�rio pode corrigir antes de fechar -->
+        <!-- Confirmação de saldo: usuário pode corrigir antes de fechar -->
         <div id="importSaldoConfirm" style="display:none;margin-bottom:1rem;">
-          <label style="font-size:0.8125rem;font-weight:700;color:var(--card-text-sec);display:block;margin-bottom:0.375rem;">?? Saldo atual da conta (confirme ou corrija):</label>
+          <label style="font-size:0.8125rem;font-weight:700;color:var(--card-text-sec);display:block;margin-bottom:0.375rem;">💰 Saldo atual da conta (confirme ou corrija):</label>
           <input type="text" id="importSaldoFinalInput" class="modal-input" placeholder="R$ 0,00" style="font-size:0.9rem;font-weight:700;">
-          <div style="font-size:0.75rem;color:var(--text-sec);margin-top:0.25rem;">Este valor ser� salvo como saldo da conta</div>
+          <div style="font-size:0.75rem;color:var(--text-sec);margin-top:0.25rem;">Este valor será salvo como saldo da conta</div>
         </div>
-        <button class="modal-submit" id="btnImportConcluir" style="display:none;">Conclu�do ?</button>
+        <button class="modal-submit" id="btnImportConcluir" style="display:none;">Concluído ✓</button>
       </div>
 
     </div>
   </div>
 
-  <!-- - Modal Confirmar Exclus�o -------------------------- -->
+  <!-- ═ Modal Confirmar Exclusão ══════════════════════════ -->
   <div class="modal-overlay" id="modalExcluir" role="dialog" aria-modal="true">
     <div class="modal-card" onclick="event.stopPropagation()" style="max-width:380px;text-align:center;">
-      <div style="font-size:2.5rem;margin-bottom:0.75rem;">???</div>
+      <div style="font-size:2.5rem;margin-bottom:0.75rem;">🗑️</div>
       <div style="font-size:1rem;font-weight:800;color:var(--text-main);margin-bottom:0.375rem;">Excluir conta?</div>
-      <div style="font-size:0.875rem;font-weight:500;color:var(--text-sec);margin-bottom:0.375rem;" id="excluirContaNome">�</div>
-      <div style="font-size:0.8125rem;font-weight:500;color:#dc2626;margin-bottom:1.5rem;">As transa��es importadas desta conta n�o ser�o exclu�das.</div>
+      <div style="font-size:0.875rem;font-weight:500;color:var(--text-sec);margin-bottom:0.375rem;" id="excluirContaNome">—</div>
+      <div style="font-size:0.8125rem;font-weight:500;color:#dc2626;margin-bottom:1.5rem;">As transações importadas desta conta não serão excluídas.</div>
       <div style="display:flex;gap:0.75rem;">
         <button id="btnCancelarExcluir" style="flex:1;padding:0.625rem;border:none;border-radius:0.75rem;font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;background:rgba(0,0,0,0.05);color:var(--text-sec);transition:background .15s;">Cancelar</button>
         <button id="btnConfirmarExcluir" style="flex:1;padding:0.625rem;border:none;border-radius:0.75rem;font-size:0.875rem;font-weight:800;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;transition:opacity .2s;">Excluir</button>
@@ -713,10 +713,10 @@
     </div>
   </div>
 
-  <!-- - Shared row-category dropdown ------------------------ -->
+  <!-- ═ Shared row-category dropdown ════════════════════════ -->
   <div id="rowCatSharedDd"></div>
 
-  <!-- - Scripts -------------------------------------------- -->
+  <!-- ═ Scripts ════════════════════════════════════════════ -->
   <script src="js/bud-utils.js"></script>
   <script src="js/categorias-padrao.js"></script>
   <script src="js/firebase-config.js"></script>

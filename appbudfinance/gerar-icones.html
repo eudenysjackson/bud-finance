@@ -110,35 +110,9 @@
   </div>
 
   <script>
-    // ── SVG do fundo gelo (sem logo — logo é inserida via Canvas) ────────────────
+    // ── SVG do fundo branco (logo colorida inserida via Canvas) ──────────────────
     const BG_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#f4f7fb"/>
-      <stop offset="60%"  stop-color="#e2e8f0"/>
-      <stop offset="100%" stop-color="#d4dce9"/>
-    </linearGradient>
-    <radialGradient id="shine" cx="155" cy="100" r="270" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.92"/>
-      <stop offset="55%"  stop-color="#ffffff" stop-opacity="0.25"/>
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.00"/>
-    </radialGradient>
-    <filter id="cardShadow" x="-15%" y="-15%" width="130%" height="130%">
-      <feDropShadow dx="0" dy="6" stdDeviation="18" flood-color="#94a3b8" flood-opacity="0.22"/>
-    </filter>
-    <clipPath id="rc"><rect width="512" height="512" rx="112"/></clipPath>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <rect width="512" height="512" rx="112" fill="url(#shine)"/>
-  <g clip-path="url(#rc)">
-    <circle cx="435" cy="440" r="265" fill="none" stroke="#bfdbfe" stroke-width="2" opacity="0.55"/>
-    <circle cx="68"  cy="55"  r="205" fill="none" stroke="#dbeafe" stroke-width="2" opacity="0.60"/>
-    <rect x="72" y="72" width="368" height="368" rx="68"
-      fill="rgba(255,255,255,0.58)" stroke="rgba(255,255,255,0.90)"
-      stroke-width="2" filter="url(#cardShadow)"/>
-    <rect x="0" y="450" width="512" height="62" fill="rgba(255,255,255,0.28)"/>
-    <rect x="168" y="19" width="176" height="5" rx="2.5" fill="#3b82f6" opacity="0.30"/>
-  </g>
+  <rect width="512" height="512" rx="112" fill="#ffffff"/>
 </svg>`;
 
     // ── Utilitários ─────────────────────────────────────────────────────────────
@@ -171,8 +145,8 @@
       // 1. Fundo gelo
       ctx.drawImage(bgImg, 0, 0, size, size);
 
-      // 2. Logo centralizada — ocupa ~68% do ícone (dentro da safe zone maskable)
-      const pad    = Math.round(size * 0.14);
+      // 2. Logo centralizada — ocupa ~80% do ícone (padding de 10%)
+      const pad    = Math.round(size * 0.10);
       const logoSz = size - pad * 2;
       ctx.drawImage(logoImg, pad, pad, logoSz, logoSz);
 

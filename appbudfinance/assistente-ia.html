@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
-  <meta name="description" content="Bud Finance � Assistente IA">
+  <meta name="description" content="Bud Finance — Assistente IA">
   <title>Assistente IA - Bud Finance</title>
 
   <link rel="icon" type="image/png" href="logo.png">
@@ -56,7 +56,7 @@
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:'Inter',system-ui,sans-serif;background-color:var(--bg-page);height:100dvh;overflow:hidden;transition:background-color 0.35s ease;}
 
-    /* -- Splash ------------------------------------------- */
+    /* ── Splash ─────────────────────────────────────────── */
     #splash{position:fixed;inset:0;background:var(--bg-page);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;z-index:99999;transition:opacity .5s ease;}
     #splash.hide{opacity:0;pointer-events:none;}
     .splash-bar{width:120px;height:4px;border-radius:2px;background:#e2e8f0;overflow:hidden;}
@@ -64,15 +64,15 @@
     @keyframes pulse-logo{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
     @keyframes slide-bar{0%{transform:translateX(-100%);}100%{transform:translateX(350%);}}
 
-    /* -- Blobs -------------------------------------------- */
+    /* ── Blobs ──────────────────────────────────────────── */
     .blob{position:fixed;border-radius:9999px;pointer-events:none;z-index:0;opacity:var(--blob-opacity,1);transition:opacity 0.35s ease;}
     .blob-blue{top:-5%;left:-5%;width:35%;height:35%;background:rgba(147,197,253,0.30);filter:blur(100px);}
     .blob-cyan{bottom:-5%;right:-5%;width:25%;height:25%;background:rgba(103,232,249,0.20);filter:blur(100px);}
 
-    /* -- Layout ------------------------------------------- */
+    /* ── Layout ─────────────────────────────────────────── */
     .dash-layout{display:flex;height:100dvh;overflow:hidden;}
 
-    /* -- Sidebar ------------------------------------------ */
+    /* ── Sidebar ────────────────────────────────────────── */
     .sidebar{width:260px;background:var(--sidebar-bg);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-right:1px solid var(--card-border);display:flex;flex-direction:column;padding:1.5rem 1rem;position:fixed;top:0;left:0;bottom:0;z-index:50;transition:transform .3s ease,width .3s ease,background 0.35s ease,border-color 0.35s ease;overflow:visible;}
     .sidebar-collapse-btn{display:none;position:absolute;top:50%;right:-1rem;transform:translateY(-50%);width:1rem;height:3.5rem;border-radius:0 0.5rem 0.5rem 0;background:var(--btn-bg);border:none;color:var(--btn-text);font-size:0.6rem;font-weight:700;cursor:pointer;align-items:center;justify-content:center;z-index:51;box-shadow:3px 0 12px rgba(0,0,0,0.22);transition:background 0.35s ease;flex-shrink:0;line-height:1;}
     .sidebar.collapsed{width:64px;padding-left:0.75rem;padding-right:0.75rem;align-items:center;}
@@ -104,18 +104,18 @@
     .sidebar-user-id{font-size:0.625rem;color:var(--text-sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .hamburger-btn{display:none;background:none;border:none;font-size:1.25rem;cursor:pointer;color:var(--text-sec);padding:0.25rem;}
 
-    /* -- Main --------------------------------------------- */
+    /* ── Main ───────────────────────────────────────────── */
     .dash-main{flex:1;margin-left:260px;display:flex;flex-direction:column;height:100dvh;overflow:hidden;transition:margin-left .3s ease;position:relative;z-index:1;}
     .sidebar.collapsed ~ .dash-main{margin-left:64px;}
 
-    /* -- Chat container ----------------------------------- */
+    /* ── Chat container ─────────────────────────────────── */
     .chat-wrap{flex:1;display:flex;flex-direction:column;max-width:760px;width:100%;margin:0 auto;padding:0 1rem;overflow:hidden;}
     #chatContainer{flex:1;overflow-y:auto;padding:1rem 0;display:flex;flex-direction:column;gap:0.75rem;scroll-behavior:smooth;}
     #chatContainer::-webkit-scrollbar{width:4px;}
     #chatContainer::-webkit-scrollbar-track{background:transparent;}
     #chatContainer::-webkit-scrollbar-thumb{background:rgba(148,163,184,0.35);border-radius:2px;}
 
-    /* -- Mensagens ---------------------------------------- */
+    /* ── Mensagens ──────────────────────────────────────── */
     .msg{display:flex;gap:0.625rem;max-width:86%;animation:fadeIn 0.25s ease;}
     .msg.msg-user{align-self:flex-end;flex-direction:row-reverse;}
     .msg.msg-bot{align-self:flex-start;}
@@ -127,19 +127,19 @@
     .msg-user .msg-bubble{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border-bottom-right-radius:0.25rem;}
     @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 
-    /* -- Typing indicator --------------------------------- */
+    /* ── Typing indicator ───────────────────────────────── */
     .typing{display:flex;align-items:center;gap:0.25rem;padding:0.625rem 0.875rem;}
     .typing span{width:6px;height:6px;border-radius:50%;background:var(--text-sec);animation:blink 1.4s infinite;}
     .typing span:nth-child(2){animation-delay:.2s;}
     .typing span:nth-child(3){animation-delay:.4s;}
     @keyframes blink{0%,80%,100%{opacity:.25;}40%{opacity:1;}}
 
-    /* -- Sugest�es ---------------------------------------- */
+    /* ── Sugestões ──────────────────────────────────────── */
     .suggestions{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.25rem;}
     .sug-btn{padding:0.4375rem 0.875rem;border-radius:2rem;border:1.5px solid var(--card-border);background:var(--card-bg);color:var(--card-text);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;white-space:nowrap;backdrop-filter:blur(8px);}
     .sug-btn:hover{border-color:var(--btn-bg);color:var(--btn-bg);background:rgba(37,99,235,0.05);}
 
-    /* -- Bot�es de chamado -------------------------------- */
+    /* ── Botões de chamado ──────────────────────────────── */
     .chamado-btns{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.25rem;}
     .chamado-btn{padding:0.4375rem 0.875rem;border-radius:2rem;border:1.5px solid var(--card-border);background:var(--card-bg);color:var(--card-text);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;}
     .chamado-btn:hover{border-color:var(--btn-bg);color:var(--btn-bg);}
@@ -148,7 +148,7 @@
     .chamado-btn.sug{border-color:#8b5cf6;color:#8b5cf6;}
     .chamado-btn.sug:hover{background:rgba(139,92,246,0.05);}
 
-    /* -- Input bar ---------------------------------------- */
+    /* ── Input bar ──────────────────────────────────────── */
     .chat-input-bar{padding:0.875rem 0;border-top:1px solid var(--card-border);}
     .chat-input-row{display:flex;gap:0.5rem;align-items:flex-end;background:var(--card-bg);border:1.5px solid var(--card-border);border-radius:1.125rem;padding:0.5rem 0.5rem 0.5rem 1rem;backdrop-filter:blur(16px);transition:border-color .18s;}
     .chat-input-row:focus-within{border-color:var(--input-focus);}
@@ -158,7 +158,7 @@
     #btnEnviar:disabled{opacity:0.45;cursor:not-allowed;}
     #btnEnviar:not(:disabled):hover{transform:scale(1.05);}
 
-    /* -- Markdown nas bolhas ------------------------------- */
+    /* ── Markdown nas bolhas ─────────────────────────────── */
     .msg-bubble p{margin:0 0 0.4rem;}
     .msg-bubble p:last-child{margin-bottom:0;}
     .msg-bubble ul,.msg-bubble ol{margin:0.2rem 0 0.4rem 1.1rem;}
@@ -176,7 +176,7 @@
     .msg-bubble a{color:var(--btn-bg);text-decoration:underline;pointer-events:none;cursor:default;}
     .msg-user .msg-bubble code{background:rgba(255,255,255,0.15);}
     .msg-user .msg-bubble th{background:rgba(255,255,255,0.15);}
-    /* -- Alertas de sa�de financeira ----------------------- */
+    /* ── Alertas de saúde financeira ─────────────────────── */
     .alerta-saude{display:flex;gap:0.5rem;align-items:flex-start;padding:0.5rem 0.75rem;border-radius:0.75rem;font-size:0.8rem;line-height:1.5;border:1.5px solid;margin-bottom:0.25rem;}
     .alerta-saude.critico{background:rgba(239,68,68,0.07);border-color:rgba(239,68,68,0.25);color:#dc2626;}
     .alerta-saude.alerta{background:rgba(245,158,11,0.07);border-color:rgba(245,158,11,0.25);color:#b45309;}
@@ -185,18 +185,18 @@
     [data-theme="dark"] .alerta-saude.alerta{color:#fcd34d;background:rgba(245,158,11,0.12);}
     [data-theme="dark"] .alerta-saude.info{color:#93c5fd;background:rgba(59,130,246,0.12);}
 
-    /* -- Voz + Anexar ------------------------------------- */
+    /* ── Voz + Anexar ───────────────────────────────────── */
     #btnAnexar,#btnMic{width:2.25rem;height:2.25rem;border-radius:0.625rem;background:none;border:none;color:var(--text-sec);font-size:1.125rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:color .18s;padding:0;}
     #btnAnexar:hover,#btnMic:hover{color:var(--btn-bg);}
     #btnMic{display:none;}
     #btnMic.gravando{color:#ef4444;animation:pulse-mic 1s ease-in-out infinite;}
     @keyframes pulse-mic{0%,100%{transform:scale(1);}50%{transform:scale(1.2);}}
 
-    /* -- Paywall ------------------------------------------ */
+    /* ── Paywall ────────────────────────────────────────── */
     #paywallContainer{display:none;flex:1;align-items:center;justify-content:center;padding:2rem;}
 
 
-    /* -- Responsive --------------------------------------- */
+    /* ── Responsive ─────────────────────────────────────── */
     @media(max-width:768px){
       .sidebar{transform:translateX(-100%);}
       .sidebar.open{transform:translateX(0);}
@@ -208,7 +208,7 @@
     }
     @media(min-width:769px){.sidebar-collapse-btn{display:flex;}}
 
-    /* -- Custom select (card de transa��o IA) -------------- */
+    /* ── Custom select (card de transação IA) ────────────── */
     .ia-cs-wrap{position:relative;}
     .ia-cs-trigger{width:100%;padding:0.4rem 2rem 0.4rem 0.6rem;border:1.5px solid var(--card-border);border-radius:0.5rem;font-size:0.8125rem;font-weight:600;color:var(--text-main);background:var(--input-bg);cursor:pointer;font-family:inherit;text-align:left;display:flex;align-items:center;justify-content:space-between;outline:none;transition:border-color .15s,background .35s,color .35s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .ia-cs-trigger:focus,.ia-cs-trigger.open{border-color:var(--input-focus);}
@@ -220,7 +220,7 @@
     .ia-cs-option:hover,.ia-cs-option.selected{background:var(--sidebar-link-hover-bg);color:var(--btn-bg);}
     .ia-cs-option:first-child{border-radius:0.625rem 0.625rem 0 0;}
     .ia-cs-option:last-child{border-radius:0 0 0.625rem 0.625rem;}
-    /* -- Toggle tipo (Despesa / Receita) ------------------- */
+    /* ── Toggle tipo (Despesa / Receita) ─────────────────── */
     .ia-tipo-toggle{display:flex;gap:0;border:1.5px solid var(--card-border);border-radius:0.5rem;overflow:hidden;}
     .ia-tipo-btn{flex:1;padding:0.4rem 0;font-size:0.8125rem;font-weight:700;font-family:inherit;border:none;background:var(--input-bg);color:var(--text-sec);cursor:pointer;transition:background .15s,color .15s;}
     .ia-tipo-btn.active-despesa{background:#ef4444;color:#fff;}
@@ -229,69 +229,69 @@
 </head>
 <body>
 
-  <!-- - Splash -------------------------------------------- -->
+  <!-- ═ Splash ════════════════════════════════════════════ -->
   <div id="splash">
     <img src="logo.png" alt="Bud Finance" style="width:56px;height:56px;object-fit:contain;animation:pulse-logo 1.8s ease-in-out infinite;">
     <div class="splash-bar"><div class="splash-bar-inner"></div></div>
   </div>
 
-  <!-- - Blobs --------------------------------------------- -->
+  <!-- ═ Blobs ═════════════════════════════════════════════ -->
   <div class="blob blob-blue" aria-hidden="true"></div>
   <div class="blob blob-cyan" aria-hidden="true"></div>
 
-  <!-- - Overlay sidebar mobile ---------------------------- -->
+  <!-- ═ Overlay sidebar mobile ════════════════════════════ -->
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-  <!-- - Layout -------------------------------------------- -->
+  <!-- ═ Layout ════════════════════════════════════════════ -->
   <div class="dash-layout">
 
-    <!-- - Sidebar ---------------------------------------- -->
+    <!-- ─ Sidebar ──────────────────────────────────────── -->
     <aside class="sidebar" id="sidebar">
-      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">�</button>
+      <button class="sidebar-collapse-btn" id="btnSidebarCollapse" aria-label="Recolher sidebar">‹</button>
       <div class="sidebar-logo">
         <img src="logo.png" alt="Bud Finance" width="32" height="32">
         <span class="sidebar-logo-text">Bud Finance</span>
       </div>
       <nav class="sidebar-nav">
         <a href="dashboard.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Dashboard</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Dashboard</span>
         </a>
-        <div class="sidebar-group-label">Finan�as</div>
+        <div class="sidebar-group-label">Finanças</div>
         <a href="carteira.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Contas</span>
+          <span class="sidebar-link-icon">🏦</span><span class="sidebar-link-text"> Contas</span>
         </a>
         <a href="cartoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Cart�es</span>
+          <span class="sidebar-link-icon">💳</span><span class="sidebar-link-text"> Cartões</span>
         </a>
         <a href="recorrentes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Recorrentes</span>
+          <span class="sidebar-link-icon">🔄</span><span class="sidebar-link-text"> Recorrentes</span>
         </a>
         <a href="dividas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> D�vidas</span>
+          <span class="sidebar-link-icon">💸</span><span class="sidebar-link-text"> Dívidas</span>
         </a>
         <a href="metas.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Metas</span>
+          <span class="sidebar-link-icon">🏆</span><span class="sidebar-link-text"> Metas</span>
         </a>
         <a href="mercado.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Compras</span>
+          <span class="sidebar-link-icon">🛒</span><span class="sidebar-link-text"> Compras</span>
         </a>
         <a href="categorias.html" class="sidebar-link">
-          <span class="sidebar-link-icon">???</span><span class="sidebar-link-text"> Categorias</span>
+          <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
         <a href="graficos.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> An�lises</span>
+          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <a href="assistente-ia.html" class="sidebar-link active">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Assistente IA</span>
+          <span class="sidebar-link-icon">🤖</span><span class="sidebar-link-text"> Assistente IA</span>
         </a>
         <a href="assistente-whatsapp.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
+          <span class="sidebar-link-icon">💬</span><span class="sidebar-link-text"> WhatsApp</span><span class="sidebar-badge-plus">Plus</span>
         </a>
         <div class="sidebar-nav-divider"></div>
         <a href="configuracoes.html" class="sidebar-link">
-          <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Configura��es</span>
+          <span class="sidebar-link-icon">⚙️</span><span class="sidebar-link-text"> Configurações</span>
         </a>
       </nav>
       <div class="sidebar-user" style="margin-top:auto;">
@@ -302,31 +302,31 @@
         </div>
       </div>
       <button class="sidebar-link" id="btnLogout" style="margin-top:0.75rem;color:#dc2626;">
-        <span class="sidebar-link-icon">??</span><span class="sidebar-link-text"> Sair</span>
+        <span class="sidebar-link-icon">🚪</span><span class="sidebar-link-text"> Sair</span>
       </button>
     </aside>
 
-    <!-- - Main ------------------------------------------- -->
+    <!-- ─ Main ─────────────────────────────────────────── -->
     <main class="dash-main" id="dashMain">
 
       <!-- Header -->
       <div style="padding:1rem 1rem 0;max-width:760px;width:100%;margin:0 auto;">
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <div style="display:flex;align-items:center;gap:0.75rem;">
-            <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">?</button>
+            <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
             <div>
-              <h1 style="font-size:1.375rem;font-weight:800;color:var(--text-main);letter-spacing:-0.025em;">?? Assistente IA</h1>
+              <h1 style="font-size:1.375rem;font-weight:800;color:var(--text-main);letter-spacing:-0.025em;">🤖 Assistente IA</h1>
               <p style="font-size:0.8125rem;color:var(--text-sec);margin-top:0.125rem;" id="headerSubtitle">Seu consultor financeiro pessoal</p>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:0.5rem;">
             <button onclick="window.exportarConversa()" title="Exportar conversa" style="padding:0.4375rem 0.75rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;white-space:nowrap;">
-              ? Exportar
+              ⬇ Exportar
             </button>
             <button id="btnLimparChat" title="Limpar conversa" style="padding:0.4375rem 0.875rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;white-space:nowrap;">
-              ?? Limpar
+              🗑 Limpar
             </button>
-            <button onclick="window.iniciarChamado()" title="Reportar bug ou dar sugest�o" style="padding:0.4375rem 0.625rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s;line-height:1;" aria-label="Suporte">
+            <button onclick="window.iniciarChamado()" title="Reportar bug ou dar sugestão" style="padding:0.4375rem 0.625rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s;line-height:1;" aria-label="Suporte">
               ?
             </button>
           </div>
@@ -336,9 +336,9 @@
       <!-- Paywall -->
       <div id="paywallContainer">
         <div style="max-width:480px;margin:0 auto;text-align:center;padding:2.5rem 1.5rem;background:var(--card-bg);border:1px solid var(--card-border);border-radius:1.5rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.08);">
-          <div style="font-size:3rem;margin-bottom:1rem;">??</div>
+          <div style="font-size:3rem;margin-bottom:1rem;">🔒</div>
           <div style="font-size:1.25rem;font-weight:800;color:var(--text-main);margin-bottom:0.5rem;">Recurso Bud Plus</div>
-          <div style="font-size:0.875rem;color:var(--text-sec);line-height:1.6;margin-bottom:1.5rem;">O Assistente IA � exclusivo para assinantes <strong>Plus</strong>. Tire d�vidas sobre suas finan�as, receba conselhos e an�lises personalizadas baseadas nos seus dados reais.</div>
+          <div style="font-size:0.875rem;color:var(--text-sec);line-height:1.6;margin-bottom:1.5rem;">O Assistente IA é exclusivo para assinantes <strong>Plus</strong>. Tire dúvidas sobre suas finanças, receba conselhos e análises personalizadas baseadas nos seus dados reais.</div>
           <a href="configuracoes.html" style="display:inline-block;padding:0.75rem 1.75rem;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:0.9375rem;font-weight:800;border-radius:0.875rem;text-decoration:none;">Ver Planos</a>
         </div>
       </div>
@@ -351,10 +351,10 @@
         <div class="chat-input-bar">
           <form id="chatForm" autocomplete="off">
             <div class="chat-input-row">
-              <button type="button" id="btnAnexar" title="Enviar arquivo (OFX, PDF, imagem, Excel, CSV)">??</button>
+              <button type="button" id="btnAnexar" title="Enviar arquivo (OFX, PDF, imagem, Excel, CSV)">📎</button>
               <input type="file" id="fileInput" style="display:none" accept=".ofx,.qfx,.pdf,.jpg,.jpeg,.png,.webp,.csv,.xls,.xlsx">
-              <textarea id="chatInput" rows="1" placeholder="Pergunte sobre suas finan�as..." maxlength="1000"></textarea>
-              <button type="button" id="btnMic" title="Falar">??</button>
+              <textarea id="chatInput" rows="1" placeholder="Pergunte sobre suas finanças..." maxlength="1000"></textarea>
+              <button type="button" id="btnMic" title="Falar">🎤</button>
               <button type="submit" id="btnEnviar" title="Enviar">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </button>
@@ -368,7 +368,7 @@
 
   <!-- SheetJS para leitura de XLS/XLSX no chat -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- marked.js + DOMPurify para renderiza��o segura de markdown nas respostas da IA -->
+  <!-- marked.js + DOMPurify para renderização segura de markdown nas respostas da IA -->
   <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
   <script type="module" src="js/assistente-ia.js"></script>
