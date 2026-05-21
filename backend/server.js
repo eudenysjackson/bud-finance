@@ -2370,15 +2370,21 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
 
   // 5. Criar preapproval no Mercado Pago
   var mpBody = {
-    reason:             plan.title,
-    external_reference: externalRef,
-    payer_email:        email,
+    reason:              plan.title,
+    external_reference:  externalRef,
+    payer_email:         email,
+    statement_descriptor: 'BUD FINANCE',   // exibido na fatura do cartão
     auto_recurring: {
       frequency:          1,
       frequency_type:     'months',
       transaction_amount: amount,
       currency_id:        'BRL'
     },
+    payment_methods_allowed: [
+      { payment_type: 'credit_card' },
+      { payment_type: 'debit_card'  },
+      { payment_type: 'account_money' }  // saldo MP
+    ],
     back_url: FRONTEND_URL + '/dashboard.html',
     status:   'pending'
   };
@@ -2481,13 +2487,36 @@ async function _mpHandleSubscription(preapprovalId) {
   }
 }
 
-// Para pagamentos avulsos: delega para _mpHandleSubscription via preapproval_id
+// Para pagamentos avulsos: atualiza Firestore via preapproval_id
 async function _mpHandlePayment(paymentId) {
   var mpRes = await fetch('https://api.mercadopago.com/v1/payments/' + paymentId, {
     headers: { 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN }
   });
   if (!mpRes.ok) return;
   var payment = await mpRes.json();
+
+  // Se pagamento recusado: marca flag no Firestore para o front exibir alerta
+  if (payment.status === 'rejected' && payment.preapproval_id) {
+    try {
+      var subRes  = await fetch('https://api.mercadopago.com/preapproval/' + payment.preapproval_id, {
+        headers: { 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN }
+      });
+      if (subRes.ok) {
+        var sub  = await subRes.json();
+        var uid  = String(sub.external_reference || '').split('|')[0];
+        if (uid) {
+          await db.collection('usuarios').doc(uid).update({
+            pagamentoPendente:   true,
+            mpSubscriptionId:    String(payment.preapproval_id),
+            planoAtualizadoEm:   admin.firestore.FieldValue.serverTimestamp()
+          });
+          console.log('[MP webhook] Pagamento recusado — flag pagamentoPendente:', uid, payment.status_detail);
+        }
+      }
+    } catch (e) { console.error('[MP webhook] Erro ao marcar pagamentoPendente:', e.message); }
+    return;
+  }
+
   if (payment.preapproval_id) await _mpHandleSubscription(String(payment.preapproval_id));
 }
 
