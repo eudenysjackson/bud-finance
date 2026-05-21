@@ -8,13 +8,13 @@
 		"VsCodeTaskButtons.showCounter": false,
 		"VsCodeTaskButtons.tasks": [
 			{
-				"label": "🚀 Go Live",
-				"task": "🚀 Abrir Localhost",
-				"tooltip": "Abre http://localhost:3000 no navegador"
+				"label": "🌐 Go Live",
+				"task": "🌐 Go Live",
+				"tooltip": "Abre http://127.0.0.1:3001/appbudfinance no navegador"
 			}
 		],
-		"liveServer.settings.port": 3000,
+		"liveServer.settings.port": 3001,
 		"liveServer.settings.NoBrowser": false,
-		"liveServer.settings.root": "/"
+		"liveServer.settings.root": "/appbudfinance"
 	}
 }

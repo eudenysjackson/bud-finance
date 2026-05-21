@@ -1,10 +1,24 @@
 # DECISIONS_LOG.md — Registro de Decisões Arquiteturais
 
 **Projeto**: Bud Finance  
-**Última atualização**: 20/05/2026
+**Última atualização**: 21/05/2026
 
 > **REGRA**: Antes de refatorar qualquer padrão, ler este doc primeiro.  
 > Toda decisão não-óbvia deve ser registrada aqui.
+
+---
+
+### DEC-048 — Configurações do VS Code: workspace file tem prioridade sobre settings.json
+
+- **Data**: 21/05/2026
+- **O que foi decidido**: Toda configuração do VS Code (Live Server, VsCodeTaskButtons, etc.) deve ser feita **exclusivamente** em `bud-finance.code-workspace` → campo `"settings"`. Alterações em `.vscode/settings.json` são **ignoradas** porque o workspace file as sobrescreve.
+- **Por quê**: O arquivo `bud-finance.code-workspace` define as configurações de workspace e tem precedência sobre `.vscode/settings.json` quando o projeto é aberto via `.code-workspace`. Perdemos tempo editando `settings.json` sem efeito.
+- **Consequências**:
+  - `liveServer.settings.root`: `"/appbudfinance"` → Live Server serve o app, não a landing page.
+  - `liveServer.settings.port`: `3001` → porta fixa.
+  - `VsCodeTaskButtons.tasks` → configurar aqui, não no `settings.json`.
+  - Botões "Ver Planos" em telas bloqueadas por plano devem apontar para `../index.html?checkout=PLANO` (não para `configuracoes.html`).
+- **Quando revisar**: Ao adicionar novas extensões com configurações de workspace.
 
 ---
 
