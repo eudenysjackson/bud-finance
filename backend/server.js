@@ -2751,6 +2751,41 @@ app.post('/api/push/token', async function (req, res) {
   }
 });
 
+// ─── POST /api/push/test — dispara notificação de teste para o próprio usuário ──
+app.post('/api/push/test', async function (req, res) {
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
+
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_) { return res.status(401).json({ error: 'Token inválido.' }); }
+
+  try {
+    var userDoc = await db.collection('usuarios').doc(decoded.uid).get();
+    if (!userDoc.exists) return res.status(404).json({ error: 'Usuário não encontrado.' });
+    var fcmToken = (userDoc.data() || {}).fcmToken;
+    if (!fcmToken) return res.status(400).json({ error: 'Nenhum FCM token salvo. Ative as notificações primeiro.' });
+
+    await admin.messaging().send({
+      token: fcmToken,
+      notification: {
+        title: '🧪 Teste — Bud Finance',
+        body: 'Notificações push funcionando perfeitamente!'
+      },
+      webpush: {
+        fcmOptions: { link: '/dashboard.html' }
+      }
+    });
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error('[/api/push/test]', e.message);
+    return res.status(500).json({ error: 'Erro ao enviar notificação: ' + e.message });
+  }
+});
+
 // ─── GET /api/notifications/daily — cron de notificações personalizadas ──
 // Auth: x-cron-secret header (env CRON_SECRET)
 // Trigger sugerido: Upstash QStash, diariamente às 11:00 UTC (08:00 Brasília)

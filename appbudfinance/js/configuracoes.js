@@ -1262,30 +1262,54 @@ onAuthStateChanged(auth, async function (user) {
 
   // ── Notificações Push ─────────────────────────────────────────────────
   const btnAtivarPush = document.getElementById('btnAtivarPush');
+  const btnTestarPush = document.getElementById('btnTestarPush');
   const pushDesc      = document.getElementById('pushStatusDesc');
+
+  function _mostrarBotaoTestar() {
+    if (btnAtivarPush) { btnAtivarPush.textContent = '✅ Ativado'; btnAtivarPush.disabled = true; btnAtivarPush.style.background = '#16a34a'; }
+    if (btnTestarPush) btnTestarPush.style.display = '';
+    if (pushDesc) pushDesc.textContent = 'O Buddy já está te enviando alertas personalizados.';
+  }
+
   if (btnAtivarPush) {
-    // Atualizar estado visual do botão
     const pushed = localStorage.getItem('bud_push_asked');
-    if (pushed === 'granted' || Notification.permission === 'granted') {
-      btnAtivarPush.textContent = '✅ Ativado';
-      btnAtivarPush.disabled    = true;
-      btnAtivarPush.style.background = '#16a34a';
-      if (pushDesc) pushDesc.textContent = 'O Buddy já está te enviando alertas personalizados.';
-    }
+    if (pushed === 'granted' || Notification.permission === 'granted') _mostrarBotaoTestar();
+
     btnAtivarPush.addEventListener('click', function () {
       if (window.BudPush) {
-        // Forçar o popup mesmo que já tenha sido pedido
         localStorage.removeItem('bud_push_asked');
         window.BudPush.requestIfNeeded(user);
-        // Atualizar botão após breve delay
         setTimeout(function () {
-          if (localStorage.getItem('bud_push_asked') === 'granted') {
-            btnAtivarPush.textContent = '✅ Ativado';
-            btnAtivarPush.disabled    = true;
-            btnAtivarPush.style.background = '#16a34a';
-            if (pushDesc) pushDesc.textContent = 'O Buddy já está te enviando alertas personalizados.';
-          }
+          if (localStorage.getItem('bud_push_asked') === 'granted') _mostrarBotaoTestar();
         }, 2000);
+      }
+    });
+  }
+
+  if (btnTestarPush) {
+    btnTestarPush.addEventListener('click', async function () {
+      btnTestarPush.textContent = '⏳ Enviando...';
+      btnTestarPush.disabled = true;
+      try {
+        const idToken = await user.getIdToken();
+        const baseUrl = window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com';
+        const resp = await fetch(baseUrl + '/api/push/test', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' }
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+          btnTestarPush.textContent = '✅ Enviado!';
+          if (pushDesc) pushDesc.textContent = 'Notificação de teste enviada — verifique sua bandeja de notificações.';
+        } else {
+          btnTestarPush.textContent = 'Testar';
+          alert('Erro: ' + (data.error || 'desconhecido'));
+        }
+      } catch (e) {
+        btnTestarPush.textContent = 'Testar';
+        alert('Erro de rede: ' + e.message);
+      } finally {
+        setTimeout(function () { btnTestarPush.disabled = false; if (btnTestarPush.textContent === '✅ Enviado!') btnTestarPush.textContent = 'Testar'; }, 3000);
       }
     });
   }
