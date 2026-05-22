@@ -2760,7 +2760,8 @@ app.get('/api/notifications/daily', async function (req, res) {
   if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
 
   var cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret || req.headers['x-cron-secret'] !== cronSecret) {
+  var provided   = req.headers['x-cron-secret'] || req.query.secret;
+  if (!cronSecret || provided !== cronSecret) {
     return res.status(401).json({ error: 'Unauthorized.' });
   }
 
