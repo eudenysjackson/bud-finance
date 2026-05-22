@@ -1298,7 +1298,11 @@ onAuthStateChanged(auth, async function (user) {
 
   if (btnAtivarPush) {
     const pushed = localStorage.getItem('bud_push_asked');
-    if (pushed === 'granted' || Notification.permission === 'granted') _mostrarBotaoTestar();
+    if (pushed === 'granted' || Notification.permission === 'granted') {
+      _mostrarBotaoTestar();
+      // Garantir que o token esteja salvo no Firestore (pode ter falhado em tentativas anteriores)
+      if (Notification.permission === 'granted') window._budRequestPushToken(user);
+    }
 
     btnAtivarPush.addEventListener('click', function () {
       if (window.BudPush) {
