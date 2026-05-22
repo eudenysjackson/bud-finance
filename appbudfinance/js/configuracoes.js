@@ -1259,4 +1259,34 @@ onAuthStateChanged(auth, async function (user) {
 
   const btnRevogar = document.getElementById('btnRevogarNotificacoes');
   if (btnRevogar) btnRevogar.addEventListener('click', revogarConsentimentoNotificacoes);
+
+  // ── Notificações Push ─────────────────────────────────────────────────
+  const btnAtivarPush = document.getElementById('btnAtivarPush');
+  const pushDesc      = document.getElementById('pushStatusDesc');
+  if (btnAtivarPush) {
+    // Atualizar estado visual do botão
+    const pushed = localStorage.getItem('bud_push_asked');
+    if (pushed === 'granted' || Notification.permission === 'granted') {
+      btnAtivarPush.textContent = '✅ Ativado';
+      btnAtivarPush.disabled    = true;
+      btnAtivarPush.style.background = '#16a34a';
+      if (pushDesc) pushDesc.textContent = 'O Buddy já está te enviando alertas personalizados.';
+    }
+    btnAtivarPush.addEventListener('click', function () {
+      if (window.BudPush) {
+        // Forçar o popup mesmo que já tenha sido pedido
+        localStorage.removeItem('bud_push_asked');
+        window.BudPush.requestIfNeeded(user);
+        // Atualizar botão após breve delay
+        setTimeout(function () {
+          if (localStorage.getItem('bud_push_asked') === 'granted') {
+            btnAtivarPush.textContent = '✅ Ativado';
+            btnAtivarPush.disabled    = true;
+            btnAtivarPush.style.background = '#16a34a';
+            if (pushDesc) pushDesc.textContent = 'O Buddy já está te enviando alertas personalizados.';
+          }
+        }, 2000);
+      }
+    });
+  }
 });

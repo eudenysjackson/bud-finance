@@ -8,11 +8,52 @@ import {
   doc, getDoc, collection, query, where, orderBy, limit, onSnapshot,
   addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+import { getMessaging, getToken, onMessage } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+
+// ─── FCM Push — solicitar token e registrar no backend ──────────────────
+// Chamado por window.BudPush.requestIfNeeded() em bud-utils.js após popup customizado
+window._budRequestPushToken = async function (user) {
+  var vapidKey = window.BUD_FCM_VAPID_KEY;
+  if (!vapidKey || vapidKey.startsWith('__')) {
+    if (window.budWarn) window.budWarn('[Push] BUD_FCM_VAPID_KEY não configurado. Gere em Firebase Console → Project Settings → Cloud Messaging.');
+    return;
+  }
+  try {
+    var messaging = getMessaging(app);
+    // Aguardar SW estar pronto
+    var swReg = window._budSWReg || await navigator.serviceWorker.ready;
+    var token = await getToken(messaging, { vapidKey: vapidKey, serviceWorkerRegistration: swReg });
+    if (!token) { if (window.budWarn) window.budWarn('[Push] getToken retornou vazio.'); return; }
+
+    // Ouvir mensagens em foreground (app aberto)
+    onMessage(messaging, function (payload) {
+      var d = payload.data || {};
+      var key = d.tag || 'fcm-' + Date.now();
+      if (window.BudInAppNotif) {
+        window.BudInAppNotif.addExternal(key, d.emoji || '📢', d.body || d.title || 'Nova notificação', d.url || null, d.url ? 'Ver' : null);
+      }
+    });
+
+    // Enviar token ao backend
+    var idToken = await user.getIdToken();
+    var res = await fetch((window.BUD_FUNCTIONS_URL || '') + '/api/push/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+      body: JSON.stringify({ token: token, platform: 'web' })
+    });
+    if (res.ok) {
+      localStorage.setItem('bud_push_asked', 'granted');
+      if (window.budShowToast) window.budShowToast('Notificações ativadas! O Buddy vai te avisar.', 'success');
+    }
+  } catch (err) {
+    if (window.budWarn) window.budWarn('[Push] Erro ao registrar token: ' + err.message);
+  }
+};
 
 // ─── State ──────────────────────────────────────────────────────────────
 let usuarioAtualId = null;
@@ -2561,6 +2602,16 @@ onAuthStateChanged(auth, async function (user) {
     // ── Banner de plano/trial ───────────────────────────────────────
     configurarBannerPlano(userData);
 
+    // ── Notificações in-app (Buddy banners) ────────────────────────
+    if (window.BudInAppNotif) {
+      window.BudInAppNotif.init(user, userData);
+    }
+
+    // ── Push permission (3s delay para não interromper carregamento) ─
+    setTimeout(function () {
+      if (window.BudPush) window.BudPush.requestIfNeeded(user);
+    }, 3000);
+
     // ── Aplicar tema salvo no perfil Firestore ──────────────────────
     if (window.budThemeManager && userData.temaEscolhido) {
       _skipThemeSync = true;
@@ -2614,6 +2665,14 @@ if (btnToggle) {
     valoresOcultos = !valoresOcultos;
     localStorage.setItem('bud_valores_ocultos', valoresOcultos);
     renderizarDashboard();
+  });
+}
+
+// ─── Painel de notificações ─────────────────────────────────────────────
+var btnBell = document.getElementById('btnBell');
+if (btnBell) {
+  btnBell.addEventListener('click', function () {
+    if (window.BudInAppNotif) window.BudInAppNotif.openPanel();
   });
 }
 

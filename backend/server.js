@@ -2719,6 +2719,379 @@ app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req
   }
 });
 
+// ─── POST /api/push/token — salva FCM token do usuário ──────────────────
+// Auth: Bearer ID token
+app.post('/api/push/token', async function (req, res) {
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
+
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_) { return res.status(401).json({ error: 'Token inválido.' }); }
+
+  var token    = sanitizeStr(String(req.body.token    || '')).substring(0, 500);
+  var platform = sanitizeStr(String(req.body.platform || 'web')).substring(0, 20);
+
+  if (!token) return res.status(400).json({ error: 'token é obrigatório.' });
+
+  try {
+    await db.collection('usuarios').doc(decoded.uid).update({
+      fcmToken:         token,
+      fcmTokenPlatform: platform,
+      fcmTokenAt:       admin.firestore.FieldValue.serverTimestamp(),
+      pushEnabled:      true
+    });
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error('[/api/push/token]', e.message);
+    return res.status(500).json({ error: 'Erro ao salvar token.' });
+  }
+});
+
+// ─── GET /api/notifications/daily — cron de notificações personalizadas ──
+// Auth: x-cron-secret header (env CRON_SECRET)
+// Trigger sugerido: Upstash QStash, diariamente às 11:00 UTC (08:00 Brasília)
+//   → GET https://bud-finance-backend.onrender.com/api/notifications/daily
+//   → Header: x-cron-secret: <CRON_SECRET>
+app.get('/api/notifications/daily', async function (req, res) {
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+
+  var cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret || req.headers['x-cron-secret'] !== cronSecret) {
+    return res.status(401).json({ error: 'Unauthorized.' });
+  }
+
+  // Hora atual em Brasília
+  var agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  var hojeStr   = agora.toISOString().slice(0, 10);
+  var mesRef    = hojeStr.slice(0, 7);
+  var amanha    = new Date(agora); amanha.setDate(amanha.getDate() + 1);
+  var amanhaStr = amanha.toISOString().slice(0, 10);
+  var isMonday  = agora.getDay() === 1;
+  var horaAtual = agora.getHours();
+
+  // Quiet hours 22h–8h Brasília
+  if (horaAtual < 8 || horaAtual >= 22) {
+    return res.json({ ok: true, skipped: 'quiet_hours', hora: horaAtual });
+  }
+
+  var groqKey = process.env.GROQ_API_KEY || '';
+
+  // Buscar usuários com push ativado (max 500 por execução)
+  var usersSnap;
+  try {
+    usersSnap = await db.collection('usuarios').where('pushEnabled', '==', true).limit(500).get();
+  } catch (e) {
+    return res.status(500).json({ error: 'Erro ao buscar usuários: ' + e.message });
+  }
+
+  if (usersSnap.empty) return res.json({ ok: true, sent: 0, total: 0 });
+
+  var sent = 0, errors = 0;
+
+  for (var i = 0; i < usersSnap.docs.length; i++) {
+    var userDoc = usersSnap.docs[i];
+    var uid = userDoc.id;
+    var ud  = userDoc.data();
+    var token = ud.fcmToken;
+    if (!token) continue;
+
+    try {
+      var notifs = [];
+
+      // Buscar dados do usuário em paralelo
+      var [recSnap, cartSnap, metaSnap] = await Promise.all([
+        db.collection('usuarios').doc(uid).collection('recorrentes')
+          .where('ativa', '==', true).limit(50).get(),
+        db.collection('usuarios').doc(uid).collection('cartoes').limit(20).get(),
+        db.collection('usuarios').doc(uid).collection('metas').limit(20).get()
+      ]);
+
+      var recs    = recSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
+      var cartoes = cartSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
+      var metas   = metaSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
+
+      var amanhaDia  = amanha.getDate();
+      var amanhaMes  = amanha.getMonth() + 1;
+
+      // 1. Recorrentes vencendo amanhã
+      recs.forEach(function (r) {
+        var dia = parseInt(r.diaVencimento, 10) || 1;
+        var maxD = new Date(amanha.getFullYear(), amanhaMes, 0).getDate();
+        if (Math.min(dia, maxD) === amanhaDia) {
+          var val = 'R$ ' + (Number(r.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          if (r.tipo === 'receita') {
+            notifs.push({
+              emoji: '💰', tag: 'rec-rec-' + r._id + '-' + amanhaStr,
+              title: '💰 Você recebe amanhã!',
+              body:  (r.descricao || 'Receita') + ' — ' + val,
+              url:   'extrato.html'
+            });
+          } else {
+            notifs.push({
+              emoji: '⏰', tag: 'rec-desp-' + r._id + '-' + amanhaStr,
+              title: '⏰ Vence amanhã: ' + (r.descricao || 'Conta'),
+              body:  val + ' — não esqueça de registrar o pagamento.',
+              url:   'recorrentes.html',
+              actions: [{ action: 'ok', title: '✅ Registrar' }]
+            });
+          }
+        }
+      });
+
+      // 2. Faturas de cartão: vencimento amanhã / fechamento em 2 dias
+      cartoes.forEach(function (c) {
+        var diaVenc = parseInt(c.diaVencimento || c.vencimento, 10);
+        if (diaVenc) {
+          var maxDV = new Date(amanha.getFullYear(), amanhaMes, 0).getDate();
+          if (Math.min(diaVenc, maxDV) === amanhaDia) {
+            notifs.push({
+              emoji: '📅', tag: 'cartao-venc-' + c._id + '-' + amanhaStr,
+              title: '📅 Fatura vence amanhã',
+              body:  'Fatura do ' + (c.nome || 'cartão') + ' vence amanhã. Não perca o prazo!',
+              url:   'cartoes.html',
+              actions: [{ action: 'ver', title: '💳 Ver fatura' }]
+            });
+          }
+        }
+        var diaFech = parseInt(c.diaFechamento || c.fechamento, 10);
+        if (diaFech) {
+          var doisDias = new Date(agora); doisDias.setDate(doisDias.getDate() + 2);
+          var maxDF = new Date(doisDias.getFullYear(), doisDias.getMonth() + 1, 0).getDate();
+          if (Math.min(diaFech, maxDF) === doisDias.getDate()) {
+            notifs.push({
+              emoji: '💳', tag: 'cartao-fech-' + c._id + '-' + hojeStr,
+              title: '💳 Fatura fecha em 2 dias',
+              body:  'Sua fatura do ' + (c.nome || 'cartão') + ' fecha em 2 dias. Tudo lançado?',
+              url:   'cartoes.html'
+            });
+          }
+        }
+      });
+
+      // 3. Metas próximas de concluir (≥90%)
+      metas.forEach(function (m) {
+        var atual = Number(m.valorAtual || m.valorDepositado || 0);
+        var alvo  = Number(m.valorAlvo  || m.valor || 0);
+        if (alvo > 0) {
+          var pct = atual / alvo;
+          var nomeMeta = sanitizeStr(m.nome || m.descricao || 'Meta').substring(0, 40);
+          if (pct >= 1.0) {
+            notifs.push({
+              emoji: '🎉', tag: 'meta-100-' + m._id + '-' + mesRef,
+              title: '🎉 Meta atingida!',
+              body:  'Parabéns! Você concluiu a meta "' + nomeMeta + '"! 🏆',
+              url:   'metas.html'
+            });
+          } else if (pct >= 0.9) {
+            notifs.push({
+              emoji: '🎯', tag: 'meta-90-' + m._id + '-' + mesRef,
+              title: '🎯 Quase lá na meta!',
+              body:  Math.round(pct * 100) + '% da meta "' + nomeMeta + '". Continue assim!',
+              url:   'metas.html'
+            });
+          }
+        }
+      });
+
+      // 4. Plano expirando amanhã
+      var expField = ud.planoExpira || ud.assinaturaExpira;
+      if (expField && ud.plano && ud.plano !== 'free') {
+        try {
+          var expDate = expField.toDate ? expField.toDate() : new Date(expField);
+          if (expDate.toISOString().slice(0, 10) === amanhaStr) {
+            notifs.push({
+              emoji: '🔔', tag: 'plano-expire-' + amanhaStr + '-' + uid,
+              title: '🔔 Seu plano expira amanhã',
+              body:  'Renove seu plano ' + (ud.plano || '') + ' para continuar com todas as funcionalidades.',
+              url:   'configuracoes.html'
+            });
+          }
+        } catch (_) {}
+      }
+
+      // 5. Re-engagement: sem abrir o app há 5–30 dias
+      var lastField = ud.ultimoAcesso || ud.lastLoginAt;
+      if (lastField) {
+        try {
+          var lastDate = lastField.toDate ? lastField.toDate() : new Date(lastField);
+          var inativos = Math.floor((agora - lastDate) / 86400000);
+          if (inativos >= 5 && inativos < 30) {
+            var kReeng = 'reeng-' + Math.floor(inativos / 5) + '-' + uid;
+            notifs.push({
+              emoji: '🤖', tag: kReeng,
+              title: '👋 O Buddy sentiu sua falta!',
+              body:  'Faz ' + inativos + ' dias sem abrir o app. Que tal uma conferida rápida?',
+              url:   'dashboard.html'
+            });
+          }
+        } catch (_) {}
+      }
+
+      // 6. Buddy AI insight (às segundas ou quando não há regras)
+      if (groqKey && (isMonday || notifs.length === 0)) {
+        try {
+          var txSnap = await db.collection('usuarios').doc(uid).collection('transacoes')
+            .where('mesReferencia', '==', mesRef)
+            .orderBy('dataCriacao', 'desc').limit(25).get();
+
+          var gastos = {};
+          var totalDesp = 0;
+          txSnap.docs.forEach(function (d) {
+            var tx = d.data();
+            if (tx.tipo === 'despesa') {
+              var cat = sanitizeStr(String(tx.categoria || 'Outros')).substring(0, 40);
+              gastos[cat] = (gastos[cat] || 0) + (Number(tx.valor) || 0);
+              totalDesp  += Number(tx.valor) || 0;
+            }
+          });
+          var topCats = Object.entries(gastos)
+            .sort(function (a, b) { return b[1] - a[1]; })
+            .slice(0, 3)
+            .map(function (e) { return e[0] + ' R$' + e[1].toFixed(0); })
+            .join(', ');
+          var nomeU = sanitizeStr(String(ud.nome || 'usuário')).split(' ')[0].substring(0, 30);
+          var diasSemana = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+
+          var budPrompt =
+            'Você é o Buddy, assistente financeiro do Bud Finance.\n' +
+            'Usuário: ' + nomeU + '\n' +
+            'Top gastos do mês (' + mesRef + '): ' + (topCats || 'sem dados ainda') + '\n' +
+            'Total despesas: R$' + totalDesp.toFixed(0) + '\n' +
+            'Hoje: ' + diasSemana[agora.getDay()] + '\n\n' +
+            'Crie UMA notificação push curta e personalizada (título ≤40 chars, corpo ≤90 chars).\n' +
+            'Pode ser: dica de economia, observação sobre padrões, motivação de meta, ou curiosidade financeira.\n' +
+            'Formato de resposta: JSON puro {"title":"...","body":"...","emoji":"emoji"}\n' +
+            'Retorne APENAS o JSON, sem markdown ou texto extra.';
+
+          var gRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + groqKey },
+            body: JSON.stringify({
+              model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+              messages: [{ role: 'user', content: budPrompt }],
+              temperature: 0.8,
+              max_tokens: 150
+            })
+          });
+          if (gRes.ok) {
+            var gData = await gRes.json();
+            var raw = ((gData.choices || [])[0] || {}).message?.content || '';
+            var parsed = JSON.parse(raw.trim());
+            if (parsed && parsed.title && parsed.body) {
+              notifs.push({
+                emoji:    sanitizeStr(parsed.emoji || '🤖').substring(0, 5),
+                tag:      'buddy-' + hojeStr + '-' + uid,
+                title:    sanitizeStr(parsed.emoji + ' ' + parsed.title).substring(0, 60),
+                body:     sanitizeStr(parsed.body).substring(0, 120),
+                url:      'assistente-ia.html',
+                isBuddy:  true
+              });
+            }
+          }
+        } catch (_buddyErr) {
+          // Buddy insight é opcional — continua sem ele
+        }
+      }
+
+      if (notifs.length === 0) continue;
+
+      // Smart bundling: se >3 notificações de regras → resumo + Buddy separado
+      var toSend;
+      if (notifs.length > 3) {
+        var buddyItem = notifs.find(function (n) { return n.isBuddy; });
+        var ruleItems = notifs.filter(function (n) { return !n.isBuddy; });
+        toSend = [];
+        if (ruleItems.length > 0) {
+          toSend.push({
+            emoji: '📋',
+            tag:   'bundle-' + hojeStr + '-' + uid,
+            title: '📋 ' + ruleItems.length + ' avisos de hoje',
+            body:  ruleItems.slice(0, 3).map(function (n) { return n.emoji + ' ' + n.body.substring(0, 35); }).join(' · '),
+            url:   'dashboard.html'
+          });
+        }
+        if (buddyItem) toSend.push(buddyItem);
+      } else {
+        toSend = notifs;
+      }
+
+      // Enviar cada notificação via FCM + salvar no Firestore
+      var batch  = db.batch();
+      var notifRef = db.collection('usuarios').doc(uid).collection('notificacoes');
+
+      for (var j = 0; j < toSend.length; j++) {
+        var n = toSend[j];
+
+        // Deduplicação por tag
+        var existSnap = await db.collection('usuarios').doc(uid).collection('notificacoes')
+          .where('tag', '==', n.tag).limit(1).get();
+        if (!existSnap.empty) continue;
+
+        // Enviar FCM
+        try {
+          await admin.messaging().send({
+            token: token,
+            data: {
+              title:   n.title  || 'Bud Finance',
+              body:    n.body   || '',
+              url:     n.url    || 'dashboard.html',
+              tag:     n.tag    || 'bud',
+              emoji:   n.emoji  || '📢',
+              actions: JSON.stringify(n.actions || [{ action: 'open', title: 'Abrir app' }])
+            },
+            webpush: {
+              notification: {
+                icon:    FRONTEND_URL + '/icons/icon-192.png',
+                badge:   FRONTEND_URL + '/icons/icon-192.png',
+                vibrate: [200, 100, 200]
+              },
+              fcm_options: {
+                link: FRONTEND_URL + '/' + (n.url || 'dashboard.html')
+              }
+            }
+          });
+          sent++;
+        } catch (fcmErr) {
+          // Token inválido ou expirado — limpar do Firestore
+          if (fcmErr.code === 'messaging/registration-token-not-registered' ||
+              fcmErr.code === 'messaging/invalid-registration-token') {
+            try {
+              await db.collection('usuarios').doc(uid).update({ fcmToken: null, pushEnabled: false });
+            } catch (_) {}
+          }
+          errors++;
+          continue;
+        }
+
+        // Salvar histórico
+        var docRef = notifRef.doc();
+        batch.set(docRef, {
+          tag:      n.tag,
+          title:    n.title,
+          body:     n.body,
+          emoji:    n.emoji || '📢',
+          url:      n.url || 'dashboard.html',
+          isBuddy:  n.isBuddy || false,
+          read:     false,
+          criadoEm: admin.firestore.FieldValue.serverTimestamp()
+        });
+      }
+
+      await batch.commit();
+
+    } catch (userErr) {
+      console.error('[notifications/daily] uid=' + uid, userErr.message);
+      errors++;
+    }
+  }
+
+  return res.json({ ok: true, sent: sent, errors: errors, total: usersSnap.size });
+});
+
 // ─── Start server ───────────────────────────────────────────────────
 var PORT = process.env.PORT || 3000;
 app.listen(PORT, function () {

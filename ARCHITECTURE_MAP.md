@@ -136,6 +136,10 @@
 | `BUD_IS_DEV` | Flag boolean: hostname é localhost/127.0.0.1/.local | helpers global | ✅ `bud-utils.js` (27/04/2026) |
 | `budCalcStrength(pw)` | Calcula força da senha (0-4) | `cadastro.js`, `acao-auth.js`, `trocar-senha.js` | ✅ `bud-utils.js` |
 | `BUD_SENHAS_COMUNS` | Blocklist de senhas fracas comuns | `cadastro.js`, `acao-auth.js`, `trocar-senha.js` | ✅ `bud-utils.js` |
+| `window.BudPush.requestIfNeeded(user)` | Exibe popup customizado de permissão push → aciona `window._budRequestPushToken(user)` em `dashboard.js` | `dashboard.js` (3s delay) + `configuracoes.js` (botão Ativar) | ✅ `bud-utils.js` (22/05/2026) |
+| `window.BudInAppNotif.init(user, userData)` | Verifica condições (boas-vindas, plano expirando, trial) → exibe banner acima de `.mes-nav` | `dashboard.js` após `configurarBannerPlano` | ✅ `js/bud-notif-inapp.js` (22/05/2026) |
+| `window.BudInAppNotif.openPanel()` | Abre/fecha painel lateral de histórico de notificações | `#btnBell` em `dashboard.html` | ✅ `js/bud-notif-inapp.js` (22/05/2026) |
+| `window.BudInAppNotif.addExternal(key, emoji, msg, link, lbl)` | Adiciona notificação externa (FCM foreground onMessage) | `dashboard.js` → `onMessage()` | ✅ `js/bud-notif-inapp.js` (22/05/2026) |
 | `buscarEmailPorMatricula(matricula)` | Consulta Firestore → retorna email ou null | `index.js` | ✅ `index.js` |
 | `showEmailVerificationModal()` | Modal (style.cssText) para reenvio de verificação | `index.js` | ✅ `index.js` (wired) |
 | `verificarForca(senha)` / `calcStrength(pw)` | ~~Local~~ → Migrado para `window.budCalcStrength` | `bud-utils.js` | ✅ `bud-utils.js` |

@@ -342,4 +342,124 @@
   window.BUD_VERSION        = BUD_VERSION;
   window.budGetOcultarSaldo = budGetOcultarSaldo;
   window.budSetOcultarSaldo = budSetOcultarSaldo;
+
+  // ─── Service Worker registration ────────────────────────────────────────
+  // Registra o SW para recebimento de push notifications em background.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      // Determinar o scope correto baseado no pathname atual
+      var swPath = (function () {
+        var p = window.location.pathname;
+        if (p.indexOf('/appbudfinance/') !== -1) {
+          return '/appbudfinance/sw.js';
+        }
+        return './sw.js';
+      })();
+      navigator.serviceWorker.register(swPath)
+        .then(function (reg) {
+          window._budSWReg = reg;
+          budLog('[SW] Registrado: ' + reg.scope);
+        })
+        .catch(function (err) {
+          budWarn('[SW] Falha no registro: ' + err.message);
+        });
+    });
+  }
+
+  // ─── Push permission popup ───────────────────────────────────────────────
+  // Popup customizado exibido ANTES do dialog nativo do browser.
+  function _showPushPopup() {
+    return new Promise(function (resolve) {
+      var ov = document.createElement('div');
+      ov.style.cssText =
+        'position:fixed;inset:0;background:rgba(15,23,42,0.55);' +
+        'backdrop-filter:blur(4px);z-index:9990;display:flex;' +
+        'align-items:center;justify-content:center;padding:1rem;';
+
+      var card = document.createElement('div');
+      card.style.cssText =
+        'background:var(--card-bg,#fff);border-radius:1.25rem;padding:1.75rem 1.5rem;' +
+        'max-width:360px;width:100%;border:1px solid var(--card-border,#e2e8f0);' +
+        'box-shadow:0 24px 64px rgba(0,0,0,0.25);text-align:center;';
+
+      var ico = document.createElement('div');
+      ico.textContent = '🔔';
+      ico.style.cssText = 'font-size:2.5rem;margin-bottom:1rem;';
+
+      var h3 = document.createElement('h3');
+      h3.textContent = 'Ativar notificações do Buddy?';
+      h3.style.cssText =
+        'font-weight:800;font-size:1.0625rem;color:var(--card-text,#1e293b);' +
+        'margin:0 0 0.5rem;';
+
+      var p = document.createElement('p');
+      p.textContent =
+        'Receba alertas de vencimentos, lembretes personalizados e dicas do Buddy direto no seu dispositivo.';
+      p.style.cssText =
+        'font-size:0.8125rem;color:var(--card-text-sec,#64748b);' +
+        'line-height:1.5;margin:0 0 1.25rem;';
+
+      var btns = document.createElement('div');
+      btns.style.cssText = 'display:flex;gap:0.75rem;';
+
+      var deny = document.createElement('button');
+      deny.textContent = 'Agora não';
+      deny.style.cssText =
+        'flex:1;padding:0.625rem;border:none;border-radius:0.625rem;' +
+        'font-size:0.875rem;font-weight:600;cursor:pointer;' +
+        'background:var(--input-bg,#f1f5f9);color:var(--card-text,#1e293b);';
+
+      var allow = document.createElement('button');
+      allow.textContent = '✅ Ativar';
+      allow.style.cssText =
+        'flex:1;padding:0.625rem;border:none;border-radius:0.625rem;' +
+        'font-size:0.875rem;font-weight:700;cursor:pointer;color:#fff;' +
+        'background:linear-gradient(135deg,#2563eb,#4f46e5);';
+
+      btns.appendChild(deny);
+      btns.appendChild(allow);
+      card.appendChild(ico);
+      card.appendChild(h3);
+      card.appendChild(p);
+      card.appendChild(btns);
+      ov.appendChild(card);
+      document.body.appendChild(ov);
+
+      allow.onclick = function () { ov.remove(); resolve(true); };
+      deny.onclick  = function () { ov.remove(); resolve(false); };
+    });
+  }
+
+  // Exposto para uso em dashboard.js (que tem acesso ao Firebase user)
+  window.BudPush = {
+    /**
+     * Solicita permissão de push e registra o token no backend.
+     * Mostra popup customizado primeiro, depois o dialog nativo.
+     * Deve ser chamado com o Firebase user autenticado.
+     * @param {object} user — Firebase Auth user
+     */
+    requestIfNeeded: function (user) {
+      if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+      if (localStorage.getItem('bud_push_asked') === 'granted') return;
+      // Se já negou mais de 7 dias atrás, perguntar de novo
+      var denied = localStorage.getItem('bud_push_asked');
+      if (denied === 'denied' || denied === 'default') {
+        var ts = parseInt(localStorage.getItem('bud_push_asked_ts') || '0', 10);
+        if (ts && Date.now() - ts < 7 * 86400000) return; // só re-perguntar após 7 dias
+      }
+      // Mostrar popup customizado antes do dialog nativo
+      _showPushPopup().then(function (accepted) {
+        if (!accepted) {
+          localStorage.setItem('bud_push_asked', 'denied');
+          localStorage.setItem('bud_push_asked_ts', String(Date.now()));
+          return;
+        }
+        // Delegar para dashboard.js que tem Firebase Messaging importado
+        if (window._budRequestPushToken && user) {
+          window._budRequestPushToken(user);
+        }
+      });
+    }
+  };
+
 })();

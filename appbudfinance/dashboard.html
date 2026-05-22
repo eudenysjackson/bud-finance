@@ -827,6 +827,11 @@
           </div>
         </div>
         <div class="dash-header-actions">
+          <!-- Botão de notificações do Buddy -->
+          <button class="dash-icon-btn" id="btnBell" title="Notificações" aria-label="Abrir notificações" style="position:relative;">
+            🔔
+            <span id="bellBadge" style="display:none;position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;background:#ef4444;color:#fff;font-size:0.625rem;font-weight:800;border-radius:9999px;align-items:center;justify-content:center;padding:0 3px;border:2px solid var(--bg-page,#f4f7fb);line-height:1;">0</span>
+          </button>
           <button class="dash-icon-btn" id="btnToggleValues" title="Ocultar/Mostrar valores">👁️</button>
           <button class="dash-icon-btn" id="btnSync" title="Sincronizar dados">🔄</button>
           <span id="streakBadge" style="display:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:0.3rem 0.625rem;border-radius:9999px;font-size:0.75rem;font-weight:700;white-space:nowrap;cursor:default;user-select:none;" title="Dias consecutivos com lançamentos">🔥 <span id="streakCount">0</span>d</span>
@@ -1244,6 +1249,7 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/bud-utils.js"></script>
   <script src="js/categorias-padrao.js"></script>
+  <script src="js/bud-notif-inapp.js"></script>
   <script type="module" src="js/dashboard.js?v=2"></script>
 
   <!-- Splash dismiss -->
