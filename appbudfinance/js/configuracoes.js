@@ -7,6 +7,7 @@ import { getAuth, onAuthStateChanged, signOut, updateProfile }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, getDocs, updateDoc, deleteDoc, deleteField, setDoc, collection, query, orderBy, writeBatch }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+import { getMessaging, getToken }        from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
@@ -18,6 +19,30 @@ let uid = null;
 let _skipThemeSync = false;let _userPlano = 'free';
 let _whatsappNumero = null;
 let _hoverOrigTheme = null;
+
+// ─── Push token (necessário para o botão Ativar funcionar nesta página) ──
+window._budRequestPushToken = async function (user) {
+  var vapidKey = window.BUD_FCM_VAPID_KEY;
+  if (!vapidKey || vapidKey.startsWith('__')) return;
+  try {
+    var messaging = getMessaging(app);
+    var swReg = window._budSWReg || await navigator.serviceWorker.ready;
+    var token = await getToken(messaging, { vapidKey: vapidKey, serviceWorkerRegistration: swReg });
+    if (!token) return;
+    var idToken = await user.getIdToken();
+    var res = await fetch((window.BUD_FUNCTIONS_URL || '') + '/api/push/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+      body: JSON.stringify({ token: token, platform: 'web' })
+    });
+    if (res.ok) {
+      localStorage.setItem('bud_push_asked', 'granted');
+      if (window.budShowToast) window.budShowToast('Notificações ativadas! O Buddy vai te avisar.', 'success');
+    }
+  } catch (err) {
+    if (window.budWarn) window.budWarn('[Push] Erro ao registrar token: ' + err.message);
+  }
+};
 // ─── Helpers ────────────────────────────────────────────────────────────
 function getIniciais(nome) {
   if (!nome) return '?';
