@@ -7,7 +7,7 @@ import { getAuth, onAuthStateChanged, signOut, updateProfile }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, getDocs, updateDoc, deleteDoc, deleteField, setDoc, collection, query, orderBy, writeBatch }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
-import { getMessaging, getToken }        from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
+import { getMessaging, getToken, onMessage } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
@@ -38,6 +38,7 @@ window._budRequestPushToken = async function (user) {
     if (res.ok) {
       localStorage.setItem('bud_push_asked', 'granted');
       if (window.budShowToast) window.budShowToast('Notificações ativadas! O Buddy vai te avisar.', 'success');
+      _registrarOnMessage();
     }
   } catch (err) {
     if (window.budWarn) window.budWarn('[Push] Erro ao registrar token: ' + err.message);
@@ -1296,12 +1297,26 @@ onAuthStateChanged(auth, async function (user) {
     if (pushDesc) pushDesc.textContent = 'O Buddy já está te enviando alertas personalizados.';
   }
 
+  // Handler de foreground: exibir notificação nativa quando o app está aberto
+  function _registrarOnMessage() {
+    try {
+      var _msg = getMessaging(app);
+      onMessage(_msg, function (payload) {
+        var n = (payload.notification || payload.data || {});
+        navigator.serviceWorker.ready.then(function (reg) {
+          reg.showNotification(n.title || 'Bud Finance', { body: n.body || '', icon: '/icons/icon-192.png' });
+        });
+      });
+    } catch (_) {}
+  }
+
   if (btnAtivarPush) {
     const pushed = localStorage.getItem('bud_push_asked');
     if (pushed === 'granted' || Notification.permission === 'granted') {
       _mostrarBotaoTestar();
       // Garantir que o token esteja salvo no Firestore (pode ter falhado em tentativas anteriores)
       if (Notification.permission === 'granted') window._budRequestPushToken(user);
+      _registrarOnMessage();
     }
 
     btnAtivarPush.addEventListener('click', function () {
