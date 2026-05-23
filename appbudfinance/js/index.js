@@ -3,7 +3,7 @@
 
 import { initializeApp, getApps }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, sendEmailVerification }
+import { getAuth, signInWithEmailAndPassword, signOut, sendEmailVerification, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, collection, query, where, getDocs }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
