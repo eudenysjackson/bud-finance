@@ -2784,6 +2784,19 @@ app.post('/api/push/test', async function (req, res) {
     return res.json({ ok: true });
   } catch (e) {
     console.error('[/api/push/test]', e.message);
+    // Token inválido/expirado: limpar do Firestore para forçar re-registro
+    var code = (e && e.errorInfo && e.errorInfo.code) || e.code || '';
+    if (code === 'messaging/registration-token-not-registered' ||
+        code === 'messaging/invalid-registration-token' ||
+        /not.found|invalid.argument/i.test(e.message)) {
+      try {
+        await db.collection('usuarios').doc(decoded.uid).update({
+          fcmToken: admin.firestore.FieldValue.delete(),
+          pushEnabled: false
+        });
+      } catch (_) {}
+      return res.status(410).json({ error: 'Token expirado. Reative as notificações em Configurações.' });
+    }
     return res.status(500).json({ error: 'Erro ao enviar notificação: ' + e.message });
   }
 });
@@ -2827,6 +2840,7 @@ app.post('/api/push/admin-broadcast', async function (req, res) {
     if (snap.empty) return res.json({ ok: true, sent: 0, total: 0 });
 
     var messages = [];
+    var uids = [];
     snap.forEach(function (d) {
       var fcmToken = (d.data() || {}).fcmToken;
       if (fcmToken) {
@@ -2836,18 +2850,39 @@ app.post('/api/push/admin-broadcast', async function (req, res) {
           webpush: { fcmOptions: { link: '/appbudfinance/dashboard.html' } },
           data: { tipo: tipo, tag: 'admin-' + Date.now() }
         });
+        uids.push(d.id);
       }
     });
 
     if (!messages.length) return res.json({ ok: true, sent: 0, total: snap.size, noTokens: true });
 
     var sent = 0;
+    var staleUids = [];
     for (var i = 0; i < messages.length; i += 500) {
-      var result = await admin.messaging().sendEach(messages.slice(i, i + 500));
+      var batch = messages.slice(i, i + 500);
+      var result = await admin.messaging().sendEach(batch);
       sent += result.successCount;
+      result.responses.forEach(function (r, idx) {
+        if (!r.success && r.error) {
+          var code = r.error.code || '';
+          if (code === 'messaging/registration-token-not-registered' ||
+              code === 'messaging/invalid-registration-token') {
+            staleUids.push(uids[i + idx]);
+          }
+        }
+      });
     }
-    console.log('[/api/push/admin-broadcast] sent=' + sent + '/' + messages.length + ' destino=' + destino);
-    return res.json({ ok: true, sent: sent, total: messages.length });
+    // Limpa tokens stale do Firestore
+    for (var s = 0; s < staleUids.length; s++) {
+      try {
+        await db.collection('usuarios').doc(staleUids[s]).update({
+          fcmToken: admin.firestore.FieldValue.delete(),
+          pushEnabled: false
+        });
+      } catch (_) {}
+    }
+    console.log('[/api/push/admin-broadcast] sent=' + sent + '/' + messages.length + ' stale=' + staleUids.length + ' destino=' + destino);
+    return res.json({ ok: true, sent: sent, total: messages.length, stale: staleUids.length });
   } catch (e) {
     console.error('[/api/push/admin-broadcast]', e.message);
     return res.status(500).json({ error: 'Erro ao enviar push: ' + e.message });

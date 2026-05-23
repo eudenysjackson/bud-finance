@@ -7,7 +7,7 @@ import { getAuth, onAuthStateChanged, signOut, updateProfile }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, getDocs, updateDoc, deleteDoc, deleteField, setDoc, collection, query, orderBy, writeBatch }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
-import { getMessaging, getToken, onMessage } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
+import { getMessaging, getToken, onMessage, deleteToken } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
@@ -21,12 +21,16 @@ let _whatsappNumero = null;
 let _hoverOrigTheme = null;
 
 // ─── Push token (necessário para o botão Ativar funcionar nesta página) ──
-window._budRequestPushToken = async function (user) {
+window._budRequestPushToken = async function (user, opts) {
   var vapidKey = window.BUD_FCM_VAPID_KEY;
   if (!vapidKey || vapidKey.startsWith('__')) return;
   try {
     var messaging = getMessaging(app);
     var swReg = window._budSWReg || await navigator.serviceWorker.ready;
+    // Se forceRefresh, deleta token antigo (pode estar stale) antes de pedir novo
+    if (opts && opts.forceRefresh) {
+      try { await deleteToken(messaging); } catch (_) {}
+    }
     var token = await getToken(messaging, { vapidKey: vapidKey, serviceWorkerRegistration: swReg });
     if (!token) return;
     var idToken = await user.getIdToken();
@@ -1345,6 +1349,11 @@ onAuthStateChanged(auth, async function (user) {
         if (resp.ok) {
           btnTestarPush.textContent = '✅ Enviado!';
           if (pushDesc) pushDesc.textContent = 'Notificação de teste enviada — verifique sua bandeja de notificações.';
+        } else if (resp.status === 410) {
+          // Token stale — regenera e avisa pra clicar de novo
+          btnTestarPush.textContent = 'Testar';
+          if (window.budShowToast) window.budShowToast('Token renovado. Clique em Testar novamente.', 'info');
+          await window._budRequestPushToken(user, { forceRefresh: true });
         } else {
           btnTestarPush.textContent = 'Testar';
           alert('Erro: ' + (data.error || 'desconhecido'));
