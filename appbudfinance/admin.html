@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -15,44 +15,43 @@
     /* ── Top Bar ─────────────────────────────────────────────── */
     .g-bar {
       position: sticky; top: 0; z-index: 50;
-      background: rgba(255,255,255,.88);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid rgba(16,185,129,.2);
-      padding: 0 1.5rem;
-      height: 3.5rem;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(14px);
+      border-bottom: 1.5px solid rgba(16,185,129,.18);
+      padding: 0 1.5rem; height: 3.625rem;
       display: flex; align-items: center; justify-content: space-between;
     }
-    .g-bar-logo { display: flex; align-items: center; gap: 0.625rem; }
+    .g-bar-left { display: flex; align-items: center; gap: .75rem; }
     .g-logo-badge {
-      width: 2rem; height: 2rem; border-radius: 0.5rem;
+      width: 2.25rem; height: 2.25rem; border-radius: .625rem;
       background: linear-gradient(135deg, #059669, #10b981);
       display: flex; align-items: center; justify-content: center;
-      font-weight: 900; font-size: 0.875rem; color: #fff;
+      font-weight: 900; font-size: .9375rem; color: #fff;
+      box-shadow: 0 2px 8px rgba(5,150,105,.35);
     }
-    .g-bar-title { font-size: 0.9375rem; font-weight: 800; color: #064e3b; }
-    .g-bar-sub { font-size: 0.6875rem; font-weight: 600; color: #6b7280; }
+    .g-bar-title { font-size: .9375rem; font-weight: 800; color: #064e3b; }
+    .g-bar-sub { font-size: .6875rem; font-weight: 500; color: #6b7280; }
     .pulse-dot {
-      width: 0.5rem; height: 0.5rem; border-radius: 50%;
-      background: #10b981; display: inline-block; margin-right: 0.25rem;
+      width: .5rem; height: .5rem; border-radius: 50%;
+      background: #10b981; display: inline-block; margin-right: .25rem;
       animation: pulse-dot 2s infinite;
     }
     @keyframes pulse-dot {
       0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: .5; transform: scale(1.25); }
+      50% { opacity: .5; transform: scale(1.3); }
     }
-    .g-bar-right { display: flex; align-items: center; gap: 0.75rem; font-size: 0.8125rem; color: #374151; }
+    .g-bar-right { display: flex; align-items: center; gap: .75rem; font-size: .8125rem; }
     .g-avatar {
       width: 2rem; height: 2rem; border-radius: 50%;
       background: linear-gradient(135deg, #059669, #10b981);
       display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 0.75rem; color: #fff;
+      font-weight: 800; font-size: .75rem; color: #fff;
     }
 
-    /* ── Loading / Access Denied ─────────────────────────────── */
+    /* ── States ──────────────────────────────────────────────── */
     #adminLoading, #accessDenied {
       display: flex; align-items: center; justify-content: center;
-      min-height: calc(100vh - 3.5rem);
-      text-align: center;
+      min-height: calc(100vh - 3.625rem); text-align: center;
     }
     .spinner {
       width: 2.5rem; height: 2.5rem; border: 3px solid #d1fae5;
@@ -62,21 +61,29 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .denied-card {
       background: #fff; border-radius: 1rem; padding: 2.5rem 3rem;
-      border: 1.5px solid #fecaca; text-align: center;
+      border: 1.5px solid #fecaca;
     }
-    .denied-card h2 { font-size: 1.25rem; font-weight: 800; color: #dc2626; margin: 0.75rem 0 0.5rem; }
-    .denied-card p { color: #6b7280; font-size: 0.875rem; }
+    .denied-card h2 { font-size: 1.25rem; font-weight: 800; color: #dc2626; margin: .75rem 0 .5rem; }
+    .denied-card p { color: #6b7280; font-size: .875rem; }
+    .denied-card a {
+      display: inline-block; margin-top: 1rem; padding: .5rem 1.5rem;
+      background: #059669; color: #fff; border-radius: .625rem;
+      font-weight: 700; font-size: .875rem; text-decoration: none;
+    }
 
-    /* ── Main content ────────────────────────────────────────── */
-    #adminContent { display: none; max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
-
-    /* ── Tabs ────────────────────────────────────────────────── */
-    .tabs { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-bottom: 1.5rem; border-bottom: 2px solid #d1fae5; padding-bottom: 0; }
+    /* ── Content + Tabs ──────────────────────────────────────── */
+    #adminContent { display: none; max-width: 1280px; margin: 0 auto; padding: 1.5rem; }
+    .tabs {
+      display: flex; gap: .125rem; flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid #d1fae5; padding-bottom: 0;
+    }
     .tab-btn {
-      padding: 0.5rem 1.125rem; border: none; background: transparent;
-      font-family: inherit; font-size: 0.875rem; font-weight: 600;
-      color: #6b7280; cursor: pointer; border-radius: 0.5rem 0.5rem 0 0;
+      padding: .5rem 1rem; border: none; background: transparent;
+      font-family: inherit; font-size: .8125rem; font-weight: 600;
+      color: #6b7280; cursor: pointer; border-radius: .5rem .5rem 0 0;
       transition: all .15s; position: relative; bottom: -2px;
+      white-space: nowrap;
     }
     .tab-btn:hover { color: #059669; background: #ecfdf5; }
     .tab-btn.active {
@@ -88,93 +95,75 @@
     /* ── Cards ───────────────────────────────────────────────── */
     .g-card {
       background: #fff; border-radius: 1rem;
-      border: 1.5px solid #d1fae5; padding: 1.5rem;
+      border: 1.5px solid #e5e7eb; padding: 1.5rem;
       transition: box-shadow .2s;
     }
-    .g-card:hover { box-shadow: 0 4px 24px rgba(16,185,129,.08); }
+    .g-card + .g-card { margin-top: 1rem; }
     .panel-header {
       display: flex; align-items: center; justify-content: space-between;
-      flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.25rem;
+      flex-wrap: wrap; gap: .75rem; margin-bottom: 1.25rem;
     }
     .panel-title { font-size: 1.0625rem; font-weight: 800; color: #064e3b; }
-    .panel-sub { font-size: 0.75rem; color: #6b7280; margin-top: 0.125rem; }
+    .panel-sub { font-size: .75rem; color: #6b7280; margin-top: .125rem; }
+
+    /* ── KPIs ────────────────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: .875rem; margin-bottom: 1.25rem;
+    }
+    .kpi-card {
+      background: #fff; border-radius: .875rem;
+      border: 1.5px solid #e5e7eb; padding: 1.125rem 1.25rem;
+    }
+    .kpi-card.green { border-color: #a7f3d0; }
+    .kpi-card.blue  { border-color: #bfdbfe; }
+    .kpi-card.amber { border-color: #fde68a; }
+    .kpi-card.red   { border-color: #fecaca; }
+    .kpi-card.purple{ border-color: #ddd6fe; }
+    .kpi-val { font-size: 1.75rem; font-weight: 900; color: #064e3b; line-height: 1; }
+    .kpi-val.amber { color: #d97706; }
+    .kpi-val.red { color: #dc2626; }
+    .kpi-val.blue { color: #2563eb; }
+    .kpi-val.purple { color: #7c3aed; }
+    .kpi-lbl { font-size: .6875rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .06em; margin-top: .375rem; }
 
     /* ── Buttons ─────────────────────────────────────────────── */
-    .btn-cyan {
-      padding: 0.5rem 1rem; border: none; border-radius: 0.625rem;
+    .btn-primary {
+      padding: .5rem 1.125rem; border: none; border-radius: .625rem;
       background: linear-gradient(135deg, #059669, #10b981);
-      color: #fff; font-family: inherit; font-size: 0.8125rem; font-weight: 700;
+      color: #fff; font-family: inherit; font-size: .8125rem; font-weight: 700;
       cursor: pointer; transition: opacity .15s;
     }
-    .btn-cyan:hover { opacity: .9; }
+    .btn-primary:hover { opacity: .9; }
+    .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
     .btn-ghost {
-      padding: 0.5rem 1rem; border-radius: 0.625rem;
+      padding: .5rem 1rem; border-radius: .625rem;
       border: 1.5px solid #d1d5db; background: #fff;
-      color: #374151; font-family: inherit; font-size: 0.8125rem; font-weight: 600;
-      cursor: pointer; transition: border-color .15s;
+      color: #374151; font-family: inherit; font-size: .8125rem; font-weight: 600;
+      cursor: pointer; transition: all .15s;
     }
     .btn-ghost:hover { border-color: #10b981; color: #059669; }
+    .btn-sm { padding: .3125rem .75rem; font-size: .75rem; border-radius: .5rem; }
     .btn-danger {
-      padding: 0.375rem 0.75rem; border: none; border-radius: 0.5rem;
+      padding: .3125rem .75rem; border: none; border-radius: .5rem;
       background: #fef2f2; color: #dc2626; font-family: inherit;
-      font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: background .15s;
+      font-size: .75rem; font-weight: 700; cursor: pointer; transition: background .15s;
     }
     .btn-danger:hover { background: #fee2e2; }
-
-    /* ── Feature Flags ───────────────────────────────────────── */
-    #flagsGrid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 1rem;
+    .btn-warn {
+      padding: .3125rem .75rem; border: none; border-radius: .5rem;
+      background: #fffbeb; color: #d97706; font-family: inherit;
+      font-size: .75rem; font-weight: 700; cursor: pointer; transition: background .15s;
     }
-    .ff-card {
-      background: #f0fdf4; border: 1.5px solid #a7f3d0; border-radius: 0.875rem;
-      padding: 1rem 1.125rem; transition: all .2s;
-    }
-    .ff-card.off { opacity: .55; background: #f8fafc; border-color: #e2e8f0; }
-    .ff-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
-    .ff-name { font-size: 0.9375rem; font-weight: 700; color: #064e3b; }
-    .ff-key { font-size: 0.7rem; color: #6b7280; font-family: monospace; margin-top: 0.125rem; }
-    .ff-desc { font-size: 0.8125rem; color: #374151; margin: 0.5rem 0 0.75rem; }
-    .ff-plans { display: flex; gap: 0.25rem; flex-wrap: wrap; }
-    .plan-badge {
-      padding: 0.125rem 0.5rem; border-radius: 999px;
-      font-size: 0.6875rem; font-weight: 700; text-transform: uppercase;
-    }
-    .plan-free { background: #f1f5f9; color: #64748b; }
-    .plan-starter { background: #eff6ff; color: #2563eb; }
-    .plan-plus { background: #fdf4ff; color: #9333ea; }
-    .plan-pro { background: #ecfdf5; color: #059669; }
-    .plan-trial { background: #fff7ed; color: #ea580c; }
-    .plan-todos { background: #f0fdf4; color: #15803d; }
-    .ff-actions { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; }
-
-    /* ── Chamados ────────────────────────────────────────────── */
-    .chamado-card { padding: 1rem; border: 1.5px solid #f1f5f9; border-radius: 0.75rem; margin-bottom: 0.625rem; background: #fff; }
-    .chamado-card:hover { border-color: #e2e8f0; }
-    .chamado-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.5rem; }
-    .chamado-tipo { padding: 0.125rem 0.625rem; border-radius: 999px; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; flex-shrink: 0; }
-    .chamado-tipo.bug { background: #fee2e2; color: #dc2626; }
-    .chamado-tipo.sugestao { background: #f3e8ff; color: #9333ea; }
-    .chamado-status { padding: 0.125rem 0.625rem; border-radius: 999px; font-size: 0.6875rem; font-weight: 700; cursor: pointer; border: none; font-family: inherit; }
-    .chamado-status.aberto { background: #fef9c3; color: #854d0e; }
-    .chamado-status.em_analise { background: #dbeafe; color: #1e40af; }
-    .chamado-status.resolvido { background: #dcfce7; color: #166534; }
-    .chamado-desc { font-size: 0.875rem; color: #1e293b; line-height: 1.6; margin-bottom: 0.375rem; }
-    .chamado-meta { font-size: 0.75rem; color: #94a3b8; }
-    .chamado-acao { padding: 0.25rem 0.625rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; border: 1.5px solid #e2e8f0; background: #f8fafc; color: #475569; cursor: pointer; font-family: inherit; white-space: nowrap; }
-    .chamado-acao:hover { background: #f1f5f9; border-color: #cbd5e1; }
-    .chamado-acao.resolver { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
-    .chamado-acao.resolver:hover { background: #dcfce7; }
-    .chamado-acao.reabrir { background: #fefce8; border-color: #fde68a; color: #92400e; }
-    .chamado-acao.reabrir:hover { background: #fef9c3; }
+    .btn-warn:hover { background: #fef3c7; }
 
     /* ── Toggle ──────────────────────────────────────────────── */
     .toggle {
       position: relative; width: 2.75rem; height: 1.5rem;
       border-radius: 999px; background: #e2e8f0;
       cursor: pointer; transition: background .2s; flex-shrink: 0;
-      border: none; padding: 0;
+      border: none; padding: 0; display: inline-block;
     }
     .toggle.on { background: #10b981; }
     .toggle::after {
@@ -182,66 +171,276 @@
       top: 3px; left: 3px;
       width: 1.125rem; height: 1.125rem;
       border-radius: 50%; background: #fff;
-      transition: transform .2s; box-shadow: 0 1px 4px rgba(0,0,0,.15);
+      transition: transform .2s; box-shadow: 0 1px 4px rgba(0,0,0,.18);
     }
     .toggle.on::after { transform: translateX(1.25rem); }
+
+    /* ── Badges ──────────────────────────────────────────────── */
+    .plan-badge {
+      padding: .15rem .6rem; border-radius: 999px;
+      font-size: .6875rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .04em; display: inline-block;
+    }
+    .plan-free { background: #f1f5f9; color: #64748b; }
+    .plan-starter { background: #eff6ff; color: #2563eb; }
+    .plan-trial { background: #fff7ed; color: #ea580c; }
+    .plan-plus { background: #fdf4ff; color: #9333ea; }
+    .plan-pro { background: #ecfdf5; color: #059669; }
+    .plan-admin { background: #fef3c7; color: #d97706; }
+
+    /* ── CRM / Usuários ──────────────────────────────────────── */
+    .crm-filters {
+      display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center;
+    }
+    .crm-search {
+      flex: 1; min-width: 200px; padding: .5625rem .875rem;
+      border: 1.5px solid #e5e7eb; border-radius: .625rem;
+      font-family: inherit; font-size: .875rem; color: #1e293b;
+      background: #f9fafb; outline: none; transition: border-color .15s;
+    }
+    .crm-search:focus { border-color: #10b981; background: #fff; }
+    .admin-sel {
+      position: relative; display: inline-block;
+    }
+    .admin-sel-trigger {
+      display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+      padding: .5rem .875rem; border: 1.5px solid #e5e7eb; border-radius: .625rem;
+      background: #f9fafb; cursor: pointer; font-size: .8125rem; font-weight: 600;
+      color: #374151; user-select: none; white-space: nowrap; min-width: 130px;
+      transition: border-color .15s;
+    }
+    .admin-sel-trigger:hover, .admin-sel.open .admin-sel-trigger { border-color: #10b981; background: #fff; }
+    .admin-sel-arrow { font-size: .625rem; transition: transform .15s; }
+    .admin-sel.open .admin-sel-arrow { transform: rotate(180deg); }
+    .admin-sel-drop {
+      display: none; position: absolute; top: calc(100% + .25rem); left: 0;
+      min-width: 100%; background: #fff; border: 1.5px solid #d1fae5;
+      border-radius: .75rem; box-shadow: 0 8px 24px rgba(0,0,0,.1);
+      z-index: 100; overflow: hidden;
+    }
+    .admin-sel.open .admin-sel-drop { display: block; }
+    .admin-sel-opt {
+      padding: .5rem .875rem; font-size: .8125rem; font-weight: 500;
+      cursor: pointer; transition: background .1s;
+    }
+    .admin-sel-opt:hover { background: #f0fdf4; }
+    .admin-sel-opt.sel { color: #059669; font-weight: 700; background: #f0fdf4; }
+
+    .u-row {
+      display: grid;
+      grid-template-columns: 2.5rem 1fr 1fr 1fr 120px 80px 100px;
+      align-items: center; gap: .75rem;
+      padding: .75rem .875rem; border-radius: .75rem;
+      transition: background .15s; cursor: default;
+    }
+    .u-row:hover { background: #f0fdf4; }
+    .u-row-header {
+      font-size: .6875rem; font-weight: 700; color: #9ca3af;
+      text-transform: uppercase; letter-spacing: .06em;
+      padding: .375rem .875rem; margin-bottom: .25rem;
+    }
+    .u-avatar {
+      width: 2.25rem; height: 2.25rem; border-radius: 50%;
+      background: linear-gradient(135deg, #10b981, #059669);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: .75rem; color: #fff; flex-shrink: 0;
+    }
+    .u-name { font-size: .875rem; font-weight: 600; color: #1e293b; truncate: ellipsis; overflow: hidden; white-space: nowrap; }
+    .u-email { font-size: .75rem; color: #6b7280; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+    /* ── Thermo ──────────────────────────────────────────────── */
+    .thermo {
+      width: 100%; height: .4rem; background: #f1f5f9;
+      border-radius: 999px; overflow: hidden;
+    }
+    .thermo-fill { height: 100%; border-radius: 999px; transition: width .4s; }
+    .thermo-heavy .thermo-fill { background: #10b981; }
+    .thermo-regular .thermo-fill { background: #3b82f6; }
+    .thermo-risk .thermo-fill { background: #f59e0b; }
+    .thermo-inactive .thermo-fill { background: #e2e8f0; }
+    .eng-label { font-size: .6875rem; font-weight: 700; margin-top: .25rem; }
+    .eng-heavy { color: #059669; }
+    .eng-regular { color: #2563eb; }
+    .eng-risk { color: #d97706; }
+    .eng-inactive { color: #9ca3af; }
+
+    /* ── Pagination ──────────────────────────────────────────── */
+    .crm-pagination {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: .75rem; padding-top: 1rem; border-top: 1.5px solid #f1f5f9; flex-wrap: wrap;
+    }
+    .page-info { font-size: .8125rem; color: #6b7280; font-weight: 500; }
+
+    /* ── Feature Flags ───────────────────────────────────────── */
+    .flags-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+    .ff-card {
+      background: #f0fdf4; border: 1.5px solid #a7f3d0; border-radius: .875rem;
+      padding: 1rem 1.125rem; transition: all .2s;
+    }
+    .ff-card.off { opacity: .5; background: #f8fafc; border-color: #e2e8f0; }
+    .ff-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }
+    .ff-name { font-size: .9375rem; font-weight: 700; color: #064e3b; }
+    .ff-key { font-size: .6875rem; color: #6b7280; font-family: monospace; margin-top: .1rem; }
+    .ff-desc { font-size: .8125rem; color: #374151; margin: .5rem 0 .75rem; line-height: 1.5; }
+    .ff-plans { display: flex; gap: .25rem; flex-wrap: wrap; margin-bottom: .625rem; }
+    .ff-actions { display: flex; align-items: center; gap: .5rem; }
+
+    /* ── Forms ───────────────────────────────────────────────── */
+    .god-label {
+      display: block; font-size: .75rem; font-weight: 700;
+      color: #374151; text-transform: uppercase; letter-spacing: .06em;
+      margin-bottom: .375rem;
+    }
+    .god-input {
+      width: 100%; padding: .625rem .875rem;
+      border: 1.5px solid #e5e7eb; border-radius: .625rem;
+      font-family: inherit; font-size: .875rem; color: #1e293b;
+      background: #f9fafb; transition: border-color .15s, background .15s; outline: none;
+    }
+    .god-input:focus { border-color: #10b981; background: #fff; }
+    .god-textarea {
+      width: 100%; padding: .625rem .875rem;
+      border: 1.5px solid #e5e7eb; border-radius: .625rem;
+      font-family: inherit; font-size: .875rem; color: #1e293b;
+      background: #f9fafb; transition: border-color .15s, background .15s; outline: none;
+      resize: vertical; min-height: 90px;
+    }
+    .god-textarea:focus { border-color: #10b981; background: #fff; }
+    .form-row { margin-bottom: 1rem; }
+    .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: .875rem; }
+    .plans-check { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .375rem; }
+    .plan-chk-label {
+      display: flex; align-items: center; gap: .25rem;
+      padding: .25rem .625rem; border-radius: 999px;
+      border: 1.5px solid #e5e7eb; cursor: pointer;
+      font-size: .75rem; font-weight: 700; transition: all .15s;
+    }
+    .plan-chk-label:has(input:checked) { border-color: #10b981; background: #ecfdf5; color: #059669; }
+    .plan-chk-label input { accent-color: #10b981; width: 13px; height: 13px; }
 
     /* ── Modal ───────────────────────────────────────────────── */
     .modal-bg {
       display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,.45); backdrop-filter: blur(4px);
-      z-index: 200; align-items: center; justify-content: center;
+      z-index: 200; align-items: flex-start; justify-content: center;
+      padding: 2rem 1rem; overflow-y: auto;
     }
     .modal-bg.open { display: flex; }
     .modal-box {
-      background: #fff; border-radius: 1.25rem; padding: 2rem;
-      width: min(480px, 95vw); max-height: 90vh; overflow-y: auto;
+      background: #fff; border-radius: 1.25rem;
+      padding: 1.75rem 2rem; width: min(560px, 98vw);
+      box-shadow: 0 20px 60px rgba(0,0,0,.2); margin: auto;
     }
     .modal-title { font-size: 1.0625rem; font-weight: 800; color: #064e3b; margin-bottom: 1.25rem; }
-    .god-input {
-      width: 100%; padding: 0.625rem 0.875rem;
-      border: 1.5px solid #d1d5db; border-radius: 0.625rem;
-      font-family: inherit; font-size: 0.875rem; color: #1e293b;
-      background: #f9fafb; transition: border-color .15s;
-    }
-    .god-input:focus { outline: none; border-color: #10b981; background: #fff; }
-    .god-label { font-size: 0.8125rem; font-weight: 700; color: #374151; display: block; margin-bottom: 0.375rem; }
-    .form-row { margin-bottom: 1rem; }
-    .plans-check { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.375rem; }
-    .plan-chk-label {
-      display: flex; align-items: center; gap: 0.25rem;
-      padding: 0.25rem 0.625rem; border-radius: 999px;
-      border: 1.5px solid #d1d5db; cursor: pointer;
-      font-size: 0.75rem; font-weight: 700; transition: all .15s;
-    }
-    .plan-chk-label:has(input:checked) { border-color: #10b981; background: #ecfdf5; color: #059669; }
-    .plan-chk-label input { accent-color: #10b981; width: 13px; height: 13px; }
-    .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1.5rem; }
 
-    /* ── KPI cards ───────────────────────────────────────────── */
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.875rem; margin-bottom: 1.25rem; }
-    .kpi-card { background: #fff; border-radius: 0.875rem; padding: 1rem 1.125rem; border: 1.5px solid #d1fae5; }
-    .kpi-val { font-size: 1.625rem; font-weight: 900; color: #064e3b; }
-    .kpi-lbl { font-size: 0.7rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .06em; margin-top: 0.25rem; }
-
-    /* ── Placeholder tab ─────────────────────────────────────── */
-    .tab-placeholder {
-      text-align: center; padding: 4rem 2rem;
-      color: #9ca3af;
+    /* ── Notif History ───────────────────────────────────────── */
+    .notif-item {
+      display: flex; align-items: flex-start; gap: .75rem;
+      padding: .875rem 0; border-bottom: 1.5px solid #f1f5f9;
     }
-    .tab-placeholder .icon { font-size: 3rem; margin-bottom: 0.75rem; }
-    .tab-placeholder h3 { font-size: 1rem; font-weight: 700; color: #6b7280; margin-bottom: 0.375rem; }
-    .tab-placeholder p { font-size: 0.8125rem; }
+    .notif-icon {
+      width: 2.25rem; height: 2.25rem; border-radius: .625rem; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 1rem;
+    }
+    .notif-body { flex: 1; }
+    .notif-titulo { font-size: .875rem; font-weight: 700; color: #1e293b; }
+    .notif-meta { font-size: .75rem; color: #6b7280; margin-top: .125rem; }
 
-    /* ── Toast override (usa budShowToast) ───────────────────── */
+    /* ── Promos List ─────────────────────────────────────────── */
+    .promo-row {
+      display: flex; align-items: center; gap: .875rem;
+      padding: .875rem 0; border-bottom: 1.5px solid #f1f5f9; flex-wrap: wrap;
+    }
+    .promo-code {
+      font-family: monospace; font-size: .875rem; font-weight: 700;
+      background: #d1fae5; color: #065f46;
+      padding: .25rem .75rem; border-radius: .375rem;
+      flex-shrink: 0;
+    }
+
+    /* ── Sistema ─────────────────────────────────────────────── */
+    .sys-toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .875rem 1rem; border-radius: .75rem; background: #f8fafc;
+      border: 1.5px solid #f1f5f9; margin-bottom: .625rem;
+    }
+    .sys-toggle-title { font-size: .9rem; font-weight: 700; color: #1e293b; }
+    .sys-toggle-sub { font-size: .75rem; color: #6b7280; margin-top: .125rem; }
+
+    /* ── Admins List ─────────────────────────────────────────── */
+    .admin-row {
+      display: flex; align-items: center; gap: .75rem;
+      padding: .75rem 0; border-bottom: 1.5px solid #f1f5f9;
+    }
+    .admin-av {
+      width: 2.25rem; height: 2.25rem; border-radius: 50%;
+      background: linear-gradient(135deg, #059669, #10b981);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: .75rem; color: #fff; flex-shrink: 0;
+    }
+
+    /* ── Vendas ──────────────────────────────────────────────── */
+    .venda-row {
+      display: grid; grid-template-columns: 1fr 1fr 1fr 120px auto;
+      align-items: center; gap: .75rem;
+      padding: .625rem .875rem; border-radius: .625rem; transition: background .15s;
+    }
+    .venda-row:hover { background: #f0fdf4; }
+    .venda-header {
+      font-size: .6875rem; font-weight: 700; color: #9ca3af;
+      text-transform: uppercase; letter-spacing: .06em;
+      padding: .375rem .875rem; margin-bottom: .25rem;
+    }
+    .section-title {
+      font-size: .875rem; font-weight: 800; color: #064e3b;
+      display: flex; align-items: center; gap: .5rem; margin: 1.25rem 0 .75rem;
+    }
+    .section-title .badge-count {
+      background: #d1fae5; color: #065f46;
+      font-size: .6875rem; padding: .125rem .5rem; border-radius: 999px;
+    }
+    .empty-state {
+      text-align: center; padding: 2.5rem 1rem;
+      color: #9ca3af; font-size: .875rem;
+    }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: .5rem; }
+
+    /* ── Alerts ──────────────────────────────────────────────── */
+    .alert-banner {
+      border-radius: .75rem; padding: .875rem 1rem;
+      display: flex; align-items: center; gap: .75rem;
+      margin-bottom: 1.25rem;
+    }
+    .alert-warn { background: #fffbeb; border: 1.5px solid #fde68a; color: #92400e; }
+    .alert-info { background: #eff6ff; border: 1.5px solid #bfdbfe; color: #1d4ed8; }
+    .alert-text { font-size: .8125rem; font-weight: 600; flex: 1; }
+    .alert-link { font-size: .75rem; font-weight: 700; color: inherit; text-decoration: underline; cursor: pointer; }
+
+    /* ── Misc ────────────────────────────────────────────────── */
     #budToastContainer { z-index: 9999 !important; }
+    .text-muted { color: #9ca3af; font-size: .8125rem; }
+    .divider { border: none; border-top: 1.5px solid #f1f5f9; margin: 1.25rem 0; }
+    .loading-inline {
+      text-align: center; padding: 2rem;
+      color: #9ca3af; font-size: .875rem;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .anim-up { animation: fadeUp .25s ease; }
   </style>
 </head>
 <body>
 
   <!-- Top Bar -->
   <header class="g-bar">
-    <div class="g-bar-logo">
+    <div class="g-bar-left">
       <div class="g-logo-badge">B</div>
       <div>
         <div class="g-bar-title">Bud Finance Admin</div>
@@ -249,10 +448,10 @@
       </div>
     </div>
     <div class="g-bar-right">
-      <span><span class="pulse-dot"></span>ONLINE</span>
-      <span id="adminName" style="font-weight:600;"></span>
+      <span style="font-size:.75rem;color:#6b7280;"><span class="pulse-dot"></span>ONLINE</span>
+      <span id="adminName" style="font-weight:600;color:#374151;font-size:.8125rem;"></span>
       <div class="g-avatar" id="adminAvatar">?</div>
-      <button onclick="fazerLogoutAdmin()" class="btn-ghost" style="padding:.3rem .7rem;font-size:.75rem;">Sair</button>
+      <button class="btn-ghost btn-sm" onclick="fazerLogoutAdmin()">Sair</button>
     </div>
   </header>
 
@@ -270,233 +469,300 @@
       <div style="font-size:3rem;">🔒</div>
       <h2>Acesso Negado</h2>
       <p>Você não tem permissão para acessar este painel.<br>Apenas administradores podem visualizar esta página.</p>
-      <a href="index.html" style="display:inline-block;margin-top:1rem;padding:.5rem 1.5rem;background:#059669;color:#fff;border-radius:.625rem;font-weight:700;font-size:.875rem;text-decoration:none;">Voltar ao Login</a>
+      <a href="index.html">Voltar ao Login</a>
     </div>
   </div>
 
   <!-- Admin Content -->
   <div id="adminContent">
-
-    <!-- Tabs -->
-    <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('overview')" id="tab-overview">📊 Visão Geral</button>
-      <button class="tab-btn" onclick="switchTab('flags')" id="tab-flags">🚩 Feature Flags</button>
-      <button class="tab-btn" onclick="switchTab('crm')" id="tab-crm">👥 CRM</button>
-      <button class="tab-btn" onclick="switchTab('notifs')" id="tab-notifs">🔔 Notificações</button>
-      <button class="tab-btn" onclick="switchTab('promos')" id="tab-promos">🎟️ Promoções</button>
-      <button class="tab-btn" onclick="switchTab('system')" id="tab-system">⚙️ Sistema</button>
+    <div class="tabs" id="mainTabs">
+      <button class="tab-btn active" id="tab-overview" onclick="switchTab('overview')">📊 Visão Geral</button>
+      <button class="tab-btn" id="tab-users" onclick="switchTab('users')">👥 Usuários</button>
+      <button class="tab-btn" id="tab-sales" onclick="switchTab('sales')">💳 Vendas</button>
+      <button class="tab-btn" id="tab-notifs" onclick="switchTab('notifs')">🔔 Notificações</button>
+      <button class="tab-btn" id="tab-promos" onclick="switchTab('promos')">🎟️ Promoções</button>
+      <button class="tab-btn" id="tab-flags" onclick="switchTab('flags')">🚩 Feature Flags</button>
+      <button class="tab-btn" id="tab-system" onclick="switchTab('system')">⚙️ Sistema</button>
     </div>
 
-    <!-- Panel: Overview -->
-    <div id="panel-overview">
+    <!-- ═══ OVERVIEW ═══════════════════════════════════════════ -->
+    <div id="panel-overview" class="anim-up">
       <div class="kpi-grid" id="overviewKpis">
-        <div class="kpi-card"><div class="kpi-val" id="kpiTotal">—</div><div class="kpi-lbl">Usuários Total</div></div>
-        <div class="kpi-card"><div class="kpi-val" id="kpiPagantes">—</div><div class="kpi-lbl">Pagantes (Plus/Pro)</div></div>
-        <div class="kpi-card"><div class="kpi-val" id="kpiTrial">—</div><div class="kpi-lbl">Em Trial</div></div>
+        <div class="kpi-card green"><div class="kpi-val" id="kpiTotal">—</div><div class="kpi-lbl">Total Usuários</div></div>
+        <div class="kpi-card green"><div class="kpi-val" id="kpiPagantes">—</div><div class="kpi-lbl">Pagantes (Plus/Pro)</div></div>
+        <div class="kpi-card amber"><div class="kpi-val amber" id="kpiTrial">—</div><div class="kpi-lbl">Em Trial</div></div>
         <div class="kpi-card"><div class="kpi-val" id="kpiFree">—</div><div class="kpi-lbl">Free / Starter</div></div>
-        <div class="kpi-card"><div class="kpi-val" id="kpiFlags">—</div><div class="kpi-lbl">Feature Flags Ativas</div></div>
-        <div class="kpi-card"><div class="kpi-val" id="kpiPromos">—</div><div class="kpi-lbl">Cupons Ativos</div></div>
+        <div class="kpi-card blue"><div class="kpi-val blue" id="kpiMrr">—</div><div class="kpi-lbl">MRR Estimado</div></div>
+        <div class="kpi-card red"><div class="kpi-val red" id="kpiNaoAtivaram">—</div><div class="kpi-lbl">Não Ativaram</div></div>
       </div>
-      <div class="g-card">
-        <div class="panel-header">
-          <div>
-            <div class="panel-title">Últimos Cadastros</div>
-            <div class="panel-sub">10 usuários mais recentes</div>
+      <div id="alertNaoAtivaram" style="display:none;"></div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:1rem;">
+        <div class="g-card">
+          <div class="panel-header">
+            <div><div class="panel-title">Últimos Cadastros</div><div class="panel-sub">10 usuários mais recentes</div></div>
           </div>
+          <div id="overviewSignups"><div class="loading-inline">Carregando...</div></div>
         </div>
-        <div id="overviewSignups" style="font-size:.8125rem;color:#6b7280;">Carregando...</div>
-      </div>
-    </div>
-
-    <!-- Panel: Feature Flags -->
-    <div id="panel-flags" style="display:none;">
-      <div class="g-card">
-        <div class="panel-header">
-          <div>
-            <div class="panel-title">🚩 Feature Flags</div>
-            <div class="panel-sub">Controle global de funcionalidades por plano</div>
+        <div class="g-card">
+          <div class="panel-header">
+            <div><div class="panel-title">Planos</div><div class="panel-sub">Distribuição</div></div>
           </div>
-          <button class="btn-cyan" onclick="abrirModalFlag()">+ Nova Flag</button>
-        </div>
-        <div id="flagsGrid">
-          <div style="color:#9ca3af;font-size:.875rem;padding:2rem;text-align:center;">Carregando flags...</div>
+          <div id="planDistribution"><div class="loading-inline">...</div></div>
         </div>
       </div>
     </div>
 
-    <!-- Panel: CRM / Chamados -->
-    <div id="panel-crm" style="display:none;">
+    <!-- ═══ USUÁRIOS / CRM ══════════════════════════════════════ -->
+    <div id="panel-users" style="display:none;" class="anim-up">
       <div class="g-card">
         <div class="panel-header">
-          <div>
-            <div class="panel-title">🎫 Chamados de Suporte</div>
-            <div class="panel-sub">Bugs e sugestões enviados pelos usuários via Assistente IA</div>
-          </div>
-          <div style="display:flex;gap:0.5rem;align-items:center;">
-            <select id="filtroStatusChamado" onchange="carregarChamados()" style="padding:0.375rem 0.75rem;border-radius:0.5rem;border:1.5px solid #e2e8f0;font-size:0.8125rem;font-weight:600;color:#1e293b;background:#fff;font-family:inherit;cursor:pointer;">
-              <option value="">Todos</option>
-              <option value="aberto">Abertos</option>
-              <option value="em_analise">Em análise</option>
-              <option value="resolvido">Resolvidos</option>
-            </select>
-            <button class="btn-cyan" onclick="carregarChamados()">↻ Atualizar</button>
-          </div>
+          <div><div class="panel-title">👥 Usuários</div><div class="panel-sub">Gerencie planos, visualize engajamento e tome ações</div></div>
         </div>
-        <div id="chamadosLista">
-          <div style="color:#9ca3af;font-size:.875rem;padding:2rem;text-align:center;">Carregando chamados...</div>
+        <div class="crm-filters">
+          <input type="text" class="crm-search" id="crmSearch" placeholder="🔍 Buscar por nome ou e-mail..." oninput="filterCRM()">
+          <div class="admin-sel" id="selPlanContainer">
+            <div class="admin-sel-trigger" onclick="toggleSel('selPlanContainer')">
+              <span id="selPlanLabel">Todos os planos</span>
+              <span class="admin-sel-arrow">▾</span>
+            </div>
+            <div class="admin-sel-drop" id="selPlanDrop">
+              <div class="admin-sel-opt sel" data-val="" onclick="pickSel('selPlanContainer','','Todos os planos');filterCRM()">Todos os planos</div>
+              <div class="admin-sel-opt" data-val="free" onclick="pickSel('selPlanContainer','free','Free');filterCRM()">Free</div>
+              <div class="admin-sel-opt" data-val="starter" onclick="pickSel('selPlanContainer','starter','Starter');filterCRM()">Starter</div>
+              <div class="admin-sel-opt" data-val="trial" onclick="pickSel('selPlanContainer','trial','Trial');filterCRM()">Trial</div>
+              <div class="admin-sel-opt" data-val="plus" onclick="pickSel('selPlanContainer','plus','Plus');filterCRM()">Plus</div>
+              <div class="admin-sel-opt" data-val="pro" onclick="pickSel('selPlanContainer','pro','Pro');filterCRM()">Pro</div>
+            </div>
+            <input type="hidden" id="crmPlanFilter" value="">
+          </div>
+          <div class="admin-sel" id="selEngContainer">
+            <div class="admin-sel-trigger" onclick="toggleSel('selEngContainer')">
+              <span id="selEngLabel">Engajamento</span>
+              <span class="admin-sel-arrow">▾</span>
+            </div>
+            <div class="admin-sel-drop" id="selEngDrop">
+              <div class="admin-sel-opt sel" data-val="" onclick="pickSel('selEngContainer','','Engajamento');filterCRM()">Todos</div>
+              <div class="admin-sel-opt" data-val="heavy" onclick="pickSel('selEngContainer','heavy','🔥 Intenso');filterCRM()">🔥 Intenso</div>
+              <div class="admin-sel-opt" data-val="regular" onclick="pickSel('selEngContainer','regular','✅ Regular');filterCRM()">✅ Regular</div>
+              <div class="admin-sel-opt" data-val="risk" onclick="pickSel('selEngContainer','risk','⚠️ Em risco');filterCRM()">⚠️ Em risco</div>
+              <div class="admin-sel-opt" data-val="inactive" onclick="pickSel('selEngContainer','inactive','💤 Inativo');filterCRM()">💤 Inativo</div>
+            </div>
+            <input type="hidden" id="crmEngFilter" value="">
+          </div>
+          <button class="btn-ghost btn-sm" onclick="reloadCRM()">↻ Atualizar</button>
+        </div>
+        <div class="u-row-header" style="display:grid;grid-template-columns:2.5rem 1fr 1fr 1fr 120px 80px 100px;gap:.75rem;padding:.375rem .875rem;">
+          <span></span><span>Usuário</span><span>E-mail</span><span>Plano</span><span>Engajamento</span><span>Txns</span><span>Ações</span>
+        </div>
+        <div id="crmList"><div class="loading-inline">Carregando usuários...</div></div>
+        <div class="crm-pagination">
+          <span class="page-info" id="crmPageInfo">—</span>
+          <div style="display:flex;gap:.5rem;">
+            <button class="btn-ghost btn-sm" id="crmPrev" onclick="crmChangePage(-1)" disabled>← Anterior</button>
+            <button class="btn-ghost btn-sm" id="crmNext" onclick="crmChangePage(1)" disabled>Próxima →</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Panel: Notificações -->
-    <div id="panel-notifs" style="display:none;">
+    <!-- ═══ VENDAS ══════════════════════════════════════════════ -->
+    <div id="panel-sales" style="display:none;" class="anim-up">
+      <div class="kpi-grid">
+        <div class="kpi-card blue"><div class="kpi-val blue" id="salesKpiMrr">—</div><div class="kpi-lbl">MRR Estimado</div></div>
+        <div class="kpi-card amber"><div class="kpi-val amber" id="salesKpiTrial">—</div><div class="kpi-lbl">Em Trial</div></div>
+        <div class="kpi-card red"><div class="kpi-val red" id="salesKpiNaoAtivaram">—</div><div class="kpi-lbl">Não Ativaram</div></div>
+        <div class="kpi-card green"><div class="kpi-val" id="salesKpiPagantes">—</div><div class="kpi-lbl">Pagantes</div></div>
+      </div>
+      <div class="g-card">
+        <div class="section-title">🚨 Não Ativaram o Plano <span class="badge-count" id="countNaoAtivaram">0</span></div>
+        <div class="text-muted" style="margin-bottom:.75rem;font-size:.75rem;">Free há mais de 7 dias — potencial de conversão</div>
+        <div class="venda-header" style="display:grid;grid-template-columns:1fr 1fr 120px 80px auto;gap:.75rem;">
+          <span>Nome</span><span>E-mail</span><span>Cadastrado em</span><span>Dias sem plano</span><span>Ação</span>
+        </div>
+        <div id="salesNaoAtivaram"><div class="loading-inline">Carregando...</div></div>
+
+        <hr class="divider">
+        <div class="section-title">⏰ Em Trial <span class="badge-count" id="countTrial">0</span></div>
+        <div class="text-muted" style="margin-bottom:.75rem;font-size:.75rem;">Período gratuito ativo — oportunidade de conversão</div>
+        <div class="venda-header" style="display:grid;grid-template-columns:1fr 1fr 120px 80px auto;gap:.75rem;">
+          <span>Nome</span><span>E-mail</span><span>Início trial</span><span>Vence em</span><span>Ação</span>
+        </div>
+        <div id="salesTrial"><div class="loading-inline">Carregando...</div></div>
+
+        <hr class="divider">
+        <div class="section-title">💰 Pagantes <span class="badge-count" id="countPagantes">0</span></div>
+        <div class="text-muted" style="margin-bottom:.75rem;font-size:.75rem;">Usuários com plano pago ativo</div>
+        <div class="venda-header" style="display:grid;grid-template-columns:1fr 1fr 1fr 120px auto;gap:.75rem;">
+          <span>Nome</span><span>E-mail</span><span>Plano</span><span>Ativou em</span><span>Ação</span>
+        </div>
+        <div id="salesPagantes"><div class="loading-inline">Carregando...</div></div>
+      </div>
+    </div>
+
+    <!-- ═══ NOTIFICAÇÕES ════════════════════════════════════════ -->
+    <div id="panel-notifs" style="display:none;" class="anim-up">
       <div class="g-card" style="margin-bottom:1rem;">
         <div class="panel-header">
-          <div>
-            <div class="panel-title">🔔 Enviar Notificação Global</div>
-            <div class="panel-sub">Registra no Firestore e exibe nas notificações in-app</div>
-          </div>
+          <div><div class="panel-title">🔔 Enviar Notificação</div><div class="panel-sub">Dispara para segmento de usuários via in-app ou push</div></div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.875rem;">
+        <div class="form-grid-2" style="margin-bottom:.875rem;">
           <div>
             <label class="god-label">Título *</label>
             <input type="text" id="notifTitulo" class="god-input" placeholder="ex: Novidade no Bud Finance!">
           </div>
           <div>
             <label class="god-label">Tipo</label>
-            <select id="notifTipo" style="width:100%;padding:.625rem .875rem;border:1.5px solid #d1d5db;border-radius:.625rem;font-family:inherit;font-size:.875rem;color:#1e293b;background:#f9fafb;">
-              <option value="info">💡 Informação</option>
-              <option value="promo">🎉 Promoção</option>
-              <option value="update">🚀 Atualização</option>
-              <option value="alert">⚠️ Alerta</option>
-            </select>
-          </div>
-          <div>
-            <label class="god-label">Destino</label>
-            <select id="notifDestino" style="width:100%;padding:.625rem .875rem;border:1.5px solid #d1d5db;border-radius:.625rem;font-family:inherit;font-size:.875rem;color:#1e293b;background:#f9fafb;">
-              <option value="all">Todos os usuários</option>
-              <option value="plus">Plus</option>
-              <option value="pro">Pro</option>
-              <option value="trial">Trial</option>
-              <option value="free">Free</option>
-            </select>
+            <div class="admin-sel" id="selNotifTipoContainer" style="width:100%;">
+              <div class="admin-sel-trigger" style="width:100%;" onclick="toggleSel('selNotifTipoContainer')">
+                <span id="selNotifTipoLabel">💡 Informação</span>
+                <span class="admin-sel-arrow">▾</span>
+              </div>
+              <div class="admin-sel-drop" id="selNotifTipoDrop" style="width:100%;">
+                <div class="admin-sel-opt sel" onclick="pickSel('selNotifTipoContainer','info','💡 Informação')">💡 Informação</div>
+                <div class="admin-sel-opt" onclick="pickSel('selNotifTipoContainer','promo','🎉 Promoção')">🎉 Promoção</div>
+                <div class="admin-sel-opt" onclick="pickSel('selNotifTipoContainer','update','🚀 Atualização')">🚀 Atualização</div>
+                <div class="admin-sel-opt" onclick="pickSel('selNotifTipoContainer','alert','⚠️ Alerta')">⚠️ Alerta</div>
+              </div>
+              <input type="hidden" id="notifTipo" value="info">
+            </div>
           </div>
         </div>
-        <div style="margin-top:.875rem;">
+        <div class="form-grid-2" style="margin-bottom:.875rem;">
+          <div>
+            <label class="god-label">Canal</label>
+            <div class="admin-sel" id="selNotifCanalContainer" style="width:100%;">
+              <div class="admin-sel-trigger" style="width:100%;" onclick="toggleSel('selNotifCanalContainer')">
+                <span id="selNotifCanalLabel">📱 In-app</span>
+                <span class="admin-sel-arrow">▾</span>
+              </div>
+              <div class="admin-sel-drop" id="selNotifCanalDrop" style="width:100%;">
+                <div class="admin-sel-opt sel" onclick="pickSel('selNotifCanalContainer','inapp','📱 In-app')">📱 In-app</div>
+                <div class="admin-sel-opt" onclick="pickSel('selNotifCanalContainer','push','📲 Push (FCM)')">📲 Push (FCM)</div>
+              </div>
+              <input type="hidden" id="notifCanal" value="inapp">
+            </div>
+          </div>
+          <div>
+            <label class="god-label">Destinatário</label>
+            <div class="admin-sel" id="selNotifDestinoContainer" style="width:100%;">
+              <div class="admin-sel-trigger" style="width:100%;" onclick="toggleSel('selNotifDestinoContainer')">
+                <span id="selNotifDestinoLabel">Todos os usuários</span>
+                <span class="admin-sel-arrow">▾</span>
+              </div>
+              <div class="admin-sel-drop" id="selNotifDestinoDrop" style="width:100%;">
+                <div class="admin-sel-opt sel" onclick="pickSel('selNotifDestinoContainer','all','Todos os usuários')">Todos os usuários</div>
+                <div class="admin-sel-opt" onclick="pickSel('selNotifDestinoContainer','free','Free')">Free</div>
+                <div class="admin-sel-opt" onclick="pickSel('selNotifDestinoContainer','trial','Trial')">Trial</div>
+                <div class="admin-sel-opt" onclick="pickSel('selNotifDestinoContainer','plus','Plus')">Plus</div>
+                <div class="admin-sel-opt" onclick="pickSel('selNotifDestinoContainer','pro','Pro')">Pro</div>
+              </div>
+              <input type="hidden" id="notifDestino" value="all">
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
           <label class="god-label">Mensagem *</label>
-          <textarea id="notifMensagem" class="god-input" rows="3" placeholder="Mensagem da notificação..." style="resize:vertical;"></textarea>
+          <textarea id="notifMensagem" class="god-textarea" placeholder="Texto da notificação..."></textarea>
         </div>
-        <div style="margin-top:1rem;">
-          <button class="btn-cyan" id="btnEnviarNotif" onclick="enviarNotificacao()">📤 Enviar Notificação</button>
-        </div>
+        <button class="btn-primary" id="btnEnviarNotif" onclick="enviarNotificacao()">📤 Enviar Notificação</button>
       </div>
       <div class="g-card">
         <div class="panel-header">
-          <div>
-            <div class="panel-title">📜 Histórico</div>
-            <div class="panel-sub">Últimas 20 notificações enviadas</div>
-          </div>
-          <button class="btn-ghost" onclick="carregarNotificacoes()">&#8635; Atualizar</button>
+          <div><div class="panel-title">📋 Histórico</div><div class="panel-sub">Últimas 20 notificações enviadas</div></div>
+          <button class="btn-ghost btn-sm" onclick="loadNotifications()">↻ Atualizar</button>
         </div>
-        <div id="notifHistory" style="max-height:420px;overflow-y:auto;"></div>
+        <div id="notifHistory"><div class="loading-inline">Carregando...</div></div>
       </div>
     </div>
 
-    <!-- Panel: Promoções -->
-    <div id="panel-promos" style="display:none;">
+    <!-- ═══ PROMOÇÕES ═══════════════════════════════════════════ -->
+    <div id="panel-promos" style="display:none;" class="anim-up">
       <div class="g-card">
         <div class="panel-header">
-          <div>
-            <div class="panel-title">🎟️ Cupons de Desconto</div>
-            <div class="panel-sub">CRUD de cupons com código, desconto % e validade</div>
-          </div>
-          <button class="btn-cyan" onclick="abrirModalPromo()">+ Novo Cupom</button>
+          <div><div class="panel-title">🎟️ Cupons de Desconto</div><div class="panel-sub">CRUD de cupons com código, desconto % e validade</div></div>
+          <button class="btn-primary" onclick="openPromoModal()">+ Novo Cupom</button>
         </div>
-        <div id="promosList"></div>
+        <div id="promosList"><div class="loading-inline">Carregando...</div></div>
       </div>
     </div>
 
-    <!-- Panel: Sistema -->
-    <div id="panel-system" style="display:none;">
-      <div class="g-card" style="margin-bottom:1rem;">
-        <div class="panel-header">
-          <div>
-            <div class="panel-title">⚙️ Configurações do Sistema</div>
-            <div class="panel-sub">Configurações globais do app</div>
-          </div>
-          <button class="btn-cyan" id="btnSalvarSistema" onclick="salvarSistema()">💾 Salvar</button>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;">
-          <div class="g-card" style="background:#f8fafc;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
-              <div>
-                <div style="font-size:.9rem;font-weight:700;color:#1e293b;">🚧 Modo Manutenção</div>
-                <div style="font-size:.75rem;color:#6b7280;margin-top:.125rem;">Bloqueia acesso de todos os usuários</div>
-              </div>
-              <button class="toggle" id="togManutencao" onclick="this.classList.toggle('on')"></button>
-            </div>
-          </div>
-          <div class="g-card" style="background:#f8fafc;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
-              <div>
-                <div style="font-size:.9rem;font-weight:700;color:#1e293b;">👤 Cadastros Abertos</div>
-                <div style="font-size:.75rem;color:#6b7280;margin-top:.125rem;">Permite novos registros no app</div>
-              </div>
-              <button class="toggle on" id="togCadastros" onclick="this.classList.toggle('on')"></button>
-            </div>
-          </div>
-          <div class="g-card" style="background:#f8fafc;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
-              <div>
-                <div style="font-size:.9rem;font-weight:700;color:#1e293b;">🤖 Assistente IA</div>
-                <div style="font-size:.75rem;color:#6b7280;margin-top:.125rem;">Exibe botão do Assistente IA nas telas</div>
-              </div>
-              <button class="toggle on" id="togAssistenteIA" onclick="this.classList.toggle('on')"></button>
-            </div>
-          </div>
-          <div class="g-card" style="background:#f8fafc;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
-              <div>
-                <div style="font-size:.9rem;font-weight:700;color:#1e293b;">📱 Assistente WhatsApp</div>
-                <div style="font-size:.75rem;color:#6b7280;margin-top:.125rem;">Exibe integração WhatsApp no app</div>
-              </div>
-              <button class="toggle on" id="togAssistenteWA" onclick="this.classList.toggle('on')"></button>
-            </div>
-          </div>
-        </div>
-        <div style="margin-top:1rem;">
-          <label class="god-label">Versão do App</label>
-          <input type="text" id="inputVersao" class="god-input" placeholder="ex: 1.0.0" style="max-width:200px;">
-        </div>
-        <div style="margin-top:1rem;">
-          <label class="god-label">Mensagem de Boas-Vindas</label>
-          <input type="text" id="inputBoasVindas" class="god-input" placeholder="ex: Bem-vindo ao Bud Finance!">
-        </div>
-      </div>
-
-      <!-- Administradores -->
+    <!-- ═══ FEATURE FLAGS ════════════════════════════════════════ -->
+    <div id="panel-flags" style="display:none;" class="anim-up">
       <div class="g-card">
         <div class="panel-header">
-          <div>
-            <div class="panel-title">🔒 Administradores</div>
-            <div class="panel-sub">Usuários com acesso total ao painel</div>
-          </div>
-          <button class="btn-cyan" onclick="mostrarAddAdmin()">+ Adicionar Admin</button>
+          <div><div class="panel-title">🚩 Feature Flags</div><div class="panel-sub">Controle global de funcionalidades por plano</div></div>
+          <button class="btn-primary" onclick="openFlagModal()">+ Nova Flag</button>
         </div>
-        <div id="addAdminRow" style="display:none;margin-bottom:1rem;">
-          <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
-            <input type="email" id="adminEmailInput" class="god-input" placeholder="email do usuário" style="max-width:300px;">
-            <button class="btn-cyan" id="btnAddAdmin" onclick="adicionarAdmin()">Promover</button>
-            <button class="btn-ghost" onclick="ocultarAddAdmin()">Cancelar</button>
+        <div class="flags-grid" id="flagsGrid"><div class="loading-inline">Carregando flags...</div></div>
+      </div>
+    </div>
+
+    <!-- ═══ SISTEMA ══════════════════════════════════════════════ -->
+    <div id="panel-system" style="display:none;" class="anim-up">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div class="g-card">
+          <div class="panel-header">
+            <div><div class="panel-title">⚙️ Configurações</div></div>
+            <button class="btn-primary" id="btnSalvarSistema" onclick="saveAppSettings()">💾 Salvar</button>
+          </div>
+          <div class="sys-toggle-row">
+            <div><div class="sys-toggle-title">🚧 Modo Manutenção</div><div class="sys-toggle-sub">Bloqueia acesso de todos os usuários</div></div>
+            <button class="toggle" id="togManutencao" onclick="this.classList.toggle('on');saveToggle('modoManutencao',this.classList.contains('on'))"></button>
+          </div>
+          <div class="sys-toggle-row">
+            <div><div class="sys-toggle-title">👤 Cadastros Abertos</div><div class="sys-toggle-sub">Permite novos registros no app</div></div>
+            <button class="toggle on" id="togCadastros" onclick="this.classList.toggle('on');saveToggle('cadastrosAbertos',this.classList.contains('on'))"></button>
+          </div>
+          <div class="sys-toggle-row">
+            <div><div class="sys-toggle-title">🤖 Assistente IA</div><div class="sys-toggle-sub">Exibe botão do assistente nas telas</div></div>
+            <button class="toggle on" id="togAssistenteIA" onclick="this.classList.toggle('on');saveToggle('ocultarAssistenteIA',!this.classList.contains('on'))"></button>
+          </div>
+          <div class="sys-toggle-row">
+            <div><div class="sys-toggle-title">📱 Assistente WhatsApp</div><div class="sys-toggle-sub">Exibe integração WhatsApp no app</div></div>
+            <button class="toggle on" id="togAssistenteWA" onclick="this.classList.toggle('on');saveToggle('ocultarAssistenteWhatsApp',!this.classList.contains('on'))"></button>
+          </div>
+          <div class="form-row" style="margin-top:1rem;">
+            <label class="god-label">Versão do App</label>
+            <input type="text" id="inputVersao" class="god-input" placeholder="ex: 1.0.0" style="max-width:160px;">
+          </div>
+          <div class="form-row">
+            <label class="god-label">Mensagem de Boas-Vindas</label>
+            <input type="text" id="inputBoasVindas" class="god-input" placeholder="ex: Bem-vindo ao Bud Finance!">
+          </div>
+          <div class="form-row">
+            <label class="god-label">Código de Convite Admin</label>
+            <input type="text" id="inputInviteCode" class="god-input" placeholder="código para admin-register.html" autocomplete="off">
+            <div style="font-size:.7rem;color:#9ca3af;margin-top:.25rem;">Usado em admin-register.html para criar novos admins</div>
           </div>
         </div>
-        <div id="adminsList"></div>
+        <div class="g-card">
+          <div class="panel-header">
+            <div><div class="panel-title">🔐 Administradores</div><div class="panel-sub">Usuários com acesso ao painel</div></div>
+            <button class="btn-primary btn-sm" onclick="mostrarAddAdmin()">+ Adicionar</button>
+          </div>
+          <div id="addAdminRow" style="display:none;margin-bottom:1rem;">
+            <label class="god-label">E-mail do usuário</label>
+            <div style="display:flex;gap:.5rem;align-items:center;">
+              <input type="email" id="adminEmailInput" class="god-input" placeholder="email@exemplo.com">
+              <button class="btn-primary btn-sm" id="btnAddAdmin" onclick="adicionarAdmin()">Promover</button>
+              <button class="btn-ghost btn-sm" onclick="ocultarAddAdmin()">✕</button>
+            </div>
+          </div>
+          <div id="adminsList"><div class="loading-inline">Carregando...</div></div>
+        </div>
       </div>
     </div>
 
   </div><!-- /adminContent -->
 
-  <!-- Modal: Feature Flag -->
+  <!-- ═══ MODAL: Usuário 360° ══════════════════════════════════ -->
+  <div class="modal-bg" id="modalUser">
+    <div class="modal-box" style="max-width:600px;">
+      <div id="muContent"><div class="loading-inline">Carregando dados...</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL: Feature Flag ══════════════════════════════════ -->
   <div class="modal-bg" id="modalFlag">
     <div class="modal-box">
       <div class="modal-title" id="modalFlagTitulo">Nova Feature Flag</div>
@@ -512,7 +778,7 @@
       </div>
       <div class="form-row">
         <label class="god-label">Descrição</label>
-        <input type="text" id="flagDesc" class="god-input" placeholder="Descreva brevemente a funcionalidade">
+        <input type="text" id="flagDesc" class="god-input" placeholder="Descreva a funcionalidade">
       </div>
       <div class="form-row">
         <label class="god-label">Planos com Acesso</label>
@@ -523,21 +789,21 @@
           <label class="plan-chk-label"><input type="checkbox" name="flagPlan" value="plus"> Plus</label>
           <label class="plan-chk-label"><input type="checkbox" name="flagPlan" value="pro"> Pro</label>
         </div>
-        <span style="font-size:.7rem;color:#9ca3af;margin-top:.375rem;display:block;">Deixe todos desmarcados para liberar para todos os planos.</span>
+        <span style="font-size:.7rem;color:#9ca3af;margin-top:.375rem;display:block;">Deixe todos desmarcados = todos os planos</span>
       </div>
       <div class="form-row" style="display:flex;align-items:center;gap:.75rem;">
-        <label class="god-label" style="margin:0;">Flag habilitada?</label>
-        <button class="toggle on" id="flagEnabled"></button>
+        <label class="god-label" style="margin:0;">Habilitada?</label>
+        <button class="toggle on" id="flagEnabled" onclick="this.classList.toggle('on');document.getElementById('flagEnabledLabel').textContent=this.classList.contains('on')?'Sim':'Não'"></button>
         <span id="flagEnabledLabel" style="font-size:.8125rem;color:#6b7280;">Sim</span>
       </div>
       <div class="modal-footer">
-        <button class="btn-ghost" onclick="fecharModalFlag()">Cancelar</button>
-        <button class="btn-cyan" onclick="salvarFlag()">Salvar Flag</button>
+        <button class="btn-ghost" onclick="closeFlagModal()">Cancelar</button>
+        <button class="btn-primary" id="btnSalvarFlag" onclick="saveFlag()">Salvar Flag</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal: Promoção -->
+  <!-- ═══ MODAL: Promoção ═══════════════════════════════════════ -->
   <div class="modal-bg" id="modalPromo">
     <div class="modal-box">
       <div class="modal-title">🎟️ Novo Cupom de Desconto</div>
@@ -545,17 +811,17 @@
         <label class="god-label">Código do Cupom *</label>
         <input type="text" id="promoCodigo" class="god-input" placeholder="ex: BLACKFRIDAY50" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.875rem;">
+      <div class="form-grid-2">
         <div class="form-row">
           <label class="god-label">Desconto (%) *</label>
           <input type="number" id="promoDesconto" class="god-input" min="1" max="100" placeholder="ex: 30">
         </div>
         <div class="form-row">
           <label class="god-label">Limite de usos</label>
-          <input type="number" id="promoLimite" class="god-input" min="0" placeholder="0 = ilimitado">
+          <input type="number" id="promoLimite" class="god-input" min="0" value="0" placeholder="0 = ilimitado">
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.875rem;">
+      <div class="form-grid-2">
         <div class="form-row">
           <label class="god-label">Válido de</label>
           <input type="date" id="promoInicio" class="god-input">
@@ -570,8 +836,8 @@
         <input type="text" id="promoDescricao" class="god-input" placeholder="ex: Black Friday 2026">
       </div>
       <div class="modal-footer">
-        <button class="btn-ghost" onclick="fecharModalPromo()">Cancelar</button>
-        <button class="btn-cyan" id="btnSalvarPromo" onclick="salvarPromo()">Salvar Cupom</button>
+        <button class="btn-ghost" onclick="closePromoModal()">Cancelar</button>
+        <button class="btn-primary" id="btnSalvarPromo" onclick="savePromo()">Salvar Cupom</button>
       </div>
     </div>
   </div>

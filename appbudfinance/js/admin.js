@@ -1,878 +1,1212 @@
-/**
- * js/admin.js — Painel Administrativo
- *
- * Auth guard: role === 'admin' no Firestore
- * Firebase Modular v10.8.1 (ES modules, type="module")
- * Funcionalidades:
- *  - Visão Geral: KPIs (total usuários, pagantes, trial, flags ativas) + últimos cadastros
- *  - Feature Flags: CRUD completo + seed de defaults + toggle rápido
- *  - Sistema: toggles de manutenção/cadastros + versão + mensagem de boas-vindas
- */
+﻿// ═══════════════════════════════════════════════════════════════
+//  Bud Finance — Admin Panel JS (ES Module)
+//  Rebuild completo com: Visão Geral, Usuários, Vendas,
+//  Notificações, Promoções, Feature Flags, Sistema
+// ═══════════════════════════════════════════════════════════════
 
-import { initializeApp, getApps }  from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
-import { getAuth, onAuthStateChanged, signOut }
-  from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
+import { initializeApp, getApps }         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
-  collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
-  setDoc, orderBy, query, limit, serverTimestamp, where, getCountFromServer
+  collection, doc, getDoc, getDocs, addDoc, updateDoc,
+  deleteDoc, setDoc, query, orderBy, limit, where,
+  serverTimestamp, getCountFromServer, startAfter, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
-// ─── Firebase ────────────────────────────────────────────────────────────────────
-const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
+// ── Firebase Init ──────────────────────────────────────────────
+const app = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
-const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+const db   = (() => {
+  try { return initializeFirestore(app, { localCache: persistentLocalCache() }); }
+  catch(e) { return getFirestore(app); }
+})();
 
-// ─── Estado ────────────────────────────────────────────────────────────────
-let _flags   = [];  // array de { id, key, name, description, enabled, allowedPlans }
-let _panelAtual = 'overview';
-let _chamadosCarregados = false;
-let _notifs  = [];  // notificacoes-globais
-let _promos  = [];  // promoções
-let _admins  = [];  // usuários com role === 'admin'
-let _allUsersLite = []; // todos usuários (cache para admins)
+// ── State ──────────────────────────────────────────────────────
+const PAGE_SIZE       = 25;
+let _allFlags         = [];
+let _notifs           = [];
+let _promos           = [];
+let _appSettings      = {};
+let _currentTab       = 'overview';
+let _crmPage          = 0;
+let _crmTotal         = 0;
+let _crmCursors       = [];      // DocumentSnapshot por página
+let _crmUsers         = [];      // Usuários da página atual (enriquecidos)
+let _crmUsersAll      = [];      // Cache para filtro client-side
+let _overviewLoaded   = false;
+let _salesLoaded      = false;
 
-// ─── Seed de Feature Flags padrão ─────────────────────────────────────────
-const FLAGS_DEFAULT = [
-  { key: 'importacao_ia',        name: 'Importação por IA',           description: 'Extração de cupom fiscal via IA na tela Compras.',          enabled: true,  allowedPlans: ['plus','pro','trial'] },
-  { key: 'comparativo_meses',    name: 'Comparativo de Meses',        description: 'Tela comparativo.html — análise lado a lado de 2 meses.',   enabled: true,  allowedPlans: ['plus','pro','trial'] },
-  { key: 'balanco_mensal',       name: 'Balanço Mensal',              description: 'Tela balanco-mensal.html — KPIs + dia-a-dia do mês.',       enabled: true,  allowedPlans: ['plus','pro','trial'] },
-  { key: 'graficos_avancados',   name: 'Gráficos Avançados',         description: 'Tela graficos.html — charts Chart.js + comparativo faturas.',enabled: true,  allowedPlans: ['pro','trial'] },
-  { key: 'relatorios',           name: 'Central de Relatórios',      description: 'Tela relatorios.html — export detalhado em 3 abas.',        enabled: true,  allowedPlans: ['pro','trial'] },
-  { key: 'insights',             name: 'Insights e Análises',        description: 'Tela insights.html — score saúde + alertas + projeção.',    enabled: true,  allowedPlans: ['plus','pro','trial'] },
-  { key: 'copiar_mes_anterior',  name: 'Copiar Limites do Mês Ant.', description: 'Botão "Copiar mês anterior" na tela Limites.',             enabled: true,  allowedPlans: ['plus','pro','trial'] },
-  { key: 'exportar_dados',       name: 'Exportar Dados (JSON)',       description: 'Botão exportar dados em JSON na tela Configurações.',       enabled: true,  allowedPlans: [] },
-  { key: 'excluir_conta',        name: 'Excluir Conta',              description: 'Botão excluir conta permanentemente em Configurações.',     enabled: true,  allowedPlans: [] },
-  { key: 'investimentos',        name: 'Tela de Investimentos',      description: 'Acesso à tela investimentos.html + cotações AwesomeAPI.',   enabled: true,  allowedPlans: ['plus','pro','trial'] },
-  { key: 'processar_recorrentes',name: 'Processar Recorrentes',      description: 'Botão ⚙️ na tela Recorrentes para lançar contas manualmente.',enabled: true, allowedPlans: ['plus','pro','trial'] },
-  { key: 'filtro_extrato',       name: 'Filtro de Intervalo Extrato',description: 'Filtro por data personalizada (De → Até) no Extrato.',     enabled: true,  allowedPlans: [] },
-  { key: 'assistente_ia',        name: 'Assistente IA',              description: 'Acesso ao assistente de IA (quando disponível).',          enabled: false, allowedPlans: ['pro'] },
-  { key: 'assistente_whatsapp',  name: 'Assistente WhatsApp',        description: 'Integração bot WhatsApp (quando disponível).',            enabled: false, allowedPlans: ['plus','pro'] },
-  { key: 'notificacoes_push',    name: 'Notificações Push (FCM)',    description: 'Push notifications via Firebase Cloud Messaging.',         enabled: false, allowedPlans: ['plus','pro','trial'] },
-  { key: 'modo_manutencao',      name: 'Modo Manutenção',            description: 'Bloqueia login de todos os usuários (exceto admin).',      enabled: false, allowedPlans: [] },
-  { key: 'mercado_historico',    name: 'Histórico de Preços Mercado',description: 'Histórico de variação de preços de produtos.',             enabled: true,  allowedPlans: [] },
-  { key: 'categorias_custom',    name: 'Categorias Personalizadas',  description: 'Criar e editar categorias além das padrão.',               enabled: true,  allowedPlans: [] },
-  { key: 'pagar_fatura_1click',  name: 'Pagar Fatura com 1 Clique', description: 'Modal de pagamento de fatura com débito automático em conta.',enabled: true,allowedPlans: [] },
-];
+// ── Plan prices for MRR estimate ───────────────────────────────
+const PLAN_PRICES = { starter: 19.90, plus: 29.90, pro: 49.90 };
 
-// ─── Tabs ──────────────────────────────────────────────────────────────────
-window.switchTab = function(tab) {
-  const panels = ['overview','flags','crm','notifs','promos','system'];
-  // Lazy-load ao abrir aba de notificações ou promoções pela 1ª vez já é coberto
-  // pelo carregamento inicial em Promise.all, mas deixamos re-load no clique
-  panels.forEach(p => {
-    const el = document.getElementById('panel-' + p);
-    const btn = document.getElementById('tab-' + p);
-    if (el) el.style.display = p === tab ? '' : 'none';
-    if (btn) btn.classList.toggle('active', p === tab);
-  });
-  _panelAtual = tab;
-  // Lazy-load chamados ao abrir a aba CRM
-  if (tab === 'crm' && !_chamadosCarregados) carregarChamados();
+// ═══════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+function fmtDate(ts) {
+  if (!ts) return '—';
+  let d;
+  if (ts && typeof ts.toDate === 'function') d = ts.toDate();
+  else if (ts instanceof Date) d = ts;
+  else d = new Date(ts);
+  if (isNaN(d)) return '—';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function daysSince(ts) {
+  if (!ts) return null;
+  let d;
+  if (ts && typeof ts.toDate === 'function') d = ts.toDate();
+  else if (ts instanceof Date) d = ts;
+  else d = new Date(ts);
+  if (isNaN(d)) return null;
+  return Math.floor((Date.now() - d.getTime()) / 86400000);
+}
+
+function planBadge(plan) {
+  const p = (plan || 'free').toLowerCase();
+  const classes = { free:'plan-free', starter:'plan-starter', trial:'plan-trial', plus:'plan-plus', pro:'plan-pro', admin:'plan-admin' };
+  const labels  = { free:'Free', starter:'Starter', trial:'Trial', plus:'Plus', pro:'Pro', admin:'Admin' };
+  return `<span class="plan-badge ${classes[p] || 'plan-free'}">${labels[p] || esc(p)}</span>`;
+}
+
+function engagement(txCount, lastTxDays) {
+  if (lastTxDays === null) lastTxDays = 999;
+  if (txCount >= 20 && lastTxDays <= 7)  return 'heavy';
+  if (txCount >= 5  && lastTxDays <= 30) return 'regular';
+  if (txCount >= 1  && lastTxDays <= 60) return 'risk';
+  return 'inactive';
+}
+
+function thermoHTML(eng) {
+  const cfg = {
+    heavy:    { pct: 90, lbl: '🔥 Intenso',   cls: 'eng-heavy' },
+    regular:  { pct: 60, lbl: '✅ Regular',    cls: 'eng-regular' },
+    risk:     { pct: 30, lbl: '⚠️ Em risco',   cls: 'eng-risk' },
+    inactive: { pct: 10, lbl: '💤 Inativo',    cls: 'eng-inactive' },
+  };
+  const c = cfg[eng] || cfg.inactive;
+  return `<div class="thermo thermo-${eng}"><div class="thermo-fill" style="width:${c.pct}%"></div></div>
+          <div class="eng-label ${c.cls}">${c.lbl}</div>`;
+}
+
+function budToast(msg, type = 'success') {
+  if (typeof window.budShowToast === 'function') {
+    window.budShowToast(msg, type);
+  } else {
+    alert(msg);
+  }
+}
+
+function confirmAction(msg, onConfirm) {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+  ov.innerHTML = `
+    <div style="background:#fff;border-radius:1rem;padding:2rem;max-width:340px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.25);">
+      <div style="font-size:2rem;margin-bottom:.75rem;">⚠️</div>
+      <p style="font-size:.9375rem;font-weight:600;color:#1e293b;margin-bottom:1.5rem;">${esc(msg)}</p>
+      <div style="display:flex;justify-content:center;gap:.75rem;">
+        <button id="_cf_cancel" style="padding:.5rem 1.25rem;border-radius:.625rem;border:1.5px solid #d1d5db;background:#fff;font-family:inherit;font-size:.875rem;font-weight:600;cursor:pointer;">Cancelar</button>
+        <button id="_cf_ok" style="padding:.5rem 1.25rem;border-radius:.625rem;border:none;background:#ef4444;color:#fff;font-family:inherit;font-size:.875rem;font-weight:700;cursor:pointer;">Confirmar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#_cf_cancel').onclick = () => ov.remove();
+  ov.querySelector('#_cf_ok').onclick     = () => { ov.remove(); onConfirm(); };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CUSTOM SELECT HELPERS (window-exposed)
+// ═══════════════════════════════════════════════════════════════
+window.toggleSel = function(containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  const isOpen = c.querySelector('.admin-sel').classList.contains('open');
+  // Close all
+  document.querySelectorAll('.admin-sel.open').forEach(s => s.classList.remove('open'));
+  if (!isOpen) c.querySelector('.admin-sel').classList.add('open');
 };
+window.pickSel = function(containerId, val, label) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  c.querySelector('.admin-sel-trigger span:first-child').textContent = label;
+  const hiddenId = containerId.replace('Container', '').replace('sel','').toLowerCase();
+  // Try to find the hidden input by data convention
+  c.querySelectorAll('input[type=hidden]').forEach(h => h.value = val);
+  c.querySelectorAll('.admin-sel-opt').forEach(o => {
+    o.classList.toggle('sel', o.dataset.val === val || (!o.dataset.val && val === ''));
+  });
+  c.querySelector('.admin-sel').classList.remove('open');
+};
+document.addEventListener('click', e => {
+  if (!e.target.closest('.admin-sel')) {
+    document.querySelectorAll('.admin-sel.open').forEach(s => s.classList.remove('open'));
+  }
+});
 
-// ─── Logout ────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+//  AUTH GUARD
+// ═══════════════════════════════════════════════════════════════
+onAuthStateChanged(auth, async user => {
+  if (!user) {
+    window.location.href = 'index.html';
+    return;
+  }
+  try {
+    const snap = await getDoc(doc(db, 'usuarios', user.uid));
+    const data = snap.data() || {};
+    if (data.role !== 'admin') {
+      document.getElementById('adminLoading').style.display = 'none';
+      document.getElementById('accessDenied').style.display = 'flex';
+      return;
+    }
+    // Show UI
+    document.getElementById('adminLoading').style.display = 'none';
+    document.getElementById('adminContent').style.display = 'block';
+    const n = data.nome || user.email || 'Admin';
+    document.getElementById('adminName').textContent = n;
+    document.getElementById('adminAvatar').textContent = n.charAt(0).toUpperCase();
+    boot();
+  } catch(e) {
+    console.error('[admin-auth]', e);
+    document.getElementById('adminLoading').style.display = 'none';
+    document.getElementById('accessDenied').style.display = 'flex';
+  }
+});
+
 window.fazerLogoutAdmin = async function() {
   await signOut(auth);
   window.location.href = 'index.html';
 };
 
-// ─── Auth Guard ────────────────────────────────────────────────────────────
-onAuthStateChanged(auth, async user => {
-  const loading = document.getElementById('adminLoading');
-  const denied  = document.getElementById('accessDenied');
-  const content = document.getElementById('adminContent');
+// ═══════════════════════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════════════════════
+async function boot() {
+  await Promise.all([
+    loadOverview(),
+    loadFlags(),
+    loadNotifications(),
+    loadPromos(),
+    loadAppSettings(),
+    loadAdmins(),
+  ]);
+}
 
-  if (!user) { window.location.href = 'index.html'; return; }
+// ═══════════════════════════════════════════════════════════════
+//  TAB MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+window.switchTab = function(tab) {
+  _currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('[id^="panel-"]').forEach(p => { p.style.display = 'none'; });
+  const btn = document.getElementById('tab-' + tab);
+  const pnl = document.getElementById('panel-' + tab);
+  if (btn) btn.classList.add('active');
+  if (pnl) { pnl.style.display = 'block'; pnl.classList.remove('anim-up'); void pnl.offsetWidth; pnl.classList.add('anim-up'); }
+  // Lazy loads
+  if (tab === 'users' && _crmUsers.length === 0) loadCRM(0);
+  if (tab === 'sales' && !_salesLoaded) loadSales();
+};
 
+// ═══════════════════════════════════════════════════════════════
+//  OVERVIEW
+// ═══════════════════════════════════════════════════════════════
+async function loadOverview() {
   try {
-    const snap = await getDoc(doc(db, 'usuarios', user.uid));
-    loading.style.display = 'none';
-
-    if (!snap.exists() || snap.data().role !== 'admin') {
-      denied.style.display = 'flex';
-      return;
-    }
-
-    // Exibir dados do admin
-    const d = snap.data();
-    const nome = d.nome || user.email || '';
-    const iniciais = nome.trim().split(/\s+/).map(p => p[0]).join('').slice(0,2).toUpperCase() || 'A';
-    const elName   = document.getElementById('adminName');
-    const elAvatar = document.getElementById('adminAvatar');
-    if (elName) elName.textContent = nome;
-    if (elAvatar) elAvatar.textContent = iniciais;
-
-    content.style.display = 'block';
-
-    // Carregar dados
-    await Promise.all([
-      carregarOverview(user.uid),
-      carregarFlags(),
-      carregarSistema(),
-      carregarNotificacoes(),
-      carregarPromos(),
+    const usersRef = collection(db, 'usuarios');
+    const [total, freeCnt, trialCnt, starterCnt, plusCnt, proCnt, cuponsCnt, naoAtivQ] = await Promise.all([
+      getCountFromServer(usersRef),
+      getCountFromServer(query(usersRef, where('plano', '==', 'free'))),
+      getCountFromServer(query(usersRef, where('plano', '==', 'trial'))),
+      getCountFromServer(query(usersRef, where('plano', '==', 'starter'))),
+      getCountFromServer(query(usersRef, where('plano', '==', 'plus'))),
+      getCountFromServer(query(usersRef, where('plano', '==', 'pro'))),
+      getCountFromServer(collection(db, 'promocoes')),
+      getCountFromServer(query(usersRef, where('plano', '==', 'free'))),
     ]);
 
-  } catch (err) {
-    console.error('[admin] auth error:', err);
-    loading.style.display = 'none';
-    denied.style.display = 'flex';
-  }
-});
+    const totalN    = total.data().count;
+    const freeN     = freeCnt.data().count;
+    const trialN    = trialCnt.data().count;
+    const starterN  = starterCnt.data().count;
+    const plusN     = plusCnt.data().count;
+    const proN      = proCnt.data().count;
+    const cuponsN   = cuponsCnt.data().count;
 
-// ─── Chamados de Suporte ────────────────────────────────────────────────────
-window.carregarChamados = async function() {
-  const container = document.getElementById('chamadosLista');
-  if (!container) return;
-  container.innerHTML = '<div style="color:#9ca3af;font-size:.875rem;padding:2rem;text-align:center;">⏳ Carregando...</div>';
+    const mrr = (starterN * PLAN_PRICES.starter + plusN * PLAN_PRICES.plus + proN * PLAN_PRICES.pro).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const pagantes = plusN + proN;
 
-  try {
-    const filtro = document.getElementById('filtroStatusChamado')?.value || '';
-    const user   = auth.currentUser;
-    if (!user) throw new Error('Não autenticado');
-    const token  = await user.getIdToken();
-    const url    = `${window.BUD_FUNCTIONS_URL}/api/chamados${filtro ? '?status=' + encodeURIComponent(filtro) : ''}`;
-    const resp   = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
-    if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.error || resp.status); }
-    const chamados = await resp.json();
+    setText('kpiTotal',        totalN);
+    setText('kpiPagantes',     pagantes);
+    setText('kpiTrial',        trialN);
+    setText('kpiFree',         freeN + starterN);
+    setText('kpiMrr',          mrr);
+    setText('kpiNaoAtivaram',  freeN);
 
-    if (!chamados.length) {
-      container.innerHTML = '<div style="color:#9ca3af;font-size:.875rem;padding:2rem;text-align:center;">Nenhum chamado encontrado.</div>';
-      _chamadosCarregados = true;
-      return;
+    // Alert if many didn't activate
+    if (freeN > 0) {
+      const al = document.getElementById('alertNaoAtivaram');
+      al.style.display = 'flex';
+      al.innerHTML = `<div class="alert-banner alert-warn">
+        <span style="font-size:1.25rem;">⚠️</span>
+        <span class="alert-text"><b>${freeN} usuários</b> estão no plano Free — sem receita gerada.</span>
+        <span class="alert-link" onclick="switchTab('sales')">Ver Vendas →</span>
+      </div>`;
     }
 
-    container.innerHTML = '';
-    chamados.forEach(c => {
-      const card = document.createElement('div');
-      card.className = 'chamado-card';
-      card.id = 'chamado-' + c.id;
-      const tipo   = c.tipo || 'bug';
-      const status = c.status || 'aberto';
-      const data   = c.criadoEm ? new Date(c.criadoEm).toLocaleString('pt-BR') : '—';
-      const statusLabels = { aberto: '🟡 Aberto', em_analise: '🔵 Em análise', resolvido: '✅ Resolvido' };
-      // Botões de ação dependem do status atual
-      let acoes = '';
-      if (status === 'aberto') {
-        acoes = `<button class="chamado-acao" onclick="window.alterarStatusChamado('${esc(c.id)}','em_analise')">→ Em análise</button>
-                 <button class="chamado-acao resolver" onclick="window.alterarStatusChamado('${esc(c.id)}','resolvido')">✓ Resolver</button>`;
-      } else if (status === 'em_analise') {
-        acoes = `<button class="chamado-acao resolver" onclick="window.alterarStatusChamado('${esc(c.id)}','resolvido')">✓ Resolver</button>
-                 <button class="chamado-acao reabrir" onclick="window.alterarStatusChamado('${esc(c.id)}','aberto')">↩ Reabrir</button>`;
-      } else {
-        acoes = `<button class="chamado-acao reabrir" onclick="window.alterarStatusChamado('${esc(c.id)}','aberto')">↩ Reabrir</button>`;
-      }
-      card.innerHTML = `
-        <div class="chamado-header">
-          <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-            <span class="chamado-tipo ${esc(tipo)}">${tipo === 'bug' ? '🐛 Bug' : '💡 Sugestão'}</span>
-            <span class="chamado-status ${esc(status)}">${statusLabels[status] || status}</span>
-            <span class="chamado-meta">${esc(c.nomeUsuario || 'Anônimo')} &bull; ${esc(c.emailUsuario || '')} &bull; ${esc(data)}</span>
-          </div>
-          <div style="display:flex;gap:0.375rem;">${acoes}</div>
+    // Last signups
+    const signupSnap = await getDocs(query(usersRef, orderBy('criadoEm', 'desc'), limit(10)));
+    let rows = '';
+    signupSnap.forEach(d => {
+      const u = d.data();
+      const ini = u.nome ? u.nome.charAt(0).toUpperCase() : '?';
+      rows += `<div style="display:grid;grid-template-columns:2.25rem 1fr 1fr 1fr;align-items:center;gap:.625rem;padding:.5rem .25rem;border-bottom:1px solid #f1f5f9;">
+        <div class="u-avatar" style="width:2rem;height:2rem;font-size:.625rem;">${esc(ini)}</div>
+        <div style="font-size:.8125rem;font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${esc(u.nome || '—')}</div>
+        <div style="font-size:.75rem;color:#6b7280;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${esc(u.email || '—')}</div>
+        <div>${planBadge(u.plano)} <span style="font-size:.7rem;color:#9ca3af;">${fmtDate(u.criadoEm)}</span></div>
+      </div>`;
+    });
+    document.getElementById('overviewSignups').innerHTML = rows || '<div class="empty-state"><div class="icon">👥</div>Nenhum usuário ainda</div>';
+
+    // Plan distribution
+    const distData = [
+      { label: 'Pro',     val: proN,      color: '#059669' },
+      { label: 'Plus',    val: plusN,     color: '#9333ea' },
+      { label: 'Trial',   val: trialN,    color: '#ea580c' },
+      { label: 'Starter', val: starterN,  color: '#2563eb' },
+      { label: 'Free',    val: freeN,     color: '#94a3b8' },
+    ];
+    const totalForPct = totalN || 1;
+    let distHtml = '';
+    distData.forEach(d => {
+      const pct = Math.round((d.val / totalForPct) * 100);
+      distHtml += `<div style="margin-bottom:.75rem;">
+        <div style="display:flex;justify-content:space-between;font-size:.75rem;font-weight:600;margin-bottom:.25rem;">
+          <span>${esc(d.label)}</span>
+          <span style="color:#6b7280;">${d.val} (${pct}%)</span>
         </div>
-        <div class="chamado-desc">${esc(c.descricao || '—')}</div>
-        <div class="chamado-meta">UID: ${esc(c.uid || '—')}</div>
-      `;
-      container.appendChild(card);
+        <div style="background:#f1f5f9;border-radius:999px;height:.5rem;overflow:hidden;">
+          <div style="width:${pct}%;height:100%;background:${d.color};border-radius:999px;transition:width .4s;"></div>
+        </div>
+      </div>`;
     });
-    _chamadosCarregados = true;
-  } catch (err) {
-    console.error('[admin] carregarChamados:', err);
-    container.innerHTML = '<div style="color:#dc2626;font-size:.875rem;padding:1rem;">Erro ao carregar chamados.</div>';
-  }
-};
+    document.getElementById('planDistribution').innerHTML = distHtml;
 
-window.alterarStatusChamado = async function(id, statusAtual) {
-  const proximos = { aberto: 'em_analise', em_analise: 'resolvido', resolvido: 'aberto' };
-  const novoStatus = proximos[statusAtual] || 'aberto';
-  try {
-    const token = await auth.currentUser.getIdToken();
-    const resp  = await fetch(`${window.BUD_FUNCTIONS_URL}/api/chamados/${encodeURIComponent(id)}`, {
-      method:  'PATCH',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body:    JSON.stringify({ status: novoStatus })
-    });
-    if (!resp.ok) throw new Error('status ' + resp.status);
-    _chamadosCarregados = false;
-    carregarChamados();
-  } catch (err) {
-    console.error('[admin] alterarStatusChamado:', err);
-    alert('Erro ao atualizar status.');
-  }
-};
-
-// ─── Visão Geral ───────────────────────────────────────────────────────────
-async function carregarOverview(myUid) {
-  try {
-    // KPIs via getCountFromServer (eficiente)
-    const [totalSnap, paidSnap, trialSnap, freeSnap, starterSnap] = await Promise.all([
-      getCountFromServer(collection(db, 'usuarios')),
-      getCountFromServer(query(collection(db, 'usuarios'), where('plano', 'in', ['pro','plus']))),
-      getCountFromServer(query(collection(db, 'usuarios'), where('plano', '==', 'trial'))),
-      getCountFromServer(query(collection(db, 'usuarios'), where('plano', '==', 'free'))),
-      getCountFromServer(query(collection(db, 'usuarios'), where('plano', '==', 'starter'))),
-    ]);
-    const elTotal    = document.getElementById('kpiTotal');
-    const elPagantes = document.getElementById('kpiPagantes');
-    const elTrial    = document.getElementById('kpiTrial');
-    const elFree     = document.getElementById('kpiFree');
-    if (elTotal)    elTotal.textContent    = totalSnap.data().count;
-    if (elPagantes) elPagantes.textContent = paidSnap.data().count;
-    if (elTrial)    elTrial.textContent    = trialSnap.data().count;
-    if (elFree)     elFree.textContent     = freeSnap.data().count + starterSnap.data().count;
-
-    // Últimos 20 cadastros (leve — só 20 docs)
-    const q = query(collection(db, 'usuarios'), orderBy('dataCadastro', 'desc'), limit(20));
-    const snap = await getDocs(q);
-    const usuarios = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    _allUsersLite = usuarios; // cache para admins
-
-    // Últimos cadastros — tabela simples
-    const container = document.getElementById('overviewSignups');
-    if (!container) return;
-    if (!usuarios.length) { container.textContent = 'Nenhum usuário cadastrado.'; return; }
-
-    const PLANO_CORES = {
-      free: 'plan-free', starter: 'plan-starter', trial: 'plan-trial',
-      plus: 'plan-plus', pro: 'plan-pro'
-    };
-
-    let html = '<table style="width:100%;border-collapse:collapse;">'
-      + '<thead><tr style="font-size:.7rem;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">'
-      + '<th style="padding:.5rem .625rem;text-align:left;">Nome</th>'
-      + '<th style="padding:.5rem .625rem;text-align:left;">Email</th>'
-      + '<th style="padding:.5rem .625rem;text-align:left;">Plano</th>'
-      + '<th style="padding:.5rem .625rem;text-align:left;">Cadastro</th>'
-      + '</tr></thead><tbody>';
-
-    usuarios.slice(0,10).forEach(u => {
-      const plano = (u.plano || 'free').toLowerCase();
-      const corClasse = PLANO_CORES[plano] || 'plan-free';
-      const data = u.dataCadastro?.toDate
-        ? u.dataCadastro.toDate().toLocaleDateString('pt-BR')
-        : '—';
-      html += `<tr style="border-top:1px solid #f1f5f9;">
-        <td style="padding:.5rem .625rem;font-weight:600;color:#1e293b;">${esc(u.nome || '—')}</td>
-        <td style="padding:.5rem .625rem;color:#6b7280;">${esc(u.email || '—')}</td>
-        <td style="padding:.5rem .625rem;"><span class="plan-badge ${corClasse}">${plano}</span></td>
-        <td style="padding:.5rem .625rem;color:#6b7280;">${data}</td>
-      </tr>`;
-    });
-    html += '</tbody></table>';
-    container.innerHTML = html;
-
-  } catch (err) {
-    console.error('[admin] carregarOverview:', err);
-    const c = document.getElementById('overviewSignups');
-    if (c) c.textContent = 'Erro ao carregar dados.';
+    _overviewLoaded = true;
+  } catch(e) {
+    console.error('[overview]', e);
   }
 }
-// Expor para onclicks inline dos painéis
-window.carregarNotificacoes = async function() { return carregarNotificacoes(); };
-window.carregarPromos = async function() { return carregarPromos(); };
-// ─── Notificações Globais ─────────────────────────────────────────────────
-async function carregarNotificacoes() {
-  const container = document.getElementById('notifHistory');
-  if (!container) return;
-  container.innerHTML = '<div style="color:#9ca3af;font-size:.875rem;padding:1rem;text-align:center;">Carregando...</div>';
+
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  CRM — USUÁRIOS
+// ═══════════════════════════════════════════════════════════════
+async function loadCRM(page) {
+  document.getElementById('crmList').innerHTML = '<div class="loading-inline">Carregando usuários...</div>';
   try {
-    const q = query(collection(db, 'notificacoes-globais'), orderBy('criadoEm', 'desc'), limit(20));
+    const usersRef = collection(db, 'usuarios');
+    if (page === 0) {
+      const cnt = await getCountFromServer(usersRef);
+      _crmTotal = cnt.data().count;
+      _crmCursors = [];
+    }
+    let q = query(usersRef, orderBy('criadoEm', 'desc'), limit(PAGE_SIZE));
+    if (page > 0 && _crmCursors[page - 1]) {
+      q = query(usersRef, orderBy('criadoEm', 'desc'), startAfter(_crmCursors[page - 1]), limit(PAGE_SIZE));
+    }
     const snap = await getDocs(q);
-    _notifs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const docs = [];
+    snap.forEach(d => docs.push({ id: d.id, _snap: d, ...d.data() }));
+    if (docs.length > 0) _crmCursors[page] = docs[docs.length - 1]._snap;
+
+    // Enrich: get tx count and last tx per user (parallel)
+    const enriched = await Promise.all(docs.map(async u => {
+      try {
+        const txRef = collection(db, 'usuarios', u.id, 'transacoes');
+        const [txCount, lastTx] = await Promise.all([
+          getCountFromServer(txRef),
+          getDocs(query(txRef, orderBy('dataCriacao', 'desc'), limit(1))),
+        ]);
+        u._txCount = txCount.data().count;
+        let lastD = null;
+        lastTx.forEach(d => { lastD = d.data().dataCriacao || null; });
+        u._lastTxDays = daysSince(lastD);
+      } catch(e) {
+        u._txCount = 0; u._lastTxDays = null;
+      }
+      return u;
+    }));
+
+    _crmPage  = page;
+    _crmUsers = enriched;
+    _crmUsersAll = enriched;
+    renderCRM(enriched);
+    updateCRMPagination();
+  } catch(e) {
+    console.error('[crm]', e);
+    document.getElementById('crmList').innerHTML = `<div class="empty-state"><div class="icon">❌</div>Erro ao carregar: ${esc(e.message)}</div>`;
+  }
+}
+
+window.reloadCRM = function() { loadCRM(0); };
+window.crmChangePage = function(dir) {
+  const newPage = _crmPage + dir;
+  if (newPage < 0) return;
+  if (newPage * PAGE_SIZE >= _crmTotal && dir > 0) return;
+  loadCRM(newPage);
+};
+
+function updateCRMPagination() {
+  const from = _crmPage * PAGE_SIZE + 1;
+  const to   = Math.min(_crmPage * PAGE_SIZE + _crmUsers.length, _crmTotal);
+  document.getElementById('crmPageInfo').textContent = `${from}–${to} de ${_crmTotal} usuários`;
+  document.getElementById('crmPrev').disabled = _crmPage === 0;
+  document.getElementById('crmNext').disabled = to >= _crmTotal;
+}
+
+function renderCRM(users) {
+  const list = document.getElementById('crmList');
+  if (!users || users.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">👥</div>Nenhum usuário encontrado</div>';
+    return;
+  }
+  list.innerHTML = users.map(u => {
+    const eng = engagement(u._txCount || 0, u._lastTxDays);
+    const ini = (u.nome || u.email || '?').charAt(0).toUpperCase();
+    return `<div class="u-row">
+      <div class="u-avatar">${esc(ini)}</div>
+      <div><div class="u-name">${esc(u.nome || '—')}</div></div>
+      <div style="font-size:.75rem;color:#6b7280;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${esc(u.email || '—')}</div>
+      <div>${planBadge(u.plano)} ${u.bloqueado ? '<span style="font-size:.625rem;color:#dc2626;font-weight:700;">🚫BLOQ</span>' : ''}</div>
+      <div>${thermoHTML(eng)}</div>
+      <div style="font-size:.8125rem;font-weight:600;color:#374151;">${u._txCount || 0}</div>
+      <div style="display:flex;gap:.375rem;">
+        <button class="btn-ghost btn-sm" onclick="viewUser('${esc(u.id)}')">Ver</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.filterCRM = function() {
+  const search  = document.getElementById('crmSearch').value.toLowerCase();
+  const plano   = document.getElementById('crmPlanFilter').value;
+  const eng     = document.getElementById('crmEngFilter').value;
+
+  let filtered = _crmUsersAll;
+  if (search)  filtered = filtered.filter(u => (u.nome||'').toLowerCase().includes(search) || (u.email||'').toLowerCase().includes(search));
+  if (plano)   filtered = filtered.filter(u => (u.plano||'free') === plano);
+  if (eng)     filtered = filtered.filter(u => engagement(u._txCount||0, u._lastTxDays) === eng);
+
+  _crmUsers = filtered;
+  renderCRM(filtered);
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  VISÃO 360° DO USUÁRIO
+// ═══════════════════════════════════════════════════════════════
+window.viewUser = async function(uid) {
+  const modal = document.getElementById('modalUser');
+  modal.classList.add('open');
+  document.getElementById('muContent').innerHTML = '<div class="loading-inline" style="padding:3rem;">Carregando dados do usuário...</div>';
+
+  try {
+    const userSnap = await getDoc(doc(db, 'usuarios', uid));
+    if (!userSnap.exists()) { document.getElementById('muContent').innerHTML = '<div class="empty-state"><div class="icon">❌</div>Usuário não encontrado</div>'; return; }
+    const u = { id: uid, ...userSnap.data() };
+
+    // Parallel subcollection reads
+    const txRef    = collection(db, 'usuarios', uid, 'transacoes');
+    const cartRef  = collection(db, 'usuarios', uid, 'carteira');
+    const cardsRef = collection(db, 'usuarios', uid, 'cartoes');
+    const metasRef = collection(db, 'usuarios', uid, 'metas');
+
+    const [txCountSnap, lastTxSnap, cartSnap, cardsCount, metasCount] = await Promise.all([
+      getCountFromServer(txRef),
+      getDocs(query(txRef, orderBy('dataCriacao', 'desc'), limit(1))),
+      getDocs(cartRef),
+      getCountFromServer(cardsRef),
+      getCountFromServer(metasRef),
+    ]);
+
+    const txCount = txCountSnap.data().count;
+    let lastTxDate = null;
+    lastTxSnap.forEach(d => { lastTxDate = d.data().dataCriacao || null; });
+    const lastTxDays = daysSince(lastTxDate);
+    const eng = engagement(txCount, lastTxDays);
+
+    // Carteira
+    let saldoTotal = 0;
+    let carteiraHtml = '';
+    cartSnap.forEach(d => {
+      const item = d.data();
+      saldoTotal += (item.saldo || 0);
+      carteiraHtml += `<div style="display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid #f1f5f9;font-size:.8125rem;">
+        <span style="color:#374151;">${esc(item.nome || '—')}</span>
+        <span style="font-weight:700;color:${(item.saldo||0) >= 0 ? '#059669' : '#dc2626'};">${(item.saldo||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</span>
+      </div>`;
+    });
+
+    const dias = lastTxDays !== null ? `${lastTxDays}d atrás` : 'Nunca';
+    const ini  = (u.nome || u.email || '?').charAt(0).toUpperCase();
+    const planoAtual = (u.plano || 'free').toLowerCase();
+
+    document.getElementById('muContent').innerHTML = `
+      <!-- Header -->
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;">
+        <div class="u-avatar" style="width:3.5rem;height:3.5rem;font-size:1.25rem;font-weight:900;flex-shrink:0;">${esc(ini)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:1.0625rem;font-weight:800;color:#064e3b;">${esc(u.nome || '—')}</div>
+          <div style="font-size:.8125rem;color:#6b7280;word-break:break-all;">${esc(u.email || '—')}</div>
+          <div style="margin-top:.375rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+            ${planBadge(u.plano)}
+            ${u.bloqueado ? '<span class="plan-badge" style="background:#fee2e2;color:#dc2626;">🚫 Bloqueado</span>' : ''}
+            <span style="font-size:.7rem;color:#9ca3af;">Desde ${fmtDate(u.criadoEm || u.dataCadastro)}</span>
+          </div>
+        </div>
+        <button onclick="closeUserModal()" style="width:2rem;height:2rem;border-radius:50%;border:none;background:#f1f5f9;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>
+      </div>
+
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.625rem;margin-bottom:1.25rem;">
+        <div style="background:#f0fdf4;border-radius:.75rem;padding:.75rem;text-align:center;">
+          <div style="font-size:1.375rem;font-weight:900;color:#059669;">${txCount}</div>
+          <div style="font-size:.625rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">Transações</div>
+        </div>
+        <div style="background:#f0fdf4;border-radius:.75rem;padding:.75rem;text-align:center;">
+          <div style="font-size:1.375rem;font-weight:900;color:#059669;">${dias}</div>
+          <div style="font-size:.625rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">Última tx</div>
+        </div>
+        <div style="background:#f0fdf4;border-radius:.75rem;padding:.75rem;text-align:center;">
+          <div style="font-size:1.375rem;font-weight:900;color:#059669;">${cardsCount.data().count}</div>
+          <div style="font-size:.625rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">Cartões</div>
+        </div>
+        <div style="background:#f0fdf4;border-radius:.75rem;padding:.75rem;text-align:center;">
+          <div style="font-size:1.375rem;font-weight:900;color:#059669;">${metasCount.data().count}</div>
+          <div style="font-size:.625rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">Metas</div>
+        </div>
+      </div>
+
+      <!-- Engajamento -->
+      <div style="background:#f8fafc;border-radius:.75rem;padding:.875rem;margin-bottom:1rem;">
+        <div style="font-size:.75rem;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;">Engajamento</div>
+        ${thermoHTML(eng)}
+      </div>
+
+      <!-- Carteira -->
+      ${carteiraHtml ? `<div style="margin-bottom:1rem;">
+        <div style="font-size:.75rem;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;">
+          Carteira — <span style="color:#059669;">${saldoTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</span>
+        </div>
+        ${carteiraHtml}
+      </div>` : ''}
+
+      <!-- Alterar Plano -->
+      <div style="background:#f0fdf4;border:1.5px solid #d1fae5;border-radius:.875rem;padding:1rem;margin-bottom:1rem;">
+        <div style="font-size:.75rem;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.625rem;">✏️ Alterar Plano</div>
+        <div style="display:flex;align-items:center;gap:.625rem;flex-wrap:wrap;">
+          <div class="admin-sel" id="muPlanSelContainer" style="flex:1;min-width:130px;">
+            <div class="admin-sel-trigger" style="width:100%;" onclick="toggleSel('muPlanSelContainer')">
+              <span id="muPlanSelLabel">${planoAtual.charAt(0).toUpperCase() + planoAtual.slice(1)}</span>
+              <span class="admin-sel-arrow">▾</span>
+            </div>
+            <div class="admin-sel-drop" style="width:100%;">
+              ${['free','starter','trial','plus','pro'].map(p => `
+                <div class="admin-sel-opt ${p === planoAtual ? 'sel' : ''}" onclick="pickSel('muPlanSelContainer','${p}','${p.charAt(0).toUpperCase()+p.slice(1)}')">${p.charAt(0).toUpperCase()+p.slice(1)}</div>
+              `).join('')}
+            </div>
+            <input type="hidden" id="muPlanSel" value="${esc(planoAtual)}">
+          </div>
+          <button class="btn-primary btn-sm" onclick="changeUserPlan('${esc(uid)}')">Salvar Plano</button>
+          <button class="btn-warn btn-sm" onclick="addTrial30('${esc(uid)}')">+ 30 dias trial</button>
+        </div>
+        <div style="font-size:.7rem;color:#9ca3af;margin-top:.375rem;">UID: <code>${esc(uid)}</code></div>
+      </div>
+
+      <!-- Zona de Perigo -->
+      <div style="border:1.5px solid #fecaca;border-radius:.875rem;padding:1rem;">
+        <div style="font-size:.75rem;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.625rem;">⚠️ Zona de Perigo</div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+          <button class="btn-warn" onclick="toggleBlock('${esc(uid)}', ${!!u.bloqueado})">
+            ${u.bloqueado ? '✅ Desbloquear Usuário' : '🚫 Bloquear Usuário'}
+          </button>
+          <button class="btn-danger" onclick="deleteUser('${esc(uid)}', '${esc(u.email || '')}')">🗑️ Excluir Conta</button>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    console.error('[viewUser]', e);
+    document.getElementById('muContent').innerHTML = `<div class="empty-state"><div class="icon">❌</div>Erro: ${esc(e.message)}</div>`;
+  }
+};
+
+window.closeUserModal = function() {
+  document.getElementById('modalUser').classList.remove('open');
+};
+
+window.changeUserPlan = async function(uid) {
+  const newPlan = document.getElementById('muPlanSel')?.value;
+  if (!newPlan) return;
+  try {
+    const userRef = doc(db, 'usuarios', uid);
+    const oldSnap = await getDoc(userRef);
+    const oldPlan = oldSnap.data()?.plano || 'free';
+    const update = { plano: newPlan };
+    // Clear old plan timestamps
+    ['planoAtivadoEm','planoVenceEm','trialInicio','trialFim'].forEach(f => { update[f] = null; });
+    if (newPlan === 'trial') {
+      update.trialInicio  = serverTimestamp();
+      update.planoVenceEm = Timestamp.fromDate(new Date(Date.now() + 30*24*60*60*1000));
+    } else if (newPlan !== 'free') {
+      update.planoAtivadoEm = serverTimestamp();
+    }
+    await updateDoc(userRef, update);
+    // Log plan change
+    await addDoc(collection(db, 'plano_historico'), {
+      uid, oldPlan, newPlan, alteredBy: auth.currentUser?.uid || 'admin',
+      alteredAt: serverTimestamp(), fonte: 'admin_panel'
+    });
+    budToast(`Plano alterado para ${newPlan} com sucesso!`);
+    closeUserModal();
+    // Refresh CRM list
+    _crmUsers = _crmUsers.map(u => u.id === uid ? { ...u, plano: newPlan } : u);
+    _crmUsersAll = _crmUsersAll.map(u => u.id === uid ? { ...u, plano: newPlan } : u);
+    renderCRM(_crmUsers);
+    if (_overviewLoaded) loadOverview();
+  } catch(e) {
+    console.error('[changeUserPlan]', e);
+    budToast('Erro ao alterar plano: ' + e.message, 'error');
+  }
+};
+
+window.addTrial30 = async function(uid) {
+  try {
+    await updateDoc(doc(db, 'usuarios', uid), {
+      plano: 'trial',
+      trialInicio:  serverTimestamp(),
+      planoVenceEm: Timestamp.fromDate(new Date(Date.now() + 30*24*60*60*1000)),
+    });
+    budToast('Trial de 30 dias adicionado!');
+    closeUserModal();
+  } catch(e) {
+    budToast('Erro: ' + e.message, 'error');
+  }
+};
+
+window.toggleBlock = function(uid, blocked) {
+  const action = blocked ? 'Desbloquear' : 'Bloquear';
+  confirmAction(`${action} este usuário?`, async () => {
+    try {
+      await updateDoc(doc(db, 'usuarios', uid), { bloqueado: !blocked });
+      budToast(`Usuário ${blocked ? 'desbloqueado' : 'bloqueado'} com sucesso.`);
+      closeUserModal();
+      _crmUsers = _crmUsers.map(u => u.id === uid ? { ...u, bloqueado: !blocked } : u);
+      _crmUsersAll = _crmUsersAll.map(u => u.id === uid ? { ...u, bloqueado: !blocked } : u);
+      renderCRM(_crmUsers);
+    } catch(e) { budToast('Erro: ' + e.message, 'error'); }
+  });
+};
+
+window.deleteUser = function(uid, email) {
+  confirmAction(`Excluir permanentemente a conta de ${email || uid}? Esta ação não pode ser desfeita.`, async () => {
+    try {
+      closeUserModal();
+      if (window.BUD_FUNCTIONS_URL) {
+        await fetch(`${window.BUD_FUNCTIONS_URL}/api/admin/delete-user`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uid }),
+        });
+      } else {
+        await deleteDoc(doc(db, 'usuarios', uid));
+      }
+      budToast('Usuário excluído.');
+      _crmUsers = _crmUsers.filter(u => u.id !== uid);
+      _crmUsersAll = _crmUsersAll.filter(u => u.id !== uid);
+      renderCRM(_crmUsers);
+    } catch(e) { budToast('Erro ao excluir: ' + e.message, 'error'); }
+  });
+};
+
+
+// ═══════════════════════════════════════════════════════════════
+//  VENDAS
+// ═══════════════════════════════════════════════════════════════
+async function loadSales() {
+  _salesLoaded = true;
+  const usersRef = collection(db, 'usuarios');
+
+  try {
+    const [trialCnt, pagSnap, freeSnap] = await Promise.all([
+      getCountFromServer(query(usersRef, where('plano', '==', 'trial'))),
+      getDocs(query(usersRef, where('plano', 'in', ['plus', 'pro', 'starter']), orderBy('planoAtivadoEm', 'desc'), limit(50))),
+      getDocs(query(usersRef, where('plano', '==', 'free'), limit(100))),
+    ]);
+
+    const trialN = trialCnt.data().count;
+    // Filter "não ativaram": free users cadastrados há > 7 dias
+    const cutoff = Date.now() - 7 * 86400000;
+    const naoAtivaram = [];
+    freeSnap.forEach(d => {
+      const u = { id: d.id, ...d.data() };
+      const dt = u.criadoEm?.toDate?.() || u.dataCadastro?.toDate?.() || null;
+      if (dt && dt.getTime() < cutoff) naoAtivaram.push(u);
+    });
+    naoAtivaram.sort((a, b) => {
+      const da = (a.criadoEm?.toDate?.() || new Date(0)).getTime();
+      const db2 = (b.criadoEm?.toDate?.() || new Date(0)).getTime();
+      return da - db2;
+    });
+
+    // Pagantes
+    const pagantes = [];
+    pagSnap.forEach(d => pagantes.push({ id: d.id, ...d.data() }));
+
+    // MRR
+    let mrr = 0;
+    pagantes.forEach(u => { mrr += PLAN_PRICES[u.plano] || 0; });
+
+    // KPIs
+    setText('salesKpiMrr',          mrr.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+    setText('salesKpiTrial',         trialN);
+    setText('salesKpiNaoAtivaram',   naoAtivaram.length);
+    setText('salesKpiPagantes',      pagantes.length);
+    setText('countNaoAtivaram',      naoAtivaram.length);
+    setText('countPagantes',         pagantes.length);
+
+    // Render "Não Ativaram"
+    if (naoAtivaram.length === 0) {
+      document.getElementById('salesNaoAtivaram').innerHTML = '<div class="empty-state"><div class="icon">✅</div>Nenhum usuário free antigo</div>';
+    } else {
+      document.getElementById('salesNaoAtivaram').innerHTML = naoAtivaram.map(u => {
+        const d = daysSince(u.criadoEm || u.dataCadastro);
+        return `<div class="venda-row" style="display:grid;grid-template-columns:1fr 1fr 120px 80px auto;gap:.75rem;">
+          <span style="font-size:.875rem;font-weight:600;">${esc(u.nome || '—')}</span>
+          <span style="font-size:.75rem;color:#6b7280;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${esc(u.email || '—')}</span>
+          <span style="font-size:.75rem;color:#6b7280;">${fmtDate(u.criadoEm || u.dataCadastro)}</span>
+          <span style="font-size:.8125rem;font-weight:700;color:#dc2626;">${d !== null ? d + 'd' : '—'}</span>
+          <button class="btn-primary btn-sm" onclick="viewUser('${esc(u.id)}')">Contatar</button>
+        </div>`;
+      }).join('');
+    }
+
+    // Render Trial
+    const trialQ = await getDocs(query(usersRef, where('plano', '==', 'trial'), limit(50)));
+    const trials = [];
+    trialQ.forEach(d => trials.push({ id: d.id, ...d.data() }));
+    setText('countTrial', trials.length);
+    if (trials.length === 0) {
+      document.getElementById('salesTrial').innerHTML = '<div class="empty-state"><div class="icon">⏰</div>Nenhum usuário em trial</div>';
+    } else {
+      document.getElementById('salesTrial').innerHTML = trials.map(u => {
+        const vence = u.planoVenceEm ? daysSince(u.planoVenceEm.toDate?.() || u.planoVenceEm) : null;
+        const venceLabel = vence !== null ? (vence <= 0 ? `${Math.abs(vence)}d restantes` : `Vencido ${vence}d`) : '—';
+        return `<div class="venda-row" style="display:grid;grid-template-columns:1fr 1fr 120px 80px auto;gap:.75rem;">
+          <span style="font-size:.875rem;font-weight:600;">${esc(u.nome || '—')}</span>
+          <span style="font-size:.75rem;color:#6b7280;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${esc(u.email || '—')}</span>
+          <span style="font-size:.75rem;color:#6b7280;">${fmtDate(u.trialInicio)}</span>
+          <span style="font-size:.8125rem;font-weight:700;color:${vence && vence > 0 ? '#dc2626' : '#059669'};">${venceLabel}</span>
+          <button class="btn-primary btn-sm" onclick="viewUser('${esc(u.id)}')">Ver</button>
+        </div>`;
+      }).join('');
+    }
+
+    // Render Pagantes
+    if (pagantes.length === 0) {
+      document.getElementById('salesPagantes').innerHTML = '<div class="empty-state"><div class="icon">💰</div>Nenhum usuário com plano pago</div>';
+    } else {
+      document.getElementById('salesPagantes').innerHTML = pagantes.map(u => {
+        return `<div class="venda-row" style="display:grid;grid-template-columns:1fr 1fr 1fr 120px auto;gap:.75rem;">
+          <span style="font-size:.875rem;font-weight:600;">${esc(u.nome || '—')}</span>
+          <span style="font-size:.75rem;color:#6b7280;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${esc(u.email || '—')}</span>
+          <span>${planBadge(u.plano)}</span>
+          <span style="font-size:.75rem;color:#6b7280;">${fmtDate(u.planoAtivadoEm)}</span>
+          <button class="btn-ghost btn-sm" onclick="viewUser('${esc(u.id)}')">Ver</button>
+        </div>`;
+      }).join('');
+    }
+  } catch(e) {
+    console.error('[loadSales]', e);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  NOTIFICAÇÕES
+// ═══════════════════════════════════════════════════════════════
+async function loadNotifications() {
+  try {
+    const snap = await getDocs(query(collection(db, 'notificacoes-globais'), orderBy('criadoEm', 'desc'), limit(20)));
+    _notifs = [];
+    snap.forEach(d => _notifs.push({ id: d.id, ...d.data() }));
     renderNotifs();
-  } catch (err) {
-    console.error('[admin] carregarNotificacoes:', err);
-    if (container) container.innerHTML = '<div style="color:#dc2626;font-size:.875rem;">Erro ao carregar.</div>';
+  } catch(e) {
+    console.error('[notifs]', e);
   }
 }
 
 function renderNotifs() {
-  const container = document.getElementById('notifHistory');
-  if (!container) return;
-  if (!_notifs.length) {
-    container.innerHTML = '<div style="color:#9ca3af;font-size:.875rem;padding:2rem;text-align:center;">Nenhuma notificação enviada ainda.</div>';
+  const cont = document.getElementById('notifHistory');
+  if (!cont) return;
+  if (_notifs.length === 0) {
+    cont.innerHTML = '<div class="empty-state"><div class="icon">🔕</div>Nenhuma notificação enviada ainda</div>';
     return;
   }
-  const TIPO_ICONS = { info: '💡', promo: '🎉', update: '🚀', alert: '⚠️' };
-  const TIPO_COLORS = { info: '#dbeafe', promo: '#d1fae5', update: '#ede9fe', alert: '#fee2e2' };
-  container.innerHTML = '';
-  _notifs.forEach(n => {
-    const data = n.criadoEm?.toDate ? n.criadoEm.toDate().toLocaleString('pt-BR') : '—';
-    const item = document.createElement('div');
-    item.style.cssText = 'display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9;';
-    item.innerHTML = `
-      <div style="width:36px;height:36px;border-radius:10px;background:${TIPO_COLORS[n.tipo]||'#f3f4f6'};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">
-        ${TIPO_ICONS[n.tipo] || '🔔'}
+  const icons = { info: '💡', promo: '🎉', update: '🚀', alert: '⚠️' };
+  const colors = { info: '#eff6ff', promo: '#f0fdf4', update: '#f5f3ff', alert: '#fffbeb' };
+  cont.innerHTML = _notifs.map(n => `
+    <div class="notif-item">
+      <div class="notif-icon" style="background:${colors[n.tipo] || '#f8fafc'};">${icons[n.tipo] || '🔔'}</div>
+      <div class="notif-body">
+        <div class="notif-titulo">${esc(n.titulo || '—')}</div>
+        <div class="notif-meta">${esc(n.mensagem || '')} — <b>${esc(n.destino || 'all')}</b> via ${esc(n.canal || 'inapp')} · ${fmtDate(n.criadoEm)}</div>
       </div>
-      <div style="flex:1;">
-        <div style="font-size:13px;font-weight:600;">${esc(n.titulo || '—')}</div>
-        <div style="font-size:11px;color:#6b7280;margin-top:2px;">${esc(n.mensagem || '')} &bull; <b>${esc(n.destino || 'all')}</b> &bull; ${esc(data)}</div>
-      </div>
-      <button onclick="excluirNotificacao('${n.id}')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit;">🗑️</button>`;
-    container.appendChild(item);
-  });
+      <button class="btn-danger btn-sm" onclick="deleteNotif('${esc(n.id)}')">✕</button>
+    </div>
+  `).join('');
 }
 
 window.enviarNotificacao = async function() {
-  const titulo  = document.getElementById('notifTitulo')?.value.trim();
-  const mensagem= document.getElementById('notifMensagem')?.value.trim();
-  const tipo    = document.getElementById('notifTipo')?.value || 'info';
-  const destino = document.getElementById('notifDestino')?.value || 'all';
-  if (!titulo || !mensagem) {
-    if (window.budShowToast) window.budShowToast('Preencha título e mensagem.', 'warning');
-    return;
-  }
+  const titulo   = document.getElementById('notifTitulo').value.trim();
+  const mensagem = document.getElementById('notifMensagem').value.trim();
+  const tipo     = document.getElementById('notifTipo').value || 'info';
+  const canal    = document.getElementById('notifCanal').value || 'inapp';
+  const destino  = document.getElementById('notifDestino').value || 'all';
+
+  if (!titulo || !mensagem) { budToast('Preencha título e mensagem.', 'error'); return; }
+
   const btn = document.getElementById('btnEnviarNotif');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Enviando...'; }
+  btn.disabled = true; btn.textContent = '⏳ Enviando...';
+
   try {
     await addDoc(collection(db, 'notificacoes-globais'), {
-      titulo: window.budSanitize ? window.budSanitize(titulo) : titulo,
-      mensagem: window.budSanitize ? window.budSanitize(mensagem) : mensagem,
-      tipo, destino, criadoEm: serverTimestamp(), lida: false,
+      titulo, mensagem, tipo, canal, destino,
+      criadoEm: serverTimestamp(), lida: false, criadoPor: auth.currentUser?.uid || 'admin'
     });
-    document.getElementById('notifTitulo').value = '';
+
+    // Try push via backend if push channel selected
+    if (canal === 'push' && window.BUD_FUNCTIONS_URL) {
+      try {
+        await fetch(`${window.BUD_FUNCTIONS_URL}/api/push/admin-broadcast`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ titulo, mensagem, tipo, destino }),
+        });
+      } catch(backErr) {
+        console.warn('[notif] push backend não disponível:', backErr.message);
+      }
+    }
+
+    document.getElementById('notifTitulo').value  = '';
     document.getElementById('notifMensagem').value = '';
-    if (window.budShowToast) window.budShowToast('Notificação registrada! (push global via cron amanhã)', 'success');
-    await carregarNotificacoes();
-  } catch (err) {
-    console.error('[admin] enviarNotificacao:', err);
-    if (window.budShowToast) window.budShowToast('Erro ao enviar notificação.', 'error');
+    budToast('✅ Notificação enviada!');
+    await loadNotifications();
+  } catch(e) {
+    budToast('Erro ao enviar: ' + e.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '📤 Enviar Notificação'; }
+    btn.disabled = false; btn.textContent = '📤 Enviar Notificação';
   }
 };
 
-window.excluirNotificacao = async function(id) {
-  const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:500;';
-  ov.innerHTML = `<div style="background:#fff;border-radius:1rem;padding:2rem;max-width:360px;width:90%;text-align:center;">
-    <div style="font-size:2rem;margin-bottom:.75rem;">🗑️</div>
-    <p style="font-size:.9375rem;font-weight:700;margin-bottom:.5rem;">Excluir notificação?</p>
-    <p style="font-size:.8125rem;color:#6b7280;margin-bottom:1.25rem;">Esta ação não pode ser desfeita.</p>
-    <div style="display:flex;gap:.75rem;justify-content:center;">
-      <button id="ovCancel" style="padding:.5rem 1.25rem;border-radius:.625rem;border:1.5px solid #d1d5db;background:#fff;cursor:pointer;font-weight:600;font-family:inherit;">Cancelar</button>
-      <button id="ovConfirm" style="padding:.5rem 1.25rem;border-radius:.625rem;border:none;background:#dc2626;color:#fff;cursor:pointer;font-weight:700;font-family:inherit;">Excluir</button>
-    </div></div>`;
-  document.body.appendChild(ov);
-  ov.querySelector('#ovCancel').onclick = () => ov.remove();
-  ov.querySelector('#ovConfirm').onclick = async () => {
-    ov.remove();
+window.deleteNotif = function(id) {
+  confirmAction('Excluir esta notificação do histórico?', async () => {
     try {
       await deleteDoc(doc(db, 'notificacoes-globais', id));
+      budToast('Notificação removida.');
       _notifs = _notifs.filter(n => n.id !== id);
       renderNotifs();
-      if (window.budShowToast) window.budShowToast('Notificação excluída.', 'success');
-    } catch (err) {
-      if (window.budShowToast) window.budShowToast('Erro ao excluir.', 'error');
-    }
-  };
+    } catch(e) { budToast('Erro: ' + e.message, 'error'); }
+  });
 };
 
-// ─── Promoções ─────────────────────────────────────────────────────────────
-async function carregarPromos() {
-  const container = document.getElementById('promosList');
-  if (!container) return;
-  container.innerHTML = '<div style="color:#9ca3af;font-size:.875rem;padding:1rem;text-align:center;">Carregando...</div>';
+// ═══════════════════════════════════════════════════════════════
+//  PROMOÇÕES
+// ═══════════════════════════════════════════════════════════════
+async function loadPromos() {
   try {
-    const q = query(collection(db, 'promocoes'), orderBy('criadoEm', 'desc'), limit(50));
-    const snap = await getDocs(q);
-    _promos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const snap = await getDocs(query(collection(db, 'promocoes'), orderBy('criadoEm', 'desc')));
+    _promos = [];
+    snap.forEach(d => _promos.push({ id: d.id, ...d.data() }));
     renderPromos();
-    // Atualiza KPI
-    const ativas = _promos.filter(p => p.ativa).length;
-    const elKpi = document.getElementById('kpiPromos');
-    if (elKpi) elKpi.textContent = ativas;
-  } catch (err) {
-    console.error('[admin] carregarPromos:', err);
-    if (container) container.innerHTML = '<div style="color:#dc2626;font-size:.875rem;">Erro ao carregar.</div>';
+  } catch(e) {
+    console.error('[promos]', e);
   }
 }
 
 function renderPromos() {
-  const container = document.getElementById('promosList');
-  if (!container) return;
-  if (!_promos.length) {
-    container.innerHTML = '<div style="color:#9ca3af;font-size:.875rem;padding:2rem;text-align:center;">Nenhum cupom cadastrado ainda.</div>';
+  const cont = document.getElementById('promosList');
+  if (!cont) return;
+  if (_promos.length === 0) {
+    cont.innerHTML = '<div class="empty-state"><div class="icon">🎟️</div>Nenhum cupom criado ainda</div>';
     return;
   }
-  container.innerHTML = '';
-  _promos.forEach(p => {
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;';
-    const statusBadge = p.ativa
-      ? '<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;">✅ Ativa</span>'
-      : '<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;">⏸ Inativa</span>';
-    const usos = p.limite > 0 ? `${p.usos||0}/${p.limite}` : `${p.usos||0}/∞`;
-    row.innerHTML = `
-      <div style="font-family:monospace;font-size:14px;font-weight:700;background:#d1fae5;color:#065f46;padding:4px 12px;border-radius:6px;">${esc(p.codigo||'—')}</div>
-      <div style="flex:1;">
-        <div style="font-size:13px;font-weight:600;">${esc(p.descricao||'—')} &bull; ${p.desconto||0}% off</div>
-        <div style="font-size:11px;color:#6b7280;margin-top:2px;">${esc(p.dataInicio||'—')} → ${esc(p.dataFim||'—')} &bull; Usos: ${usos}</div>
+  cont.innerHTML = _promos.map(p => {
+    const statusLabel = p.ativa ? '<span style="color:#059669;font-weight:700;font-size:.75rem;">✅ Ativa</span>' : '<span style="color:#9ca3af;font-weight:700;font-size:.75rem;">⏸ Pausada</span>';
+    return `<div class="promo-row">
+      <div class="promo-code">${esc(p.codigo)}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:.875rem;font-weight:700;color:#1e293b;">${esc(p.descricao || `${p.desconto}% de desconto`)}</div>
+        <div style="font-size:.75rem;color:#6b7280;margin-top:.125rem;">
+          ${p.desconto}% off · ${p.usos || 0}${p.limite ? '/' + p.limite : ''} usos
+          ${p.dataInicio ? ` · de ${esc(p.dataInicio)}` : ''}
+          ${p.dataFim    ? ` até ${esc(p.dataFim)}` : ''}
+        </div>
       </div>
-      ${statusBadge}
-      <div style="display:flex;gap:6px;">
-        <button onclick="togglePromo('${p.id}',${p.ativa})" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit;">${p.ativa?'⏸ Pausar':'▶ Ativar'}</button>
-        <button onclick="excluirPromo('${p.id}')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit;">🗑️</button>
-      </div>`;
-    container.appendChild(row);
-  });
+      ${statusLabel}
+      <button class="btn-ghost btn-sm" onclick="togglePromo('${esc(p.id)}', ${!!p.ativa})">${p.ativa ? 'Pausar' : 'Ativar'}</button>
+      <button class="btn-danger btn-sm" onclick="deletePromo('${esc(p.id)}')">🗑️</button>
+    </div>`;
+  }).join('');
 }
 
-window.abrirModalPromo = function() {
-  const modal = document.getElementById('modalPromo');
-  if (!modal) return;
-  document.getElementById('promoCodigo').value = '';
-  document.getElementById('promoDesconto').value = '';
-  document.getElementById('promoInicio').value  = new Date().toISOString().slice(0,10);
-  document.getElementById('promoFim').value     = '';
-  document.getElementById('promoLimite').value  = '0';
-  document.getElementById('promoDescricao').value = '';
-  modal.classList.add('open');
+window.openPromoModal = function() {
+  ['promoCodigo','promoDesconto','promoInicio','promoFim','promoDescricao'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('promoLimite').value = '0';
+  document.getElementById('modalPromo').classList.add('open');
 };
+window.closePromoModal = function() { document.getElementById('modalPromo').classList.remove('open'); };
 
-window.fecharModalPromo = function() {
-  document.getElementById('modalPromo')?.classList.remove('open');
-};
+window.savePromo = async function() {
+  const codigo    = document.getElementById('promoCodigo').value.trim();
+  const desconto  = parseInt(document.getElementById('promoDesconto').value);
+  const inicio    = document.getElementById('promoInicio').value;
+  const fim       = document.getElementById('promoFim').value;
+  const limite    = parseInt(document.getElementById('promoLimite').value) || 0;
+  const descricao = document.getElementById('promoDescricao').value.trim();
 
-window.salvarPromo = async function() {
-  const codigo    = document.getElementById('promoCodigo')?.value.trim().toUpperCase();
-  const desconto  = parseInt(document.getElementById('promoDesconto')?.value) || 0;
-  const dataInicio= document.getElementById('promoInicio')?.value;
-  const dataFim   = document.getElementById('promoFim')?.value;
-  const limite    = parseInt(document.getElementById('promoLimite')?.value) || 0;
-  const descricao = document.getElementById('promoDescricao')?.value.trim();
+  if (!codigo) { budToast('Informe o código do cupom.', 'error'); return; }
+  if (!desconto || desconto < 1 || desconto > 100) { budToast('Desconto inválido (1-100).', 'error'); return; }
 
-  if (!codigo || desconto <= 0 || desconto > 100) {
-    if (window.budShowToast) window.budShowToast('Código e desconto (1–100%) são obrigatórios.', 'warning');
-    return;
-  }
   const btn = document.getElementById('btnSalvarPromo');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+  btn.disabled = true; btn.textContent = '⏳ Salvando...';
   try {
-    const ref = await addDoc(collection(db, 'promocoes'), {
-      codigo: window.budSanitize ? window.budSanitize(codigo) : codigo,
-      desconto, dataInicio: dataInicio||'', dataFim: dataFim||'',
-      limite, usos: 0,
-      descricao: window.budSanitize ? window.budSanitize(descricao) : descricao,
-      ativa: true, criadoEm: serverTimestamp(),
+    await addDoc(collection(db, 'promocoes'), {
+      codigo, desconto, dataInicio: inicio || null, dataFim: fim || null,
+      limite, descricao, ativa: true, usos: 0, criadoEm: serverTimestamp()
     });
-    _promos.unshift({ id: ref.id, codigo, desconto, dataInicio, dataFim, limite, usos: 0, descricao, ativa: true });
-    renderPromos();
-    fecharModalPromo();
-    const elKpi = document.getElementById('kpiPromos');
-    if (elKpi) elKpi.textContent = _promos.filter(p => p.ativa).length;
-    if (window.budShowToast) window.budShowToast('Cupom criado!', 'success');
-  } catch (err) {
-    console.error('[admin] salvarPromo:', err);
-    if (window.budShowToast) window.budShowToast('Erro ao salvar cupom.', 'error');
+    budToast('✅ Cupom criado!');
+    closePromoModal();
+    await loadPromos();
+  } catch(e) {
+    budToast('Erro: ' + e.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Salvar Cupom'; }
+    btn.disabled = false; btn.textContent = 'Salvar Cupom';
   }
 };
 
 window.togglePromo = async function(id, ativa) {
   try {
     await updateDoc(doc(db, 'promocoes', id), { ativa: !ativa });
-    const p = _promos.find(x => x.id === id);
-    if (p) p.ativa = !ativa;
+    _promos = _promos.map(p => p.id === id ? { ...p, ativa: !ativa } : p);
     renderPromos();
-    const elKpi = document.getElementById('kpiPromos');
-    if (elKpi) elKpi.textContent = _promos.filter(p => p.ativa).length;
-  } catch (err) {
-    if (window.budShowToast) window.budShowToast('Erro ao atualizar cupom.', 'error');
-  }
+  } catch(e) { budToast('Erro: ' + e.message, 'error'); }
 };
 
-window.excluirPromo = async function(id) {
-  const p = _promos.find(x => x.id === id);
-  if (!p) return;
-  const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:500;';
-  ov.innerHTML = `<div style="background:#fff;border-radius:1rem;padding:2rem;max-width:360px;width:90%;text-align:center;">
-    <div style="font-size:2rem;margin-bottom:.75rem;">🎟️</div>
-    <p style="font-size:.9375rem;font-weight:700;margin-bottom:.5rem;">Excluir cupom &ldquo;${esc(p.codigo)}&rdquo;?</p>
-    <p style="font-size:.8125rem;color:#6b7280;margin-bottom:1.25rem;">Esta ação não pode ser desfeita.</p>
-    <div style="display:flex;gap:.75rem;justify-content:center;">
-      <button id="ovCancel" style="padding:.5rem 1.25rem;border-radius:.625rem;border:1.5px solid #d1d5db;background:#fff;cursor:pointer;font-weight:600;font-family:inherit;">Cancelar</button>
-      <button id="ovConfirm" style="padding:.5rem 1.25rem;border-radius:.625rem;border:none;background:#dc2626;color:#fff;cursor:pointer;font-weight:700;font-family:inherit;">Excluir</button>
-    </div></div>`;
-  document.body.appendChild(ov);
-  ov.querySelector('#ovCancel').onclick = () => ov.remove();
-  ov.querySelector('#ovConfirm').onclick = async () => {
-    ov.remove();
+window.deletePromo = function(id) {
+  confirmAction('Excluir este cupom permanentemente?', async () => {
     try {
       await deleteDoc(doc(db, 'promocoes', id));
-      _promos = _promos.filter(x => x.id !== id);
+      budToast('Cupom excluído.');
+      _promos = _promos.filter(p => p.id !== id);
       renderPromos();
-      const elKpi = document.getElementById('kpiPromos');
-      if (elKpi) elKpi.textContent = _promos.filter(p => p.ativa).length;
-      if (window.budShowToast) window.budShowToast('Cupom excluído.', 'success');
-    } catch (err) {
-      if (window.budShowToast) window.budShowToast('Erro ao excluir.', 'error');
-    }
-  };
-};
-
-// ─── Admins ────────────────────────────────────────────────────────────────
-async function carregarAdmins() {
-  const container = document.getElementById('adminsList');
-  if (!container) return;
-  try {
-    const q = query(collection(db, 'usuarios'), where('role', '==', 'admin'), limit(20));
-    const snap = await getDocs(q);
-    _admins = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderAdmins();
-  } catch (err) {
-    console.error('[admin] carregarAdmins:', err);
-  }
-}
-
-function renderAdmins() {
-  const container = document.getElementById('adminsList');
-  if (!container) return;
-  const currentUid = auth.currentUser?.uid;
-  if (!_admins.length) {
-    container.innerHTML = '<div style="color:#9ca3af;font-size:.875rem;padding:1rem;">Nenhum admin encontrado.</div>';
-    return;
-  }
-  container.innerHTML = '';
-  _admins.forEach(a => {
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;';
-    const iniciais = (a.nome||a.email||'A').trim().split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase();
-    row.innerHTML = `
-      <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#059669,#10b981);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;">${esc(iniciais)}</div>
-      <div style="flex:1;">
-        <div style="font-size:13px;font-weight:600;">${esc(a.nome||'—')}</div>
-        <div style="font-size:11px;color:#6b7280;">${esc(a.email||'—')}</div>
-      </div>
-      ${a.id !== currentUid ? `<button onclick="removerAdmin('${a.id}','${esc(a.email||'')}')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit;">Remover</button>` : '<span style="font-size:11px;color:#6b7280;">você</span>'}`;
-    container.appendChild(row);
+    } catch(e) { budToast('Erro: ' + e.message, 'error'); }
   });
-}
-
-window.mostrarAddAdmin = function() {
-  const row = document.getElementById('addAdminRow');
-  if (row) row.style.display = 'block';
 };
 
-window.ocultarAddAdmin = function() {
-  const row = document.getElementById('addAdminRow');
-  if (row) row.style.display = 'none';
-  const inp = document.getElementById('adminEmailInput');
-  if (inp) inp.value = '';
-};
 
-window.adicionarAdmin = async function() {
-  const email = document.getElementById('adminEmailInput')?.value.trim().toLowerCase();
-  if (!email) { if (window.budShowToast) window.budShowToast('Informe o email.', 'warning'); return; }
-  const btn = document.getElementById('btnAddAdmin');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
-  try {
-    // Buscar usuário por email
-    const q = query(collection(db, 'usuarios'), where('email', '==', email), limit(1));
-    const snap = await getDocs(q);
-    if (snap.empty) { if (window.budShowToast) window.budShowToast('Usuário não encontrado.', 'error'); return; }
-    const uid = snap.docs[0].id;
-    await updateDoc(doc(db, 'usuarios', uid), { role: 'admin' });
-    await carregarAdmins();
-    ocultarAddAdmin();
-    if (window.budShowToast) window.budShowToast(`${email} promovido a admin!`, 'success');
-  } catch (err) {
-    console.error('[admin] adicionarAdmin:', err);
-    if (window.budShowToast) window.budShowToast('Erro ao promover.', 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Promover'; }
-  }
-};
+// ═══════════════════════════════════════════════════════════════
+//  FEATURE FLAGS
+// ═══════════════════════════════════════════════════════════════
+const DEFAULT_FLAGS = [
+  { nome: 'Dashboard Avançado',   key: 'dashboard_avancado',  desc: 'Gráficos e insights avançados no dashboard', planos: ['plus','pro'], enabled: true },
+  { nome: 'Importação por IA',    key: 'importacao_ia',       desc: 'Importar extrato via Gemini/OCR',           planos: ['pro'],         enabled: true },
+  { nome: 'Limites de Gastos',    key: 'limites_gastos',      desc: 'Definir orçamento por categoria',           planos: ['starter','trial','plus','pro'], enabled: true },
+  { nome: 'Cartões de Crédito',   key: 'cartoes_credito',     desc: 'Gestão de cartões e faturas',               planos: ['trial','plus','pro'], enabled: true },
+  { nome: 'Metas Financeiras',    key: 'metas',               desc: 'Criar e acompanhar metas de economia',      planos: ['trial','plus','pro'], enabled: true },
+  { nome: 'Relatórios',           key: 'relatorios',          desc: 'Exportar PDF e Excel',                      planos: ['plus','pro'], enabled: true },
+  { nome: 'Recorrências',         key: 'recorrencias',        desc: 'Lançamentos recorrentes automáticos',       planos: ['plus','pro'], enabled: true },
+  { nome: 'Assistente IA Chat',   key: 'assistente_ia',       desc: 'Chat com IA financeira Gemini',             planos: ['pro'],         enabled: true },
+  { nome: 'WhatsApp Bot',         key: 'whatsapp',            desc: 'Registrar transações pelo WhatsApp',        planos: ['pro'],         enabled: true },
+  { nome: 'Comparativo Mensal',   key: 'comparativo',         desc: 'Comparar receitas/despesas por mês',        planos: ['plus','pro'], enabled: true },
+  { nome: 'Dívidas e Empréstimos',key: 'dividas',             desc: 'Controle de dívidas e parcelamentos',       planos: ['trial','plus','pro'], enabled: true },
+  { nome: 'Investimentos',        key: 'investimentos',       desc: 'Carteira de investimentos e rendimentos',   planos: ['plus','pro'], enabled: true },
+  { nome: 'Mercado de Preços',    key: 'mercado',             desc: 'Consultar preços de produtos',              planos: ['pro'],         enabled: true },
+  { nome: 'Balanço Mensal',       key: 'balanco',             desc: 'Resumo detalhado por mês',                  planos: ['starter','trial','plus','pro'], enabled: true },
+  { nome: 'Extrato Completo',     key: 'extrato',             desc: 'Extrato com filtros avançados',             planos: ['free','starter','trial','plus','pro'], enabled: true },
+  { nome: 'Insights Automáticos', key: 'insights',            desc: 'Sugestões e análises automáticas',          planos: ['pro'],         enabled: true },
+  { nome: 'Gráficos Avançados',   key: 'graficos',            desc: 'Gráficos interativos e personalizados',     planos: ['plus','pro'], enabled: true },
+  { nome: 'Dark Mode',            key: 'dark_mode',           desc: 'Tema escuro para o aplicativo',             planos: ['free','starter','trial','plus','pro'], enabled: true },
+  { nome: 'Notificações Push',    key: 'push_notifications',  desc: 'Alertas e notificações push FCM',           planos: ['plus','pro'], enabled: true },
+];
 
-window.removerAdmin = async function(uid, email) {
-  const ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:500;';
-  ov.innerHTML = `<div style="background:#fff;border-radius:1rem;padding:2rem;max-width:360px;width:90%;text-align:center;">
-    <div style="font-size:2rem;margin-bottom:.75rem;">👤</div>
-    <p style="font-size:.9375rem;font-weight:700;margin-bottom:.5rem;">Remover admin &ldquo;${esc(email)}&rdquo;?</p>
-    <p style="font-size:.8125rem;color:#6b7280;margin-bottom:1.25rem;">O usuário perderá acesso ao painel.</p>
-    <div style="display:flex;gap:.75rem;justify-content:center;">
-      <button id="ovCancel" style="padding:.5rem 1.25rem;border-radius:.625rem;border:1.5px solid #d1d5db;background:#fff;cursor:pointer;font-weight:600;font-family:inherit;">Cancelar</button>
-      <button id="ovConfirm" style="padding:.5rem 1.25rem;border-radius:.625rem;border:none;background:#dc2626;color:#fff;cursor:pointer;font-weight:700;font-family:inherit;">Remover</button>
-    </div></div>`;
-  document.body.appendChild(ov);
-  ov.querySelector('#ovCancel').onclick = () => ov.remove();
-  ov.querySelector('#ovConfirm').onclick = async () => {
-    ov.remove();
-    try {
-      await updateDoc(doc(db, 'usuarios', uid), { role: null });
-      _admins = _admins.filter(a => a.id !== uid);
-      renderAdmins();
-      if (window.budShowToast) window.budShowToast('Admin removido.', 'success');
-    } catch (err) {
-      if (window.budShowToast) window.budShowToast('Erro ao remover.', 'error');
-    }
-  };
-};
-
-// ─── Feature Flags ─────────────────────────────────────────────────────────
-async function carregarFlags() {
+async function loadFlags() {
   try {
     const snap = await getDocs(collection(db, 'featureFlags'));
-
-    // Seed automático se vazio
     if (snap.empty) {
-      await seedFlags();
-      return; // seedFlags chama renderFlags internamente
+      // Seed defaults
+      for (const f of DEFAULT_FLAGS) {
+        await addDoc(collection(db, 'featureFlags'), { ...f, criadoEm: serverTimestamp() });
+      }
+      await loadFlags();
+      return;
     }
-
-    _flags = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    _allFlags = [];
+    snap.forEach(d => _allFlags.push({ id: d.id, ...d.data() }));
     renderFlags();
-    atualizarKpiFlags();
-  } catch (err) {
-    console.error('[admin] carregarFlags:', err);
-    const g = document.getElementById('flagsGrid');
-    if (g) g.innerHTML = '<div style="color:#dc2626;font-size:.875rem;">Erro ao carregar flags.</div>';
-  }
-}
-
-async function seedFlags() {
-  if (window.budShowToast) window.budShowToast('Criando flags padrão...', 'info');
-  try {
-    const promises = FLAGS_DEFAULT.map(f => addDoc(collection(db, 'featureFlags'), {
-      ...f,
-      criadoEm: serverTimestamp(),
-    }));
-    const refs = await Promise.all(promises);
-    _flags = FLAGS_DEFAULT.map((f, i) => ({ id: refs[i].id, ...f }));
-    renderFlags();
-    atualizarKpiFlags();
-    if (window.budShowToast) window.budShowToast(`${FLAGS_DEFAULT.length} flags criadas com sucesso!`, 'success');
-  } catch (err) {
-    console.error('[admin] seedFlags:', err);
-    if (window.budShowToast) window.budShowToast('Erro ao criar flags padrão.', 'error');
+  } catch(e) {
+    console.error('[flags]', e);
   }
 }
 
 function renderFlags() {
   const grid = document.getElementById('flagsGrid');
   if (!grid) return;
-  if (!_flags.length) {
-    grid.innerHTML = '<div style="color:#9ca3af;font-size:.875rem;padding:2rem;text-align:center;">Nenhuma flag criada ainda.</div>';
+  if (_allFlags.length === 0) {
+    grid.innerHTML = '<div class="empty-state"><div class="icon">🚩</div>Nenhuma flag criada</div>';
     return;
   }
-
-  const sorted = [..._flags].sort((a, b) => a.name.localeCompare(b.name));
-  grid.innerHTML = '';
-  sorted.forEach(f => {
-    const plans = (f.allowedPlans || []);
-    const plansHtml = plans.length === 0
-      ? '<span class="plan-badge plan-todos">Todos os planos</span>'
-      : plans.map(p => `<span class="plan-badge plan-${p}">${p}</span>`).join('');
-
-    const card = document.createElement('div');
-    card.className = 'ff-card' + (f.enabled ? '' : ' off');
-    card.id = 'ffcard-' + f.id;
-    card.innerHTML = `
+  grid.innerHTML = _allFlags.map(f => {
+    const planos = (f.planos || []).map(p => planBadge(p)).join(' ');
+    return `<div class="ff-card ${f.enabled ? '' : 'off'}">
       <div class="ff-card-top">
         <div>
-          <div class="ff-name">${esc(f.name)}</div>
+          <div class="ff-name">${esc(f.nome)}</div>
           <div class="ff-key">${esc(f.key)}</div>
         </div>
-        <button class="toggle ${f.enabled ? 'on' : ''}" id="tog-${f.id}" onclick="toggleFlag('${f.id}')" title="${f.enabled ? 'Desabilitar' : 'Habilitar'} flag"></button>
+        <button class="toggle ${f.enabled ? 'on' : ''}" onclick="toggleFlag('${esc(f.id)}', ${!f.enabled})"></button>
       </div>
-      <div class="ff-desc">${esc(f.description || '—')}</div>
-      <div class="ff-plans">${plansHtml}</div>
+      <div class="ff-desc">${esc(f.desc || '—')}</div>
+      <div class="ff-plans">${planos || '<span style="font-size:.7rem;color:#9ca3af;">Todos os planos</span>'}</div>
       <div class="ff-actions">
-        <button class="btn-ghost" style="padding:.3rem .7rem;font-size:.75rem;" onclick="abrirModalFlag('${f.id}')">✏️ Editar</button>
-        <button class="btn-danger" onclick="excluirFlag('${f.id}')">🗑️ Excluir</button>
-      </div>`;
-    grid.appendChild(card);
-  });
+        <button class="btn-ghost btn-sm" onclick="editFlag('${esc(f.id)}')">✏️ Editar</button>
+        <button class="btn-danger btn-sm" onclick="deleteFlag('${esc(f.id)}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
-function atualizarKpiFlags() {
-  const ativas = _flags.filter(f => f.enabled).length;
-  const el = document.getElementById('kpiFlags');
-  if (el) el.textContent = `${ativas}/${_flags.length}`;
-}
-
-window.toggleFlag = async function(id) {
-  const f = _flags.find(x => x.id === id);
-  if (!f) return;
-  const novoEstado = !f.enabled;
-  const tog = document.getElementById('tog-' + id);
-  const card = document.getElementById('ffcard-' + id);
-  if (tog) tog.classList.toggle('on', novoEstado);
-  if (card) card.classList.toggle('off', !novoEstado);
-  f.enabled = novoEstado;
+window.toggleFlag = async function(id, newState) {
   try {
-    await updateDoc(doc(db, 'featureFlags', id), { enabled: novoEstado });
-    atualizarKpiFlags();
-  } catch (err) {
-    console.error('[admin] toggleFlag:', err);
-    // reverter UI
-    f.enabled = !novoEstado;
-    if (tog) tog.classList.toggle('on', !novoEstado);
-    if (card) card.classList.toggle('off', novoEstado);
-    if (window.budShowToast) window.budShowToast('Erro ao atualizar flag.', 'error');
-  }
+    await updateDoc(doc(db, 'featureFlags', id), { enabled: newState });
+    _allFlags = _allFlags.map(f => f.id === id ? { ...f, enabled: newState } : f);
+    renderFlags();
+  } catch(e) { budToast('Erro: ' + e.message, 'error'); }
 };
 
-// ─── Modal Feature Flag ────────────────────────────────────────────────────
-window.abrirModalFlag = function(id) {
-  const modal = document.getElementById('modalFlag');
-  const f = id ? _flags.find(x => x.id === id) : null;
-
-  document.getElementById('modalFlagTitulo').textContent = f ? 'Editar Feature Flag' : 'Nova Feature Flag';
-  document.getElementById('flagEditId').value = id || '';
-  document.getElementById('flagNome').value = f?.name || '';
-  document.getElementById('flagKey').value  = f?.key  || '';
-  document.getElementById('flagKey').readOnly = !!f; // não alterar key existente
-  document.getElementById('flagDesc').value  = f?.description || '';
-
-  const tog = document.getElementById('flagEnabled');
-  const lbl = document.getElementById('flagEnabledLabel');
-  const isEnabled = f ? f.enabled : true;
-  if (tog) { tog.classList.toggle('on', isEnabled); }
-  if (lbl) lbl.textContent = isEnabled ? 'Sim' : 'Não';
-  tog?.addEventListener('click', function() {
-    this.classList.toggle('on');
-    lbl.textContent = this.classList.contains('on') ? 'Sim' : 'Não';
-  }, { once: false });
-
-  // Planos
-  const checks = document.querySelectorAll('input[name="flagPlan"]');
-  const planos = f?.allowedPlans || [];
-  checks.forEach(c => { c.checked = planos.includes(c.value); });
-
-  modal.classList.add('open');
+window.openFlagModal = function() {
+  document.getElementById('flagEditId').value = '';
+  document.getElementById('modalFlagTitulo').textContent = 'Nova Feature Flag';
+  document.getElementById('flagNome').value = '';
+  document.getElementById('flagKey').value  = '';
+  document.getElementById('flagDesc').value = '';
+  document.querySelectorAll('[name="flagPlan"]').forEach(cb => cb.checked = false);
+  document.getElementById('flagEnabled').classList.add('on');
+  document.getElementById('flagEnabledLabel').textContent = 'Sim';
+  document.getElementById('modalFlag').classList.add('open');
 };
 
-window.fecharModalFlag = function() {
-  document.getElementById('modalFlag').classList.remove('open');
+window.editFlag = function(id) {
+  const f = _allFlags.find(f => f.id === id);
+  if (!f) return;
+  document.getElementById('flagEditId').value = id;
+  document.getElementById('modalFlagTitulo').textContent = 'Editar Feature Flag';
+  document.getElementById('flagNome').value = f.nome || '';
+  document.getElementById('flagKey').value  = f.key  || '';
+  document.getElementById('flagDesc').value = f.desc || '';
+  const planos = f.planos || [];
+  document.querySelectorAll('[name="flagPlan"]').forEach(cb => cb.checked = planos.includes(cb.value));
+  if (f.enabled) document.getElementById('flagEnabled').classList.add('on');
+  else document.getElementById('flagEnabled').classList.remove('on');
+  document.getElementById('flagEnabledLabel').textContent = f.enabled ? 'Sim' : 'Não';
+  document.getElementById('modalFlag').classList.add('open');
 };
 
-window.salvarFlag = async function() {
-  const id   = document.getElementById('flagEditId').value;
-  const nome = document.getElementById('flagNome').value.trim();
-  const key  = document.getElementById('flagKey').value.trim().toLowerCase();
-  const desc = document.getElementById('flagDesc').value.trim();
+window.closeFlagModal = function() { document.getElementById('modalFlag').classList.remove('open'); };
+
+window.saveFlag = async function() {
+  const editId  = document.getElementById('flagEditId').value;
+  const nome    = document.getElementById('flagNome').value.trim();
+  const key     = document.getElementById('flagKey').value.trim();
+  const desc    = document.getElementById('flagDesc').value.trim();
   const enabled = document.getElementById('flagEnabled').classList.contains('on');
+  const planos  = [...document.querySelectorAll('[name="flagPlan"]:checked')].map(c => c.value);
 
-  if (!nome || !key) {
-    if (window.budShowToast) window.budShowToast('Nome e chave são obrigatórios.', 'warning');
-    return;
-  }
-  if (!/^[a-z0-9_]+$/.test(key)) {
-    if (window.budShowToast) window.budShowToast('Chave: use apenas letras minúsculas, números e _', 'warning');
-    return;
-  }
+  if (!nome) { budToast('Informe o nome da flag.', 'error'); return; }
+  if (!key)  { budToast('Informe a chave (slug) da flag.', 'error'); return; }
 
-  const checks = document.querySelectorAll('input[name="flagPlan"]:checked');
-  const allowedPlans = Array.from(checks).map(c => c.value);
-
-  const dados = {
-    name: window.budSanitize ? window.budSanitize(nome) : nome,
-    description: window.budSanitize ? window.budSanitize(desc) : desc,
-    enabled,
-    allowedPlans,
-  };
-
-  const btn = document.querySelector('#modalFlag .btn-cyan');
-  if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
-
+  const btn = document.getElementById('btnSalvarFlag');
+  btn.disabled = true; btn.textContent = '⏳ Salvando...';
   try {
-    if (id) {
-      // Edição
-      await updateDoc(doc(db, 'featureFlags', id), dados);
-      const idx = _flags.findIndex(x => x.id === id);
-      if (idx >= 0) _flags[idx] = { ..._flags[idx], ...dados };
+    if (editId) {
+      await updateDoc(doc(db, 'featureFlags', editId), { nome, key, desc, enabled, planos });
+      _allFlags = _allFlags.map(f => f.id === editId ? { ...f, nome, key, desc, enabled, planos } : f);
     } else {
-      // Criação
-      // Verificar chave duplicada
-      if (_flags.some(f => f.key === key)) {
-        if (window.budShowToast) window.budShowToast('Já existe uma flag com essa chave.', 'error');
-        return;
-      }
-      const ref = await addDoc(collection(db, 'featureFlags'), {
-        ...dados, key, criadoEm: serverTimestamp(),
-      });
-      _flags.push({ id: ref.id, key, ...dados });
+      const ref = await addDoc(collection(db, 'featureFlags'), { nome, key, desc, enabled, planos, criadoEm: serverTimestamp() });
+      _allFlags.push({ id: ref.id, nome, key, desc, enabled, planos });
     }
-
+    budToast('✅ Flag salva!');
+    closeFlagModal();
     renderFlags();
-    atualizarKpiFlags();
-    fecharModalFlag();
-    if (window.budShowToast) window.budShowToast('Flag salva!', 'success');
-  } catch (err) {
-    console.error('[admin] salvarFlag:', err);
-    if (window.budShowToast) window.budShowToast('Erro ao salvar flag.', 'error');
+  } catch(e) {
+    budToast('Erro: ' + e.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Salvar Flag'; }
+    btn.disabled = false; btn.textContent = 'Salvar Flag';
   }
 };
 
-window.excluirFlag = async function(id) {
-  const f = _flags.find(x => x.id === id);
-  if (!f) return;
-  if (!confirm(`Excluir a flag "${f.name}" (${f.key})? Esta ação não pode ser desfeita.`)) return;
-  try {
-    await deleteDoc(doc(db, 'featureFlags', id));
-    _flags = _flags.filter(x => x.id !== id);
-    renderFlags();
-    atualizarKpiFlags();
-    if (window.budShowToast) window.budShowToast('Flag excluída.', 'success');
-  } catch (err) {
-    console.error('[admin] excluirFlag:', err);
-    if (window.budShowToast) window.budShowToast('Erro ao excluir flag.', 'error');
-  }
+window.deleteFlag = function(id) {
+  const f = _allFlags.find(f => f.id === id);
+  confirmAction(`Excluir a flag "${f?.nome || id}"?`, async () => {
+    try {
+      await deleteDoc(doc(db, 'featureFlags', id));
+      budToast('Flag excluída.');
+      _allFlags = _allFlags.filter(f => f.id !== id);
+      renderFlags();
+    } catch(e) { budToast('Erro: ' + e.message, 'error'); }
+  });
 };
 
-// ─── Sistema ───────────────────────────────────────────────────────────────
-async function carregarSistema() {
+// ═══════════════════════════════════════════════════════════════
+//  SISTEMA
+// ═══════════════════════════════════════════════════════════════
+async function loadAppSettings() {
   try {
     const snap = await getDoc(doc(db, 'admin', 'config'));
-    if (!snap.exists()) return;
-    const d = snap.data();
-    const set = (id, val) => { const el = document.getElementById(id); if (el) el.classList.toggle('on', !!val); };
-    set('togManutencao',    !!d.modoManutencao);
-    set('togCadastros',     d.cadastrosAbertos !== false);
-    set('togAssistenteIA',  !d.ocultarAssistenteIA);
-    set('togAssistenteWA',  !d.ocultarAssistenteWhatsApp);
-    const elVersao = document.getElementById('inputVersao');
-    const elBoasVindas = document.getElementById('inputBoasVindas');
-    if (elVersao) elVersao.value = d.versao || '';
-    if (elBoasVindas) elBoasVindas.value = d.mensagemBoasVindas || '';
-  } catch (_) {}
-  // Também carrega lista de admins
-  await carregarAdmins();
+    _appSettings = snap.exists() ? snap.data() : {};
+
+    setToggleUI('togManutencao',   !!_appSettings.modoManutencao);
+    setToggleUI('togCadastros',    _appSettings.cadastrosAbertos !== false);
+    setToggleUI('togAssistenteIA', !_appSettings.ocultarAssistenteIA);
+    setToggleUI('togAssistenteWA', !_appSettings.ocultarAssistenteWhatsApp);
+
+    const v = document.getElementById('inputVersao'); if (v) v.value = _appSettings.versao || '';
+    const b = document.getElementById('inputBoasVindas'); if (b) b.value = _appSettings.mensagemBoasVindas || '';
+    const ic = document.getElementById('inputInviteCode'); if (ic) ic.value = _appSettings.adminInviteCode || '';
+  } catch(e) {
+    console.error('[settings]', e);
+  }
 }
 
-window.salvarSistema = async function() {
-  const btn = document.getElementById('btnSalvarSistema');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+function setToggleUI(id, on) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (on) el.classList.add('on');
+  else    el.classList.remove('on');
+}
+
+window.saveToggle = async function(field, val) {
   try {
-    const dados = {
-      modoManutencao:          document.getElementById('togManutencao')?.classList.contains('on') || false,
-      cadastrosAbertos:        document.getElementById('togCadastros')?.classList.contains('on') ?? true,
-      ocultarAssistenteIA:     !document.getElementById('togAssistenteIA')?.classList.contains('on'),
-      ocultarAssistenteWhatsApp: !document.getElementById('togAssistenteWA')?.classList.contains('on'),
-      versao:           (document.getElementById('inputVersao')?.value || '').trim(),
-      mensagemBoasVindas: (document.getElementById('inputBoasVindas')?.value || '').trim(),
-    };
-    await setDoc(doc(db, 'admin', 'config'), dados, { merge: true });
-    if (window.budShowToast) window.budShowToast('Configurações salvas!', 'success');
-  } catch (err) {
-    console.error('[admin] salvarSistema:', err);
-    if (window.budShowToast) window.budShowToast('Erro ao salvar.', 'error');
+    await setDoc(doc(db, 'admin', 'config'), { [field]: val }, { merge: true });
+    _appSettings[field] = val;
+  } catch(e) { budToast('Erro ao salvar: ' + e.message, 'error'); }
+};
+
+window.saveAppSettings = async function() {
+  const versao       = document.getElementById('inputVersao')?.value.trim() || '';
+  const boasVindas   = document.getElementById('inputBoasVindas')?.value.trim() || '';
+  const inviteCode   = document.getElementById('inputInviteCode')?.value.trim() || '';
+
+  const btn = document.getElementById('btnSalvarSistema');
+  btn.disabled = true; btn.textContent = '⏳ Salvando...';
+  try {
+    await setDoc(doc(db, 'admin', 'config'), {
+      versao, mensagemBoasVindas: boasVindas, adminInviteCode: inviteCode
+    }, { merge: true });
+    Object.assign(_appSettings, { versao, mensagemBoasVindas: boasVindas, adminInviteCode: inviteCode });
+    budToast('✅ Configurações salvas!');
+  } catch(e) {
+    budToast('Erro: ' + e.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '💾 Salvar'; }
+    btn.disabled = false; btn.textContent = '💾 Salvar';
   }
 };
 
-// ─── Helper: escapeHTML ────────────────────────────────────────────────────
-function esc(str) {
-  return String(str || '')
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+// ═══════════════════════════════════════════════════════════════
+//  ADMINS
+// ═══════════════════════════════════════════════════════════════
+async function loadAdmins() {
+  const cont = document.getElementById('adminsList');
+  if (cont) cont.innerHTML = '<div class="loading-inline">Carregando...</div>';
+  try {
+    const snap = await getDocs(query(collection(db, 'usuarios'), where('role', '==', 'admin')));
+    const admins = [];
+    snap.forEach(d => admins.push({ id: d.id, ...d.data() }));
+    if (!cont) return;
+    if (admins.length === 0) {
+      cont.innerHTML = '<div class="empty-state"><div class="icon">🔐</div>Nenhum admin cadastrado</div>';
+      return;
+    }
+    cont.innerHTML = admins.map(a => {
+      const ini = (a.nome || a.email || '?').charAt(0).toUpperCase();
+      return `<div class="admin-row">
+        <div class="admin-av">${esc(ini)}</div>
+        <div style="flex:1;">
+          <div style="font-size:.875rem;font-weight:700;color:#1e293b;">${esc(a.nome || '—')}</div>
+          <div style="font-size:.75rem;color:#6b7280;">${esc(a.email || '—')}</div>
+        </div>
+        ${a.id !== auth.currentUser?.uid
+          ? `<button class="btn-danger btn-sm" onclick="removerAdmin('${esc(a.id)}', '${esc(a.nome || a.email || '')}')">Remover</button>`
+          : '<span style="font-size:.75rem;color:#9ca3af;font-weight:600;">(você)</span>'}
+      </div>`;
+    }).join('');
+  } catch(e) {
+    console.error('[admins]', e);
+  }
 }
+
+window.mostrarAddAdmin = function() { document.getElementById('addAdminRow').style.display = 'block'; };
+window.ocultarAddAdmin = function() { document.getElementById('addAdminRow').style.display = 'none'; document.getElementById('adminEmailInput').value = ''; };
+
+window.adicionarAdmin = async function() {
+  const email = document.getElementById('adminEmailInput').value.trim().toLowerCase();
+  if (!email) { budToast('Informe o e-mail do usuário.', 'error'); return; }
+
+  const btn = document.getElementById('btnAddAdmin');
+  btn.disabled = true; btn.textContent = '⏳';
+  try {
+    // Find user by email
+    const q = query(collection(db, 'usuarios'), where('email', '==', email), limit(1));
+    const snap = await getDocs(q);
+    if (snap.empty) { budToast('Usuário não encontrado com esse e-mail.', 'error'); return; }
+    const uid = snap.docs[0].id;
+    await updateDoc(doc(db, 'usuarios', uid), { role: 'admin' });
+    budToast(`✅ ${email} agora é administrador!`);
+    ocultarAddAdmin();
+    await loadAdmins();
+  } catch(e) {
+    budToast('Erro: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Promover';
+  }
+};
+
+window.removerAdmin = function(uid, nome) {
+  confirmAction(`Remover privilégios de admin de ${nome || uid}?`, async () => {
+    try {
+      await updateDoc(doc(db, 'usuarios', uid), { role: 'usuario' });
+      budToast('Admin removido.');
+      await loadAdmins();
+    } catch(e) { budToast('Erro: ' + e.message, 'error'); }
+  });
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  EXPOSE loadNotifications for refresh button
+// ═══════════════════════════════════════════════════════════════
+window.loadNotifications = loadNotifications;
+window.loadAdmins        = loadAdmins;
+

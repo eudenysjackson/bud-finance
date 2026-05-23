@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registro Admin — Bud Finance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="js/firebase-config.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #064e3b;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(80px);
+    }
+    .blob-1 { top: -10%; left: -10%; width: 60%; height: 60%; background: rgba(16,185,129,.35); }
+    .blob-2 { bottom: -10%; right: -10%; width: 50%; height: 50%; background: rgba(5,150,105,.25); }
+    .blob-3 { top: 30%; right: 10%; width: 30%; height: 30%; background: rgba(6,78,59,.4); }
+
+    .reg-card {
+      position: relative;
+      z-index: 10;
+      background: rgba(255,255,255,.96);
+      backdrop-filter: blur(24px);
+      border-radius: 1.75rem;
+      padding: 2.5rem 2rem;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 32px 64px rgba(0,0,0,.25);
+      border: 1px solid rgba(255,255,255,.8);
+    }
+    @media(min-width:480px) { .reg-card { padding: 2.5rem; } }
+
+    .reg-logo {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin-bottom: 1.5rem;
+    }
+    .reg-badge {
+      width: 3rem;
+      height: 3rem;
+      border-radius: .875rem;
+      background: linear-gradient(135deg, #059669, #10b981);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 1.25rem;
+      color: #fff;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(5,150,105,.4);
+    }
+    .reg-title {
+      font-size: 1rem;
+      font-weight: 800;
+      color: #064e3b;
+      line-height: 1.2;
+    }
+    .reg-sub {
+      font-size: .75rem;
+      font-weight: 500;
+      color: #6b7280;
+      margin-top: .1rem;
+    }
+    .reg-alert {
+      background: #fef3c7;
+      border: 1.5px solid #fde68a;
+      border-radius: .75rem;
+      padding: .75rem 1rem;
+      font-size: .8125rem;
+      font-weight: 600;
+      color: #92400e;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .reg-heading {
+      font-size: 1.375rem;
+      font-weight: 900;
+      color: #064e3b;
+      margin-bottom: .375rem;
+    }
+    .reg-desc {
+      font-size: .8125rem;
+      color: #6b7280;
+      margin-bottom: 1.5rem;
+    }
+    .reg-field { margin-bottom: 1rem; }
+    .reg-label {
+      display: block;
+      font-size: .75rem;
+      font-weight: 700;
+      color: #374151;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: .375rem;
+    }
+    .reg-input {
+      width: 100%;
+      padding: .6875rem 1rem;
+      border: 2px solid #e5e7eb;
+      border-radius: .75rem;
+      font-family: inherit;
+      font-size: .875rem;
+      font-weight: 500;
+      color: #1e293b;
+      background: #f9fafb;
+      outline: none;
+      transition: border-color .15s, background .15s;
+    }
+    .reg-input::placeholder { color: #9ca3af; }
+    .reg-input:focus { border-color: #10b981; background: #fff; }
+    .reg-input.error { border-color: #ef4444; background: #fef2f2; }
+
+    .reg-divider {
+      border: none;
+      border-top: 1.5px solid #f1f5f9;
+      margin: 1.25rem 0;
+    }
+    .reg-code-label {
+      display: block;
+      font-size: .75rem;
+      font-weight: 700;
+      color: #374151;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: .375rem;
+    }
+    .reg-code-hint {
+      font-size: .7rem;
+      color: #9ca3af;
+      margin-top: .25rem;
+    }
+
+    .reg-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: #fff;
+      font-weight: 800;
+      font-size: .9375rem;
+      padding: .8125rem;
+      border-radius: .875rem;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      margin-top: .5rem;
+      box-shadow: 0 4px 16px rgba(5,150,105,.35);
+      transition: opacity .15s, transform .1s;
+    }
+    .reg-btn:hover { opacity: .92; }
+    .reg-btn:active { transform: scale(.98); }
+    .reg-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+    .reg-error {
+      background: #fef2f2;
+      border: 1.5px solid #fecaca;
+      border-radius: .75rem;
+      padding: .75rem 1rem;
+      font-size: .8125rem;
+      font-weight: 600;
+      color: #dc2626;
+      margin-bottom: 1rem;
+    }
+    .reg-success {
+      background: #f0fdf4;
+      border: 1.5px solid #a7f3d0;
+      border-radius: .75rem;
+      padding: .75rem 1rem;
+      font-size: .8125rem;
+      font-weight: 600;
+      color: #065f46;
+      margin-bottom: 1rem;
+    }
+    .reg-footer {
+      text-align: center;
+      margin-top: 1.25rem;
+      font-size: .8125rem;
+      color: #6b7280;
+    }
+    .reg-footer a {
+      color: #059669;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .reg-footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+
+  <div class="reg-card">
+    <div class="reg-logo">
+      <div class="reg-badge">B</div>
+      <div>
+        <div class="reg-title">Bud Finance Admin</div>
+        <div class="reg-sub">Registro de Administrador</div>
+      </div>
+    </div>
+
+    <div class="reg-alert">🔐 Acesso restrito — necessita código de convite</div>
+
+    <div class="reg-heading">Criar conta de admin</div>
+    <div class="reg-desc">Preencha os dados abaixo e informe o código de convite fornecido pelo administrador responsável.</div>
+
+    <div id="regError" class="reg-error" style="display:none;"></div>
+    <div id="regSuccess" class="reg-success" style="display:none;"></div>
+
+    <form id="regForm" autocomplete="off" onsubmit="return false;">
+      <div class="reg-field">
+        <label class="reg-label">Nome completo</label>
+        <input type="text" id="regNome" class="reg-input" placeholder="Seu nome completo" required>
+      </div>
+      <div class="reg-field">
+        <label class="reg-label">E-mail</label>
+        <input type="email" id="regEmail" class="reg-input" placeholder="seu@email.com" required>
+      </div>
+      <div class="reg-field">
+        <label class="reg-label">Senha</label>
+        <input type="password" id="regSenha" class="reg-input" placeholder="mínimo 8 caracteres" required>
+      </div>
+      <div class="reg-field">
+        <label class="reg-label">Confirmar senha</label>
+        <input type="password" id="regConfirm" class="reg-input" placeholder="repita a senha" required>
+      </div>
+
+      <hr class="reg-divider">
+
+      <div class="reg-field">
+        <label class="reg-code-label">Código de convite</label>
+        <input type="text" id="regCodigo" class="reg-input" placeholder="código fornecido pelo admin" required autocomplete="off">
+        <div class="reg-code-hint">O código é definido pelo admin no painel → Sistema → Código de Convite</div>
+      </div>
+
+      <button type="button" id="regBtn" class="reg-btn">Registrar Administrador</button>
+    </form>
+
+    <div class="reg-footer">
+      <a href="admin.html">← Já tenho conta, fazer login</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+    import { getAuth, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
+    import {
+      getFirestore, initializeFirestore, persistentLocalCache,
+      doc, getDoc, setDoc, serverTimestamp
+    } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+
+    const app = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
+    const auth = getAuth(app);
+    const db = (() => {
+      try { return initializeFirestore(app, { localCache: persistentLocalCache() }); }
+      catch(e) { return getFirestore(app); }
+    })();
+
+    const btn = document.getElementById('regBtn');
+    const errEl = document.getElementById('regError');
+    const sucEl = document.getElementById('regSuccess');
+
+    function showError(msg) {
+      errEl.textContent = msg;
+      errEl.style.display = 'block';
+      sucEl.style.display = 'none';
+    }
+    function showSuccess(msg) {
+      sucEl.textContent = msg;
+      sucEl.style.display = 'block';
+      errEl.style.display = 'none';
+    }
+
+    btn.addEventListener('click', async () => {
+      const nome    = document.getElementById('regNome').value.trim();
+      const email   = document.getElementById('regEmail').value.trim().toLowerCase();
+      const senha   = document.getElementById('regSenha').value;
+      const confirm = document.getElementById('regConfirm').value;
+      const codigo  = document.getElementById('regCodigo').value.trim();
+
+      errEl.style.display = 'none';
+      if (!nome || !email || !senha || !codigo) { showError('Preencha todos os campos.'); return; }
+      if (senha.length < 8) { showError('Senha deve ter no mínimo 8 caracteres.'); return; }
+      if (senha !== confirm) { showError('As senhas não conferem.'); return; }
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Verificando código...';
+
+      try {
+        // Verificar código de convite no Firestore
+        const cfgSnap = await getDoc(doc(db, 'admin', 'config'));
+        const inviteCode = cfgSnap.exists() ? cfgSnap.data().adminInviteCode : null;
+
+        if (!inviteCode) {
+          showError('Nenhum código de convite configurado. Peça ao administrador para configurar no painel → Sistema.');
+          return;
+        }
+        if (inviteCode !== codigo) {
+          showError('Código de convite inválido. Verifique com o administrador responsável.');
+          return;
+        }
+
+        btn.textContent = '⏳ Criando conta...';
+
+        // Criar usuário no Firebase Auth
+        const cred = await createUserWithEmailAndPassword(auth, email, senha);
+
+        // Salvar perfil no Firestore com role admin
+        await setDoc(doc(db, 'usuarios', cred.user.uid), {
+          nome,
+          email,
+          role: 'admin',
+          plano: 'pro',
+          dataCadastro: serverTimestamp(),
+          criadoEm: serverTimestamp(),
+        });
+
+        showSuccess('✅ Administrador registrado com sucesso! Redirecionando para o painel...');
+        btn.textContent = '✅ Registrado!';
+        setTimeout(() => { window.location.href = 'admin.html'; }, 2000);
+
+      } catch (err) {
+        console.error('[admin-register]', err);
+        const msgs = {
+          'auth/email-already-in-use': 'Este e-mail já está cadastrado no sistema.',
+          'auth/invalid-email': 'E-mail inválido.',
+          'auth/weak-password': 'Senha muito fraca (mínimo 8 caracteres).',
+          'auth/network-request-failed': 'Erro de conexão. Verifique sua internet.',
+        };
+        showError(msgs[err.code] || ('Erro ao registrar: ' + (err.message || err.code)));
+        btn.disabled = false;
+        btn.textContent = 'Registrar Administrador';
+      }
+    });
+  </script>
+</body>
+</html>
