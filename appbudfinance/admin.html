@@ -293,7 +293,9 @@
         <div class="kpi-card"><div class="kpi-val" id="kpiTotal">—</div><div class="kpi-lbl">Usuários Total</div></div>
         <div class="kpi-card"><div class="kpi-val" id="kpiPagantes">—</div><div class="kpi-lbl">Pagantes (Plus/Pro)</div></div>
         <div class="kpi-card"><div class="kpi-val" id="kpiTrial">—</div><div class="kpi-lbl">Em Trial</div></div>
+        <div class="kpi-card"><div class="kpi-val" id="kpiFree">—</div><div class="kpi-lbl">Free / Starter</div></div>
         <div class="kpi-card"><div class="kpi-val" id="kpiFlags">—</div><div class="kpi-lbl">Feature Flags Ativas</div></div>
+        <div class="kpi-card"><div class="kpi-val" id="kpiPromos">—</div><div class="kpi-lbl">Cupons Ativos</div></div>
       </div>
       <div class="g-card">
         <div class="panel-header">
@@ -346,37 +348,83 @@
       </div>
     </div>
 
-    <!-- Panel: Notificações (placeholder) -->
+    <!-- Panel: Notificações -->
     <div id="panel-notifs" style="display:none;">
-      <div class="g-card">
-        <div class="tab-placeholder">
-          <div class="icon">🔔</div>
-          <h3>Notificações — Em breve</h3>
-          <p>Disparar notificações globais por tipo e segmento.</p>
+      <div class="g-card" style="margin-bottom:1rem;">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">🔔 Enviar Notificação Global</div>
+            <div class="panel-sub">Registra no Firestore e exibe nas notificações in-app</div>
+          </div>
         </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.875rem;">
+          <div>
+            <label class="god-label">Título *</label>
+            <input type="text" id="notifTitulo" class="god-input" placeholder="ex: Novidade no Bud Finance!">
+          </div>
+          <div>
+            <label class="god-label">Tipo</label>
+            <select id="notifTipo" style="width:100%;padding:.625rem .875rem;border:1.5px solid #d1d5db;border-radius:.625rem;font-family:inherit;font-size:.875rem;color:#1e293b;background:#f9fafb;">
+              <option value="info">💡 Informação</option>
+              <option value="promo">🎉 Promoção</option>
+              <option value="update">🚀 Atualização</option>
+              <option value="alert">⚠️ Alerta</option>
+            </select>
+          </div>
+          <div>
+            <label class="god-label">Destino</label>
+            <select id="notifDestino" style="width:100%;padding:.625rem .875rem;border:1.5px solid #d1d5db;border-radius:.625rem;font-family:inherit;font-size:.875rem;color:#1e293b;background:#f9fafb;">
+              <option value="all">Todos os usuários</option>
+              <option value="plus">Plus</option>
+              <option value="pro">Pro</option>
+              <option value="trial">Trial</option>
+              <option value="free">Free</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:.875rem;">
+          <label class="god-label">Mensagem *</label>
+          <textarea id="notifMensagem" class="god-input" rows="3" placeholder="Mensagem da notificação..." style="resize:vertical;"></textarea>
+        </div>
+        <div style="margin-top:1rem;">
+          <button class="btn-cyan" id="btnEnviarNotif" onclick="enviarNotificacao()">📤 Enviar Notificação</button>
+        </div>
+      </div>
+      <div class="g-card">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">📜 Histórico</div>
+            <div class="panel-sub">Últimas 20 notificações enviadas</div>
+          </div>
+          <button class="btn-ghost" onclick="carregarNotificacoes()">&#8635; Atualizar</button>
+        </div>
+        <div id="notifHistory" style="max-height:420px;overflow-y:auto;"></div>
       </div>
     </div>
 
-    <!-- Panel: Promoções (placeholder) -->
+    <!-- Panel: Promoções -->
     <div id="panel-promos" style="display:none;">
       <div class="g-card">
-        <div class="tab-placeholder">
-          <div class="icon">🎟️</div>
-          <h3>Promoções — Em breve</h3>
-          <p>CRUD de cupons com código, desconto, validade e limites de uso.</p>
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">🎟️ Cupons de Desconto</div>
+            <div class="panel-sub">CRUD de cupons com código, desconto % e validade</div>
+          </div>
+          <button class="btn-cyan" onclick="abrirModalPromo()">+ Novo Cupom</button>
         </div>
+        <div id="promosList"></div>
       </div>
     </div>
 
     <!-- Panel: Sistema -->
     <div id="panel-system" style="display:none;">
-      <div class="g-card">
+      <div class="g-card" style="margin-bottom:1rem;">
         <div class="panel-header">
           <div>
             <div class="panel-title">⚙️ Configurações do Sistema</div>
             <div class="panel-sub">Configurações globais do app</div>
           </div>
-          <button class="btn-cyan" onclick="salvarSistema()">💾 Salvar</button>
+          <button class="btn-cyan" id="btnSalvarSistema" onclick="salvarSistema()">💾 Salvar</button>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;">
           <div class="g-card" style="background:#f8fafc;">
@@ -397,6 +445,24 @@
               <button class="toggle on" id="togCadastros" onclick="this.classList.toggle('on')"></button>
             </div>
           </div>
+          <div class="g-card" style="background:#f8fafc;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+              <div>
+                <div style="font-size:.9rem;font-weight:700;color:#1e293b;">🤖 Assistente IA</div>
+                <div style="font-size:.75rem;color:#6b7280;margin-top:.125rem;">Exibe botão do Assistente IA nas telas</div>
+              </div>
+              <button class="toggle on" id="togAssistenteIA" onclick="this.classList.toggle('on')"></button>
+            </div>
+          </div>
+          <div class="g-card" style="background:#f8fafc;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+              <div>
+                <div style="font-size:.9rem;font-weight:700;color:#1e293b;">📱 Assistente WhatsApp</div>
+                <div style="font-size:.75rem;color:#6b7280;margin-top:.125rem;">Exibe integração WhatsApp no app</div>
+              </div>
+              <button class="toggle on" id="togAssistenteWA" onclick="this.classList.toggle('on')"></button>
+            </div>
+          </div>
         </div>
         <div style="margin-top:1rem;">
           <label class="god-label">Versão do App</label>
@@ -406,6 +472,25 @@
           <label class="god-label">Mensagem de Boas-Vindas</label>
           <input type="text" id="inputBoasVindas" class="god-input" placeholder="ex: Bem-vindo ao Bud Finance!">
         </div>
+      </div>
+
+      <!-- Administradores -->
+      <div class="g-card">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">🔒 Administradores</div>
+            <div class="panel-sub">Usuários com acesso total ao painel</div>
+          </div>
+          <button class="btn-cyan" onclick="mostrarAddAdmin()">+ Adicionar Admin</button>
+        </div>
+        <div id="addAdminRow" style="display:none;margin-bottom:1rem;">
+          <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
+            <input type="email" id="adminEmailInput" class="god-input" placeholder="email do usuário" style="max-width:300px;">
+            <button class="btn-cyan" id="btnAddAdmin" onclick="adicionarAdmin()">Promover</button>
+            <button class="btn-ghost" onclick="ocultarAddAdmin()">Cancelar</button>
+          </div>
+        </div>
+        <div id="adminsList"></div>
       </div>
     </div>
 
@@ -448,6 +533,45 @@
       <div class="modal-footer">
         <button class="btn-ghost" onclick="fecharModalFlag()">Cancelar</button>
         <button class="btn-cyan" onclick="salvarFlag()">Salvar Flag</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Promoção -->
+  <div class="modal-bg" id="modalPromo">
+    <div class="modal-box">
+      <div class="modal-title">🎟️ Novo Cupom de Desconto</div>
+      <div class="form-row">
+        <label class="god-label">Código do Cupom *</label>
+        <input type="text" id="promoCodigo" class="god-input" placeholder="ex: BLACKFRIDAY50" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.875rem;">
+        <div class="form-row">
+          <label class="god-label">Desconto (%) *</label>
+          <input type="number" id="promoDesconto" class="god-input" min="1" max="100" placeholder="ex: 30">
+        </div>
+        <div class="form-row">
+          <label class="god-label">Limite de usos</label>
+          <input type="number" id="promoLimite" class="god-input" min="0" placeholder="0 = ilimitado">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.875rem;">
+        <div class="form-row">
+          <label class="god-label">Válido de</label>
+          <input type="date" id="promoInicio" class="god-input">
+        </div>
+        <div class="form-row">
+          <label class="god-label">Válido até</label>
+          <input type="date" id="promoFim" class="god-input">
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="god-label">Descrição</label>
+        <input type="text" id="promoDescricao" class="god-input" placeholder="ex: Black Friday 2026">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="fecharModalPromo()">Cancelar</button>
+        <button class="btn-cyan" id="btnSalvarPromo" onclick="salvarPromo()">Salvar Cupom</button>
       </div>
     </div>
   </div>

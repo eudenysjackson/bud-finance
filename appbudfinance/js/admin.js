@@ -15,7 +15,7 @@ import { getAuth, onAuthStateChanged, signOut }
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
   collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
-  setDoc, orderBy, query, limit, serverTimestamp, where
+  setDoc, orderBy, query, limit, serverTimestamp, where, getCountFromServer
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // ─── Firebase ────────────────────────────────────────────────────────────────────
@@ -27,6 +27,10 @@ const db   = (() => { try { return initializeFirestore(app, { localCache: persis
 let _flags   = [];  // array de { id, key, name, description, enabled, allowedPlans }
 let _panelAtual = 'overview';
 let _chamadosCarregados = false;
+let _notifs  = [];  // notificacoes-globais
+let _promos  = [];  // promoções
+let _admins  = [];  // usuários com role === 'admin'
+let _allUsersLite = []; // todos usuários (cache para admins)
 
 // ─── Seed de Feature Flags padrão ─────────────────────────────────────────
 const FLAGS_DEFAULT = [
@@ -54,6 +58,8 @@ const FLAGS_DEFAULT = [
 // ─── Tabs ──────────────────────────────────────────────────────────────────
 window.switchTab = function(tab) {
   const panels = ['overview','flags','crm','notifs','promos','system'];
+  // Lazy-load ao abrir aba de notificações ou promoções pela 1ª vez já é coberto
+  // pelo carregamento inicial em Promise.all, mas deixamos re-load no clique
   panels.forEach(p => {
     const el = document.getElementById('panel-' + p);
     const btn = document.getElementById('tab-' + p);
@@ -104,6 +110,8 @@ onAuthStateChanged(auth, async user => {
       carregarOverview(user.uid),
       carregarFlags(),
       carregarSistema(),
+      carregarNotificacoes(),
+      carregarPromos(),
     ]);
 
   } catch (err) {
@@ -198,29 +206,28 @@ window.alterarStatusChamado = async function(id, statusAtual) {
 // ─── Visão Geral ───────────────────────────────────────────────────────────
 async function carregarOverview(myUid) {
   try {
-    // Últimos 20 cadastros
-    const q = query(
-      collection(db, 'usuarios'),
-      orderBy('dataCadastro', 'desc'),
-      limit(20)
-    );
-    const snap = await getDocs(q);
-    const usuarios = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-    // KPIs
-    let pagantes = 0, trial = 0;
-    usuarios.forEach(u => {
-      const p = (u.plano || '').toLowerCase();
-      if (p === 'plus' || p === 'pro') pagantes++;
-      if (p === 'trial') trial++;
-    });
-
+    // KPIs via getCountFromServer (eficiente)
+    const [totalSnap, paidSnap, trialSnap, freeSnap, starterSnap] = await Promise.all([
+      getCountFromServer(collection(db, 'usuarios')),
+      getCountFromServer(query(collection(db, 'usuarios'), where('plano', 'in', ['pro','plus']))),
+      getCountFromServer(query(collection(db, 'usuarios'), where('plano', '==', 'trial'))),
+      getCountFromServer(query(collection(db, 'usuarios'), where('plano', '==', 'free'))),
+      getCountFromServer(query(collection(db, 'usuarios'), where('plano', '==', 'starter'))),
+    ]);
     const elTotal    = document.getElementById('kpiTotal');
     const elPagantes = document.getElementById('kpiPagantes');
     const elTrial    = document.getElementById('kpiTrial');
-    if (elTotal) elTotal.textContent = usuarios.length;
-    if (elPagantes) elPagantes.textContent = pagantes;
-    if (elTrial) elTrial.textContent = trial;
+    const elFree     = document.getElementById('kpiFree');
+    if (elTotal)    elTotal.textContent    = totalSnap.data().count;
+    if (elPagantes) elPagantes.textContent = paidSnap.data().count;
+    if (elTrial)    elTrial.textContent    = trialSnap.data().count;
+    if (elFree)     elFree.textContent     = freeSnap.data().count + starterSnap.data().count;
+
+    // Últimos 20 cadastros (leve — só 20 docs)
+    const q = query(collection(db, 'usuarios'), orderBy('dataCadastro', 'desc'), limit(20));
+    const snap = await getDocs(q);
+    const usuarios = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    _allUsersLite = usuarios; // cache para admins
 
     // Últimos cadastros — tabela simples
     const container = document.getElementById('overviewSignups');
@@ -262,6 +269,350 @@ async function carregarOverview(myUid) {
     if (c) c.textContent = 'Erro ao carregar dados.';
   }
 }
+// Expor para onclicks inline dos painéis
+window.carregarNotificacoes = async function() { return carregarNotificacoes(); };
+window.carregarPromos = async function() { return carregarPromos(); };
+// ─── Notificações Globais ─────────────────────────────────────────────────
+async function carregarNotificacoes() {
+  const container = document.getElementById('notifHistory');
+  if (!container) return;
+  container.innerHTML = '<div style="color:#9ca3af;font-size:.875rem;padding:1rem;text-align:center;">Carregando...</div>';
+  try {
+    const q = query(collection(db, 'notificacoes-globais'), orderBy('criadoEm', 'desc'), limit(20));
+    const snap = await getDocs(q);
+    _notifs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderNotifs();
+  } catch (err) {
+    console.error('[admin] carregarNotificacoes:', err);
+    if (container) container.innerHTML = '<div style="color:#dc2626;font-size:.875rem;">Erro ao carregar.</div>';
+  }
+}
+
+function renderNotifs() {
+  const container = document.getElementById('notifHistory');
+  if (!container) return;
+  if (!_notifs.length) {
+    container.innerHTML = '<div style="color:#9ca3af;font-size:.875rem;padding:2rem;text-align:center;">Nenhuma notificação enviada ainda.</div>';
+    return;
+  }
+  const TIPO_ICONS = { info: '💡', promo: '🎉', update: '🚀', alert: '⚠️' };
+  const TIPO_COLORS = { info: '#dbeafe', promo: '#d1fae5', update: '#ede9fe', alert: '#fee2e2' };
+  container.innerHTML = '';
+  _notifs.forEach(n => {
+    const data = n.criadoEm?.toDate ? n.criadoEm.toDate().toLocaleString('pt-BR') : '—';
+    const item = document.createElement('div');
+    item.style.cssText = 'display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9;';
+    item.innerHTML = `
+      <div style="width:36px;height:36px;border-radius:10px;background:${TIPO_COLORS[n.tipo]||'#f3f4f6'};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">
+        ${TIPO_ICONS[n.tipo] || '🔔'}
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;">${esc(n.titulo || '—')}</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:2px;">${esc(n.mensagem || '')} &bull; <b>${esc(n.destino || 'all')}</b> &bull; ${esc(data)}</div>
+      </div>
+      <button onclick="excluirNotificacao('${n.id}')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit;">🗑️</button>`;
+    container.appendChild(item);
+  });
+}
+
+window.enviarNotificacao = async function() {
+  const titulo  = document.getElementById('notifTitulo')?.value.trim();
+  const mensagem= document.getElementById('notifMensagem')?.value.trim();
+  const tipo    = document.getElementById('notifTipo')?.value || 'info';
+  const destino = document.getElementById('notifDestino')?.value || 'all';
+  if (!titulo || !mensagem) {
+    if (window.budShowToast) window.budShowToast('Preencha título e mensagem.', 'warning');
+    return;
+  }
+  const btn = document.getElementById('btnEnviarNotif');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Enviando...'; }
+  try {
+    await addDoc(collection(db, 'notificacoes-globais'), {
+      titulo: window.budSanitize ? window.budSanitize(titulo) : titulo,
+      mensagem: window.budSanitize ? window.budSanitize(mensagem) : mensagem,
+      tipo, destino, criadoEm: serverTimestamp(), lida: false,
+    });
+    document.getElementById('notifTitulo').value = '';
+    document.getElementById('notifMensagem').value = '';
+    if (window.budShowToast) window.budShowToast('Notificação registrada! (push global via cron amanhã)', 'success');
+    await carregarNotificacoes();
+  } catch (err) {
+    console.error('[admin] enviarNotificacao:', err);
+    if (window.budShowToast) window.budShowToast('Erro ao enviar notificação.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📤 Enviar Notificação'; }
+  }
+};
+
+window.excluirNotificacao = async function(id) {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:500;';
+  ov.innerHTML = `<div style="background:#fff;border-radius:1rem;padding:2rem;max-width:360px;width:90%;text-align:center;">
+    <div style="font-size:2rem;margin-bottom:.75rem;">🗑️</div>
+    <p style="font-size:.9375rem;font-weight:700;margin-bottom:.5rem;">Excluir notificação?</p>
+    <p style="font-size:.8125rem;color:#6b7280;margin-bottom:1.25rem;">Esta ação não pode ser desfeita.</p>
+    <div style="display:flex;gap:.75rem;justify-content:center;">
+      <button id="ovCancel" style="padding:.5rem 1.25rem;border-radius:.625rem;border:1.5px solid #d1d5db;background:#fff;cursor:pointer;font-weight:600;font-family:inherit;">Cancelar</button>
+      <button id="ovConfirm" style="padding:.5rem 1.25rem;border-radius:.625rem;border:none;background:#dc2626;color:#fff;cursor:pointer;font-weight:700;font-family:inherit;">Excluir</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#ovCancel').onclick = () => ov.remove();
+  ov.querySelector('#ovConfirm').onclick = async () => {
+    ov.remove();
+    try {
+      await deleteDoc(doc(db, 'notificacoes-globais', id));
+      _notifs = _notifs.filter(n => n.id !== id);
+      renderNotifs();
+      if (window.budShowToast) window.budShowToast('Notificação excluída.', 'success');
+    } catch (err) {
+      if (window.budShowToast) window.budShowToast('Erro ao excluir.', 'error');
+    }
+  };
+};
+
+// ─── Promoções ─────────────────────────────────────────────────────────────
+async function carregarPromos() {
+  const container = document.getElementById('promosList');
+  if (!container) return;
+  container.innerHTML = '<div style="color:#9ca3af;font-size:.875rem;padding:1rem;text-align:center;">Carregando...</div>';
+  try {
+    const q = query(collection(db, 'promocoes'), orderBy('criadoEm', 'desc'), limit(50));
+    const snap = await getDocs(q);
+    _promos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderPromos();
+    // Atualiza KPI
+    const ativas = _promos.filter(p => p.ativa).length;
+    const elKpi = document.getElementById('kpiPromos');
+    if (elKpi) elKpi.textContent = ativas;
+  } catch (err) {
+    console.error('[admin] carregarPromos:', err);
+    if (container) container.innerHTML = '<div style="color:#dc2626;font-size:.875rem;">Erro ao carregar.</div>';
+  }
+}
+
+function renderPromos() {
+  const container = document.getElementById('promosList');
+  if (!container) return;
+  if (!_promos.length) {
+    container.innerHTML = '<div style="color:#9ca3af;font-size:.875rem;padding:2rem;text-align:center;">Nenhum cupom cadastrado ainda.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  _promos.forEach(p => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;';
+    const statusBadge = p.ativa
+      ? '<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;">✅ Ativa</span>'
+      : '<span style="background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;">⏸ Inativa</span>';
+    const usos = p.limite > 0 ? `${p.usos||0}/${p.limite}` : `${p.usos||0}/∞`;
+    row.innerHTML = `
+      <div style="font-family:monospace;font-size:14px;font-weight:700;background:#d1fae5;color:#065f46;padding:4px 12px;border-radius:6px;">${esc(p.codigo||'—')}</div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;">${esc(p.descricao||'—')} &bull; ${p.desconto||0}% off</div>
+        <div style="font-size:11px;color:#6b7280;margin-top:2px;">${esc(p.dataInicio||'—')} → ${esc(p.dataFim||'—')} &bull; Usos: ${usos}</div>
+      </div>
+      ${statusBadge}
+      <div style="display:flex;gap:6px;">
+        <button onclick="togglePromo('${p.id}',${p.ativa})" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit;">${p.ativa?'⏸ Pausar':'▶ Ativar'}</button>
+        <button onclick="excluirPromo('${p.id}')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit;">🗑️</button>
+      </div>`;
+    container.appendChild(row);
+  });
+}
+
+window.abrirModalPromo = function() {
+  const modal = document.getElementById('modalPromo');
+  if (!modal) return;
+  document.getElementById('promoCodigo').value = '';
+  document.getElementById('promoDesconto').value = '';
+  document.getElementById('promoInicio').value  = new Date().toISOString().slice(0,10);
+  document.getElementById('promoFim').value     = '';
+  document.getElementById('promoLimite').value  = '0';
+  document.getElementById('promoDescricao').value = '';
+  modal.classList.add('open');
+};
+
+window.fecharModalPromo = function() {
+  document.getElementById('modalPromo')?.classList.remove('open');
+};
+
+window.salvarPromo = async function() {
+  const codigo    = document.getElementById('promoCodigo')?.value.trim().toUpperCase();
+  const desconto  = parseInt(document.getElementById('promoDesconto')?.value) || 0;
+  const dataInicio= document.getElementById('promoInicio')?.value;
+  const dataFim   = document.getElementById('promoFim')?.value;
+  const limite    = parseInt(document.getElementById('promoLimite')?.value) || 0;
+  const descricao = document.getElementById('promoDescricao')?.value.trim();
+
+  if (!codigo || desconto <= 0 || desconto > 100) {
+    if (window.budShowToast) window.budShowToast('Código e desconto (1–100%) são obrigatórios.', 'warning');
+    return;
+  }
+  const btn = document.getElementById('btnSalvarPromo');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+  try {
+    const ref = await addDoc(collection(db, 'promocoes'), {
+      codigo: window.budSanitize ? window.budSanitize(codigo) : codigo,
+      desconto, dataInicio: dataInicio||'', dataFim: dataFim||'',
+      limite, usos: 0,
+      descricao: window.budSanitize ? window.budSanitize(descricao) : descricao,
+      ativa: true, criadoEm: serverTimestamp(),
+    });
+    _promos.unshift({ id: ref.id, codigo, desconto, dataInicio, dataFim, limite, usos: 0, descricao, ativa: true });
+    renderPromos();
+    fecharModalPromo();
+    const elKpi = document.getElementById('kpiPromos');
+    if (elKpi) elKpi.textContent = _promos.filter(p => p.ativa).length;
+    if (window.budShowToast) window.budShowToast('Cupom criado!', 'success');
+  } catch (err) {
+    console.error('[admin] salvarPromo:', err);
+    if (window.budShowToast) window.budShowToast('Erro ao salvar cupom.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Salvar Cupom'; }
+  }
+};
+
+window.togglePromo = async function(id, ativa) {
+  try {
+    await updateDoc(doc(db, 'promocoes', id), { ativa: !ativa });
+    const p = _promos.find(x => x.id === id);
+    if (p) p.ativa = !ativa;
+    renderPromos();
+    const elKpi = document.getElementById('kpiPromos');
+    if (elKpi) elKpi.textContent = _promos.filter(p => p.ativa).length;
+  } catch (err) {
+    if (window.budShowToast) window.budShowToast('Erro ao atualizar cupom.', 'error');
+  }
+};
+
+window.excluirPromo = async function(id) {
+  const p = _promos.find(x => x.id === id);
+  if (!p) return;
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:500;';
+  ov.innerHTML = `<div style="background:#fff;border-radius:1rem;padding:2rem;max-width:360px;width:90%;text-align:center;">
+    <div style="font-size:2rem;margin-bottom:.75rem;">🎟️</div>
+    <p style="font-size:.9375rem;font-weight:700;margin-bottom:.5rem;">Excluir cupom &ldquo;${esc(p.codigo)}&rdquo;?</p>
+    <p style="font-size:.8125rem;color:#6b7280;margin-bottom:1.25rem;">Esta ação não pode ser desfeita.</p>
+    <div style="display:flex;gap:.75rem;justify-content:center;">
+      <button id="ovCancel" style="padding:.5rem 1.25rem;border-radius:.625rem;border:1.5px solid #d1d5db;background:#fff;cursor:pointer;font-weight:600;font-family:inherit;">Cancelar</button>
+      <button id="ovConfirm" style="padding:.5rem 1.25rem;border-radius:.625rem;border:none;background:#dc2626;color:#fff;cursor:pointer;font-weight:700;font-family:inherit;">Excluir</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#ovCancel').onclick = () => ov.remove();
+  ov.querySelector('#ovConfirm').onclick = async () => {
+    ov.remove();
+    try {
+      await deleteDoc(doc(db, 'promocoes', id));
+      _promos = _promos.filter(x => x.id !== id);
+      renderPromos();
+      const elKpi = document.getElementById('kpiPromos');
+      if (elKpi) elKpi.textContent = _promos.filter(p => p.ativa).length;
+      if (window.budShowToast) window.budShowToast('Cupom excluído.', 'success');
+    } catch (err) {
+      if (window.budShowToast) window.budShowToast('Erro ao excluir.', 'error');
+    }
+  };
+};
+
+// ─── Admins ────────────────────────────────────────────────────────────────
+async function carregarAdmins() {
+  const container = document.getElementById('adminsList');
+  if (!container) return;
+  try {
+    const q = query(collection(db, 'usuarios'), where('role', '==', 'admin'), limit(20));
+    const snap = await getDocs(q);
+    _admins = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderAdmins();
+  } catch (err) {
+    console.error('[admin] carregarAdmins:', err);
+  }
+}
+
+function renderAdmins() {
+  const container = document.getElementById('adminsList');
+  if (!container) return;
+  const currentUid = auth.currentUser?.uid;
+  if (!_admins.length) {
+    container.innerHTML = '<div style="color:#9ca3af;font-size:.875rem;padding:1rem;">Nenhum admin encontrado.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  _admins.forEach(a => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;';
+    const iniciais = (a.nome||a.email||'A').trim().split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase();
+    row.innerHTML = `
+      <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#059669,#10b981);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;">${esc(iniciais)}</div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;">${esc(a.nome||'—')}</div>
+        <div style="font-size:11px;color:#6b7280;">${esc(a.email||'—')}</div>
+      </div>
+      ${a.id !== currentUid ? `<button onclick="removerAdmin('${a.id}','${esc(a.email||'')}')" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:inherit;">Remover</button>` : '<span style="font-size:11px;color:#6b7280;">você</span>'}`;
+    container.appendChild(row);
+  });
+}
+
+window.mostrarAddAdmin = function() {
+  const row = document.getElementById('addAdminRow');
+  if (row) row.style.display = 'block';
+};
+
+window.ocultarAddAdmin = function() {
+  const row = document.getElementById('addAdminRow');
+  if (row) row.style.display = 'none';
+  const inp = document.getElementById('adminEmailInput');
+  if (inp) inp.value = '';
+};
+
+window.adicionarAdmin = async function() {
+  const email = document.getElementById('adminEmailInput')?.value.trim().toLowerCase();
+  if (!email) { if (window.budShowToast) window.budShowToast('Informe o email.', 'warning'); return; }
+  const btn = document.getElementById('btnAddAdmin');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+  try {
+    // Buscar usuário por email
+    const q = query(collection(db, 'usuarios'), where('email', '==', email), limit(1));
+    const snap = await getDocs(q);
+    if (snap.empty) { if (window.budShowToast) window.budShowToast('Usuário não encontrado.', 'error'); return; }
+    const uid = snap.docs[0].id;
+    await updateDoc(doc(db, 'usuarios', uid), { role: 'admin' });
+    await carregarAdmins();
+    ocultarAddAdmin();
+    if (window.budShowToast) window.budShowToast(`${email} promovido a admin!`, 'success');
+  } catch (err) {
+    console.error('[admin] adicionarAdmin:', err);
+    if (window.budShowToast) window.budShowToast('Erro ao promover.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Promover'; }
+  }
+};
+
+window.removerAdmin = async function(uid, email) {
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:500;';
+  ov.innerHTML = `<div style="background:#fff;border-radius:1rem;padding:2rem;max-width:360px;width:90%;text-align:center;">
+    <div style="font-size:2rem;margin-bottom:.75rem;">👤</div>
+    <p style="font-size:.9375rem;font-weight:700;margin-bottom:.5rem;">Remover admin &ldquo;${esc(email)}&rdquo;?</p>
+    <p style="font-size:.8125rem;color:#6b7280;margin-bottom:1.25rem;">O usuário perderá acesso ao painel.</p>
+    <div style="display:flex;gap:.75rem;justify-content:center;">
+      <button id="ovCancel" style="padding:.5rem 1.25rem;border-radius:.625rem;border:1.5px solid #d1d5db;background:#fff;cursor:pointer;font-weight:600;font-family:inherit;">Cancelar</button>
+      <button id="ovConfirm" style="padding:.5rem 1.25rem;border-radius:.625rem;border:none;background:#dc2626;color:#fff;cursor:pointer;font-weight:700;font-family:inherit;">Remover</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector('#ovCancel').onclick = () => ov.remove();
+  ov.querySelector('#ovConfirm').onclick = async () => {
+    ov.remove();
+    try {
+      await updateDoc(doc(db, 'usuarios', uid), { role: null });
+      _admins = _admins.filter(a => a.id !== uid);
+      renderAdmins();
+      if (window.budShowToast) window.budShowToast('Admin removido.', 'success');
+    } catch (err) {
+      if (window.budShowToast) window.budShowToast('Erro ao remover.', 'error');
+    }
+  };
+};
 
 // ─── Feature Flags ─────────────────────────────────────────────────────────
 async function carregarFlags() {
@@ -483,25 +834,30 @@ async function carregarSistema() {
     const snap = await getDoc(doc(db, 'admin', 'config'));
     if (!snap.exists()) return;
     const d = snap.data();
-    const togMan = document.getElementById('togManutencao');
-    const togCad = document.getElementById('togCadastros');
-    if (togMan) togMan.classList.toggle('on', !!d.modoManutencao);
-    if (togCad) togCad.classList.toggle('on', d.cadastrosAbertos !== false);
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.classList.toggle('on', !!val); };
+    set('togManutencao',    !!d.modoManutencao);
+    set('togCadastros',     d.cadastrosAbertos !== false);
+    set('togAssistenteIA',  !d.ocultarAssistenteIA);
+    set('togAssistenteWA',  !d.ocultarAssistenteWhatsApp);
     const elVersao = document.getElementById('inputVersao');
     const elBoasVindas = document.getElementById('inputBoasVindas');
     if (elVersao) elVersao.value = d.versao || '';
     if (elBoasVindas) elBoasVindas.value = d.mensagemBoasVindas || '';
   } catch (_) {}
+  // Também carrega lista de admins
+  await carregarAdmins();
 }
 
 window.salvarSistema = async function() {
-  const btn = document.querySelector('#panel-system .btn-cyan');
+  const btn = document.getElementById('btnSalvarSistema');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
   try {
     const dados = {
-      modoManutencao: document.getElementById('togManutencao')?.classList.contains('on') || false,
-      cadastrosAbertos: document.getElementById('togCadastros')?.classList.contains('on') ?? true,
-      versao: (document.getElementById('inputVersao')?.value || '').trim(),
+      modoManutencao:          document.getElementById('togManutencao')?.classList.contains('on') || false,
+      cadastrosAbertos:        document.getElementById('togCadastros')?.classList.contains('on') ?? true,
+      ocultarAssistenteIA:     !document.getElementById('togAssistenteIA')?.classList.contains('on'),
+      ocultarAssistenteWhatsApp: !document.getElementById('togAssistenteWA')?.classList.contains('on'),
+      versao:           (document.getElementById('inputVersao')?.value || '').trim(),
       mensagemBoasVindas: (document.getElementById('inputBoasVindas')?.value || '').trim(),
     };
     await setDoc(doc(db, 'admin', 'config'), dados, { merge: true });
