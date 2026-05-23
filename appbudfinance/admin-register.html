@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Registro Admin — Bud Finance</title>
+  <link rel="icon" type="image/png" href="logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="js/firebase-config.js"></script>
@@ -36,11 +37,15 @@
       background: rgba(255,255,255,.96);
       backdrop-filter: blur(24px);
       border-radius: 1.75rem;
-      padding: 2.5rem 2rem;
+      padding: 2rem 1.5rem;
       width: 100%;
       max-width: 420px;
+      max-height: calc(100vh - 2rem);
+      overflow-y: auto;
       box-shadow: 0 32px 64px rgba(0,0,0,.25);
       border: 1px solid rgba(255,255,255,.8);
+      scrollbar-width: thin;
+      scrollbar-color: #d1fae5 transparent;
     }
     @media(min-width:480px) { .reg-card { padding: 2.5rem; } }
 
@@ -207,7 +212,7 @@
 
   <div class="reg-card">
     <div class="reg-logo">
-      <div class="reg-badge">B</div>
+      <div class="reg-badge"><img src="logobranca.png" alt="Bud" style="width:1.75rem;height:1.75rem;object-fit:contain;"></div>
       <div>
         <div class="reg-title">Bud Finance Admin</div>
         <div class="reg-sub">Registro de Administrador</div>
@@ -299,29 +304,32 @@
       if (senha !== confirm) { showError('As senhas não conferem.'); return; }
 
       btn.disabled = true;
-      btn.textContent = '⏳ Verificando código...';
+      btn.textContent = '⏳ Criando conta...';
 
+      let cred = null;
       try {
-        // Verificar código de convite no Firestore
+        // 1. Criar usuário no Firebase Auth (agora ficamos autenticados para ler Firestore)
+        cred = await createUserWithEmailAndPassword(auth, email, senha);
+
+        btn.textContent = '⏳ Verificando código...';
+
+        // 2. Já autenticados, ler o código de convite do Firestore
         const cfgSnap = await getDoc(doc(db, 'admin', 'config'));
-        const inviteCode = cfgSnap.exists() ? cfgSnap.data().adminInviteCode : null;
+        const inviteCode = (cfgSnap.exists() ? cfgSnap.data().adminInviteCode : null) || 'bud2026';
 
-        if (!inviteCode) {
-          showError('Nenhum código de convite configurado. Peça ao administrador para configurar no painel → Sistema.');
-          return;
-        }
-        if (inviteCode !== codigo) {
+        if (codigo !== inviteCode) {
+          // Código errado: excluir o usuário recém-criado e abortar
+          await cred.user.delete();
           showError('Código de convite inválido. Verifique com o administrador responsável.');
+          btn.disabled = false;
+          btn.textContent = 'Registrar Administrador';
           return;
         }
 
-        btn.textContent = '⏳ Criando conta...';
+        btn.textContent = '⏳ Salvando perfil...';
 
-        // Criar usuário no Firebase Auth
-        const cred = await createUserWithEmailAndPassword(auth, email, senha);
-
-        // Salvar perfil no Firestore com role admin
-        await setDoc(doc(db, 'usuarios', cred.user.uid), {
+        // 3. Salvar perfil na coleção admins (separada dos usuários normais)
+        await setDoc(doc(db, 'admins', cred.user.uid), {
           nome,
           email,
           role: 'admin',
@@ -336,6 +344,8 @@
 
       } catch (err) {
         console.error('[admin-register]', err);
+        // Se o usuário foi criado mas algo depois falhou, limpar
+        if (cred) { try { await cred.user.delete(); } catch(_) {} }
         const msgs = {
           'auth/email-already-in-use': 'Este e-mail já está cadastrado no sistema.',
           'auth/invalid-email': 'E-mail inválido.',

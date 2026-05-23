@@ -2788,6 +2788,72 @@ app.post('/api/push/test', async function (req, res) {
   }
 });
 
+// ─── POST /api/push/admin-broadcast — admin dispara push para todos os usuários ──
+// Auth: Bearer ID token (caller deve ser admin — verificado via admins/{uid})
+app.post('/api/push/admin-broadcast', async function (req, res) {
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
+
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_) { return res.status(401).json({ error: 'Token inválido.' }); }
+
+  // Verificar se é admin
+  try {
+    var adminDoc = await db.collection('admins').doc(decoded.uid).get();
+    if (!adminDoc.exists) return res.status(403).json({ error: 'Acesso negado. Não é admin.' });
+  } catch (e) {
+    return res.status(500).json({ error: 'Erro ao verificar admin: ' + e.message });
+  }
+
+  var titulo   = sanitizeStr(String(req.body.titulo   || '')).substring(0, 200);
+  var mensagem = sanitizeStr(String(req.body.mensagem || '')).substring(0, 500);
+  var tipo     = sanitizeStr(String(req.body.tipo     || 'info')).substring(0, 20);
+  var destino  = sanitizeStr(String(req.body.destino  || 'all')).substring(0, 50);
+
+  if (!titulo) return res.status(400).json({ error: 'titulo é obrigatório.' });
+
+  var tipoEmoji = { info: '💡', promo: '🎉', update: '🚀', alert: '⚠️' };
+  var notifTitle = (tipoEmoji[tipo] || '🔔') + ' ' + titulo;
+
+  try {
+    var usersQuery = db.collection('usuarios').where('pushEnabled', '==', true);
+    if (destino !== 'all') usersQuery = usersQuery.where('plano', '==', destino);
+    var snap = await usersQuery.limit(500).get();
+
+    if (snap.empty) return res.json({ ok: true, sent: 0, total: 0 });
+
+    var messages = [];
+    snap.forEach(function (d) {
+      var fcmToken = (d.data() || {}).fcmToken;
+      if (fcmToken) {
+        messages.push({
+          token: fcmToken,
+          notification: { title: notifTitle, body: mensagem },
+          webpush: { fcmOptions: { link: '/appbudfinance/dashboard.html' } },
+          data: { tipo: tipo, tag: 'admin-' + Date.now() }
+        });
+      }
+    });
+
+    if (!messages.length) return res.json({ ok: true, sent: 0, total: snap.size, noTokens: true });
+
+    var sent = 0;
+    for (var i = 0; i < messages.length; i += 500) {
+      var result = await admin.messaging().sendEach(messages.slice(i, i + 500));
+      sent += result.successCount;
+    }
+    console.log('[/api/push/admin-broadcast] sent=' + sent + '/' + messages.length + ' destino=' + destino);
+    return res.json({ ok: true, sent: sent, total: messages.length });
+  } catch (e) {
+    console.error('[/api/push/admin-broadcast]', e.message);
+    return res.status(500).json({ error: 'Erro ao enviar push: ' + e.message });
+  }
+});
+
 // ─── GET /api/notifications/daily — cron de notificações personalizadas ──
 // Auth: x-cron-secret header (env CRON_SECRET)
 // Trigger sugerido: Upstash QStash, diariamente às 11:00 UTC (08:00 Brasília)

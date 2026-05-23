@@ -14,6 +14,14 @@ const app  = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
 
+// Auto-redirect usuario ja autenticado
+// Se o usuario ja tem sessao ativa, redireciona sem precisar de login
+let _loginInProgress = false;
+onAuthStateChanged(auth, function (user) {
+  if (_loginInProgress) return;
+  if (user) window.location.href = 'dashboard.html';
+});
+
 // ─── DOM refs ───────────────────────────────────────────────────────
 const formLogin          = document.getElementById('formLogin');
 const identificadorInput = document.getElementById('identificador');
@@ -143,6 +151,7 @@ function resetBtn() {
 // ─── Main login flow ────────────────────────────────────────────────
 formLogin.addEventListener('submit', async function (e) {
   e.preventDefault();
+  _loginInProgress = true;
 
   // 1. Sanitize + validate
   const identificador = window.budSanitize(identificadorInput.value);
@@ -256,6 +265,7 @@ formLogin.addEventListener('submit', async function (e) {
     window.location.href = 'dashboard.html';
 
   } catch (error) {
+    _loginInProgress = false;
     window.budShowToast('Erro ao acessar sua conta. Tente novamente.', 'error');
     resetBtn();
   }

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin — Bud Finance</title>
+  <link rel="icon" type="image/png" href="logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="js/firebase-config.js"></script>
@@ -11,26 +12,32 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', sans-serif; background: #f0fdf4; color: #1e293b; min-height: 100vh; }
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background: radial-gradient(ellipse 120% 60% at 20% -10%, rgba(16,185,129,.22) 0%, transparent 65%),
+                  radial-gradient(ellipse 80% 50% at 90% 110%, rgba(5,150,105,.16) 0%, transparent 60%),
+                  #f0fdf4;
+    }
 
     /* ── Top Bar ─────────────────────────────────────────────── */
     .g-bar {
       position: sticky; top: 0; z-index: 50;
-      background: rgba(255,255,255,.92);
-      backdrop-filter: blur(14px);
-      border-bottom: 1.5px solid rgba(16,185,129,.18);
-      padding: 0 1.5rem; height: 3.625rem;
+      background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+      box-shadow: 0 2px 16px rgba(6,78,59,.35);
+      padding: 0 1.5rem; height: 3.75rem;
       display: flex; align-items: center; justify-content: space-between;
     }
     .g-bar-left { display: flex; align-items: center; gap: .75rem; }
     .g-logo-badge {
       width: 2.25rem; height: 2.25rem; border-radius: .625rem;
-      background: linear-gradient(135deg, #059669, #10b981);
+      background: rgba(255,255,255,.15);
+      border: 1.5px solid rgba(255,255,255,.25);
       display: flex; align-items: center; justify-content: center;
-      font-weight: 900; font-size: .9375rem; color: #fff;
-      box-shadow: 0 2px 8px rgba(5,150,105,.35);
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
     }
-    .g-bar-title { font-size: .9375rem; font-weight: 800; color: #064e3b; }
-    .g-bar-sub { font-size: .6875rem; font-weight: 500; color: #6b7280; }
+    .g-bar-title { font-size: .9375rem; font-weight: 800; color: #fff; }
+    .g-bar-sub { font-size: .6875rem; font-weight: 500; color: rgba(255,255,255,.6); }
     .pulse-dot {
       width: .5rem; height: .5rem; border-radius: 50%;
       background: #10b981; display: inline-block; margin-right: .25rem;
@@ -40,13 +47,16 @@
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: .5; transform: scale(1.3); }
     }
-    .g-bar-right { display: flex; align-items: center; gap: .75rem; font-size: .8125rem; }
+    .g-bar-right { display: flex; align-items: center; gap: .75rem; font-size: .8125rem; color: rgba(255,255,255,.85); }
     .g-avatar {
       width: 2rem; height: 2rem; border-radius: 50%;
-      background: linear-gradient(135deg, #059669, #10b981);
+      background: rgba(255,255,255,.2);
+      border: 1.5px solid rgba(255,255,255,.3);
       display: flex; align-items: center; justify-content: center;
       font-weight: 800; font-size: .75rem; color: #fff;
     }
+    .g-bar-right button { color: rgba(255,255,255,.85); border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.1); }
+    .g-bar-right button:hover { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.5); color: #fff; }
 
     /* ── States ──────────────────────────────────────────────── */
     #adminLoading, #accessDenied {
@@ -74,28 +84,39 @@
     /* ── Content + Tabs ──────────────────────────────────────── */
     #adminContent { display: none; max-width: 1280px; margin: 0 auto; padding: 1.5rem; }
     .tabs {
-      display: flex; gap: .125rem; flex-wrap: wrap;
+      display: flex; gap: .375rem; flex-wrap: wrap;
       margin-bottom: 1.5rem;
-      border-bottom: 2px solid #d1fae5; padding-bottom: 0;
+      background: rgba(255,255,255,.72);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1.5px solid rgba(255,255,255,.8);
+      border-radius: .875rem;
+      padding: .375rem .5rem;
+      box-shadow: 0 2px 12px rgba(0,0,0,.06);
     }
     .tab-btn {
-      padding: .5rem 1rem; border: none; background: transparent;
+      padding: .4375rem .875rem; border: none; background: transparent;
       font-family: inherit; font-size: .8125rem; font-weight: 600;
-      color: #6b7280; cursor: pointer; border-radius: .5rem .5rem 0 0;
-      transition: all .15s; position: relative; bottom: -2px;
-      white-space: nowrap;
+      color: #6b7280; cursor: pointer; border-radius: .625rem;
+      transition: all .18s; white-space: nowrap;
     }
-    .tab-btn:hover { color: #059669; background: #ecfdf5; }
+    .tab-btn:hover { color: #059669; background: rgba(16,185,129,.1); }
     .tab-btn.active {
-      color: #059669; background: #fff;
-      border: 2px solid #d1fae5; border-bottom-color: #fff;
+      color: #fff;
+      background: linear-gradient(135deg, #059669, #10b981);
       font-weight: 700;
+      box-shadow: 0 2px 8px rgba(5,150,105,.3);
     }
 
     /* ── Cards ───────────────────────────────────────────────── */
     .g-card {
-      background: #fff; border-radius: 1rem;
-      border: 1.5px solid #e5e7eb; padding: 1.5rem;
+      background: rgba(255,255,255,.82);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-radius: 1rem;
+      border: 1.5px solid rgba(255,255,255,.75);
+      padding: 1.5rem;
+      box-shadow: 0 4px 24px rgba(0,0,0,.07);
       transition: box-shadow .2s;
     }
     .g-card + .g-card { margin-top: 1rem; }
@@ -113,14 +134,19 @@
       gap: .875rem; margin-bottom: 1.25rem;
     }
     .kpi-card {
-      background: #fff; border-radius: .875rem;
-      border: 1.5px solid #e5e7eb; padding: 1.125rem 1.25rem;
+      background: rgba(255,255,255,.82);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: .875rem;
+      border: 1.5px solid rgba(255,255,255,.75);
+      padding: 1.125rem 1.25rem;
+      box-shadow: 0 2px 12px rgba(0,0,0,.06);
     }
-    .kpi-card.green { border-color: #a7f3d0; }
-    .kpi-card.blue  { border-color: #bfdbfe; }
-    .kpi-card.amber { border-color: #fde68a; }
-    .kpi-card.red   { border-color: #fecaca; }
-    .kpi-card.purple{ border-color: #ddd6fe; }
+    .kpi-card.green { border-color: rgba(167,243,208,.7); }
+    .kpi-card.blue  { border-color: rgba(191,219,254,.7); }
+    .kpi-card.amber { border-color: rgba(253,230,138,.7); }
+    .kpi-card.red   { border-color: rgba(254,202,202,.7); }
+    .kpi-card.purple{ border-color: rgba(221,214,254,.7); }
     .kpi-val { font-size: 1.75rem; font-weight: 900; color: #064e3b; line-height: 1; }
     .kpi-val.amber { color: #d97706; }
     .kpi-val.red { color: #dc2626; }
@@ -325,15 +351,20 @@
     /* ── Modal ───────────────────────────────────────────────── */
     .modal-bg {
       display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,.45); backdrop-filter: blur(4px);
+      background: rgba(6,78,59,.35); backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
       z-index: 200; align-items: flex-start; justify-content: center;
       padding: 2rem 1rem; overflow-y: auto;
     }
     .modal-bg.open { display: flex; }
     .modal-box {
-      background: #fff; border-radius: 1.25rem;
+      background: rgba(255,255,255,.97);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1.5px solid rgba(255,255,255,.9);
+      border-radius: 1.25rem;
       padding: 1.75rem 2rem; width: min(560px, 98vw);
-      box-shadow: 0 20px 60px rgba(0,0,0,.2); margin: auto;
+      box-shadow: 0 24px 64px rgba(0,0,0,.22); margin: auto;
     }
     .modal-title { font-size: 1.0625rem; font-weight: 800; color: #064e3b; margin-bottom: 1.25rem; }
     .modal-footer { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1.5rem; }
@@ -375,7 +406,7 @@
     /* ── Admins List ─────────────────────────────────────────── */
     .admin-row {
       display: flex; align-items: center; gap: .75rem;
-      padding: .75rem 0; border-bottom: 1.5px solid #f1f5f9;
+      padding: .75rem 0; border-bottom: 1.5px solid rgba(0,0,0,.06);
     }
     .admin-av {
       width: 2.25rem; height: 2.25rem; border-radius: 50%;
@@ -434,24 +465,125 @@
       to   { opacity: 1; transform: translateY(0); }
     }
     .anim-up { animation: fadeUp .25s ease; }
+
+    /* ── Admin Login Screen ───────────────────────────────────── */
+    #adminLogin {
+      position: fixed; inset: 0; z-index: 200;
+      background: #064e3b;
+      display: none;
+      align-items: center; justify-content: center;
+      padding: 1rem;
+      overflow: hidden;
+    }
+    .al-blob {
+      position: absolute; border-radius: 50%;
+      pointer-events: none; filter: blur(80px);
+    }
+    .al-blob-1 { top:-10%;left:-10%;width:60%;height:60%;background:rgba(16,185,129,.35); }
+    .al-blob-2 { bottom:-10%;right:-10%;width:50%;height:50%;background:rgba(5,150,105,.25); }
+    .al-card {
+      position: relative; z-index: 10;
+      background: rgba(255,255,255,.97);
+      border-radius: 1.75rem;
+      padding: 2.25rem 2rem;
+      width: 100%; max-width: 380px;
+      max-height: calc(100vh - 2rem);
+      overflow-y: auto;
+      box-shadow: 0 32px 64px rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.8);
+    }
+    .al-logo { display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem; }
+    .al-badge {
+      width:3rem;height:3rem;border-radius:.875rem;
+      background:linear-gradient(135deg,#059669,#10b981);
+      display:flex;align-items:center;justify-content:center;
+      font-weight:900;font-size:1.25rem;color:#fff;flex-shrink:0;
+      box-shadow:0 4px 12px rgba(5,150,105,.4);
+    }
+    .al-brand-title { font-size:1rem;font-weight:800;color:#064e3b;line-height:1.2; }
+    .al-brand-sub { font-size:.75rem;font-weight:500;color:#6b7280;margin-top:.1rem; }
+    .al-heading { font-size:1.375rem;font-weight:900;color:#064e3b;margin-bottom:.375rem; }
+    .al-desc { font-size:.8125rem;color:#6b7280;margin-bottom:1.5rem; }
+    .al-field { margin-bottom:1rem; }
+    .al-label {
+      display:block;font-size:.75rem;font-weight:700;color:#374151;
+      text-transform:uppercase;letter-spacing:.06em;margin-bottom:.375rem;
+    }
+    .al-input {
+      width:100%;padding:.6875rem 1rem;border:2px solid #e5e7eb;
+      border-radius:.75rem;font-family:inherit;font-size:.875rem;
+      font-weight:500;color:#1e293b;background:#f9fafb;outline:none;
+      transition:border-color .15s,background .15s;
+    }
+    .al-input::placeholder { color:#9ca3af; }
+    .al-input:focus { border-color:#10b981;background:#fff; }
+    .al-btn {
+      width:100%;background:linear-gradient(135deg,#059669,#10b981);
+      color:#fff;font-weight:800;font-size:.9375rem;padding:.8125rem;
+      border-radius:.875rem;border:none;cursor:pointer;font-family:inherit;
+      margin-top:.5rem;box-shadow:0 4px 16px rgba(5,150,105,.35);
+      transition:opacity .15s,transform .1s;
+    }
+    .al-btn:hover { opacity:.92; }
+    .al-btn:active { transform:scale(.98); }
+    .al-btn:disabled { opacity:.6;cursor:not-allowed; }
+    .al-error {
+      background:#fef2f2;border:1.5px solid #fecaca;border-radius:.75rem;
+      padding:.75rem 1rem;font-size:.8125rem;font-weight:600;color:#dc2626;
+      margin-bottom:1rem;
+    }
+    .al-footer { text-align:center;margin-top:1.25rem;font-size:.8125rem;color:#6b7280; }
+    .al-footer a { color:#059669;font-weight:700;text-decoration:none; }
+    .al-footer a:hover { text-decoration:underline; }
   </style>
 </head>
 <body>
 
+  <!-- Admin Login Screen -->
+  <div id="adminLogin">
+    <div class="al-blob al-blob-1"></div>
+    <div class="al-blob al-blob-2"></div>
+    <div class="al-card">
+      <div class="al-logo">
+        <div class="al-badge"><img src="logobranca.png" alt="Bud" style="width:1.75rem;height:1.75rem;object-fit:contain;"></div>
+        <div>
+          <div class="al-brand-title">Bud Finance Admin</div>
+          <div class="al-brand-sub">Acesso Restrito</div>
+        </div>
+      </div>
+      <div class="al-heading">Entrar no Painel</div>
+      <div class="al-desc">Somente administradores autorizados podem acessar.</div>
+      <div id="alError" class="al-error" style="display:none;"></div>
+      <div class="al-field">
+        <label class="al-label">E-mail</label>
+        <input type="email" id="alEmail" class="al-input" placeholder="admin@email.com">
+      </div>
+      <div class="al-field">
+        <label class="al-label">Senha</label>
+        <input type="password" id="alSenha" class="al-input" placeholder="senha"
+          onkeydown="if(event.key==='Enter') fazerLoginAdmin()">
+      </div>
+      <button class="al-btn" id="alBtn" onclick="fazerLoginAdmin()">Entrar no Painel</button>
+      <div class="al-footer">
+        <a href="admin-register.html">Criar conta de admin →</a>
+      </div>
+    </div>
+  </div>
+
   <!-- Top Bar -->
   <header class="g-bar">
     <div class="g-bar-left">
-      <div class="g-logo-badge">B</div>
+      <div class="g-logo-badge"><img src="logobranca.png" alt="Bud" style="width:1.625rem;height:1.625rem;object-fit:contain;"></div>
       <div>
         <div class="g-bar-title">Bud Finance Admin</div>
         <div class="g-bar-sub">Painel de Controle</div>
       </div>
     </div>
     <div class="g-bar-right">
-      <span style="font-size:.75rem;color:#6b7280;"><span class="pulse-dot"></span>ONLINE</span>
-      <span id="adminName" style="font-weight:600;color:#374151;font-size:.8125rem;"></span>
+      <span style="font-size:.75rem;color:rgba(255,255,255,.7);"><span class="pulse-dot"></span>ONLINE</span>
+      <span id="adminName" style="font-weight:600;color:rgba(255,255,255,.9);font-size:.8125rem;"></span>
       <div class="g-avatar" id="adminAvatar">?</div>
-      <button class="btn-ghost btn-sm" onclick="fazerLogoutAdmin()">Sair</button>
+      <button class="btn-ghost btn-sm" onclick="fazerLogoutAdmin()" style="color:rgba(255,255,255,.85);border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.1);">Sair</button>
     </div>
   </header>
 

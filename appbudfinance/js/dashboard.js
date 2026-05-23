@@ -5,7 +5,7 @@ import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.8.
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
-  doc, getDoc, collection, query, where, orderBy, limit, onSnapshot,
+  doc, getDoc, getDocs, collection, query, where, orderBy, limit, onSnapshot,
   addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 import { getMessaging, getToken, onMessage } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
@@ -2540,15 +2540,6 @@ onAuthStateChanged(auth, async function (user) {
   usuarioAtualId = user.uid;
   _dashCurrentUser = user; // armazena para auto-processar recorrentes
 
-  // ── Validar token (usa cache; Firebase renova automaticamente quando expirado) ──
-  try {
-    await user.getIdToken();
-  } catch (_tokenErr) {
-    // Token inválido / sessão expirada → redirecionar para login
-    window.location.href = 'index.html';
-    return;
-  }
-
   // ── Buscar dados do usuário no Firestore ──────────────────────────
   try {
     var userSnap = await getDoc(doc(db, 'usuarios', user.uid));
@@ -2605,6 +2596,29 @@ onAuthStateChanged(auth, async function (user) {
     // ── Notificações in-app (Buddy banners) ────────────────────────
     if (window.BudInAppNotif) {
       window.BudInAppNotif.init(user, userData);
+      // Busca notificacoes globais enviadas pelo admin
+      (async function () {
+        try {
+          var tipoEmoji = { info: '💡', promo: '🎉', update: '🚀', alert: '⚠️' };
+          var plano = (userData && userData.plano) || 'free';
+          var snap = await getDocs(query(
+            collection(db, 'notificacoes-globais'),
+            orderBy('criadoEm', 'desc'),
+            limit(10)
+          ));
+          snap.forEach(function (d) {
+            var n = d.data();
+            var dest = n.destino || 'all';
+            if (dest !== 'all' && dest !== plano) return;
+            var emoji = tipoEmoji[n.tipo] || '🔔';
+            window.BudInAppNotif.addExternal(
+              'global_' + d.id,
+              emoji,
+              (n.titulo || '') + (n.mensagem ? ': ' + n.mensagem : '')
+            );
+          });
+        } catch (_) {}
+      })();
     }
 
     // ── Push permission (3s delay para não interromper carregamento) ─

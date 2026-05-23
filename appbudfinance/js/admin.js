@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { initializeApp, getApps }         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
-import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
+import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
   collection, doc, getDoc, getDocs, addDoc, updateDoc,
@@ -127,22 +127,28 @@ function confirmAction(msg, onConfirm) {
 window.toggleSel = function(containerId) {
   const c = document.getElementById(containerId);
   if (!c) return;
-  const isOpen = c.querySelector('.admin-sel').classList.contains('open');
-  // Close all
+  // Container may itself be the .admin-sel or may wrap one
+  const sel = c.classList.contains('admin-sel') ? c : c.querySelector('.admin-sel');
+  if (!sel) return;
+  const isOpen = sel.classList.contains('open');
   document.querySelectorAll('.admin-sel.open').forEach(s => s.classList.remove('open'));
-  if (!isOpen) c.querySelector('.admin-sel').classList.add('open');
+  if (!isOpen) sel.classList.add('open');
 };
 window.pickSel = function(containerId, val, label) {
   const c = document.getElementById(containerId);
   if (!c) return;
-  c.querySelector('.admin-sel-trigger span:first-child').textContent = label;
-  const hiddenId = containerId.replace('Container', '').replace('sel','').toLowerCase();
-  // Try to find the hidden input by data convention
-  c.querySelectorAll('input[type=hidden]').forEach(h => h.value = val);
-  c.querySelectorAll('.admin-sel-opt').forEach(o => {
-    o.classList.toggle('sel', o.dataset.val === val || (!o.dataset.val && val === ''));
+  const sel = c.classList.contains('admin-sel') ? c : c.querySelector('.admin-sel');
+  if (!sel) return;
+  const span = sel.querySelector('.admin-sel-trigger span:first-child');
+  if (span) span.textContent = label;
+  sel.querySelectorAll('input[type=hidden]').forEach(h => h.value = val);
+  sel.querySelectorAll('.admin-sel-opt').forEach(o => {
+    const match = o.hasAttribute('data-val')
+      ? o.dataset.val === String(val)
+      : o.textContent.trim() === label.trim();
+    o.classList.toggle('sel', match);
   });
-  c.querySelector('.admin-sel').classList.remove('open');
+  sel.classList.remove('open');
 };
 document.addEventListener('click', e => {
   if (!e.target.closest('.admin-sel')) {
@@ -153,21 +159,31 @@ document.addEventListener('click', e => {
 // ═══════════════════════════════════════════════════════════════
 //  AUTH GUARD
 // ═══════════════════════════════════════════════════════════════
+function showLogin() {
+  document.getElementById('adminLoading').style.display = 'none';
+  document.getElementById('adminContent').style.display = 'none';
+  document.getElementById('accessDenied').style.display = 'none';
+  document.getElementById('adminLogin').style.display = 'flex';
+}
+
 onAuthStateChanged(auth, async user => {
   if (!user) {
-    window.location.href = 'index.html';
+    showLogin();
     return;
   }
   try {
-    const snap = await getDoc(doc(db, 'usuarios', user.uid));
+    const snap = await getDoc(doc(db, 'admins', user.uid));
     const data = snap.data() || {};
     if (data.role !== 'admin') {
-      document.getElementById('adminLoading').style.display = 'none';
-      document.getElementById('accessDenied').style.display = 'flex';
+      await signOut(auth);
+      showLogin();
+      const el = document.getElementById('alError');
+      if (el) { el.textContent = 'Esta conta não é um administrador.'; el.style.display = 'block'; }
       return;
     }
-    // Show UI
+    // Show panel
     document.getElementById('adminLoading').style.display = 'none';
+    document.getElementById('adminLogin').style.display = 'none';
     document.getElementById('adminContent').style.display = 'block';
     const n = data.nome || user.email || 'Admin';
     document.getElementById('adminName').textContent = n;
@@ -175,14 +191,38 @@ onAuthStateChanged(auth, async user => {
     boot();
   } catch(e) {
     console.error('[admin-auth]', e);
-    document.getElementById('adminLoading').style.display = 'none';
-    document.getElementById('accessDenied').style.display = 'flex';
+    showLogin();
   }
 });
 
 window.fazerLogoutAdmin = async function() {
   await signOut(auth);
-  window.location.href = 'index.html';
+  showLogin();
+};
+
+window.fazerLoginAdmin = async function() {
+  const email = (document.getElementById('alEmail').value || '').trim().toLowerCase();
+  const senha = document.getElementById('alSenha').value || '';
+  const errEl = document.getElementById('alError');
+  const btn   = document.getElementById('alBtn');
+  errEl.style.display = 'none';
+  if (!email || !senha) { errEl.textContent = 'Preencha e-mail e senha.'; errEl.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = '⏳ Entrando...';
+  try {
+    await signInWithEmailAndPassword(auth, email, senha);
+    // onAuthStateChanged cuida do resto
+  } catch(e) {
+    const msgs = {
+      'auth/invalid-credential': 'E-mail ou senha incorretos.',
+      'auth/user-not-found': 'E-mail ou senha incorretos.',
+      'auth/wrong-password': 'E-mail ou senha incorretos.',
+      'auth/too-many-requests': 'Muitas tentativas. Tente novamente mais tarde.',
+      'auth/network-request-failed': 'Erro de conexão.',
+    };
+    errEl.textContent = msgs[e.code] || 'Erro ao entrar: ' + (e.message || e.code);
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Entrar no Painel';
+  }
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -262,7 +302,7 @@ async function loadOverview() {
     }
 
     // Last signups
-    const signupSnap = await getDocs(query(usersRef, orderBy('criadoEm', 'desc'), limit(10)));
+    const signupSnap = await getDocs(query(usersRef, orderBy('dataCadastro', 'desc'), limit(10)));
     let rows = '';
     signupSnap.forEach(d => {
       const u = d.data();
@@ -324,9 +364,9 @@ async function loadCRM(page) {
       _crmTotal = cnt.data().count;
       _crmCursors = [];
     }
-    let q = query(usersRef, orderBy('criadoEm', 'desc'), limit(PAGE_SIZE));
+    let q = query(usersRef, orderBy('dataCadastro', 'desc'), limit(PAGE_SIZE));
     if (page > 0 && _crmCursors[page - 1]) {
-      q = query(usersRef, orderBy('criadoEm', 'desc'), startAfter(_crmCursors[page - 1]), limit(PAGE_SIZE));
+      q = query(usersRef, orderBy('dataCadastro', 'desc'), startAfter(_crmCursors[page - 1]), limit(PAGE_SIZE));
     }
     const snap = await getDocs(q);
     const docs = [];
@@ -652,7 +692,7 @@ async function loadSales() {
   try {
     const [trialCnt, pagSnap, freeSnap] = await Promise.all([
       getCountFromServer(query(usersRef, where('plano', '==', 'trial'))),
-      getDocs(query(usersRef, where('plano', 'in', ['plus', 'pro', 'starter']), orderBy('planoAtivadoEm', 'desc'), limit(50))),
+      getDocs(query(usersRef, where('plano', 'in', ['plus', 'pro', 'starter']), limit(50))),
       getDocs(query(usersRef, where('plano', '==', 'free'), limit(100))),
     ]);
 
@@ -674,6 +714,12 @@ async function loadSales() {
     // Pagantes
     const pagantes = [];
     pagSnap.forEach(d => pagantes.push({ id: d.id, ...d.data() }));
+    // Sort by planoAtivadoEm desc (avoids Firestore composite index requirement)
+    pagantes.sort((a, b) => {
+      const ta = a.planoAtivadoEm?.toDate?.()?.getTime() || 0;
+      const tb = b.planoAtivadoEm?.toDate?.()?.getTime() || 0;
+      return tb - ta;
+    });
 
     // MRR
     let mrr = 0;
@@ -799,11 +845,15 @@ window.enviarNotificacao = async function() {
     // Try push via backend if push channel selected
     if (canal === 'push' && window.BUD_FUNCTIONS_URL) {
       try {
-        await fetch(`${window.BUD_FUNCTIONS_URL}/api/push/admin-broadcast`, {
+        const idToken = await auth.currentUser.getIdToken();
+        const pushRes = await fetch(`${window.BUD_FUNCTIONS_URL}/api/push/admin-broadcast`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
           body: JSON.stringify({ titulo, mensagem, tipo, destino }),
         });
+        const pushData = await pushRes.json().catch(() => ({}));
+        if (pushRes.ok) budToast(`📲 Push enviado para ${pushData.sent ?? '?'} dispositivo(s).`, 'success');
+        else budToast('⚠️ Push não enviado: ' + (pushData.error || 'erro desconhecido'), 'warning');
       } catch(backErr) {
         console.warn('[notif] push backend não disponível:', backErr.message);
       }
@@ -1142,7 +1192,7 @@ async function loadAdmins() {
   const cont = document.getElementById('adminsList');
   if (cont) cont.innerHTML = '<div class="loading-inline">Carregando...</div>';
   try {
-    const snap = await getDocs(query(collection(db, 'usuarios'), where('role', '==', 'admin')));
+    const snap = await getDocs(collection(db, 'admins'));
     const admins = [];
     snap.forEach(d => admins.push({ id: d.id, ...d.data() }));
     if (!cont) return;
@@ -1178,15 +1228,10 @@ window.adicionarAdmin = async function() {
   const btn = document.getElementById('btnAddAdmin');
   btn.disabled = true; btn.textContent = '⏳';
   try {
-    // Find user by email
-    const q = query(collection(db, 'usuarios'), where('email', '==', email), limit(1));
-    const snap = await getDocs(q);
-    if (snap.empty) { budToast('Usuário não encontrado com esse e-mail.', 'error'); return; }
-    const uid = snap.docs[0].id;
-    await updateDoc(doc(db, 'usuarios', uid), { role: 'admin' });
-    budToast(`✅ ${email} agora é administrador!`);
+    // Cria conta de admin pela rota de invite — informa que o usuário deve usar admin-register.html
+    budToast('Para adicionar um admin, use a página admin-register.html com o código de convite.', 'info');
     ocultarAddAdmin();
-    await loadAdmins();
+    return;
   } catch(e) {
     budToast('Erro: ' + e.message, 'error');
   } finally {
@@ -1195,9 +1240,9 @@ window.adicionarAdmin = async function() {
 };
 
 window.removerAdmin = function(uid, nome) {
-  confirmAction(`Remover privilégios de admin de ${nome || uid}?`, async () => {
+  confirmAction(`Remover admin ${nome || uid}? O documento será excluído da coleção admins.`, async () => {
     try {
-      await updateDoc(doc(db, 'usuarios', uid), { role: 'usuario' });
+      await deleteDoc(doc(db, 'admins', uid));
       budToast('Admin removido.');
       await loadAdmins();
     } catch(e) { budToast('Erro: ' + e.message, 'error'); }
