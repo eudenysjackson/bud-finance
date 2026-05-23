@@ -21,21 +21,26 @@ let _whatsappNumero = null;
 let _hoverOrigTheme = null;
 
 // ─── Push token (necessário para o botão Ativar funcionar nesta página) ──
-window._budRequestPushToken = async function (user, opts) {
+window._budRequestPushToken = async function (user) {
   var vapidKey = window.BUD_FCM_VAPID_KEY;
-  if (!vapidKey || vapidKey.startsWith('__')) return;
+  if (!vapidKey || vapidKey.startsWith('__')) {
+    console.error('[Push] BUD_FCM_VAPID_KEY não definido em produção.');
+    return;
+  }
   try {
     var messaging = getMessaging(app);
     var swReg = window._budSWReg || await navigator.serviceWorker.ready;
-    // Sempre limpa subscription antiga antes de registrar — garante que a VAPID
-    // key correta é usada (evita 401 por mismatch com subscription de projeto anterior)
+    // Limpa subscription antiga para evitar 401 por VAPID key mismatch
     try { await deleteToken(messaging); } catch (_) {}
     try {
       var existingSub = await swReg.pushManager.getSubscription();
       if (existingSub) await existingSub.unsubscribe();
     } catch (_) {}
     var token = await getToken(messaging, { vapidKey: vapidKey, serviceWorkerRegistration: swReg });
-    if (!token) return;
+    if (!token) {
+      console.error('[Push] getToken retornou null. Verifique permissão e SW.');
+      return;
+    }
     var idToken = await user.getIdToken();
     var res = await fetch((window.BUD_FUNCTIONS_URL || '') + '/api/push/token', {
       method: 'POST',
@@ -45,11 +50,12 @@ window._budRequestPushToken = async function (user, opts) {
     if (res.ok) {
       localStorage.setItem('bud_push_asked', 'granted');
       if (window.budShowToast) window.budShowToast('Notificações ativadas! O Buddy vai te avisar.', 'success');
-      _registrarOnMessage();
+      // _registrarOnMessage é chamado no contexto do onAuthStateChanged — não chamar aqui
+    } else {
+      console.error('[Push] /api/push/token retornou', res.status);
     }
   } catch (err) {
-    if (window.budWarn) window.budWarn('[Push] Erro ao registrar token: ' + err.message);
-    console.error('[Push] Erro:', err.message);
+    console.error('[Push] Erro:', err.message, err);
   }
 };
 // ─── Helpers ────────────────────────────────────────────────────────────
