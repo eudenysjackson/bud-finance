@@ -49,5 +49,10 @@
   // Variável de ambiente: RECAPTCHA_SITE_KEY
   window.BUD_RECAPTCHA_SITE_KEY = "__RECAPTCHA_SITE_KEY__";
 
+  // ─── FCM Web Push VAPID Key ──────────────────────────────────────────────
+  // Chave pública do FCM Web Push — segura para expor no client.
+  // Obter em: Firebase Console → Project Settings → Cloud Messaging → Web Push certificates.
+  window.BUD_FCM_VAPID_KEY = 'BPoKCYZJukhQbcnO7xUbUQJ_RJC4Q1vgcJfscmHlgnnvz_qP7vkuacOnuAUNqCZjYfKigs6bcosO8xg5NQ66dA4';
+
   window.BUD_FIREBASE_CONFIG = Object.freeze(config);
 })();
