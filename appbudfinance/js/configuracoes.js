@@ -27,10 +27,13 @@ window._budRequestPushToken = async function (user, opts) {
   try {
     var messaging = getMessaging(app);
     var swReg = window._budSWReg || await navigator.serviceWorker.ready;
-    // Se forceRefresh, deleta token antigo (pode estar stale) antes de pedir novo
-    if (opts && opts.forceRefresh) {
-      try { await deleteToken(messaging); } catch (_) {}
-    }
+    // Sempre limpa subscription antiga antes de registrar — garante que a VAPID
+    // key correta é usada (evita 401 por mismatch com subscription de projeto anterior)
+    try { await deleteToken(messaging); } catch (_) {}
+    try {
+      var existingSub = await swReg.pushManager.getSubscription();
+      if (existingSub) await existingSub.unsubscribe();
+    } catch (_) {}
     var token = await getToken(messaging, { vapidKey: vapidKey, serviceWorkerRegistration: swReg });
     if (!token) return;
     var idToken = await user.getIdToken();
@@ -46,6 +49,7 @@ window._budRequestPushToken = async function (user, opts) {
     }
   } catch (err) {
     if (window.budWarn) window.budWarn('[Push] Erro ao registrar token: ' + err.message);
+    console.error('[Push] Erro:', err.message);
   }
 };
 // ─── Helpers ────────────────────────────────────────────────────────────

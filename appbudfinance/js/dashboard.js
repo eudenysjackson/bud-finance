@@ -8,7 +8,7 @@ import {
   doc, getDoc, getDocs, collection, query, where, orderBy, limit, onSnapshot,
   addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
-import { getMessaging, getToken, onMessage } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
+import { getMessaging, getToken, onMessage, deleteToken } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
@@ -27,6 +27,12 @@ window._budRequestPushToken = async function (user) {
     var messaging = getMessaging(app);
     // Aguardar SW estar pronto
     var swReg = window._budSWReg || await navigator.serviceWorker.ready;
+    // Limpa subscription antiga para evitar 401 por VAPID key mismatch
+    try { await deleteToken(messaging); } catch (_) {}
+    try {
+      var existingSub = await swReg.pushManager.getSubscription();
+      if (existingSub) await existingSub.unsubscribe();
+    } catch (_) {}
     var token = await getToken(messaging, { vapidKey: vapidKey, serviceWorkerRegistration: swReg });
     if (!token) { if (window.budWarn) window.budWarn('[Push] getToken retornou vazio.'); return; }
 
