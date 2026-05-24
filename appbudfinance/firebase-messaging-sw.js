@@ -1,4 +1,4 @@
-// sw.js — Bud Finance Service Worker
+// firebase-messaging-sw.js — Bud Finance Service Worker
 // =============================================================================
 // ATENÇÃO: Este arquivo usa Firebase Compat SDK propositalmente.
 // Service Workers não suportam ES Modules de forma confiável em Safari/Firefox.

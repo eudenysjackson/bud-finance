@@ -9,6 +9,7 @@ import {
   addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 import { getMessaging, getToken, onMessage, deleteToken } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
+import { getInstallations, deleteInstallations } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-installations.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
@@ -27,6 +28,8 @@ window._budRequestPushToken = async function (user) {
     var messaging = getMessaging(app);
     // Aguardar SW estar pronto
     var swReg = window._budSWReg || await navigator.serviceWorker.ready;
+    // Limpa Installation em cache (token expirado/inválido de projeto antigo → 401)
+    try { await deleteInstallations(getInstallations(app)); } catch (_) {}
     // Limpa subscription antiga para evitar 401 por VAPID key mismatch
     try { await deleteToken(messaging); } catch (_) {}
     try {

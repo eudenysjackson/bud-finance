@@ -351,9 +351,9 @@
       var swPath = (function () {
         var p = window.location.pathname;
         if (p.indexOf('/appbudfinance/') !== -1) {
-          return '/appbudfinance/sw.js';
+          return '/appbudfinance/firebase-messaging-sw.js';
         }
-        return './sw.js';
+        return './firebase-messaging-sw.js';
       })();
       navigator.serviceWorker.register(swPath)
         .then(function (reg) {
