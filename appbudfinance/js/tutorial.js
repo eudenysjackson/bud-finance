@@ -190,7 +190,12 @@
   function isDone(k)    { return localStorage.getItem(PFX + k) === '1'; }
   function markDone(k)  { try { localStorage.setItem(PFX + k, '1'); } catch (_) {} }
   function isNever()    { return localStorage.getItem(KEY_NEVER) === '1'; }
-  function setNever()   { try { localStorage.setItem(KEY_NEVER, '1'); } catch (_) {} }
+  function setNever()   {
+    try { localStorage.setItem(KEY_NEVER, '1'); } catch (_) {}
+    if (typeof window._budOnTutorialNever === 'function') {
+      try { window._budOnTutorialNever(); } catch (_) {}
+    }
+  }
 
   /* ── Criar e exibir modal ─────────────────────────────────────── */
   function openModal(tut, pageKey) {

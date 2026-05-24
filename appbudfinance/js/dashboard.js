@@ -2632,6 +2632,14 @@ onAuthStateChanged(auth, async function (user) {
       if (window.BudPush) window.BudPush.requestIfNeeded(user);
     }, 3000);
 
+    // ── Sincronizar preferência de tutorial (persiste mesmo após Clear Site Data) ──
+    if (userData.tutorialNever) {
+      try { localStorage.setItem('bud_tut_never', '1'); } catch (_) {}
+    }
+    window._budOnTutorialNever = function () {
+      updateDoc(doc(db, 'usuarios', user.uid), { tutorialNever: true }).catch(function () {});
+    };
+
     // ── Aplicar tema salvo no perfil Firestore ──────────────────────
     if (window.budThemeManager && userData.temaEscolhido) {
       _skipThemeSync = true;
