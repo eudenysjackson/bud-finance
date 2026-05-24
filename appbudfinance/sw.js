@@ -10,7 +10,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-  apiKey:            'AIzaSyButVkGdicSWMBSeNJCfO01DQ3HXQR1O3Q',
+  apiKey:            'AIzaSyBTd0q2XY6xHatUcqtyjcjv3q2u6xpXT-A',
   authDomain:        'bud-finance.firebaseapp.com',
   projectId:         'bud-finance',
   storageBucket:     'bud-finance.firebasestorage.app',
