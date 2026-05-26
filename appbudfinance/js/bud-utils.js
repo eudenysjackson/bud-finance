@@ -343,30 +343,9 @@
   window.budGetOcultarSaldo = budGetOcultarSaldo;
   window.budSetOcultarSaldo = budSetOcultarSaldo;
 
-  // ─── Service Worker registration ────────────────────────────────────────
-  // Registra o SW para recebimento de push notifications em background.
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function () {
-      // Determinar o scope correto baseado no pathname atual
-      var swPath = (function () {
-        var p = window.location.pathname;
-        if (p.indexOf('/appbudfinance/') !== -1) {
-          return '/appbudfinance/firebase-messaging-sw.js';
-        }
-        return './firebase-messaging-sw.js';
-      })();
-      navigator.serviceWorker.register(swPath)
-        .then(function (reg) {
-          window._budSWReg = reg;
-          budLog('[SW] Registrado: ' + reg.scope);
-        })
-        .catch(function (err) {
-          budWarn('[SW] Falha no registro: ' + err.message);
-        });
-    });
-  }
-
   // ─── Push permission popup ───────────────────────────────────────────────
+  // O Service Worker (firebase-messaging-sw.js) é registrado automaticamente
+  // pelo Firebase SDK quando getToken() é chamado pela primeira vez.
   // Popup customizado exibido ANTES do dialog nativo do browser.
   function _showPushPopup() {
     return new Promise(function (resolve) {

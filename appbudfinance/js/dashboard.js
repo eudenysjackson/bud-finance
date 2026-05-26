@@ -9,58 +9,36 @@ import {
   addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 import { getMessaging, getToken, onMessage, deleteToken } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
-import { getInstallations, deleteInstallations } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-installations.js';
+import { registerPushToken, listenForeground } from './push.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
 
-// ─── FCM Push — solicitar token e registrar no backend ──────────────────
-// Chamado por window.BudPush.requestIfNeeded() em bud-utils.js após popup customizado
+// ─── Push: exposto para BudPush.requestIfNeeded() (bud-utils.js) ────────────
+// dashboard.js é a página principal — aqui ficam o registro e o listener.
 window._budRequestPushToken = async function (user) {
-  var vapidKey = window.BUD_FCM_VAPID_KEY;
-  if (!vapidKey || vapidKey.startsWith('__')) {
-    if (window.budWarn) window.budWarn('[Push] BUD_FCM_VAPID_KEY não configurado. Gere em Firebase Console → Project Settings → Cloud Messaging.');
-    return;
-  }
   try {
-    var messaging = getMessaging(app);
-    // Aguardar SW estar pronto
-    var swReg = window._budSWReg || await navigator.serviceWorker.ready;
-    // Limpa Installation em cache (token expirado/inválido de projeto antigo → 401)
-    try { await deleteInstallations(getInstallations(app)); } catch (_) {}
-    // Limpa subscription antiga para evitar 401 por VAPID key mismatch
-    try { await deleteToken(messaging); } catch (_) {}
-    try {
-      var existingSub = await swReg.pushManager.getSubscription();
-      if (existingSub) await existingSub.unsubscribe();
-    } catch (_) {}
-    var token = await getToken(messaging, { vapidKey: vapidKey, serviceWorkerRegistration: swReg });
-    if (!token) { if (window.budWarn) window.budWarn('[Push] getToken retornou vazio.'); return; }
-
-    // Ouvir mensagens em foreground (app aberto)
-    onMessage(messaging, function (payload) {
+    await registerPushToken(app, user);
+    // Mensagens em foreground: adiciona ao painel de notificações in-app
+    listenForeground(app, function (payload) {
       var d = payload.data || {};
       var key = d.tag || 'fcm-' + Date.now();
       if (window.BudInAppNotif) {
-        window.BudInAppNotif.addExternal(key, d.emoji || '📢', d.body || d.title || 'Nova notificação', d.url || null, d.url ? 'Ver' : null);
+        window.BudInAppNotif.addExternal(
+          key,
+          d.emoji || '📢',
+          d.body  || d.title || 'Nova notificação',
+          d.url   || null,
+          d.url   ? 'Ver' : null
+        );
       }
     });
-
-    // Enviar token ao backend
-    var idToken = await user.getIdToken();
-    var res = await fetch((window.BUD_FUNCTIONS_URL || '') + '/api/push/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
-      body: JSON.stringify({ token: token, platform: 'web' })
-    });
-    if (res.ok) {
-      localStorage.setItem('bud_push_asked', 'granted');
-      if (window.budShowToast) window.budShowToast('Notificações ativadas! O Buddy vai te avisar.', 'success');
-    }
+    if (window.budShowToast) window.budShowToast('Notificações ativadas! O Buddy vai te avisar. 🔔', 'success');
   } catch (err) {
-    if (window.budWarn) window.budWarn('[Push] Erro ao registrar token: ' + err.message);
+    if (window.budWarn) window.budWarn(err.message);
+    else console.warn(err.message);
   }
 };
 

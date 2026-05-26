@@ -7,8 +7,7 @@ import { getAuth, onAuthStateChanged, signOut, updateProfile }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, getDocs, updateDoc, deleteDoc, deleteField, setDoc, collection, query, orderBy, writeBatch }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
-import { getMessaging, getToken, onMessage, deleteToken } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
-import { getInstallations, deleteInstallations } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-installations.js';
+import { registerPushToken, listenForeground } from './push.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
@@ -22,43 +21,23 @@ let _whatsappNumero = null;
 let _hoverOrigTheme = null;
 
 // ─── Push token (necessário para o botão Ativar funcionar nesta página) ──
+// ─── Push token (necessário para o botão Ativar funcionar nesta página) ──
 window._budRequestPushToken = async function (user) {
-  var vapidKey = window.BUD_FCM_VAPID_KEY;
-  if (!vapidKey || vapidKey.startsWith('__')) {
-    console.error('[Push] BUD_FCM_VAPID_KEY não definido em produção.');
-    return;
-  }
   try {
-    var messaging = getMessaging(app);
-    var swReg = window._budSWReg || await navigator.serviceWorker.ready;
-    // Limpa Installation em cache (token expirado/inválido de projeto antigo → 401)
-    try { await deleteInstallations(getInstallations(app)); } catch (_) {}
-    // Limpa subscription antiga para evitar 401 por VAPID key mismatch
-    try { await deleteToken(messaging); } catch (_) {}
-    try {
-      var existingSub = await swReg.pushManager.getSubscription();
-      if (existingSub) await existingSub.unsubscribe();
-    } catch (_) {}
-    var token = await getToken(messaging, { vapidKey: vapidKey, serviceWorkerRegistration: swReg });
-    if (!token) {
-      console.error('[Push] getToken retornou null. Verifique permissão e SW.');
-      return;
-    }
-    var idToken = await user.getIdToken();
-    var res = await fetch((window.BUD_FUNCTIONS_URL || '') + '/api/push/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
-      body: JSON.stringify({ token: token, platform: 'web' })
+    await registerPushToken(app, user);
+    listenForeground(app, function (payload) {
+      var n = payload.notification || payload.data || {};
+      navigator.serviceWorker.ready.then(function (reg) {
+        reg.showNotification(n.title || 'Bud Finance', {
+          body: n.body || '',
+          icon: '/appbudfinance/icons/icon-192.png'
+        });
+      }).catch(function () {});
     });
-    if (res.ok) {
-      localStorage.setItem('bud_push_asked', 'granted');
-      if (window.budShowToast) window.budShowToast('Notificações ativadas! O Buddy vai te avisar.', 'success');
-      // _registrarOnMessage é chamado no contexto do onAuthStateChanged — não chamar aqui
-    } else {
-      console.error('[Push] /api/push/token retornou', res.status);
-    }
+    if (window.budShowToast) window.budShowToast('Notificações ativadas! O Buddy vai te avisar. 🔔', 'success');
   } catch (err) {
-    console.error('[Push] Erro:', err.message, err);
+    if (window.budWarn) window.budWarn(err.message);
+    else console.warn(err.message);
   }
 };
 // ─── Helpers ────────────────────────────────────────────────────────────
@@ -587,8 +566,13 @@ async function revogarConsentimentoNotificacoes() {
   const btn = document.getElementById('btnRevogarNotificacoes');
   if (btn) { btn.disabled = true; btn.textContent = 'Revogando...'; }
   try {
-    const tokenRef = doc(db, 'usuarios', uid, 'tokens', 'fcm');
-    await setDoc(tokenRef, { token: null, revogadoEm: new Date().toISOString() }, { merge: true });
+    // Limpa fcmToken do doc raiz do usuário (campo que o backend lê)
+    await updateDoc(doc(db, 'usuarios', uid), {
+      fcmToken: null,
+      fcmTokenAt: null,
+      pushEnabled: false
+    });
+    localStorage.removeItem('bud_push_asked');
     if (window.budShowToast) window.budShowToast('Consentimento de notificações revogado.', 'success');
   } catch (_) {
     if (window.budShowToast) window.budShowToast('Erro ao revogar. Tente novamente.', 'error');
@@ -1314,26 +1298,24 @@ onAuthStateChanged(auth, async function (user) {
     if (pushDesc) pushDesc.textContent = 'O Buddy já está te enviando alertas personalizados.';
   }
 
-  // Handler de foreground: exibir notificação nativa quando o app está aberto
-  function _registrarOnMessage() {
-    try {
-      var _msg = getMessaging(app);
-      onMessage(_msg, function (payload) {
-        var n = (payload.notification || payload.data || {});
-        navigator.serviceWorker.ready.then(function (reg) {
-          reg.showNotification(n.title || 'Bud Finance', { body: n.body || '', icon: '/icons/icon-192.png' });
-        });
-      });
-    } catch (_) {}
-  }
-
   if (btnAtivarPush) {
     const pushed = localStorage.getItem('bud_push_asked');
     if (pushed === 'granted' || Notification.permission === 'granted') {
       _mostrarBotaoTestar();
-      // Garantir que o token esteja salvo no Firestore (pode ter falhado em tentativas anteriores)
-      if (Notification.permission === 'granted') window._budRequestPushToken(user);
-      _registrarOnMessage();
+      // Re-registra token silenciosamente (pode ter expirado)
+      if (Notification.permission === 'granted') {
+        registerPushToken(app, user).then(function () {
+          listenForeground(app, function (payload) {
+            var n = payload.notification || payload.data || {};
+            navigator.serviceWorker.ready.then(function (reg) {
+              reg.showNotification(n.title || 'Bud Finance', {
+                body: n.body || '',
+                icon: '/appbudfinance/icons/icon-192.png'
+              });
+            }).catch(function () {});
+          });
+        }).catch(function () {});
+      }
     }
 
     btnAtivarPush.addEventListener('click', function () {
@@ -1366,7 +1348,7 @@ onAuthStateChanged(auth, async function (user) {
           // Token stale — regenera e avisa pra clicar de novo
           btnTestarPush.textContent = 'Testar';
           if (window.budShowToast) window.budShowToast('Token renovado. Clique em Testar novamente.', 'info');
-          await window._budRequestPushToken(user, { forceRefresh: true });
+          await registerPushToken(app, user);
         } else {
           btnTestarPush.textContent = 'Testar';
           alert('Erro: ' + (data.error || 'desconhecido'));
