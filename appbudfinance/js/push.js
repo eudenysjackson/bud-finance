@@ -52,12 +52,32 @@ export async function registerPushToken(app, user) {
     throw new Error('[Push] Permissão de notificação negada. Verifique as configurações do navegador.');
   }
 
-  // 2. Obter token FCM
-  //    Firebase registra firebase-messaging-sw.js automaticamente neste ponto.
+  // 2. Registrar o Service Worker explicitamente no path correto.
+  //    (Firebase SDK por padrão busca '/firebase-messaging-sw.js' na raiz do
+  //    domínio, mas hospedamos em '/appbudfinance/' — então passamos a
+  //    registration manualmente para o getToken.)
+  const SW_PATH  = '/appbudfinance/firebase-messaging-sw.js';
+  const SW_SCOPE = '/appbudfinance/';
+  let swReg;
+  try {
+    swReg = await navigator.serviceWorker.register(SW_PATH, {
+      scope: SW_SCOPE,
+      updateViaCache: 'none'
+    });
+    // Aguardar o SW ficar ativo antes de prosseguir
+    await navigator.serviceWorker.ready;
+  } catch (err) {
+    throw new Error('[Push] Falha ao registrar Service Worker: ' + err.message);
+  }
+
+  // 3. Obter token FCM (passando a SW registration explicitamente)
   const messaging = getMessaging(app);
   let token;
   try {
-    token = await getToken(messaging, { vapidKey });
+    token = await getToken(messaging, {
+      vapidKey,
+      serviceWorkerRegistration: swReg
+    });
   } catch (err) {
     // Re-lança com contexto adicional para facilitar diagnóstico
     throw new Error('[Push] getToken falhou: ' + (err.code || '') + ' — ' + err.message);
@@ -67,7 +87,7 @@ export async function registerPushToken(app, user) {
     throw new Error('[Push] getToken retornou vazio. Verifique VAPID key e firebase-messaging-sw.js.');
   }
 
-  // 3. Salvar token no backend
+  // 4. Salvar token no backend
   const idToken = await user.getIdToken();
   const baseUrl = (window.BUD_FUNCTIONS_URL || '').replace(/\/$/, '');
 
