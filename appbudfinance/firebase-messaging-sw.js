@@ -22,10 +22,11 @@ var messaging = firebase.messaging();
 
 // ── Notificações recebidas com app em background / tela bloqueada ──────────
 messaging.onBackgroundMessage(function (payload) {
-  var d = payload.data || {};
-  var title   = d.title   || 'Bud Finance';
-  var body    = d.body    || '';
-  var url     = d.url     || './dashboard.html';
+  var d = payload.data         || {};
+  var n = payload.notification || {};   // fallback para mensagens com campo notification
+  var title   = d.title   || n.title || 'Bud Finance';
+  var body    = d.body    || n.body  || '';
+  var url     = d.url     || n.click_action || './dashboard.html';
   var tag     = d.tag     || 'bud-notif-' + Date.now();
   var actions = [];
   try { if (d.actions) actions = JSON.parse(d.actions); } catch (_) {}

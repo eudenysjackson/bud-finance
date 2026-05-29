@@ -2778,7 +2778,7 @@ app.post('/api/push/test', async function (req, res) {
         body: 'Notificações push funcionando perfeitamente!'
       },
       webpush: {
-        fcmOptions: { link: '/dashboard.html' }
+        fcmOptions: { link: FRONTEND_URL + '/dashboard.html' }
       }
     });
     return res.json({ ok: true });
@@ -2847,7 +2847,7 @@ app.post('/api/push/admin-broadcast', async function (req, res) {
         messages.push({
           token: fcmToken,
           notification: { title: notifTitle, body: mensagem },
-          webpush: { fcmOptions: { link: '/appbudfinance/dashboard.html' } },
+          webpush: { fcmOptions: { link: FRONTEND_URL + '/dashboard.html' } },
           data: { tipo: tipo, tag: 'admin-' + Date.now() }
         });
         uids.push(d.id);

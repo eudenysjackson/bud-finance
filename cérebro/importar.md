@@ -1,7 +1,8 @@
-# 📥 Tela Importar Transações — Documentação Técnica Completa
+# ✅ ~~Tela Importar Transações~~ — CANCELADO (implementado dentro de `carteira.html`)
 
-> Auditoria e documentação realizadas em 09/04/2026  
-> Arquivos analisados: `importar.html` (175 linhas) + `js/importar.js` (909 linhas) + `cérebro/carteira-importar.md`
+> ~~Auditoria e documentação realizadas em 09/04/2026~~
+> **18/05/2026 — `importar.html` standalone cancelado.** A funcionalidade de importação (CSV, OFX, PDF, imagem via IA) foi implementada diretamente em `carteira.html` + `js/carteira.js` como modal por conta. Ver `carteira-importar.md` para documentação final.
+> ~~Arquivos analisados: `importar.html` (175 linhas) + `js/importar.js` (909 linhas) + `cérebro/carteira-importar.md`~~
 
 ---
 

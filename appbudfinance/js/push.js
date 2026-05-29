@@ -64,8 +64,21 @@ export async function registerPushToken(app, user) {
       scope: SW_SCOPE,
       updateViaCache: 'none'
     });
-    // Aguardar o SW ficar ativo antes de prosseguir
-    await navigator.serviceWorker.ready;
+    // Aguardar ESTE swReg ficar ativo (não qualquer SW da página).
+    // navigator.serviceWorker.ready resolve com o SW atualmente ativo, que pode
+    // ser um SW diferente (ex: sw.js antigo ainda cacheado). Por isso esperamos
+    // especificamente por swReg.active antes de passar para getToken().
+    if (!swReg.active) {
+      await new Promise(function (resolve, reject) {
+        var sw = swReg.installing || swReg.waiting;
+        if (!sw) { resolve(); return; } // já deve estar ativo
+        var t = setTimeout(function () { reject(new Error('SW activation timeout')); }, 15000);
+        sw.addEventListener('statechange', function () {
+          if (this.state === 'activated') { clearTimeout(t); resolve(); }
+          if (this.state === 'redundant') { clearTimeout(t); reject(new Error('SW became redundant')); }
+        });
+      });
+    }
   } catch (err) {
     throw new Error('[Push] Falha ao registrar Service Worker: ' + err.message);
   }
