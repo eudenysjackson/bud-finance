@@ -2155,6 +2155,50 @@ app.post('/api/alerta-financeiro', async function (req, res) {
     }).catch(function () { /* ignora falha */ });
   }
 
+  // PEND-047: Enviar push FCM se o usuário tiver token registrado
+  (async function () {
+    try {
+      var userDoc2 = await db.collection('usuarios').doc(uid).get();
+      var fcmTok   = (userDoc2.exists ? userDoc2.data() : {}).fcmToken;
+      if (!fcmTok) return;
+
+      var criticos = alertasSanitizados.filter(function (a) { return a.nivel === 'critico'; });
+      var pushTitle = criticos.length > 0
+        ? '🚨 ' + criticos.length + ' alerta(s) crítico(s) — Bud Finance'
+        : '⚠️ Alertas financeiros — Bud Finance';
+      var pushBody = alertasSanitizados.slice(0, 2).map(function (a) { return a.texto; }).join(' · ');
+      if (pushBody.length > 120) pushBody = pushBody.substring(0, 117) + '…';
+
+      await admin.messaging().send({
+        token: fcmTok,
+        data: {
+          title: pushTitle,
+          body:  pushBody,
+          url:   'assistente-ia.html',
+          tag:   'alerta-saude-' + new Date().toISOString().slice(0, 10),
+          emoji: '🚨'
+        },
+        webpush: {
+          notification: {
+            icon:  FRONTEND_URL + '/icons/icon-192.png',
+            badge: FRONTEND_URL + '/icons/icon-192.png',
+            vibrate: [300, 100, 300]
+          },
+          fcm_options: { link: FRONTEND_URL + '/assistente-ia.html' }
+        }
+      });
+    } catch (pushErr) {
+      var pushCode = (pushErr && pushErr.code) || '';
+      if (pushCode === 'messaging/registration-token-not-registered' ||
+          pushCode === 'messaging/invalid-registration-token') {
+        try {
+          await db.collection('usuarios').doc(uid).update({ fcmToken: null, pushEnabled: false });
+        } catch (_) {}
+      }
+      // Push falhou silenciosamente — email já foi enviado
+    }
+  })();
+
   try {
     await salvarPromise;
     return res.json({ success: true, enviado: true });
