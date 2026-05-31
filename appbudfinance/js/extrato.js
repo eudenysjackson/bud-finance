@@ -26,6 +26,8 @@ import {
   collection, query, where, orderBy,
   onSnapshot, doc, getDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL }
+  from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js'; // PEND-028
 
 // ─── Firebase ──────────────────────────────────────────────────────────────
 const app = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
@@ -349,6 +351,100 @@ function obterTransacoesFiltradas() {
   });
 }
 
+// ─── PEND-029: Gráfico de Saldo Acumulado ─────────────────────────────────
+let _graficoChart = null;
+
+function _renderizarGraficoSaldo(txs) {
+  const wrap = document.getElementById('graficoSaldoWrap');
+  const canvas = document.getElementById('graficoSaldo');
+  if (!wrap || !canvas || typeof Chart === 'undefined') return;
+
+  // Só mostrar quando há dados e não está filtrando por tipo específico
+  if (!txs || txs.length === 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  // Agrupar por dia e calcular saldo acumulado
+  const porDia = {};
+  txs.forEach(tx => {
+    const data = tx.data instanceof Object && tx.data.toDate
+      ? tx.data.toDate()
+      : new Date(tx.data);
+    const key = data.toISOString().slice(0, 10); // YYYY-MM-DD
+    if (!porDia[key]) porDia[key] = 0;
+    if (tx.tipo === 'receita') porDia[key] += tx.valor;
+    else porDia[key] -= tx.valor;
+  });
+
+  const dias = Object.keys(porDia).sort();
+  if (dias.length < 2) { wrap.style.display = 'none'; return; }
+
+  let acumulado = 0;
+  const labels = [];
+  const valores = [];
+  dias.forEach(d => {
+    acumulado += porDia[d];
+    const [, m, dia] = d.split('-');
+    labels.push(`${dia}/${m}`);
+    valores.push(parseFloat(acumulado.toFixed(2)));
+  });
+
+  // Cor baseada no saldo final
+  const finalVal = valores[valores.length - 1];
+  const corLinha = finalVal >= 0 ? 'rgb(22,163,74)' : 'rgb(220,38,38)';
+  const corFundo = finalVal >= 0 ? 'rgba(22,163,74,0.12)' : 'rgba(220,38,38,0.12)';
+
+  if (_graficoChart) {
+    _graficoChart.destroy();
+    _graficoChart = null;
+  }
+
+  _graficoChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Saldo Acumulado',
+        data: valores,
+        borderColor: corLinha,
+        backgroundColor: corFundo,
+        fill: true,
+        tension: 0.35,
+        pointRadius: dias.length > 20 ? 2 : 4,
+        pointHoverRadius: 6,
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => ' R$ ' + ctx.parsed.y.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { maxTicksLimit: 10, font: { size: 11 }, color: 'var(--card-text-sec, #6b7280)' },
+          grid: { color: 'rgba(0,0,0,0.05)' }
+        },
+        y: {
+          ticks: {
+            font: { size: 11 }, color: 'var(--card-text-sec, #6b7280)',
+            callback: (v) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 0 })
+          },
+          grid: { color: 'rgba(0,0,0,0.05)' }
+        }
+      }
+    }
+  });
+
+  wrap.style.display = '';
+}
+
 // ─── Renderizar extrato ────────────────────────────────────────────────────
 function renderizarExtrato() {
   const container = document.getElementById('listaExtrato');
@@ -428,6 +524,7 @@ function renderizarExtrato() {
       + '<div class="empty-state-sub">Tente ajustar os filtros ou registre uma transação no Dashboard.</div>';
     container.appendChild(empty);
     renderBreakdown(); // Breakdown usa transacoesGlobais (não filtradas), deve sempre atualizar
+    _renderizarGraficoSaldo(transacoesGlobais);
     return;
   }
 
@@ -554,6 +651,8 @@ function renderizarExtrato() {
 
   // Melhoria 3: Breakdown de top categorias (sempre baseado no mês completo)
   renderBreakdown();
+  // PEND-029: Gráfico saldo acumulado (baseado no mês completo)
+  _renderizarGraficoSaldo(transacoesGlobais);
 }
 
 // ─── Breakdown top categorias ─────────────────────────────────────────────
@@ -737,6 +836,20 @@ window.abrirModalEditar = function(id) {
   if (dpLbl) { dpLbl.textContent = formatDataLabel(d); dpLbl.style.color = 'var(--card-text)'; }
 
   document.getElementById('modalEditar')?.classList.add('open');
+
+  // PEND-028: reset/show do campo de anexo
+  const inputAnexo  = document.getElementById('inputAnexo');
+  const anexoPreview = document.getElementById('anexoPreview');
+  const anexoLink   = document.getElementById('anexoLink');
+  const anexoBtnLabel = document.getElementById('anexoBtnLabel');
+  if (inputAnexo)   { inputAnexo.value = ''; }
+  if (anexoBtnLabel) { anexoBtnLabel.textContent = 'Anexar comprovante'; }
+  if (anexoPreview) { anexoPreview.style.display = 'none'; anexoPreview.src = ''; }
+  if (anexoLink)    {
+    const url = t.anexoURL || null;
+    if (url) { anexoLink.href = url; anexoLink.style.display = 'block'; }
+    else     { anexoLink.style.display = 'none'; }
+  }
 };
 
 window.fecharModalEditar = function() {
@@ -940,20 +1053,52 @@ window.salvarEdicao = async function() {
 
   try {
     const dataTimestamp = Timestamp.fromDate(new Date(dataStr + 'T12:00:00'));
-    await updateDoc(doc(db, 'usuarios', usuarioAtualId, 'transacoes', id), {
-      descricao,
-      valor,
-      categoria,
-      tipo,
-      data: dataTimestamp,
-      atualizadoEm: serverTimestamp()
-    });
+
+    // PEND-028: upload do comprovante (se selecionado)
+    let anexoURL = undefined;
+    const inputAnexo = document.getElementById('inputAnexo');
+    const arquivoAnexo = inputAnexo && inputAnexo.files && inputAnexo.files[0];
+    if (arquivoAnexo) {
+      try {
+        const storage = getStorage(app);
+        const ext = arquivoAnexo.name.split('.').pop().toLowerCase();
+        const sRef = storageRef(storage, `comprovantes/${usuarioAtualId}/${id}.${ext}`);
+        await uploadBytes(sRef, arquivoAnexo);
+        anexoURL = await getDownloadURL(sRef);
+      } catch (storageErr) {
+        (window.budError || console.error)('[extrato] upload anexo:', storageErr);
+        if (window.budShowToast) window.budShowToast('Comprovante não pôde ser salvo (CORS). Dados salvos.', 'warning');
+      }
+    }
+
+    const payload = { descricao, valor, categoria, tipo, data: dataTimestamp, atualizadoEm: serverTimestamp() };
+    if (anexoURL !== undefined) payload.anexoURL = anexoURL;
+
+    await updateDoc(doc(db, 'usuarios', usuarioAtualId, 'transacoes', id), payload);
     fecharModalEditar();
     if (window.budShowToast) window.budShowToast('Transação atualizada!', 'success');
   } catch (_e) {
     if (window.budShowToast) window.budShowToast('Erro ao salvar. Tente novamente.', 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Salvar Alterações'; }
+  }
+};
+
+// ─── PEND-028: preview do arquivo de anexo selecionado ───────────────────
+window.onAnexoSelecionado = function(input) {
+  const arquivo = input.files && input.files[0];
+  const preview = document.getElementById('anexoPreview');
+  const label   = document.getElementById('anexoBtnLabel');
+  if (!arquivo) return;
+  if (label) label.textContent = arquivo.name.length > 28 ? arquivo.name.slice(0, 28) + '…' : arquivo.name;
+  if (preview) {
+    if (arquivo.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = e => { preview.src = e.target.result; preview.style.display = 'block'; };
+      reader.readAsDataURL(arquivo);
+    } else {
+      preview.style.display = 'none';
+    }
   }
 };
 

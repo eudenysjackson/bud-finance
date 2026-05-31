@@ -2208,3 +2208,92 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// ─── PEND-038: Exportar PDF Dívidas ──────────────────────────────────────────
+window.exportarPDFDividas = function () {
+  const ativas = dividas.filter(d => !d.quitada);
+  const quitadas = dividas.filter(d => d.quitada);
+
+  const fmt = (v) => 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtDate = (s) => {
+    if (!s) return '—';
+    const d = new Date(s + 'T12:00:00');
+    return d.toLocaleDateString('pt-BR');
+  };
+
+  const totalSaldo = ativas.reduce((s, d) => s + calcularSaldoDevedor(d), 0);
+  const totalPago  = dividas.reduce((s, d) => s + (d.valorPago || 0), 0);
+  const totalJuros = dividas.reduce((s, d) => s + (d.jurosPagos || 0), 0);
+  const totalMens  = ativas.reduce((s, d) => s + (d.valorParcela || 0), 0);
+
+  const kpis = [
+    { label: 'Dívidas Ativas', value: String(ativas.length) },
+    { label: 'Saldo Devedor',  value: fmt(totalSaldo) },
+    { label: 'Total Pago',     value: fmt(totalPago) },
+    { label: 'Juros Pagos',    value: fmt(totalJuros) },
+    { label: 'Mensalidade',    value: fmt(totalMens) },
+  ];
+
+  const buildTable = (lista, titulo) => {
+    if (!lista.length) return '';
+    const rows = lista.map(d => {
+      const saldo = calcularSaldoDevedor(d);
+      const parc  = d.parcelas ? `${d.parcelasPagas || 0}/${d.parcelas}` : '—';
+      const juros = d.juros ? (d.juros * 100).toFixed(2) + '%' : '—';
+      return `<tr>
+        <td>${escapeHTML(d.nome || '')}</td>
+        <td>${escapeHTML(d.tipo || '')}</td>
+        <td style="text-align:right">${fmt(saldo)}</td>
+        <td style="text-align:right">${fmt(d.valorPago)}</td>
+        <td style="text-align:center">${parc}</td>
+        <td style="text-align:center">${fmtDate(d.vencimento)}</td>
+        <td style="text-align:center">${juros}</td>
+      </tr>`;
+    }).join('');
+    return `
+      <h3 style="margin:1.5rem 0 0.5rem;font-size:1rem;color:#374151;">${titulo} (${lista.length})</h3>
+      <table>
+        <thead><tr>
+          <th>Nome</th><th>Tipo</th><th style="text-align:right">Saldo Dev.</th>
+          <th style="text-align:right">Pago</th><th style="text-align:center">Parcelas</th>
+          <th style="text-align:center">Próx. Venc.</th><th style="text-align:center">Juros a.m.</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  };
+
+  const dataHoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+    <title>Dívidas — Bud Finanças</title>
+    <style>
+      body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #1f2937; margin: 32px; }
+      h1   { font-size: 1.25rem; color: #111827; margin-bottom: 0.25rem; }
+      .sub { font-size: 0.75rem; color: #6b7280; margin-bottom: 1.25rem; }
+      .kpis { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+      .kpi  { background: #f3f4f6; border-radius: 0.5rem; padding: 0.5rem 1rem; min-width: 100px; }
+      .kpi-label { font-size: 0.65rem; color: #6b7280; text-transform: uppercase; }
+      .kpi-value { font-size: 1rem; font-weight: 700; color: #1f2937; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+      th  { background: #f9fafb; text-align: left; padding: 6px 8px; font-size: 11px; font-weight: 700; color: #374151; border-bottom: 2px solid #e5e7eb; }
+      td  { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; font-size: 11px; }
+      tr:hover td { background: #f9fafb; }
+      @media print { body { margin: 0; } }
+    </style>
+  </head><body>
+    <h1>📋 Relatório de Dívidas</h1>
+    <div class="sub">Gerado em ${dataHoje} · Bud Finanças</div>
+    <div class="kpis">
+      ${kpis.map(k => `<div class="kpi"><div class="kpi-label">${k.label}</div><div class="kpi-value">${k.value}</div></div>`).join('')}
+    </div>
+    ${buildTable(ativas, 'Dívidas Ativas')}
+    ${buildTable(quitadas, 'Dívidas Quitadas')}
+  </body></html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { window.budShowToast?.('Popup bloqueado. Permita pop-ups para exportar.', 'warning'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { try { win.print(); } catch(_) {} }, 600);
+};

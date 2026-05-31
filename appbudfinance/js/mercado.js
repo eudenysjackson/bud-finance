@@ -2090,18 +2090,84 @@ async function enviarParaIA() {
   } catch (err) {
     clearTimeout(tid);
     error('enviarParaIA', err);
-    const msg = err.name === 'AbortError'
-      ? 'Tempo limite excedido. Tente uma imagem menor.'
-      : (err.message || 'Falha ao processar.');
-    showToast(msg, 'error');
-    prog.style.display = 'none';
-    progBar.style.width = '0';
-    btn.disabled = false;
-    validarBotaoEnviarIA();
+    // PEND-MER-08: tentar OCR local com Tesseract.js quando IA falha em imagem
+    if (err.name !== 'AbortError' && _iaTabAtual === 'foto' && _iaArquivos.length > 0) {
+      await _tentarOcrFallback(_iaArquivos[0].file, prog, progBar, progText, btn);
+    } else {
+      const msg = err.name === 'AbortError'
+        ? 'Tempo limite excedido. Tente uma imagem menor.'
+        : (err.message || 'Falha ao processar.');
+      showToast(msg, 'error');
+      prog.style.display = 'none';
+      progBar.style.width = '0';
+      btn.disabled = false;
+      validarBotaoEnviarIA();
+    }
   }
 }
 
-function posProcessarIA(data) {
+// ─── PEND-MER-08: OCR local via Tesseract.js (fallback quando IA indisponível) ──
+async function _tentarOcrFallback(file, prog, progBar, progText, btn) {
+  showToast('🔍 IA indisponível. Tentando leitura offline…', 'info', 4000);
+  if (prog) prog.style.display = 'block';
+  if (progText) progText.textContent = 'Carregando leitor OCR…';
+  if (progBar) progBar.style.width = '10%';
+
+  try {
+    // Lazy-load Tesseract.js
+    if (!window.Tesseract) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://unpkg.com/tesseract.js@5/dist/tesseract.min.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
+    if (progText) progText.textContent = 'Lendo texto da imagem…';
+    if (progBar) progBar.style.width = '40%';
+
+    const worker = await window.Tesseract.createWorker('por', 1);
+    const { data } = await worker.recognize(file);
+    await worker.terminate();
+    const textoOCR = (data.text || '').trim();
+
+    if (!textoOCR) throw new Error('OCR não reconheceu texto na imagem.');
+
+    if (progBar) progBar.style.width = '70%';
+    if (progText) progText.textContent = 'Analisando texto…';
+
+    // Redireciona para o fluxo de análise de texto
+    const ctrl2 = new AbortController();
+    const tid2 = setTimeout(() => ctrl2.abort(), IA_TIMEOUT_MS);
+    const resp = await fetch(`${BUD_BACKEND_URL}/api/extrair-cupom`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto: textoOCR }),
+      signal: ctrl2.signal,
+    });
+    clearTimeout(tid2);
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}));
+      throw new Error(errData.error || `Erro ${resp.status}`);
+    }
+    const data2 = await resp.json();
+    if (progBar) progBar.style.width = '100%';
+    _iaResultado = posProcessarIA(data2);
+    fecharModalImportIA();
+    abrirModalReviewIA();
+  } catch (e2) {
+    error('_tentarOcrFallback', e2);
+    showToast('Leitura offline falhou. Tente novamente com imagem mais nítida.', 'error');
+  } finally {
+    if (prog) { prog.style.display = 'none'; if (progBar) progBar.style.width = '0'; }
+    if (btn) { btn.disabled = false; validarBotaoEnviarIA(); }
+  }
+}
+
+
   // 1) Mercado: se o CNPJ já é conhecido, usa o nome curto que o usuário gravou
   let mercado = data.mercado || '';
   if (data.cnpj && _mercadosConhecidos[data.cnpj]) {

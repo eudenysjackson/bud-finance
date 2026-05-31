@@ -306,9 +306,14 @@
             <p>Controle seus empréstimos e financiamentos</p>
           </div>
         </div>
-        <button id="btnNovaDivida" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:0.875rem;font-weight:700;border:none;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .2s;" title="Nova Dívida">
-          <span>+</span><span>Nova Dívida</span>
-        </button>
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <button onclick="window.exportarPDFDividas()" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:var(--card-bg);color:var(--card-text);font-size:0.875rem;font-weight:700;border:1.5px solid var(--card-border);cursor:pointer;font-family:inherit;transition:opacity .2s;" title="Exportar PDF">
+            <span>📄</span><span style="display:none;" id="btnExportPDFLabel"> PDF</span>
+          </button>
+          <button id="btnNovaDivida" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:0.875rem;font-weight:700;border:none;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .2s;" title="Nova Dívida">
+            <span>+</span><span>Nova Dívida</span>
+          </button>
+        </div>
       </div>
 
       <!-- KPIs 4 cards -->

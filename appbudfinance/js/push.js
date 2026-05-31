@@ -11,7 +11,7 @@
 // Referência: DECISIONS_LOG.md → DEC-050 (SW usa Compat SDK)
 // =============================================================================
 
-import { getMessaging, getToken, onMessage }
+import { getMessaging, getToken, onMessage, deleteToken }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
@@ -130,5 +130,38 @@ export function listenForeground(app, onNotif) {
     onMessage(messaging, onNotif);
   } catch (_) {
     // Não lança — listener em foreground não é crítico
+  }
+}
+
+// ─── revokePushToken — PEND-002 ──────────────────────────────────────────────
+/**
+ * Revoga o token FCM do dispositivo atual: remove do browser e limpa no backend.
+ * Deve ser chamado antes de signOut().
+ *
+ * @param {FirebaseApp} app
+ * @param {import('firebase/auth').User} user
+ */
+export async function revokePushToken(app, user) {
+  try {
+    // 1. Deletar token no browser (FCM)
+    if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+      const messaging = getMessaging(app);
+      await deleteToken(messaging).catch(() => {});
+    }
+
+    // 2. Limpar token no backend (Firestore via server)
+    const idToken = await user.getIdToken().catch(() => null);
+    if (idToken) {
+      const baseUrl = (window.BUD_FUNCTIONS_URL || '').replace(/\/$/, '');
+      await fetch(baseUrl + '/api/push/token', {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + idToken }
+      }).catch(() => {});
+    }
+
+    // 3. Limpar flag local
+    try { localStorage.removeItem(LS_KEY); } catch (_) {}
+  } catch (_) {
+    // Revogação não é crítica — não impede logout
   }
 }

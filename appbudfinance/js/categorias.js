@@ -67,6 +67,7 @@ const CORES_CAT = [
    Estado global
 ───────────────────────────────────────────────────────────────── */
 let uid            = null;
+let _plano         = 'free';  // PEND-021: plano do usuário (gate de categorias)
 let tipoAtual      = 'despesa';
 let emojiAtual     = '📦';
 let corAtual       = 'green';  // ID da cor selecionada
@@ -77,6 +78,7 @@ let _catDocs       = [];       // docs ordenados do último onSnapshot
 let _novaHighlight = null;     // ID do doc recém-criado (highlight visual)
 let _filtroPadrao       = '';  // filtro de busca nas categorias padrão
 let _filtroPersonalizada = ''; // filtro de busca nas categorias personalizadas
+const LIMITE_CATS_FREE = 5;   // PEND-021: máx de categorias personalizadas no plano free
 
 const showToast = (msg, tipo = 'success') => window.budShowToast(msg, tipo);
 
@@ -218,8 +220,14 @@ function renderListaPersonalizadas() {
     return `
       <div class="cat-card personalizada${isNew ? ' cat-new-highlight' : ''}"
            id="catCard-${d.id}"
-           style="flex-direction:column;align-items:stretch;gap:0.5rem;"
-           onclick="editarCategoria('${d.id}','${escapeHTML(c.nome)}','${escapeHTML(c.emoji)}','${corId}')">
+           draggable="true"
+           data-catid="${d.id}"
+           style="flex-direction:column;align-items:stretch;gap:0.5rem;cursor:grab;"
+           onclick="editarCategoria('${d.id}','${escapeHTML(c.nome)}','${escapeHTML(c.emoji)}','${corId}')"
+           ondragstart="_dndStart(event,'${d.id}')"
+           ondragover="_dndOver(event)"
+           ondrop="_dndDrop(event,'${d.id}')"
+           ondragend="_dndEnd(event)">
         <div style="display:flex;align-items:center;gap:0.75rem;">
           <span class="cat-card-emoji">${escapeHTML(c.emoji)}</span>
           <span class="cat-card-nome">${escapeHTML(c.nome)}</span>
@@ -294,6 +302,57 @@ window.selecionarCor = function (id) {
   corAtual = id;
   renderizarCores();
   atualizarPreview();
+};
+
+  atualizarPreview();
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   PEND-023: Drag-and-drop para reordenar categorias personalizadas
+───────────────────────────────────────────────────────────────── */
+let _dndSrcId = null;
+
+window._dndStart = function (e, id) {
+  _dndSrcId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.style.opacity = '0.45';
+};
+
+window._dndOver = function (e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.style.outline = '2px dashed var(--btn-bg, #2563eb)';
+};
+
+window._dndEnd = function (e) {
+  e.currentTarget.style.opacity = '';
+  e.currentTarget.style.outline = '';
+};
+
+window._dndDrop = async function (e, targetId) {
+  e.preventDefault();
+  e.currentTarget.style.outline = '';
+  if (!_dndSrcId || _dndSrcId === targetId) { _dndSrcId = null; return; }
+
+  const srcIdx = _catDocs.findIndex(d => d.id === _dndSrcId);
+  const tgtIdx = _catDocs.findIndex(d => d.id === targetId);
+  _dndSrcId = null;
+  if (srcIdx < 0 || tgtIdx < 0) return;
+
+  const reordenados = [..._catDocs];
+  const [moved] = reordenados.splice(srcIdx, 1);
+  reordenados.splice(tgtIdx, 0, moved);
+
+  const batch = writeBatch(db);
+  reordenados.forEach((d, i) => {
+    batch.update(doc(db, 'usuarios', uid, 'categorias', d.id), { ordem: i });
+  });
+  try {
+    await batch.commit();
+  } catch (err) {
+    (window.budError || console.error)('Erro ao reordenar (DnD):', err);
+    showToast('Erro ao reordenar. Tente novamente.', 'error');
+  }
 };
 
 /* ─────────────────────────────────────────────────────────────────
@@ -592,6 +651,15 @@ async function salvarCategoria() {
       return;
     }
 
+    // PEND-021: gate de plano — usuários free têm limite de categorias personalizadas
+    const PLANOS_PAGOS_CAT = ['starter', 'pro', 'plus', 'trial'];
+    if (!PLANOS_PAGOS_CAT.includes(_plano) && snapCheck.docs.length >= LIMITE_CATS_FREE) {
+      showToast(`Plano Free permite até ${LIMITE_CATS_FREE} categorias personalizadas. Faça upgrade para criar mais.`, 'warning');
+      btn.disabled = false;
+      btn.textContent = 'Criar Categoria';
+      return;
+    }
+
     const novaOrdem = _catDocs.length > 0
       ? Math.max(..._catDocs.map(d => d.data().ordem ?? 0)) + 1
       : 0;
@@ -756,14 +824,13 @@ onAuthStateChanged(auth, async (user) => {
   uid = user.uid;
   atualizarSidebarUser(user);
 
-  // BUG 8: renderizarTudo() DENTRO do .then() — plano já resolvido antes de renderizar
+  // BUG 8 + PEND-021: carregar plano antes de renderizar
   try {
     const perfilSnap = await getDoc(doc(db, 'usuarios', uid));
-    // Planos pagos serão verificados aqui quando PEND-001 (Mercado Pago) for implementado.
-    // Por ora, todas as contas podem criar categorias personalizadas (MVP aberto).
+    _plano = (perfilSnap.data() && perfilSnap.data().plano) || 'free';
     renderizarTudo();
   } catch (_) {
-    // Falha ao carregar perfil — renderiza mesmo assim (sem plano bloqueado)
+    _plano = 'free';
     renderizarTudo();
   }
 });

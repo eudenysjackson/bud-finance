@@ -7,7 +7,7 @@ import { getAuth, onAuthStateChanged, signOut, updateProfile }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, getDocs, updateDoc, deleteDoc, deleteField, setDoc, collection, query, orderBy, writeBatch }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
-import { registerPushToken, listenForeground } from './push.js?v=6';
+import { registerPushToken, listenForeground, revokePushToken } from './push.js?v=7';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
@@ -1227,6 +1227,10 @@ function setupSeguranca() {
 // ─── Logout ─────────────────────────────────────────────────────────────
 async function fazerLogout() {
   try {
+    // PEND-002: revogar token FCM antes de sair
+    if (auth.currentUser) {
+      await revokePushToken(app, auth.currentUser).catch(() => {});
+    }
     await signOut(auth);
     window.location.href = 'index.html';
   } catch (_) {

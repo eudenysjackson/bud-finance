@@ -2604,6 +2604,31 @@ app.post('/api/push/token', async function (req, res) {
   }
 });
 
+
+// --- DELETE /api/push/token --- revoga FCM token (PEND-002) ---
+app.delete('/api/push/token', async function (req, res) {
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin nao inicializado.' });
+
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
+
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_) { return res.status(401).json({ error: 'Token invalido.' }); }
+
+  try {
+    await db.collection('usuarios').doc(decoded.uid).update({
+      fcmToken:    admin.firestore.FieldValue.delete(),
+      pushEnabled: false,
+      fcmTokenAt:  admin.firestore.FieldValue.serverTimestamp()
+    });
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error('[DELETE /api/push/token]', e.message);
+    return res.status(500).json({ error: 'Erro ao revogar token.' });
+  }
+});
 // â”€â”€â”€ POST /api/push/test â€” dispara notificaÃ§Ã£o de teste para o prÃ³prio usuÃ¡rio â”€â”€
 app.post('/api/push/test', async function (req, res) {
   if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin nÃ£o inicializado.' });
