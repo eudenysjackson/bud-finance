@@ -1383,12 +1383,19 @@ onAuthStateChanged(auth, async function (user) {
       try {
         // Garantir token sempre presente: re-registra antes de testar.
         // Idempotente — se já tiver, só revalida; se não, cria.
-        try { await registerPushToken(app, user); } catch (regErr) {
+        console.log('[Push Test] Iniciando registro de token...');
+        let pushToken;
+        try {
+          pushToken = await registerPushToken(app, user);
+          console.log('[Push Test] Token registrado e salvo no backend:', pushToken ? pushToken.substring(0, 20) + '...' : '(vazio)');
+        } catch (regErr) {
+          console.error('[Push Test] Falha ao registrar:', regErr);
           btnTestarPush.textContent = 'Testar';
-          alert('Não foi possível registrar o token de notificação: ' + (regErr && regErr.message ? regErr.message : 'erro desconhecido'));
+          alert('Não foi possível registrar o token de notificação:\n\n' + (regErr && regErr.message ? regErr.message : 'erro desconhecido'));
           return;
         }
 
+        console.log('[Push Test] Chamando /api/push/test...');
         const idToken = await user.getIdToken();
         const baseUrl = window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com';
         const resp = await fetch(baseUrl + '/api/push/test', {
@@ -1396,18 +1403,19 @@ onAuthStateChanged(auth, async function (user) {
           headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' }
         });
         const data = await resp.json().catch(function () { return {}; });
+        console.log('[Push Test] Resposta:', resp.status, data);
         if (resp.ok) {
           btnTestarPush.textContent = '✅ Enviado!';
           if (pushDesc) pushDesc.textContent = 'Notificação de teste enviada — verifique sua bandeja de notificações.';
         } else if (resp.status === 410) {
-          // Token stale — registerPushToken acima já renovou, mas backend ainda não tinha.
           btnTestarPush.textContent = 'Testar';
           if (window.budShowToast) window.budShowToast('Token renovado. Clique em Testar novamente.', 'info');
         } else {
           btnTestarPush.textContent = 'Testar';
-          alert('Erro: ' + (data.error || 'desconhecido'));
+          alert('Erro do backend (' + resp.status + '): ' + (data.error || JSON.stringify(data)));
         }
       } catch (e) {
+        console.error('[Push Test] Erro inesperado:', e);
         btnTestarPush.textContent = 'Testar';
         alert('Erro de rede: ' + e.message);
       } finally {
