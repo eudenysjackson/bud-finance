@@ -1264,7 +1264,7 @@ function renderListas() {
             <div class="lista-meta">
               ${total} itens · ${feitos} preenchidos${concluida ? ' · ✅ concluída' : ''}${l.mercadoAlvo ? ` · 📍 ${escapeHTML(l.mercadoAlvo)}` : ''}
             </div>
-            ${concluida && l.totalGasto ? `<div class="lista-meta" style="color:#16a34a;font-weight:700;">💰 Gasto real: ${formatBRL(l.totalGasto)}</div>` : ''}
+            ${concluida && l.totalGasto ? `<div class="lista-meta" style="color:#16a34a;font-weight:700;">💰 Gasto real: ${formatBRL(l.totalGasto)}${l.totalEstimado > 0 ? ` <span style="font-weight:600;color:${l.totalGasto <= l.totalEstimado ? '#16a34a' : '#dc2626'}">` + (l.totalGasto <= l.totalEstimado ? '▼' : '▲') + ` vs ${formatBRL(l.totalEstimado)} estimado</span>` : ''}</div>` : ''}
             ${estimAtiva > 0 ? `<div class="lista-meta" style="color:var(--text-sec);">💡 Estimativa: ${formatBRL(estimAtiva)}</div>` : ''}
           </div>
         </div>
@@ -1537,10 +1537,15 @@ async function finalizarModoCompras() {
   // Hook: quando o usuário clicar em Salvar, marcamos a lista como concluída
   // Solução simples: armazena id pendente e o handler de salvar trata.
   document.getElementById('compraId').value = '';   // garante CRIAR (não editar)
-  _pendenteConcluirListaId = listaIdParaConcluir;
-  _pendenteTotalGasto = itensComValor.reduce((s, i) => s + Number(i.valor), 0);
+  _pendenteConcluirListaId  = listaIdParaConcluir;
+  _pendenteTotalGasto        = itensComValor.reduce((s, i) => s + Number(i.valor), 0);
+  // PEND-MER-04: estimativa baseada no histórico de preços
+  _pendenteTotalEstimado = lista
+    ? (lista.itens || []).reduce((s, it) => s + ultimoPrecoItem(it.nome) * (it.qtd || 1), 0)
+    : 0;
 }
-let _pendenteConcluirListaId = null;
+let _pendenteConcluirListaId  = null;
+let _pendenteTotalEstimado    = 0;
 
 // ─── Filtros + estado UI novo ────────────────────────────────────────────
 let _filtroBusca  = '';
@@ -1631,11 +1636,13 @@ function wireUp() {
         await updateDoc(doc(db, 'usuarios', currentUser.uid, 'listas-compras', _pendenteConcluirListaId), {
           status: 'concluida',
           concluidaEm: serverTimestamp(),
-          ...(_pendenteTotalGasto > 0 ? { totalGasto: _pendenteTotalGasto } : {}),
+          ...(_pendenteTotalGasto    > 0 ? { totalGasto: _pendenteTotalGasto }       : {}),
+          ...(_pendenteTotalEstimado > 0 ? { totalEstimado: _pendenteTotalEstimado } : {}),
         });
       } catch (e) { warn('concluir lista', e); }
-      _pendenteConcluirListaId = null;
-      _pendenteTotalGasto = 0;
+      _pendenteConcluirListaId  = null;
+      _pendenteTotalGasto       = 0;
+      _pendenteTotalEstimado    = 0;
     }
   });
   document.getElementById('compraData').addEventListener('input', (e) => aplicarMascaraData(e.target));

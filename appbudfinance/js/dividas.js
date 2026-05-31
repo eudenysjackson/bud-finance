@@ -831,6 +831,16 @@ function abrirFormManual(rec, comDadosIA = false) {
   document.getElementById('dividaParcelas').value     = isEditar ? (rec.parcelas || '') : '';
   document.getElementById('dividaParcelasPagas').value = isEditar ? (rec.parcelasPagas || '') : '';
   document.getElementById('dividaJuros').value        = isEditar ? (rec.juros || '') : '';
+  document.getElementById('dividaCET').value          = isEditar ? (rec.cet || '') : '';
+  // Valores monetários IOF/Seguro
+  setMoeda('dividaIOF',    isEditar ? (rec.iof    || 0) : 0);
+  setMoeda('dividaSeguro', isEditar ? (rec.seguro || 0) : 0);
+  // Recolher painel de custos extras por default
+  const painelCustos = document.getElementById('painelCustosExtras');
+  const iconCustos   = document.getElementById('iconToggleCustos');
+  const temCustos    = isEditar && (rec.cet || rec.iof || rec.seguro);
+  if (painelCustos) painelCustos.style.display = temCustos ? '' : 'none';
+  if (iconCustos)   iconCustos.textContent      = temCustos ? '▾' : '▸';
   document.getElementById('dividaVencimento').value   = isEditar && rec.vencimento ? formatDataBR(rec.vencimento) : '';
 
   // Valores monetários (máscara BRL)
@@ -852,6 +862,9 @@ function abrirFormManual(rec, comDadosIA = false) {
     if (dadosIA.parcelas)    document.getElementById('dividaParcelas').value = dadosIA.parcelas;
     if (dadosIA.parcelasPagas) document.getElementById('dividaParcelasPagas').value = dadosIA.parcelasPagas;
     if (dadosIA.juros)       document.getElementById('dividaJuros').value = dadosIA.juros;
+    if (dadosIA.cet)        document.getElementById('dividaCET').value  = dadosIA.cet;
+    if (dadosIA.iof)        setMoeda('dividaIOF',    dadosIA.iof);
+    if (dadosIA.seguro)     setMoeda('dividaSeguro', dadosIA.seguro);
     if (dadosIA.vencimento)  document.getElementById('dividaVencimento').value = formatDataBR(dadosIA.vencimento);
     setMoeda('dividaValorTotal',   dadosIA.valorTotal   || 0);
     setMoeda('dividaValorPago',    dadosIA.valorPago    || 0);
@@ -880,7 +893,29 @@ function abrirFormManual(rec, comDadosIA = false) {
 
 window.abrirFormManual = abrirFormManual;
 
-// ─── Adaptar formulário por tipo de dívida ──────────────────────────────────
+// ─── Toggle custos extras (CET/IOF/Seguro) no formulário ──────────────────────
+window.toggleCustosExtras = function() {
+  const painel = document.getElementById('painelCustosExtras');
+  const icon   = document.getElementById('iconToggleCustos');
+  if (!painel) return;
+  const aberto = painel.style.display !== 'none';
+  painel.style.display = aberto ? 'none' : '';
+  if (icon) icon.textContent = aberto ? '▸' : '▾';
+};
+
+// Helpers para exibir/ocultar itens de custo no modal Detalhes
+function showDetCusto(wrapId, valId, text) {
+  const w = document.getElementById(wrapId);
+  const v = document.getElementById(valId);
+  if (w) w.style.display = '';
+  if (v) v.textContent   = text;
+}
+function hideDetCusto(wrapId) {
+  const w = document.getElementById(wrapId);
+  if (w) w.style.display = 'none';
+}
+
+
 function _adaptarFormTipo(tipo) {
   const REQ = ' <span style="color:#dc2626">*</span>';
 
@@ -998,6 +1033,9 @@ async function salvarDivida() {
   const parcelasPagas = parseInt(document.getElementById('dividaParcelasPagas').value, 10) || 0;
   const valorParcela  = parseMoeda(document.getElementById('dividaValorParcela').value) || 0;
   const juros         = parseFloat(document.getElementById('dividaJuros').value) || 0;
+  const cetAnual      = parseFloat(document.getElementById('dividaCET')?.value) || 0;
+  const iofTotal      = parseMoeda(document.getElementById('dividaIOF')?.value) || 0;
+  const seguroTotal   = parseMoeda(document.getElementById('dividaSeguro')?.value) || 0;
   const vencIso       = parseDataBR(document.getElementById('dividaVencimento').value);
 
   // Bug #4: validação
@@ -1050,6 +1088,9 @@ async function salvarDivida() {
       parcelasPagas: Math.min(parcelasPagas, parcelas),
       valorParcela:  pmt,
       juros,
+      ...(cetAnual  ? { cet:    cetAnual }  : {}),
+      ...(iofTotal  ? { iof:    iofTotal }  : {}),
+      ...(seguroTotal ? { seguro: seguroTotal } : {}),
       vencimento:   vencIso || null,
       atualizadoEm: serverTimestamp(),
     };
@@ -1106,6 +1147,13 @@ window.abrirDetalhes = function(id, tabInicial) {
   document.getElementById('detJurosPagos').textContent    = formatMoeda(jurosPagos);
   document.getElementById('detParcelasInfo').textContent  = `${d.parcelasPagas || 0}/${d.parcelas || 0} parcelas pagas`;
   document.getElementById('detTipo').textContent          = (d.tipoIcone || '') + ' ' + (d.tipo || '—');
+
+  // CET / IOF / Seguro (opcionais)
+  const rowCustos = document.getElementById('detCustosRow');
+  const mostrarCet    = d.cet    ? showDetCusto('detCETWrap',    'detCET',    d.cet.toFixed(2) + '% a.a.')    : hideDetCusto('detCETWrap');
+  const mostrarIof    = d.iof    ? showDetCusto('detIOFWrap',    'detIOF',    formatMoeda(d.iof))              : hideDetCusto('detIOFWrap');
+  const mostrarSeguro = d.seguro ? showDetCusto('detSeguroWrap', 'detSeguro', formatMoeda(d.seguro))           : hideDetCusto('detSeguroWrap');
+  if (rowCustos) rowCustos.style.display = (d.cet || d.iof || d.seguro) ? 'flex' : 'none';
 
   abrirModal('modalDetalhes');
 
@@ -2080,7 +2128,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnSalvarDivida')?.addEventListener('click', salvarDivida);
 
   // Máscaras monetárias
-  ['dividaValorTotal','dividaValorPago','dividaValorParcela','simValorExtra'].forEach(id => {
+  ['dividaValorTotal','dividaValorPago','dividaValorParcela','simValorExtra','dividaIOF','dividaSeguro'].forEach(id => {
     document.getElementById(id)?.addEventListener('input', function() { aplicarMascaraMoeda(this); });
   });
 

@@ -343,6 +343,20 @@
   window.budGetOcultarSaldo = budGetOcultarSaldo;
   window.budSetOcultarSaldo = budSetOcultarSaldo;
 
+  // DT-007: parseMoeda centralizado (converte "R$ 1.234,56" → 1234.56)
+  window.budParseMoeda = function(str) {
+    return parseFloat(String(str || '').replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+  };
+
+  // DT-009: Labels de plano centralizados
+  window.BUD_PLAN_LABELS = {
+    free:    'Free',
+    trial:   'Trial',
+    starter: 'Starter',
+    plus:    'Plus',
+    pro:     'Pro',
+  };
+
   // ─── Push permission popup ───────────────────────────────────────────────
   // O Service Worker (firebase-messaging-sw.js) é registrado automaticamente
   // pelo Firebase SDK quando getToken() é chamado pela primeira vez.

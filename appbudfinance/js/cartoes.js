@@ -48,6 +48,7 @@ let db, auth, uid;
 let cartoesGlobal   = [];
 let transacoesGlobal = [];
 let categoriasGlobal = [];
+let _filtroCartaoId  = '';   // PEND-010: '' = todos
 
 let mesVisualizando  = new Date().getMonth();    // 0-based
 let anoVisualizando  = new Date().getFullYear();
@@ -333,6 +334,9 @@ function renderizarCartoes() {
   grid.style.display  = 'grid';
   empty.style.display = 'none';
 
+  // PEND-010: chips de filtro por cartão
+  _renderizarChipsFiltro();
+
   const mesKey = getMesKey();
   const dadosCartoes = cartoesGlobal.map(c => {
     const fatura = calcularFatura(c.id, mesKey);
@@ -356,7 +360,10 @@ function renderizarCartoes() {
   atualizarBanner(dadosCartoes);
 
   grid.innerHTML = '';
-  dadosCartoes.forEach(({ cartao, fatura, status, limite, dispPct, gastos }, idx) => {
+  const exibidos = _filtroCartaoId
+    ? dadosCartoes.filter(d => d.cartao.id === _filtroCartaoId)
+    : dadosCartoes;
+  exibidos.forEach(({ cartao, fatura, status, limite, dispPct, gastos }, idx) => {
     grid.appendChild(buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey, idx));
   });
 
@@ -383,6 +390,35 @@ function atualizarBanner(dadosCartoes) {
   document.getElementById('limiteDisponivelSub').textContent  = `de ${formatBRL(totalLim)} total`;
   document.getElementById('faturasPagasCount').textContent    = `${pagas} / ${cartoesGlobal.length}`;
   document.getElementById('faturasPagasSub').textContent      = 'neste mês';
+}
+
+// PEND-010: chips de filtro rápido por cartão
+function _renderizarChipsFiltro() {
+  const bar = document.getElementById('chipsFiltroCartao');
+  if (!bar) return;
+  if (cartoesGlobal.length < 2) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  bar.innerHTML = '';
+
+  const chipStyle = (ativo) =>
+    `padding:0.3125rem 0.75rem;border-radius:9999px;border:1.5px solid ${ativo ? '#2563eb' : 'var(--card-border)'};` +
+    `background:${ativo ? '#eff6ff' : 'var(--card-bg)'};color:${ativo ? '#2563eb' : 'var(--card-text-sec)'};` +
+    `font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap;`;
+
+  // chip "Todos"
+  const todos = document.createElement('button');
+  todos.textContent = 'Todos';
+  todos.style.cssText = chipStyle(!_filtroCartaoId);
+  todos.onclick = () => { _filtroCartaoId = ''; renderizarCartoes(); };
+  bar.appendChild(todos);
+
+  cartoesGlobal.forEach(c => {
+    const chip = document.createElement('button');
+    chip.textContent = c.nome || 'Cartão';
+    chip.style.cssText = chipStyle(_filtroCartaoId === c.id);
+    chip.onclick = () => { _filtroCartaoId = (_filtroCartaoId === c.id) ? '' : c.id; renderizarCartoes(); };
+    bar.appendChild(chip);
+  });
 }
 
 function buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey, idx = 0) {

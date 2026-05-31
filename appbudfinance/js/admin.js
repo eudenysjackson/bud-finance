@@ -35,6 +35,7 @@ let _crmUsers         = [];      // Usuários da página atual (enriquecidos)
 let _crmUsersAll      = [];      // Cache para filtro client-side
 let _overviewLoaded   = false;
 let _salesLoaded      = false;
+let _iaMetricsLoaded  = false;
 
 // ── Plan prices for MRR estimate ───────────────────────────────
 const PLAN_PRICES = { starter: 19.90, plus: 29.90, pro: 49.90 };
@@ -253,6 +254,7 @@ window.switchTab = function(tab) {
   // Lazy loads
   if (tab === 'users' && _crmUsers.length === 0) loadCRM(0);
   if (tab === 'sales' && !_salesLoaded) loadSales();
+  if (tab === 'ia'    && !_iaMetricsLoaded) loadIAMetrics();
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -1129,6 +1131,87 @@ window.deleteFlag = function(id) {
     } catch(e) { budToast('Erro: ' + e.message, 'error'); }
   });
 };
+
+// ═══════════════════════════════════════════════════════════════
+//  IA METRICS
+// ═══════════════════════════════════════════════════════════════
+window.loadIAMetrics = async function loadIAMetrics() {
+  _iaMetricsLoaded = true;
+  const tableEl = document.getElementById('iaTable');
+  const kpiEl   = document.getElementById('iaKpiRow');
+  const labelEl = document.getElementById('iaMesLabel');
+  if (!tableEl) return;
+  tableEl.innerHTML = '<div style="font-size:0.875rem;color:var(--text-sec)">Carregando…</div>';
+
+  const now    = new Date();
+  const anoMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  if (labelEl) labelEl.textContent = `Mês: ${anoMes}`;
+
+  try {
+    // Busca todos usuários (max 200)
+    const usersSnap = await getDocs(query(collection(db, 'usuarios'), limit(200)));
+    const users = [];
+    usersSnap.forEach(d => users.push({ id: d.id, ...d.data() }));
+
+    // Busca uso-ia do mês para cada usuário em paralelo
+    const usageSnaps = await Promise.all(
+      users.map(u => getDoc(doc(db, 'usuarios', u.id, 'uso-ia', anoMes)))
+    );
+
+    const rows = [];
+    let totalCupons = 0, totalExtrato = 0, totalChat = 0;
+    users.forEach((u, i) => {
+      const uso = usageSnaps[i].exists() ? usageSnaps[i].data() : {};
+      const cupons  = uso.mercado      || 0;
+      const extrato = uso.extrato      || 0;
+      const chat    = uso.assistente   || 0;
+      if (cupons + extrato + chat === 0) return;
+      totalCupons  += cupons;
+      totalExtrato += extrato;
+      totalChat    += chat;
+      rows.push({ email: u.email || u.uid || u.id, plano: u.plano || 'free', cupons, extrato, chat });
+    });
+
+    rows.sort((a, b) => (b.cupons + b.extrato + b.chat) - (a.cupons + a.extrato + a.chat));
+
+    // KPIs
+    if (kpiEl) kpiEl.innerHTML = [
+      ['🛒 Cupons',    totalCupons],
+      ['📄 Extrato',   totalExtrato],
+      ['💬 Chat',      totalChat],
+      ['👥 Usuários ativos', rows.length],
+    ].map(([label, val]) => `<div style="background:var(--card-bg);border:1px solid var(--card-border);border-radius:0.75rem;padding:0.75rem 1.25rem;min-width:8rem;text-align:center;"><div style="font-size:1.5rem;font-weight:800;color:var(--primary)">${val}</div><div style="font-size:0.75rem;color:var(--text-sec)">${label}</div></div>`).join('');
+
+    if (!rows.length) {
+      tableEl.innerHTML = '<div style="font-size:0.875rem;color:var(--text-sec);padding:1rem 0;">Nenhum uso de IA registrado neste mês.</div>';
+      return;
+    }
+
+    tableEl.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8125rem;">
+      <thead><tr style="color:var(--text-sec);text-align:left;">
+        <th style="padding:0.5rem 0.25rem;border-bottom:1px solid var(--card-border);">Email</th>
+        <th style="padding:0.5rem 0.25rem;border-bottom:1px solid var(--card-border);">Plano</th>
+        <th style="padding:0.5rem 0.25rem;border-bottom:1px solid var(--card-border);text-align:center;">🛒</th>
+        <th style="padding:0.5rem 0.25rem;border-bottom:1px solid var(--card-border);text-align:center;">📄</th>
+        <th style="padding:0.5rem 0.25rem;border-bottom:1px solid var(--card-border);text-align:center;">💬</th>
+      </tr></thead>
+      <tbody>${rows.map(r => `<tr>
+        <td style="padding:0.4rem 0.25rem;border-bottom:1px solid var(--card-border);color:var(--text-main)">${escapeHtmlAdmin(r.email)}</td>
+        <td style="padding:0.4rem 0.25rem;border-bottom:1px solid var(--card-border);color:var(--text-sec)">${r.plano}</td>
+        <td style="padding:0.4rem 0.25rem;border-bottom:1px solid var(--card-border);text-align:center;font-weight:600">${r.cupons || '—'}</td>
+        <td style="padding:0.4rem 0.25rem;border-bottom:1px solid var(--card-border);text-align:center">${r.extrato || '—'}</td>
+        <td style="padding:0.4rem 0.25rem;border-bottom:1px solid var(--card-border);text-align:center">${r.chat || '—'}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  } catch (e) {
+    tableEl.innerHTML = `<div style="color:#dc2626;font-size:0.875rem;">Erro ao carregar: ${e.message}</div>`;
+    console.error('loadIAMetrics', e);
+  }
+};
+
+function escapeHtmlAdmin(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  SISTEMA

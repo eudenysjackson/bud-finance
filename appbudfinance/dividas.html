@@ -609,7 +609,31 @@
         <input class="modal-input" type="number" id="dividaJuros" placeholder="Ex: 3.5" min="0" max="100" step="0.01">
       </div>
 
-      <div class="modal-field">
+      <!-- Campos opcionais CET / IOF / Seguro -->
+      <div id="fieldCustosExtras" style="margin-top:0.75rem;">
+        <button type="button" id="btnToggleCustos" onclick="toggleCustosExtras()"
+          style="background:none;border:none;color:var(--text-sec);font-size:0.8125rem;font-weight:600;cursor:pointer;font-family:inherit;padding:0;display:flex;align-items:center;gap:0.375rem;">
+          <span id="iconToggleCustos">▸</span> Custos adicionais (CET, IOF, Seguro)
+        </button>
+        <div id="painelCustosExtras" style="display:none;margin-top:0.625rem;">
+          <div class="modal-grid2" style="margin-bottom:0.625rem;">
+            <div class="modal-field" style="margin-bottom:0;">
+              <label class="modal-label" for="dividaCET">CET (% a.a.)</label>
+              <input class="modal-input" type="number" id="dividaCET" placeholder="Ex: 64.5" min="0" max="9999" step="0.01">
+            </div>
+            <div class="modal-field" style="margin-bottom:0;">
+              <label class="modal-label" for="dividaIOF">IOF Total (R$)</label>
+              <input class="modal-input" type="text" id="dividaIOF" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
+            </div>
+          </div>
+          <div class="modal-field" style="margin-bottom:0;">
+            <label class="modal-label" for="dividaSeguro">Seguro Prestamista (R$)</label>
+            <input class="modal-input" type="text" id="dividaSeguro" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-field" style="margin-top:1rem;">
         <label class="modal-label" id="lbl-dividaVencimento" for="dividaVencimento">Data da 1ª Parcela</label>
         <input class="modal-input" type="text" id="dividaVencimento" placeholder="DD/MM/AAAA" maxlength="10" autocomplete="off" inputmode="numeric">
       </div>
@@ -661,6 +685,22 @@
           <div class="detalhe-item">
             <div class="detalhe-item-label">Juros Pagos</div>
             <div class="detalhe-item-value" id="detJurosPagos" style="color:#d97706;">—</div>
+          </div>
+        </div>
+
+        <!-- CET / IOF / Seguro — mostrados apenas quando preenchidos -->
+        <div id="detCustosRow" style="display:none;margin-bottom:0.875rem;padding:0.75rem;background:var(--input-bg);border-radius:0.875rem;flex-wrap:wrap;gap:0.5rem 1.25rem;">
+          <div id="detCETWrap" style="display:none;">
+            <div style="font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.06em;">CET a.a.</div>
+            <div id="detCET" style="font-size:1rem;font-weight:800;color:var(--card-text);">—</div>
+          </div>
+          <div id="detIOFWrap" style="display:none;">
+            <div style="font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.06em;">IOF</div>
+            <div id="detIOF" style="font-size:1rem;font-weight:800;color:var(--card-text);">—</div>
+          </div>
+          <div id="detSeguroWrap" style="display:none;">
+            <div style="font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.06em;">Seguro</div>
+            <div id="detSeguro" style="font-size:1rem;font-weight:800;color:var(--card-text);">—</div>
           </div>
         </div>
 

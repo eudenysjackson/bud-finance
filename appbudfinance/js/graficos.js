@@ -240,6 +240,30 @@ function destroyChart(key) {
   }
 }
 
+// PEND-078: ao trocar de tema na sessão, atualiza cores de legend/ticks de todos os charts ativos
+document.addEventListener('bud:themechange', () => {
+  const textMain = cssVar('--text-main') || '#1e293b';
+  const textSec  = cssVar('--text-sec')  || '#64748b';
+  Object.values(charts).forEach(ch => {
+    if (!ch) return;
+    try {
+      // Legend labels
+      if (ch.options?.plugins?.legend?.labels) {
+        ch.options.plugins.legend.labels.color = textMain;
+      }
+      // Escalas (ticks)
+      if (ch.options?.scales) {
+        Object.values(ch.options.scales).forEach(scale => {
+          if (scale?.ticks) scale.ticks.color = textSec;
+        });
+      }
+      ch.update();
+    } catch(e) {}
+  });
+});
+
+
+
 // Restaura o canvas se foi substituído por placeholder de estado vazio
 function ensureCanvas(wrapId, canvasId) {
   const wrap = document.getElementById(wrapId);

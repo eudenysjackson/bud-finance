@@ -103,6 +103,32 @@ function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || undefined;
 }
 
+// PEND-078: atualiza cores de legend/ticks ao trocar tema na sessão
+document.addEventListener('bud:themechange', () => {
+  const textMain = cssVar('--text-main') || '#1e293b';
+  const textSec  = cssVar('--text-sec')  || '#64748b';
+  const todos = [
+    window._scoreHistChartInst,
+    compCharts.bar,
+    compCharts.cat,
+  ].filter(Boolean);
+  todos.forEach(ch => {
+    try {
+      if (ch.options?.plugins?.legend?.labels) {
+        ch.options.plugins.legend.labels.color = textMain;
+      }
+      if (ch.options?.scales) {
+        Object.values(ch.options.scales).forEach(scale => {
+          if (scale?.ticks) scale.ticks.color = textSec;
+        });
+      }
+      ch.update();
+    } catch(e) {}
+  });
+});
+
+
+
 // ─── Sidebar / layout helpers ──────────────────────────────────────────────
 function initSidebar() {
   const sidebar  = document.getElementById('sidebar');

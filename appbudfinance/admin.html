@@ -614,6 +614,7 @@
       <button class="tab-btn" id="tab-notifs" onclick="switchTab('notifs')">🔔 Notificações</button>
       <button class="tab-btn" id="tab-promos" onclick="switchTab('promos')">🎟️ Promoções</button>
       <button class="tab-btn" id="tab-flags" onclick="switchTab('flags')">🚩 Feature Flags</button>
+      <button class="tab-btn" id="tab-ia" onclick="switchTab('ia')">🤖 IA</button>
       <button class="tab-btn" id="tab-system" onclick="switchTab('system')">⚙️ Sistema</button>
     </div>
 
@@ -826,6 +827,21 @@
           <button class="btn-primary" onclick="openFlagModal()">+ Nova Flag</button>
         </div>
         <div class="flags-grid" id="flagsGrid"><div class="loading-inline">Carregando flags...</div></div>
+      </div>
+    </div>
+
+    <!-- ═══ IA METRICS ═══════════════════════════════════════════ -->
+    <div id="panel-ia" style="display:none;" class="anim-up">
+      <div class="g-card">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">🤖 Uso de IA — Cupons</div>
+            <div class="panel-sub" id="iaMesLabel">Mês atual</div>
+          </div>
+          <button class="btn-primary" onclick="loadIAMetrics()">🔄 Atualizar</button>
+        </div>
+        <div id="iaKpiRow" style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;"></div>
+        <div id="iaTable"><div class="loading-inline">Carregando…</div></div>
       </div>
     </div>
 
