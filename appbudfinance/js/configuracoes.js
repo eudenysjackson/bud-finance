@@ -20,16 +20,35 @@ import { registerPushToken, listenForeground } from './push.js?v=6';
     const reg = await navigator.serviceWorker.ready;
     console.log('[DIAG] SW ready, scope:', reg.scope);
     const existing = await reg.pushManager.getSubscription();
-    if (existing) { await existing.unsubscribe(); console.log('[DIAG] subscription antiga removida'); }
-    console.log('[DIAG] Chamando PushManager.subscribe()...');
-    const sub = await Promise.race([
-      reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: 'BPoKCYZJukhQbcnO7xUbUQJ_RJC4Q1vgcJfscmHlgnnvz_qP7vkuacOnuAUNqCZjYfKigs6bcosO8xg5NQ66dA4' }),
-      new Promise(function(_,r){ setTimeout(function(){ r(new Error('TIMEOUT 10s')); }, 10000); })
-    ]);
-    console.log('[DIAG] PushManager OK! endpoint:', sub.endpoint.slice(0,60) + '...');
-    await sub.unsubscribe();
+    if (existing) { await existing.unsubscribe(); }
+
+    // Teste A: SEM applicationServerKey (usa gcm_sender_id do manifest)
+    console.log('[DIAG] Teste A: subscribe() SEM applicationServerKey...');
+    try {
+      const subA = await Promise.race([
+        reg.pushManager.subscribe({ userVisibleOnly: true }),
+        new Promise(function(_,r){ setTimeout(function(){ r(new Error('TIMEOUT 10s')); }, 10000); })
+      ]);
+      console.log('[DIAG] Teste A OK! endpoint:', subA.endpoint.slice(0,60));
+      await subA.unsubscribe();
+    } catch(e) {
+      console.error('[DIAG] Teste A FALHOU:', e.name, '-', e.message);
+    }
+
+    // Teste B: COM applicationServerKey (VAPID)
+    console.log('[DIAG] Teste B: subscribe() COM VAPID key...');
+    try {
+      const subB = await Promise.race([
+        reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: 'BPoKCYZJukhQbcnO7xUbUQJ_RJC4Q1vgcJfscmHlgnnvz_qP7vkuacOnuAUNqCZjYfKigs6bcosO8xg5NQ66dA4' }),
+        new Promise(function(_,r){ setTimeout(function(){ r(new Error('TIMEOUT 10s')); }, 10000); })
+      ]);
+      console.log('[DIAG] Teste B OK! endpoint:', subB.endpoint.slice(0,60));
+      await subB.unsubscribe();
+    } catch(e) {
+      console.error('[DIAG] Teste B FALHOU:', e.name, '-', e.message);
+    }
   } catch(e) {
-    console.error('[DIAG] PushManager FALHOU:', e.name, '-', e.message);
+    console.error('[DIAG] Erro geral:', e.message);
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────
