@@ -1381,21 +1381,28 @@ onAuthStateChanged(auth, async function (user) {
       btnTestarPush.textContent = '⏳ Enviando...';
       btnTestarPush.disabled = true;
       try {
+        // Garantir token sempre presente: re-registra antes de testar.
+        // Idempotente — se já tiver, só revalida; se não, cria.
+        try { await registerPushToken(app, user); } catch (regErr) {
+          btnTestarPush.textContent = 'Testar';
+          alert('Não foi possível registrar o token de notificação: ' + (regErr && regErr.message ? regErr.message : 'erro desconhecido'));
+          return;
+        }
+
         const idToken = await user.getIdToken();
         const baseUrl = window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com';
         const resp = await fetch(baseUrl + '/api/push/test', {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' }
         });
-        const data = await resp.json();
+        const data = await resp.json().catch(function () { return {}; });
         if (resp.ok) {
           btnTestarPush.textContent = '✅ Enviado!';
           if (pushDesc) pushDesc.textContent = 'Notificação de teste enviada — verifique sua bandeja de notificações.';
         } else if (resp.status === 410) {
-          // Token stale — regenera e avisa pra clicar de novo
+          // Token stale — registerPushToken acima já renovou, mas backend ainda não tinha.
           btnTestarPush.textContent = 'Testar';
           if (window.budShowToast) window.budShowToast('Token renovado. Clique em Testar novamente.', 'info');
-          await registerPushToken(app, user);
         } else {
           btnTestarPush.textContent = 'Testar';
           alert('Erro: ' + (data.error || 'desconhecido'));
