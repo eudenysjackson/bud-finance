@@ -726,6 +726,7 @@ function atualizarSidebarUser(user) {
   if (avatar) avatar.textContent = displayName.charAt(0).toUpperCase();
   if (name)   name.textContent   = displayName;
   if (idEl)   idEl.textContent   = user.email || '';
+  if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(null, displayName);
 }
 
 /* ─────────────────────────────────────────────────────────────────

@@ -166,6 +166,7 @@ function renderSidebarUser(u, ud) {
   if (el)  el.textContent  = name;
   if (eli) eli.textContent = id;
   if (ava) ava.textContent = name.charAt(0).toUpperCase();
+  if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(ud.photoURL || null, name);
 }
 
 // ─── Busca de dados ────────────────────────────────────────────────────────

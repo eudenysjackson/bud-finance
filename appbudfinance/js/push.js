@@ -159,8 +159,10 @@ export async function revokePushToken(app, user) {
       }).catch(() => {});
     }
 
-    // 3. Limpar flag local
-    try { localStorage.removeItem(LS_KEY); } catch (_) {}
+    // 3. NÃO limpar flag local (bud_push_asked): a preferência do usuário
+    //    sobre notificações é persistente no dispositivo. Apenas o token
+    //    FCM precisa ser revogado — o usuário não deve ser perguntado de
+    //    novo apenas porque fez logout/login.
   } catch (_) {
     // Revogação não é crítica — não impede logout
   }

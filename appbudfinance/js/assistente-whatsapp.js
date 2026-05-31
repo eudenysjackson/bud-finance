@@ -276,6 +276,7 @@ function setupSidebarUser(user, data) {
   if (avatar) avatar.textContent = displayName.charAt(0).toUpperCase();
   if (name)   name.textContent   = displayName;
   if (idEl)   idEl.textContent   = user.email || user.uid.slice(0, 8) + '…';
+  if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar((data && data.photoURL) || null, displayName);
 }
 
 // ─── Auth guard + inicialização ───────────────────────────────────────────

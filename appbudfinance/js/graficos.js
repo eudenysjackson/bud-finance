@@ -774,6 +774,7 @@ function setupSidebar(user, userData) {
   if (avatar)   avatar.textContent  = (userData.nome || user.email || 'U').charAt(0).toUpperCase();
   if (userName) userName.textContent = userData.nome || user.email || 'Usuário';
   if (userId)   userId.textContent   = userData.matricula || user.uid.slice(0, 8);
+  if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(userData.photoURL || null, userData.nome || user.email || '');
 
   const btnLogout = document.getElementById('btnLogout');
   if (btnLogout) {

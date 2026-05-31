@@ -95,7 +95,10 @@ let unsubs = [];
       // DT-002: carregar plano real do usuário para limite de cartões
       try {
         const _ud = await getDoc(doc(db, 'usuarios', uid));
-        window._cartoesUserPlano = (_ud.data() || {}).plano || null;
+        const _udData = _ud.data() || {};
+        window._cartoesUserPlano = _udData.plano || null;
+        window._cartoesUserPhotoURL = _udData.photoURL || null;
+        window._cartoesUserNome = _udData.nome || null;
       } catch (_) { window._cartoesUserPlano = null; }
       setupUI(user);
       setupListeners();
@@ -122,6 +125,7 @@ function setupUI(user) {
   if (av) av.textContent = name.charAt(0).toUpperCase();
   if (nm) nm.textContent = name;
   if (id) id.textContent = user.email || '';
+  if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(window._cartoesUserPhotoURL || null, window._cartoesUserNome || name);
 
   setupSidebar();
   setupMesNav();

@@ -2564,6 +2564,7 @@ onAuthStateChanged(auth, async function (user) {
     if (sidebarName) sidebarName.textContent = nomeSeguro;
     if (sidebarId) sidebarId.textContent = matricula || user.email;
     if (sidebarAvatar) sidebarAvatar.textContent = getIniciais(nomeSeguro);
+    if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(userData.photoURL || null, nomeSeguro);
 
     // ── Welcome text ────────────────────────────────────────────────
     var welcomeText = document.getElementById('welcomeText');

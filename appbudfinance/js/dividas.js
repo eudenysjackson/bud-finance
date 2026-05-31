@@ -2066,6 +2066,7 @@ onAuthStateChanged(auth, async (user) => {
   if (elAvatar) elAvatar.textContent = iniciais;
   if (elNome)   elNome.textContent   = nome;
   if (elId)     elId.textContent     = matricula;
+  if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(userData.photoURL || null, userData.nome || user.displayName || '');
 
   // Bug #22: orderBy('criadoEm', 'desc') na query
   // Bug #2: error callback obrigatório no onSnapshot

@@ -847,6 +847,7 @@ onAuthStateChanged(auth, async user => {
       if (elName) elName.textContent = window.budSanitize ? window.budSanitize(nome) : nome;
       if (elId)   elId.textContent   = mat;
       if (elAv)   elAv.textContent   = iniciais;
+      if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(d.photoURL || null, nome);
     }
   } catch (e) { (window.budWarn||console.warn)('Erro ao carregar perfil:', e); }
 

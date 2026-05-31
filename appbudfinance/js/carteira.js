@@ -138,6 +138,7 @@ function initSidebar() {
   if (nm) nm.textContent = nome;
   const id = document.getElementById('sidebarUserId');
   if (id) id.textContent = email;
+  if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(userData?.photoURL || null, nome);
 }
 
 function initLogout() {

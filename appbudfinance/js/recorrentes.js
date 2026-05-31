@@ -785,6 +785,7 @@ onAuthStateChanged(auth, async (user) => {
   if (elAvatar) elAvatar.textContent = iniciais;
   if (elNome)   elNome.textContent   = nome;
   if (elId)     elId.textContent     = matricula;
+  if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(userData.photoURL || null, userData.nome || user.displayName || '');
 
   // feature gate: verificar plano
   const plano = (userData.plano || 'free').toLowerCase();

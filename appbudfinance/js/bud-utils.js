@@ -455,4 +455,21 @@
     }
   };
 
+  // ─── Foto de perfil na sidebar (compartilhado entre todas as telas) ──────
+  window.budAplicarFotoSidebar = function (photoURL, nome) {
+    var el = document.getElementById('sidebarAvatar');
+    if (!el) return;
+    if (photoURL) {
+      el.innerHTML = '';
+      var img = document.createElement('img');
+      img.src = photoURL;
+      img.alt = 'Foto de perfil';
+      img.style.cssText = 'width:100%;height:100%;border-radius:50%;object-fit:cover;';
+      el.appendChild(img);
+    } else if (nome) {
+      el.innerHTML = '';
+      el.textContent = (nome.trim().split(/\s+/).map(function(p){return p[0];}).join('').slice(0,2) || '?').toUpperCase();
+    }
+  };
+
 })();

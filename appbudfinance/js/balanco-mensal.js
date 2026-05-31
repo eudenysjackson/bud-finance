@@ -507,6 +507,7 @@ function preencherSidebarUser(user) {
   if (avatar) avatar.textContent = initial;
   if (nome)   nome.textContent   = esc(user.displayName || user.email?.split('@')[0] || 'Usuário');
   if (uid)    uid.textContent    = esc(user.email || '');
+  if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(null, user.displayName || user.email || '');
 }
 
 // ─── Paywall ──────────────────────────────────────────────────────────────
@@ -539,7 +540,7 @@ onAuthStateChanged(auth, async (user) => {
   try {
     const snap = await getDoc(doc(db, 'usuarios', user.uid));
     const userData = snap.exists() ? snap.data() : {};
-
+    if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(userData.photoURL || null, userData.nome || user.displayName || '');
     // BUG 7 — persiste downgrade no Firestore
     if (typeof window.NexoPlanos?.resolvePlan === 'function') {
       const resolved = window.NexoPlanos.resolvePlan(userData);

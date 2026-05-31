@@ -2369,6 +2369,7 @@ function preencherSidebarUser(user) {
   document.getElementById('sidebarAvatar').textContent = initial;
   document.getElementById('sidebarUserName').textContent = user.displayName || (user.email ? user.email.split('@')[0] : 'Usuário');
   document.getElementById('sidebarUserId').textContent = user.email || '';
+  if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(null, user.displayName || user.email || '');
 }
 
 function ocultarSplash() {
@@ -2393,6 +2394,11 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     currentUser = user;
     preencherSidebarUser(user);
+    // Carregar foto de perfil para sidebar
+    getDoc(doc(db, 'usuarios', user.uid)).then(function(snap) {
+      var ud = snap.exists() ? snap.data() : {};
+      if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(ud.photoURL || null, ud.nome || user.displayName || '');
+    }).catch(function() {});
     await carregarCartoes();
     await carregarCarteiras();
     assinarCompras();

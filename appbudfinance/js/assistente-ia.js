@@ -1631,6 +1631,7 @@ onAuthStateChanged(auth, async user => {
     if (avatarEl) avatarEl.textContent = iniciais;
     if (nameEl)   nameEl.textContent   = window.budSanitize ? window.budSanitize(nome) : nome;
     if (idEl)     idEl.textContent     = usuarioDados.matricula || '';
+    if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(userData.photoURL || null, nome);
 
     document.getElementById('btnLogout')?.addEventListener('click', async () => {
       await signOut(auth); window.location.href = 'index.html';

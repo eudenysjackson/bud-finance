@@ -10,7 +10,7 @@ import {
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
   doc, collection,
-  addDoc, updateDoc, deleteDoc, getDocs, query, where, orderBy,
+  addDoc, updateDoc, deleteDoc, getDocs, getDoc, query, where, orderBy,
   onSnapshot,
   serverTimestamp, Timestamp,
   writeBatch,
@@ -160,6 +160,11 @@ onAuthStateChanged(auth, async (user) => {
   }
   currentUser = user;
   initPage();
+  // Carregar foto de perfil para sidebar
+  getDoc(doc(db, 'usuarios', user.uid)).then(function(snap) {
+    var ud = snap.exists() ? snap.data() : {};
+    if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(ud.photoURL || null, ud.nome || user.displayName || '');
+  }).catch(function() {});
 });
 
 /* ─────────────────────────────────────────────────────────────────
@@ -235,6 +240,7 @@ function setupSidebar() {
     document.getElementById('sidebarUserName').textContent = nome;
   }
   document.getElementById('sidebarUserId').textContent = uid.slice(0, 8) + '...';
+  if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(null, nome);
 
   btnLogout.addEventListener('click', async () => {
     cleanupListeners();

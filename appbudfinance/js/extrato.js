@@ -1298,6 +1298,7 @@ function setupSidebar(user, userData) {
   const av = document.getElementById('sidebarAvatar'); if (av) av.textContent = inicial;
   const nm = document.getElementById('sidebarUserName'); if (nm) nm.textContent = nome;
   const id = document.getElementById('sidebarUserId'); if (id) id.textContent = matricula;
+  if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(userData?.photoURL || null, nome);
 
   const sidebar = document.getElementById('sidebar');
   const overlay = document.getElementById('sidebarOverlay');
