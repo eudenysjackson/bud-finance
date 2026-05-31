@@ -11,44 +11,20 @@ import { registerPushToken, listenForeground } from './push.js?v=6';
 
 // ─── DIAGNÓSTICO TEMPORÁRIO: testa PushManager.subscribe() direto ──────
 (async function diagPush() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.warn('[DIAG] SW ou PushManager não suportados');
-    return;
+  // Teste de conectividade: o navegador consegue alcançar fcm.googleapis.com?
+  console.log('[DIAG-NET] Testando conectividade com fcm.googleapis.com...');
+  try {
+    await fetch('https://fcm.googleapis.com/fcm/connect/ping', { mode: 'no-cors', cache: 'no-store' });
+    console.log('[DIAG-NET] ✅ fcm.googleapis.com acessível');
+  } catch(e) {
+    console.error('[DIAG-NET] ❌ fcm.googleapis.com BLOQUEADO:', e.message);
+    console.error('[DIAG-NET] Causa provável: AdBlock, antivírus, firewall, DNS filtrado ou extensão bloqueando.');
   }
   try {
-    await navigator.serviceWorker.register('firebase-messaging-sw.js', { updateViaCache: 'none' });
-    const reg = await navigator.serviceWorker.ready;
-    console.log('[DIAG] SW ready, scope:', reg.scope);
-    const existing = await reg.pushManager.getSubscription();
-    if (existing) { await existing.unsubscribe(); }
-
-    // Teste A: SEM applicationServerKey (usa gcm_sender_id do manifest)
-    console.log('[DIAG] Teste A: subscribe() SEM applicationServerKey...');
-    try {
-      const subA = await Promise.race([
-        reg.pushManager.subscribe({ userVisibleOnly: true }),
-        new Promise(function(_,r){ setTimeout(function(){ r(new Error('TIMEOUT 10s')); }, 10000); })
-      ]);
-      console.log('[DIAG] Teste A OK! endpoint:', subA.endpoint.slice(0,60));
-      await subA.unsubscribe();
-    } catch(e) {
-      console.error('[DIAG] Teste A FALHOU:', e.name, '-', e.message);
-    }
-
-    // Teste B: COM applicationServerKey (VAPID)
-    console.log('[DIAG] Teste B: subscribe() COM VAPID key...');
-    try {
-      const subB = await Promise.race([
-        reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: 'BPoKCYZJukhQbcnO7xUbUQJ_RJC4Q1vgcJfscmHlgnnvz_qP7vkuacOnuAUNqCZjYfKigs6bcosO8xg5NQ66dA4' }),
-        new Promise(function(_,r){ setTimeout(function(){ r(new Error('TIMEOUT 10s')); }, 10000); })
-      ]);
-      console.log('[DIAG] Teste B OK! endpoint:', subB.endpoint.slice(0,60));
-      await subB.unsubscribe();
-    } catch(e) {
-      console.error('[DIAG] Teste B FALHOU:', e.name, '-', e.message);
-    }
+    await fetch('https://android.clients.google.com/generate_204', { mode: 'no-cors', cache: 'no-store' });
+    console.log('[DIAG-NET] ✅ android.clients.google.com acessível');
   } catch(e) {
-    console.error('[DIAG] Erro geral:', e.message);
+    console.error('[DIAG-NET] ❌ android.clients.google.com BLOQUEADO:', e.message);
   }
 })();
 // ─────────────────────────────────────────────────────────────────────────
