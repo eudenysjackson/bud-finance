@@ -1022,14 +1022,27 @@ function _renderizarSecaoPlano(plano, data) {
   if (plano === 'free') {
     elBotoes.appendChild(_btnUpgrade('🚀 Fazer Upgrade', 'pro'));
   } else if (plano === 'trial') {
-    elBotoes.appendChild(_btnUpgrade('🚀 Assinar Agora', 'pro'));
+    // PEND-085: trial → 3 opções de plano
+    const title = document.createElement('div');
+    title.style.cssText = 'font-size:0.75rem;font-weight:700;color:var(--card-text-sec);margin-bottom:0.375rem;width:100%;';
+    title.textContent = 'Escolha seu plano:';
+    elBotoes.appendChild(title);
+    elBotoes.appendChild(_btnUpgrade('Starter — R$9,99/mês', 'starter'));
+    elBotoes.appendChild(_btnUpgrade('Pro — R$29,90/mês ⭐', 'pro'));
+    elBotoes.appendChild(_btnUpgrade('Plus — R$49,90/mês', 'plus'));
+    elBotoes.style.flexDirection = 'column';
+    elBotoes.style.alignItems = 'stretch';
   } else if (plano === 'starter') {
     elBotoes.appendChild(_btnUpgrade('⬆️ Upgrade para Pro', 'pro'));
+    elBotoes.appendChild(_btnUpgrade('⬆️ Upgrade para Plus', 'plus'));
     elBotoes.appendChild(_btnCancelar());
   } else if (plano === 'pro') {
     elBotoes.appendChild(_btnUpgrade('⬆️ Upgrade para Plus', 'plus'));
+    elBotoes.appendChild(_btnUpgrade('⬇️ Mudar para Starter', 'starter'));
     elBotoes.appendChild(_btnCancelar());
   } else if (plano === 'plus') {
+    elBotoes.appendChild(_btnUpgrade('⬇️ Mudar para Pro', 'pro'));
+    elBotoes.appendChild(_btnUpgrade('⬇️ Mudar para Starter', 'starter'));
     elBotoes.appendChild(_btnCancelar());
   }
 }

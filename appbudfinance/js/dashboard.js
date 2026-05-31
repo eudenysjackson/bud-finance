@@ -753,6 +753,14 @@ function atualizarLembretes7Dias() {
   var lista = document.getElementById('listaLembretes7Dias');
   if (!sec || !lista) return;
 
+  // PEND-064: só exibir lembretes quando o mês visualizado é o mês atual
+  var hojeCheck = new Date();
+  if (mesVisualizado !== hojeCheck.getMonth() || anoVisualizado !== hojeCheck.getFullYear()) {
+    sec.style.display = 'none';
+    lista.innerHTML = '';
+    return;
+  }
+
   var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   var em7  = new Date(hoje); em7.setDate(em7.getDate() + 7);
 

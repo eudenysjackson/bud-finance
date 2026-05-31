@@ -1273,12 +1273,19 @@ window.marcarParcelaPaga = async function(id, indice) {
       novosIds[String(i)] = txRef.id;
     }
 
+    // PEND-037: registrar data real de pagamento por parcela
+    const novasDatas = Object.assign({}, d.parcelasDatas || {});
+    for (let i = (d.parcelasPagas || 0); i < novasParcelasPagas; i++) {
+      if (!novasDatas[String(i)]) novasDatas[String(i)] = new Date().toISOString();
+    }
+
     batch.update(dividaRef, {
       parcelasPagas: novasParcelasPagas,
       valorPago:     novoValorPago,
       jurosPagos:    jurosPagosCalc,
       atualizadoEm:  serverTimestamp(),
       transacoesParcelas: novosIds,
+      parcelasDatas: novasDatas,
     });
     await batch.commit();
     // Bug #24: reabrir na aba parcelas
@@ -1334,12 +1341,17 @@ window.desmarcarParcela = async function(id, indice) {
       delete novosIds[String(indice)];
     }
 
+    // PEND-037: remover data de pagamento da parcela desmarcada
+    const novasDatasD = Object.assign({}, d.parcelasDatas || {});
+    delete novasDatasD[String(indice)];
+
     batch.update(dividaRef, {
       parcelasPagas: novasParcelasPagas,
       valorPago:     novoValorPago,
       jurosPagos:    jurosPagosCalc,
       atualizadoEm:  serverTimestamp(),
       transacoesParcelas: novosIds,
+      parcelasDatas: novasDatasD,
     });
     await batch.commit();
     setTimeout(() => window.abrirDetalhes(id, 'parcelas'), 300);
@@ -1747,6 +1759,14 @@ function renderizar() {
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div style="font-size:0.6875rem;font-weight:500;color:var(--card-text-sec);">
           ${d.parcelasPagas || 0}/${d.parcelas || 0} pagas
+          ${(function() {
+            if (!quitada && d.vencimento && d.parcelas) {
+              const baseQ = new Date(d.vencimento + 'T12:00:00');
+              const dataQ = addMonthsSafe(baseQ, d.parcelas);
+              return ` · 🏁 ${String(dataQ.getMonth()+1).padStart(2,'0')}/${dataQ.getFullYear()}`;
+            }
+            return '';
+          })()}
           ${proximaVencStr ? ` · <span style="color:${atrasadas > 0 ? '#dc2626' : 'var(--card-text-sec)'};">📅 ${proximaVencStr} <strong style="color:${atrasadas > 0 ? '#dc2626' : (proximaDiasStr.includes('atrás') ? '#dc2626' : 'inherit')};">(${proximaDiasStr})</strong></span>` : ''}
           ${d.valorParcela ? ` · <span style="color:var(--card-text-sec);">${formatMoeda(d.valorParcela)}</span>` : ''}
         </div>

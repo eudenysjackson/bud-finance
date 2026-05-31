@@ -1207,6 +1207,8 @@ async function processarArquivo() {
     }
 
     parsedRows = mapearTransacoes(rows);
+    // PEND-060: detectar pares de transferência interna (mesmo valor + mesma data, um débito e um crédito)
+    detectarTransferenciasInternas(parsedRows);
     if (!parsedRows.length) {
       showStep1Error('Não foi possível ler transações válidas do arquivo.');
       return;
@@ -1443,6 +1445,36 @@ function mapearTransacoes(rows) {
 
 // ── Detectar Tipo ─────────────────────────────────────────
 // BUG #1 fix: PIX/Transferência → tipo receita/despesa (NUNCA 'Transferência' como tipo)
+// ── Detectar Transferências Internas (PEND-060) ──────────
+// Identifica pares: mesmo valor + mesma data + um receita + um despesa com desc de transf.
+function detectarTransferenciasInternas(rows) {
+  var PAD_TRANSF = /transf|ted|doc|pix|remessa|movimentacao|entre contas/;
+  function ehTransf(r) {
+    var d = (r.descricao || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return PAD_TRANSF.test(d);
+  }
+  // Agrupar por chave "valor|data"
+  var grupos = {};
+  rows.forEach(function(r, i) {
+    var chave = r.valor.toFixed(2) + '|' + r.data;
+    if (!grupos[chave]) grupos[chave] = [];
+    grupos[chave].push(i);
+  });
+  Object.values(grupos).forEach(function(idxs) {
+    if (idxs.length < 2) return;
+    var creditos = idxs.filter(function(i) { return rows[i].tipo === 'receita' && ehTransf(rows[i]); });
+    var debitos  = idxs.filter(function(i) { return rows[i].tipo === 'despesa' && ehTransf(rows[i]); });
+    // Marcar cada par encontrado (um crédito + um débito)
+    var n = Math.min(creditos.length, debitos.length);
+    for (var k = 0; k < n; k++) {
+      var ri = rows[creditos[k]];
+      var rd = rows[debitos[k]];
+      if (!ri._avisoIgnorar) { ri._avisoIgnorar = 'Transfer. interna'; ri.selecionado = false; }
+      if (!rd._avisoIgnorar) { rd._avisoIgnorar = 'Transfer. interna'; rd.selecionado = false; }
+    }
+  });
+}
+
 function detectarTipo(desc, tipoOrigem) {
   if (!desc) return tipoOrigem === 'credito' ? 'receita' : 'despesa';
   const d = desc.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -1975,6 +2007,14 @@ async function confirmarImport() {
     btnConcluir._pendingUid   = uid;
     btnConcluir._pendingId    = currentCarteiraId;
     btnConcluir.style.display = 'block';
+
+    // PEND-062: se havia parcela de empréstimo no arquivo, sugerir Dívidas
+    const temEmprestimo = parsedRows.some(r => r._avisoIgnorar === 'Parcela Emp.');
+    if (temEmprestimo) {
+      setTimeout(function() {
+        budToast('💡 Parcela de empréstimo detectada no extrato. <a href="dividas.html" style="color:inherit;font-weight:700;text-decoration:underline;">Cadastre em Dívidas</a> para controle completo.', 'info', 9000);
+      }, 1800);
+    }
 
   } catch (err) {
     console.error('Erro na importação:', err);

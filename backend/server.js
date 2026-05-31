@@ -809,13 +809,14 @@ async function extractWithAIFromText(text, tipo) {
   ].join(' ') : [
     'Você é um extrator preciso de faturas de cartão de crédito brasileiras.',
     'OBJETIVO: extrair cada LINHA DE COMPRA/COBRANÇA individual present no detalhamento de transações da fatura.',
-    'INCLUA: compras à vista, parcelas de compras antigas (ex: "3/10 LOJA X"), IOF individual de cada compra, juros de financiamento de compra específica, anuidade, ajustes a débito.',
+    'INCLUA: compras à vista, parcelas de compras antigas (ex: "3/10 LOJA X"), IOF embutido em compras internacionais, juros de financiamento de compra específica, anuidade, ajustes a débito.',
     'INCLUA ESTORNOS com valor NEGATIVO (ex: "Estorno de Uber" → valor: -11.93). Eles compensam compras e fazem parte da soma final.',
     'IGNORE ESTRITAMENTE (nunca inclua como transação):',
     '- Linhas de pagamento: "Pagamento recebido", "Pagamento em DD MMM", "Pagamento de fatura"',
     '- Subtotais de seção: "Outros lançamentos R$ X", "Total de compras R$ X", "Pagamentos e Financiamentos R$ X", "Fatura anterior R$ X"',
     '- Subtotais por portador: linha com nome de pessoa + valor (ex: "João Silva   R$ 1.756,22") que aparece antes das transações do portador',
     '- Linhas de saldo: "Saldo restante da fatura anterior", "Saldo em aberto", "Pagamento mínimo"',
+    '- Tarifas e encargos bancários standalone: linhas como "CUSTO TRANS. EXTERIOR-IOF", "IOF OPERACAO", "ENCARGO FINANCEIRO", "TARIFA BANCARIA", "MULTA", "MORA", "JUROS ROTATIVO" que aparecem como cobranças avulsas sem uma compra associada',
     '- Cabeçalhos de seção e rodapés (número de página, CNPJ, endereço)',
     'A soma dos valores extraídos (positivos + negativos dos estornos) deve bater com "Pagamento total da fatura" / "Total a pagar" do documento.',
     'TAREFA EXTRA: capture em "meta" DOIS totais: "totalCompras" ("Total de compras", só novas compras) E "totalAPagar" ("Pagamento total da fatura" ou "Total a pagar", valor cobrado).',
@@ -926,9 +927,9 @@ async function extractWithAI(buffer, mimeType, tipo) {
     'REGRA CRÍTICA — FIDELIDADE: copie o valor EXATAMENTE como escrito na imagem (ex: R$ 150,00 → 150.00). NÃO arredonde, NÃO some, NÃO invente valores.',
     'REGRA CRÍTICA — COMPLETUDE: inclua TODAS as linhas de compra visíveis, sem pular nenhuma, mesmo que pareçam repetidas ou tenham valores similares.',
     'REGRA CRÍTICA — SEM DUPLICATAS: cada linha da imagem gera EXATAMENTE UMA entrada no JSON. NÃO duplique nenhuma linha.',
-    'INCLUA: compras à vista, parcelas (ex: "Cobasi 1/2" → inclua só a parcela visível, não invente as demais), IOF, anuidade, ajustes a débito.',
+    'INCLUA: compras à vista, parcelas (ex: "Cobasi 1/2" → inclua só a parcela visível, não invente as demais), IOF embutido em compras internacionais, anuidade, ajustes a débito.',
     'INCLUA ESTORNOS com valor NEGATIVO (ex: "Estorno de Uber" → valor: -11.93). Eles compensam compras e fazem parte da soma final.',
-    'IGNORE ESTRITAMENTE: linhas de "Pagamento recebido", "Pagamento em DD MMM", subtotais de seção (ex: "Outros lançamentos R$ X", "Total de compras R$ X"), nome de portador seguido de valor sem data, saldos, cabeçalhos, rodapés.',
+    'IGNORE ESTRITAMENTE: linhas de "Pagamento recebido", "Pagamento em DD MMM", subtotais de seção (ex: "Outros lançamentos R$ X", "Total de compras R$ X"), nome de portador seguido de valor sem data, saldos, cabeçalhos, rodapés, tarifas standalone como "CUSTO TRANS. EXTERIOR-IOF", "IOF OPERACAO", "ENCARGO FINANCEIRO", "TARIFA BANCARIA", "JUROS ROTATIVO".',
     'TAREFA EXTRA: capture em "meta": "totalCompras" ("Total de compras") e "totalAPagar" ("Pagamento total" ou "Total a pagar").',
     'Formato de resposta — SOMENTE este JSON, sem markdown, sem explicação:',
     '{"transacoes":[{"desc":"nome exato do estabelecimento","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47,"totalAPagar":1242.36}}',
@@ -1341,6 +1342,41 @@ var uploadCupom = multer({
 //   - multipart/form-data { arquivos: 1-3 files (image|pdf) }
 //   - application/json     { texto: "..." } para colar texto direto
 // Retorna: { mercado, cnpj, data, itens:[{nome,qtd,valor,cat}], cached?: true }
+// PEND-MER-07: quotas server-side (free=5, starter=30, trial=30, pro/plus=∞)
+var IA_LIMITES_CUPOM = { free: 5, starter: 30, trial: 30, pro: 9999, plus: 9999 };
+
+async function verificarQuotaIA(uid) {
+  if (!db) return; // Firebase não iniciado — permite (degrada gracefully)
+  var anoMes = (function() {
+    var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  })();
+  var userDoc = await db.collection('usuarios').doc(uid).get();
+  var plano = (userDoc.exists && userDoc.data() && userDoc.data().plano)
+    ? userDoc.data().plano.toLowerCase() : 'free';
+  var limite = IA_LIMITES_CUPOM[plano] || 5;
+  if (limite >= 9999) return; // ilimitado
+  var usoSnap = await db.collection('usuarios').doc(uid).collection('uso-ia').doc(anoMes).get();
+  var uso = (usoSnap.exists && usoSnap.data() && usoSnap.data().mercado) ? usoSnap.data().mercado : 0;
+  if (uso >= limite) {
+    var err = new Error('Limite mensal de ' + limite + ' extrações atingido. Faça upgrade para continuar.');
+    err.status = 429;
+    throw err;
+  }
+}
+
+async function incrementarQuotaIA(uid) {
+  if (!db) return;
+  var anoMes = (function() {
+    var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+  })();
+  try {
+    var FieldValue = require('firebase-admin').firestore.FieldValue;
+    await db.collection('usuarios').doc(uid).collection('uso-ia').doc(anoMes).set(
+      { mercado: FieldValue.increment(1) }, { merge: true }
+    );
+  } catch (_e) { /* silencioso */ }
+}
+
 app.post('/api/extrair-cupom', function (req, res) {
   uploadCupom.array('arquivos', 3)(req, res, async function (multerErr) {
   if (multerErr) {
@@ -1350,6 +1386,22 @@ app.post('/api/extrair-cupom', function (req, res) {
     return res.status(413).json({ error: msg });
   }
   try {
+    // PEND-MER-07: autenticação + quota server-side
+    var cupomUid = null;
+    var authHeaderCupom = req.headers.authorization || '';
+    var idTokenCupom = authHeaderCupom.startsWith('Bearer ') ? authHeaderCupom.slice(7) : null;
+    if (idTokenCupom && auth) {
+      try {
+        var decodedCupom = await auth.verifyIdToken(idTokenCupom);
+        cupomUid = decodedCupom.uid;
+        await verificarQuotaIA(cupomUid);
+      } catch (authErr) {
+        if (authErr.status === 429) return res.status(429).json({ error: authErr.message });
+        // token inválido → continua sem quota (não bloqueia usuário)
+        cupomUid = null;
+      }
+    }
+
     // Modo TEXTO (sem arquivos)
     if (req.is('application/json') || (req.body && req.body.texto && (!req.files || req.files.length === 0))) {
       var texto = String(req.body.texto || '').trim();
@@ -1360,6 +1412,7 @@ app.post('/api/extrair-cupom', function (req, res) {
       if (!resultText.itens.length) {
         return res.status(422).json({ error: 'Nenhum item encontrado no texto.' });
       }
+      if (cupomUid) incrementarQuotaIA(cupomUid);
       return res.json(resultText);
     }
 
@@ -1405,12 +1458,14 @@ app.post('/api/extrair-cupom', function (req, res) {
       }
       var resultPdf = await extractCupomFromText(combinedPdfText);
       cupomCacheSet(cacheKey, resultPdf);
+      if (cupomUid) incrementarQuotaIA(cupomUid);
       return res.json(resultPdf);
     }
 
     var result = await extractCupomWithGroq(buffers, mimeTypes);
 
     cupomCacheSet(cacheKey, result);
+    if (cupomUid) incrementarQuotaIA(cupomUid);
     return res.json(result);
 
   } catch (err) {
