@@ -76,8 +76,7 @@ export async function registerPushToken(app, user) {
   const messaging = getMessaging(app);
   let token;
 
-  // Sempre limpar subscription antiga antes de pedir token:
-  // subscription cacheada com VAPID diferente faz getToken travar indefinidamente.
+  // Sempre limpar subscription antiga antes de pedir token
   try {
     const oldSub = await swReg.pushManager.getSubscription();
     if (oldSub) {
@@ -85,6 +84,26 @@ export async function registerPushToken(app, user) {
       await oldSub.unsubscribe();
     }
   } catch (_) {}
+
+  // Diagnóstico: testar PushManager.subscribe() direto (5s timeout)
+  // Se isso travar → VAPID key inválida ou rede bloqueando FCM
+  console.log('[Push] #6b Testando PushManager.subscribe() direto (VAPID key)...');
+  try {
+    const vapidBytes = (function(base64) {
+      const bin = atob(base64.replace(/-/g,'+').replace(/_/g,'/'));
+      const buf = new Uint8Array(bin.length);
+      for (let i=0;i<bin.length;i++) buf[i]=bin.charCodeAt(i);
+      return buf;
+    })(vapidKey);
+    const testSub = await Promise.race([
+      swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidBytes }),
+      new Promise(function(_,r){ setTimeout(function(){ r(new Error('PushManager timeout 8s — VAPID key inválida ou FCM bloqueado na rede')); }, 8000); })
+    ]);
+    console.log('[Push] #6c PushManager OK, endpoint:', testSub.endpoint.slice(0,60) + '...');
+    await testSub.unsubscribe();
+  } catch (subErr) {
+    throw new Error('[Push] PushManager.subscribe() falhou: ' + subErr.message);
+  }
 
   async function _getTokenOnce() {
     // Timeout de 20s para evitar trava silenciosa do getToken
