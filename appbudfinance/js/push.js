@@ -75,34 +75,29 @@ export async function registerPushToken(app, user) {
   console.log('[Push] #6 Chamando getToken()...');
   const messaging = getMessaging(app);
   let token;
-  // Retry uma vez após desfazer subscription antiga: 401 de fcmregistrations
-  // costuma significar PushSubscription cacheada com VAPID key antiga.
+
+  // Sempre limpar subscription antiga antes de pedir token:
+  // subscription cacheada com VAPID diferente faz getToken travar indefinidamente.
+  try {
+    const oldSub = await swReg.pushManager.getSubscription();
+    if (oldSub) {
+      console.log('[Push] #6a Desinscrevendo subscription antiga...');
+      await oldSub.unsubscribe();
+    }
+  } catch (_) {}
+
   async function _getTokenOnce() {
-    return getToken(messaging, { vapidKey, serviceWorkerRegistration: swReg });
+    // Timeout de 20s para evitar trava silenciosa do getToken
+    const tokenPromise = getToken(messaging, { vapidKey, serviceWorkerRegistration: swReg });
+    const timeoutPromise = new Promise(function (_, reject) {
+      setTimeout(function () { reject(new Error('[Push] getToken timeout 20s — verifique VAPID key e SW')); }, 20000);
+    });
+    return Promise.race([tokenPromise, timeoutPromise]);
   }
   try {
     token = await _getTokenOnce();
   } catch (err) {
-    const msg = (err && (err.message || '')) + '';
-    const code = (err && err.code) || '';
-    const isAuthMismatch =
-      msg.indexOf('401') !== -1 ||
-      msg.indexOf('Unauthorized') !== -1 ||
-      msg.indexOf('push-service-error') !== -1 ||
-      code === 'messaging/token-subscribe-failed' ||
-      code === 'messaging/token-subscribe-no-token';
-    if (!isAuthMismatch) {
-      throw new Error('[Push] getToken falhou: ' + code + ' — ' + msg);
-    }
-    try {
-      const oldSub = await swReg.pushManager.getSubscription();
-      if (oldSub) await oldSub.unsubscribe();
-    } catch (_) {}
-    try {
-      token = await _getTokenOnce();
-    } catch (err2) {
-      throw new Error('[Push] getToken falhou após retry: ' + (err2.code || '') + ' — ' + err2.message);
-    }
+    throw new Error('[Push] getToken falhou: ' + ((err && err.code) || '') + ' — ' + ((err && err.message) || err));
   }
 
   if (!token) {
