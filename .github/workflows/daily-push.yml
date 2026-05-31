@@ -1,16 +1,17 @@
 name: Daily Push Notifications
 
 on:
+  workflow_dispatch: {}
   schedule:
     - cron: '0 11 * * *'
-  workflow_dispatch:
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Trigger daily notifications
+      - name: Trigger backend cron
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-        run: curl -f -X GET -H "x-cron-secret: ${CRON_SECRET}" "https://bud-finance-backend.onrender.com/api/notifications/daily"
+        run: |
+          curl -fsS -X GET -H "x-cron-secret: $CRON_SECRET" https://bud-finance-backend.onrender.com/api/notifications/daily
