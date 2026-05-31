@@ -2942,18 +2942,35 @@ app.get('/api/notifications/daily', async function (req, res) {
       var notifs = [];
 
       // Buscar dados do usuário em paralelo
-      var [recSnap, cartSnap, metaSnap, dividaSnap] = await Promise.all([
+      var [recSnap, cartSnap, metaSnap, dividaSnap, limiteSnap, txSnap] = await Promise.all([
         db.collection('usuarios').doc(uid).collection('recorrentes')
           .where('ativa', '==', true).limit(50).get(),
         db.collection('usuarios').doc(uid).collection('cartoes').limit(20).get(),
         db.collection('usuarios').doc(uid).collection('metas').limit(20).get(),
-        db.collection('usuarios').doc(uid).collection('dividas').limit(30).get()
+        db.collection('usuarios').doc(uid).collection('dividas').limit(30).get(),
+        db.collection('usuarios').doc(uid).collection('limites').limit(20).get(),
+        db.collection('usuarios').doc(uid).collection('transacoes')
+          .where('mesReferencia', '==', mesRef).orderBy('dataCriacao', 'desc').limit(100).get()
       ]);
 
       var recs    = recSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
       var cartoes = cartSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
       var metas   = metaSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
       var dividas = dividaSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
+      var limites = limiteSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
+
+      // Totais do mês (reutilizados por limites, saldo e Buddy AI)
+      var gastosPorCat = {}, totalReceitasMes = 0, totalDespesasMes = 0;
+      txSnap.docs.forEach(function (d) {
+        var tx = d.data();
+        if (tx.tipo === 'receita') {
+          totalReceitasMes += Number(tx.valor) || 0;
+        } else if (tx.tipo === 'despesa') {
+          var catTx = sanitizeStr(String(tx.categoria || 'Outros')).substring(0, 40);
+          gastosPorCat[catTx] = (gastosPorCat[catTx] || 0) + (Number(tx.valor) || 0);
+          totalDespesasMes   += Number(tx.valor) || 0;
+        }
+      });
 
       var amanhaDia  = amanha.getDate();
       var amanhaMes  = amanha.getMonth() + 1;
@@ -3035,6 +3052,21 @@ app.get('/api/notifications/daily', async function (req, res) {
               url:   'metas.html'
             });
           }
+          // Meta parada: sem atualização há ≥15 dias e ainda não concluída
+          if (pct < 1.0 && m.atualizadoEm) {
+            try {
+              var updDate2 = m.atualizadoEm.toDate ? m.atualizadoEm.toDate() : new Date(m.atualizadoEm);
+              var diasSemDep = Math.floor((agora - updDate2) / 86400000);
+              if (diasSemDep >= 15 && diasSemDep < 60) {
+                notifs.push({
+                  emoji: '😴', tag: 'meta-parada-' + m._id + '-' + Math.floor(diasSemDep / 15),
+                  title: '😴 Meta parada: ' + nomeMeta,
+                  body:  'Faz ' + diasSemDep + ' dias sem depósito. ' + Math.round(pct * 100) + '% concluída.',
+                  url:   'metas.html'
+                });
+              }
+            } catch (_) {}
+          }
         }
       });
 
@@ -3061,7 +3093,80 @@ app.get('/api/notifications/daily', async function (req, res) {
         } catch (_) {}
       });
 
-      // 5. Plano expirando amanhã
+      // 5. Limites de categoria (80% ou ultrapassados)
+      limites.forEach(function (lim) {
+        var catNome  = sanitizeStr(String(lim.categoria || '')).substring(0, 30);
+        var limValor = Number(lim.valorLimite) || 0;
+        if (!catNome || limValor <= 0) return;
+        var gastoLim = gastosPorCat[catNome] || 0;
+        var pctLim   = gastoLim / limValor;
+        if (pctLim >= 1.0) {
+          notifs.push({
+            emoji: '🚨', tag: 'limite-100-' + lim._id + '-' + mesRef,
+            title: '🚨 Limite estourado: ' + catNome,
+            body:  'R$' + gastoLim.toFixed(0) + ' gastos de R$' + limValor.toFixed(0) + ' em ' + catNome + '.',
+            url:   'limites.html'
+          });
+        } else if (pctLim >= 0.8) {
+          notifs.push({
+            emoji: '⚠️', tag: 'limite-80-' + lim._id + '-' + mesRef,
+            title: '⚠️ ' + Math.round(pctLim * 100) + '% do limite: ' + catNome,
+            body:  'R$' + gastoLim.toFixed(0) + ' gastos de R$' + limValor.toFixed(0) + ' em ' + catNome + '.',
+            url:   'limites.html'
+          });
+        }
+      });
+
+      // 6. Saldo negativo no mês
+      if (totalDespesasMes > totalReceitasMes && totalReceitasMes > 0) {
+        var saldoNeg = totalReceitasMes - totalDespesasMes;
+        notifs.push({
+          emoji: '📉', tag: 'saldo-neg-' + mesRef + '-' + uid,
+          title: '📉 Gastos maiores que receitas',
+          body:  'Este mês você gastou R$' + Math.abs(saldoNeg).toFixed(0) + ' a mais do que recebeu.',
+          url:   'balanco-mensal.html'
+        });
+      }
+
+      // 7. Resumo do mês (último dia)
+      var ultimoDiaMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0).getDate();
+      if (agora.getDate() === ultimoDiaMes) {
+        var saldoFim    = totalReceitasMes - totalDespesasMes;
+        var saldoFimStr = (saldoFim >= 0 ? '+R$' : '-R$') + Math.abs(saldoFim).toFixed(0);
+        var nomeMesArr  = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+        notifs.push({
+          emoji: '📊', tag: 'resumo-mes-' + mesRef + '-' + uid,
+          title: '📊 Resumo de ' + nomeMesArr[agora.getMonth()] + ': saldo ' + saldoFimStr,
+          body:  'Receitas R$' + totalReceitasMes.toFixed(0) + ' · Despesas R$' + totalDespesasMes.toFixed(0) + '. Confira o balanço!',
+          url:   'balanco-mensal.html'
+        });
+      }
+
+      // 8. Início do mês: total de recorrentes programadas
+      if (agora.getDate() === 1) {
+        var recsDesp    = recs.filter(function (r) { return r.tipo === 'despesa'; });
+        var totalRecsV  = recsDesp.reduce(function (s, r) { return s + (Number(r.valor) || 0); }, 0);
+        if (totalRecsV > 0) {
+          notifs.push({
+            emoji: '📋', tag: 'inicio-mes-recs-' + mesRef + '-' + uid,
+            title: '📋 Novo mês! R$' + totalRecsV.toFixed(0) + ' em contas fixas',
+            body:  recsDesp.length + ' conta' + (recsDesp.length > 1 ? 's' : '') + ' programada' + (recsDesp.length > 1 ? 's' : '') + ' para este mês.',
+            url:   'recorrentes.html'
+          });
+        }
+      }
+
+      // 9. Incentivo upgrade (plano free, dia 15, com ≥5 transações no mês)
+      if ((!ud.plano || ud.plano === 'free') && agora.getDate() === 15 && txSnap.size >= 5) {
+        notifs.push({
+          emoji: '⭐', tag: 'upgrade-' + mesRef + '-' + uid,
+          title: '⭐ Desbloqueie tudo no Bud Finance',
+          body:  'Você já fez ' + txSnap.size + ' lançamentos este mês. Conheça o plano Premium!',
+          url:   'configuracoes.html'
+        });
+      }
+
+      // 10. Plano expirando amanhã
       var expField = ud.planoExpira || ud.assinaturaExpira;
       if (expField && ud.plano && ud.plano !== 'free') {
         try {
@@ -3077,7 +3182,7 @@ app.get('/api/notifications/daily', async function (req, res) {
         } catch (_) {}
       }
 
-      // 6. Re-engagement: sem abrir o app há 5–30 dias
+      // 11. Re-engagement: sem abrir o app há 5–30 dias
       var lastField = ud.ultimoAcesso || ud.lastLoginAt;
       if (lastField) {
         try {
@@ -3095,13 +3200,9 @@ app.get('/api/notifications/daily', async function (req, res) {
         } catch (_) {}
       }
 
-      // 7. Buddy AI insight (às segundas ou quando não há regras)
+      // 12. Buddy AI insight (às segundas ou quando não há regras)
       if (groqKey && (isMonday || notifs.length === 0)) {
         try {
-          var txSnap = await db.collection('usuarios').doc(uid).collection('transacoes')
-            .where('mesReferencia', '==', mesRef)
-            .orderBy('dataCriacao', 'desc').limit(25).get();
-
           var gastos = {};
           var totalDesp = 0;
           txSnap.docs.forEach(function (d) {
