@@ -2942,16 +2942,18 @@ app.get('/api/notifications/daily', async function (req, res) {
       var notifs = [];
 
       // Buscar dados do usuário em paralelo
-      var [recSnap, cartSnap, metaSnap] = await Promise.all([
+      var [recSnap, cartSnap, metaSnap, dividaSnap] = await Promise.all([
         db.collection('usuarios').doc(uid).collection('recorrentes')
           .where('ativa', '==', true).limit(50).get(),
         db.collection('usuarios').doc(uid).collection('cartoes').limit(20).get(),
-        db.collection('usuarios').doc(uid).collection('metas').limit(20).get()
+        db.collection('usuarios').doc(uid).collection('metas').limit(20).get(),
+        db.collection('usuarios').doc(uid).collection('dividas').limit(30).get()
       ]);
 
       var recs    = recSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
       var cartoes = cartSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
       var metas   = metaSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
+      var dividas = dividaSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
 
       var amanhaDia  = amanha.getDate();
       var amanhaMes  = amanha.getMonth() + 1;
@@ -3036,7 +3038,30 @@ app.get('/api/notifications/daily', async function (req, res) {
         }
       });
 
-      // 4. Plano expirando amanhã
+      // 4. Dívidas: parcela vencendo amanhã (vencimento = string ISO YYYY-MM-DD)
+      dividas.forEach(function (d) {
+        if (!d.vencimento) return;
+        // Ignora se já quitada (todas parcelas pagas)
+        var pagas = parseInt(d.parcelasPagas || 0, 10);
+        var total = parseInt(d.parcelas || 1, 10);
+        if (pagas >= total) return;
+        try {
+          var vencDate = new Date(d.vencimento + 'T12:00:00');
+          if (vencDate.toISOString().slice(0, 10) === amanhaStr) {
+            var nomeDivida = sanitizeStr(String(d.nome || d.instituicao || 'Dívida')).substring(0, 40);
+            var valParcela = Number(d.valorParcela || (d.valorTotal / total) || 0);
+            var valStr = 'R$ ' + valParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            notifs.push({
+              emoji: '💸', tag: 'divida-venc-' + d._id + '-' + amanhaStr,
+              title: '💸 Parcela vence amanhã',
+              body:  nomeDivida + ' — ' + valStr + (total > 1 ? ' (' + (pagas + 1) + '/' + total + ')' : ''),
+              url:   'dividas.html'
+            });
+          }
+        } catch (_) {}
+      });
+
+      // 5. Plano expirando amanhã
       var expField = ud.planoExpira || ud.assinaturaExpira;
       if (expField && ud.plano && ud.plano !== 'free') {
         try {
@@ -3052,7 +3077,7 @@ app.get('/api/notifications/daily', async function (req, res) {
         } catch (_) {}
       }
 
-      // 5. Re-engagement: sem abrir o app há 5–30 dias
+      // 6. Re-engagement: sem abrir o app há 5–30 dias
       var lastField = ud.ultimoAcesso || ud.lastLoginAt;
       if (lastField) {
         try {
@@ -3070,7 +3095,7 @@ app.get('/api/notifications/daily', async function (req, res) {
         } catch (_) {}
       }
 
-      // 6. Buddy AI insight (às segundas ou quando não há regras)
+      // 7. Buddy AI insight (às segundas ou quando não há regras)
       if (groqKey && (isMonday || notifs.length === 0)) {
         try {
           var txSnap = await db.collection('usuarios').doc(uid).collection('transacoes')

@@ -1,0 +1,26 @@
+name: Notificações Push Diárias
+
+on:
+  schedule:
+    # Roda todo dia às 11:00 UTC = 08:00 Brasília
+    - cron: '0 11 * * *'
+  workflow_dispatch:
+    # Permite disparar manualmente pelo GitHub Actions
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Acionar cron de notificações
+        run: |
+          HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+            -X GET \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            "https://bud-finance-backend.onrender.com/api/notifications/daily")
+          echo "Status HTTP: $HTTP_STATUS"
+          echo "Resposta: $(cat /tmp/response.txt)"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "ERRO: cron retornou status $HTTP_STATUS"
+            exit 1
+          fi
