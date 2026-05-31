@@ -9,61 +9,6 @@ import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, g
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 import { registerPushToken, listenForeground } from './push.js?v=6';
 
-// ─── DIAGNÓSTICO TEMPORÁRIO: testa PushManager.subscribe() direto ──────
-(async function diagPush() {
-  // 1) Testa endpoint exato do PushManager.subscribe() do Chrome
-  console.log('[DIAG] Testando fcm.googleapis.com/fcm/connect/subscribe...');
-  try {
-    const r = await Promise.race([
-      fetch('https://fcm.googleapis.com/fcm/connect/subscribe', {
-        method: 'POST', mode: 'no-cors', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-      }),
-      new Promise(function(_,rej){ setTimeout(function(){ rej(new Error('TIMEOUT 8s')); }, 8000); })
-    ]);
-    console.log('[DIAG] subscribe endpoint: respondeu (status opaque no-cors)');
-  } catch(e) {
-    console.error('[DIAG] subscribe endpoint FALHOU:', e.message);
-  }
-
-  // 2) Testa Firebase Installations API
-  console.log('[DIAG] Testando Firebase Installations API...');
-  try {
-    const r2 = await Promise.race([
-      fetch('https://firebaseinstallations.googleapis.com/v1/projects/bud-finance/installations', {
-        method: 'POST', cache: 'no-store',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': 'AIzaSyButVkGdicSWMBSeNJCfO01DQ3HXQR1O3Q' },
-        body: JSON.stringify({ appId: '1:825768884924:web:551a6da252d8d249dd2eb9', authVersion: 'FIS_v2', sdkVersion: 'w:0.6.4' })
-      }),
-      new Promise(function(_,rej){ setTimeout(function(){ rej(new Error('TIMEOUT 8s')); }, 8000); })
-    ]);
-    const text = await r2.text();
-    console.log('[DIAG] Installations API status:', r2.status, '— resp:', text.slice(0,120));
-  } catch(e) {
-    console.error('[DIAG] Installations API FALHOU:', e.message);
-  }
-
-  // 3) PushManager.subscribe() direto com timeout
-  console.log('[DIAG] Testando PushManager.subscribe() direto...');
-  try {
-    await navigator.serviceWorker.register('firebase-messaging-sw.js', { updateViaCache: 'none' });
-    const reg = await navigator.serviceWorker.ready;
-    const existing = await reg.pushManager.getSubscription();
-    if (existing) await existing.unsubscribe();
-    const sub = await Promise.race([
-      reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: 'BI068YABPMnualEC3exPyfCdgPjoAhIIznZ94JNEvEWyaSB1NWQGsfpJ0zZ4v3rDghMceaubWxhIG3mJfbLRFkQ' }),
-      new Promise(function(_,rej){ setTimeout(function(){ rej(new Error('TIMEOUT 15s')); }, 15000); })
-    ]);
-    console.log('[DIAG] ✅ PushManager.subscribe() OK! endpoint:', sub.endpoint.slice(0, 80));
-    await sub.unsubscribe();
-  } catch(e) {
-    console.error('[DIAG] PushManager.subscribe() FALHOU:', e.message);
-  }
-})();
-// ─────────────────────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────────────────
-
 // ─── Firebase init ──────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
