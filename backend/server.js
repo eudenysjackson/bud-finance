@@ -3055,7 +3055,7 @@ app.get('/api/notifications/daily', async function (req, res) {
       var notifs = [];
 
       // Buscar dados do usuário em paralelo
-      var [recSnap, cartSnap, metaSnap, dividaSnap, limiteSnap, txSnap] = await Promise.all([
+      var [recSnap, cartSnap, metaSnap, dividaSnap, limiteSnap, txSnap, carteiraSnap] = await Promise.all([
         db.collection('usuarios').doc(uid).collection('recorrentes')
           .where('ativa', '==', true).limit(50).get(),
         db.collection('usuarios').doc(uid).collection('cartoes').limit(20).get(),
@@ -3063,14 +3063,17 @@ app.get('/api/notifications/daily', async function (req, res) {
         db.collection('usuarios').doc(uid).collection('dividas').limit(30).get(),
         db.collection('usuarios').doc(uid).collection('limites').limit(20).get(),
         db.collection('usuarios').doc(uid).collection('transacoes')
-          .where('mesReferencia', '==', mesRef).orderBy('dataCriacao', 'desc').limit(100).get()
+          .where('mesReferencia', '==', mesRef).orderBy('dataCriacao', 'desc').limit(100).get(),
+        db.collection('usuarios').doc(uid).collection('carteira')
+          .where('tipo', '!=', 'credito').limit(20).get()
       ]);
 
-      var recs    = recSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
-      var cartoes = cartSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
-      var metas   = metaSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
-      var dividas = dividaSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
-      var limites = limiteSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
+      var recs     = recSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
+      var cartoes  = cartSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
+      var metas    = metaSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
+      var dividas  = dividaSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
+      var limites  = limiteSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
+      var contas   = carteiraSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
 
       // Totais do mês (reutilizados por limites, saldo e Buddy AI)
       var gastosPorCat = {}, totalReceitasMes = 0, totalDespesasMes = 0;
@@ -3294,6 +3297,27 @@ app.get('/api/notifications/daily', async function (req, res) {
           }
         } catch (_) {}
       }
+
+      // 12. PEND-066: Saldo de conta desatualizado há ≥7 dias
+      contas.forEach(function (c) {
+        var updField = c.atualizadaEm || c.criadaEm;
+        if (!updField) return;
+        try {
+          var updDate3 = updField.toDate ? updField.toDate() : new Date(updField);
+          var diasSemAtualizar = Math.floor((agora - updDate3) / 86400000);
+          // Avisar semanalmente (7, 14, 21... dias) para não spam
+          if (diasSemAtualizar >= 7 && diasSemAtualizar % 7 === 0) {
+            var nomeConta = sanitizeStr(String(c.nome || 'Conta')).substring(0, 30);
+            var semanas = Math.floor(diasSemAtualizar / 7);
+            notifs.push({
+              emoji: '🏦', tag: 'saldo-stale-' + c._id + '-' + hojeStr,
+              title: '🏦 Saldo desatualizado: ' + nomeConta,
+              body:  'Faz ' + (semanas === 1 ? '1 semana' : semanas + ' semanas') + ' sem confirmar o saldo. Ainda está correto?',
+              url:   'carteira.html'
+            });
+          }
+        } catch (_) {}
+      });
 
       // 11. Re-engagement: sem abrir o app há 5–30 dias
       var lastField = ud.ultimoAcesso || ud.lastLoginAt;

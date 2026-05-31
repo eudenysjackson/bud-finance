@@ -92,6 +92,11 @@ let unsubs = [];
         return;
       }
       uid = user.uid;
+      // DT-002: carregar plano real do usuário para limite de cartões
+      try {
+        const _ud = await getDoc(doc(db, 'usuarios', uid));
+        window._cartoesUserPlano = (_ud.data() || {}).plano || null;
+      } catch (_) { window._cartoesUserPlano = null; }
       setupUI(user);
       setupListeners();
       window.addEventListener('beforeunload', cleanupListeners, { once: true });
@@ -842,7 +847,7 @@ async function handleSubmitCartao(e) {
 
     // Verificar limite de plano
     if (!cartaoEditandoId && window.NexoPlanos) {
-      const perfilPlano = null; // será obtido do perfil real em sprint futura
+      const perfilPlano = window._cartoesUserPlano || null;
       const limiteCartoes = window.NexoPlanos.getCardsLimit?.(perfilPlano);
       if (Number.isFinite(limiteCartoes) && cartoesGlobal.length >= limiteCartoes) {
         showToast(`Limite de ${limiteCartoes} cartão(ões) atingido no plano atual.`, 'erro');

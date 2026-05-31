@@ -1,0 +1,21 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "transacoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "mesReferencia", "order": "ASCENDING" },
+        { "fieldPath": "dataCriacao",   "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "transacoes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "mesReferencia", "order": "ASCENDING" },
+        { "fieldPath": "origem",        "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
