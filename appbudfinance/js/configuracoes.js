@@ -259,6 +259,32 @@ function setupFotoPerfil() {
 
   btnFoto.addEventListener('click', function () { inputFile.click(); });
 
+  // Redimensiona a imagem para no máx. 256x256 (mantém proporção, recorte central
+  // quadrado) e devolve um data:URL JPEG. Mantém o avatar pequeno (~10–25 KB)
+  // para caber no doc do Firestore (limite de 1 MB) sem precisar de Storage.
+  function _resizeToDataUrl(file, size, quality) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      var url = URL.createObjectURL(file);
+      img.onload = function () {
+        try {
+          var s = Math.min(img.width, img.height);
+          var sx = (img.width  - s) / 2;
+          var sy = (img.height - s) / 2;
+          var canvas = document.createElement('canvas');
+          canvas.width  = size;
+          canvas.height = size;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, sx, sy, s, s, 0, 0, size, size);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } catch (e) { URL.revokeObjectURL(url); reject(e); }
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('Falha ao ler imagem')); };
+      img.src = url;
+    });
+  }
+
   inputFile.addEventListener('change', async function () {
     const file = inputFile.files && inputFile.files[0];
     if (!file) return;
@@ -280,20 +306,19 @@ function setupFotoPerfil() {
       const user = auth.currentUser;
       if (!user) throw new Error('Não autenticado');
 
-      // Import dinâmico para não bloquear o módulo se Storage não estiver disponível
-      const { getStorage, ref: sRef, uploadBytes, getDownloadURL } =
-        await import('https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js');
-      const storageInst = getStorage(app);
+      // Reduz para 256x256 JPEG q=0.85 → tipicamente 10–25 KB.
+      var dataUrl = await _resizeToDataUrl(file, 256, 0.85);
 
-      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-      const fileRef = sRef(storageInst, 'avatars/' + user.uid + '/avatar.' + ext);
-      const snap = await uploadBytes(fileRef, file, { contentType: file.type });
-      const url  = await getDownloadURL(snap.ref);
+      // Salvaguarda: se ainda passar de 700 KB, comprime mais.
+      if (dataUrl.length > 700 * 1024) {
+        dataUrl = await _resizeToDataUrl(file, 192, 0.75);
+      }
 
-      await updateProfile(user, { photoURL: url });
-      await updateDoc(doc(db, 'usuarios', user.uid), { photoURL: url });
+      // photoURL do Firebase Auth tem limite (~2KB); guardamos o base64 só no
+      // doc do usuário no Firestore. Não chamamos updateProfile com data URL.
+      await updateDoc(doc(db, 'usuarios', user.uid), { photoURL: dataUrl });
 
-      aplicarFotoAvatar(url, user.displayName || '');
+      aplicarFotoAvatar(dataUrl, user.displayName || '');
       if (window.budShowToast) window.budShowToast('Foto atualizada com sucesso!', 'success');
     } catch (_) {
       if (window.budShowToast) window.budShowToast('Erro ao enviar foto. Tente novamente.', 'error');
@@ -794,7 +819,9 @@ async function carregarPerfil(user) {
   const nome  = window.budSanitize ? window.budSanitize(user.displayName || '') : (user.displayName || '');
   const email = user.email || '';
 
-  // Avatar do card
+  // Avatar do card — começamos com user.photoURL (caso seja URL externa antiga);
+  // logo abaixo, ao buscar o doc do Firestore, atualizamos com o data:URL salvo
+  // (avatar em base64 — a única fonte autoritativa de foto após a migração).
   aplicarFotoAvatar(user.photoURL || null, nome);
 
   const elNome  = document.getElementById('perfilNome');
@@ -842,6 +869,11 @@ async function carregarPerfil(user) {
       _renderizarSecaoPlano('free', {});
     } else {
       const data = snap.data();
+
+      // Avatar — preferir o data:URL salvo no Firestore sobre user.photoURL
+      if (data.photoURL) {
+        aplicarFotoAvatar(data.photoURL, nome);
+      }
 
       const matricula  = data.matricula  || '—';
       const plano      = data.plano      || 'free';

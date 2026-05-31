@@ -599,3 +599,22 @@
 - **Solução aplicada**: Em `getToken()`, capturar o erro 401/`token-subscribe-failed`, executar `swReg.pushManager.getSubscription()` + `oldSub.unsubscribe()` para descartar a subscription antiga, e tentar `getToken()` novamente uma vez. A próxima chamada cria uma subscription nova com a VAPID atual e a registra com sucesso na FCM.
 - **Regra de prevenção**: Após qualquer troca de VAPID key, prever fallback de unsubscribe + retry no client. O usuário não deveria precisar de "Clear site data" manual.
 - **Status**: ✅ Resolvido em 31/05/2026.
+
+### ERR-058 — Service Worker FCM 404 em dev local (`/appbudfinance/firebase-messaging-sw.js`)
+- **Data**: 31/05/2026
+- **Arquivo**: `appbudfinance/js/push.js` — `registerPushToken()`
+- **Sintoma**: Em dev (`http://127.0.0.1:3001/configuracoes.html`), console exibia `[Push] Falha ao registrar Service Worker: ... A bad HTTP response code (404) was received when fetching the script.` Sem SW, `getToken()` nunca era chamado e o backend respondia "Nenhum FCM token salvo".
+- **Causa raiz**: O `push.js` registrava o SW com path absoluto `/appbudfinance/firebase-messaging-sw.js`, correto em produção (servida em `budsolucoes.com.br/appbudfinance/`), mas inválido em dev local — o live-server serve a pasta `appbudfinance/` como raiz, então o SW está em `/firebase-messaging-sw.js`.
+- **Solução aplicada**: Trocar para path relativo `'firebase-messaging-sw.js'` (sem barra inicial) e remover o `scope` explícito. O navegador resolve relativo à URL do HTML; default scope = diretório onde o SW está hospedado. Funciona em prod e em dev sem mudar configuração.
+- **Regra de prevenção**: Para arquivos co-localizados com o HTML em ambos os ambientes, preferir paths relativos. Paths absolutos quebram quando a estrutura de servir é diferente entre dev e prod.
+- **Status**: ✅ Resolvido em 31/05/2026.
+
+### ERR-059 — Avatar via Firebase Storage exigia plano Blaze (pago)
+- **Data**: 31/05/2026
+- **Arquivo**: `appbudfinance/js/configuracoes.js` — `setupFotoPerfil()`
+- **Sintoma**: Console mostrava erros de CORS em `firebasestorage.googleapis.com` ao carregar/upload de avatares. Firebase Console exigia upgrade do projeto para Blaze para inicializar o bucket de Storage.
+- **Causa raiz**: Firebase mudou política — Storage só funciona no plano Blaze (pay-as-you-go). Avatar simples (foto de perfil) não justifica habilitar billing nem manter bucket adicional.
+- **Solução aplicada**: Substituir upload por redimensionamento client-side via `<canvas>` para 256×256 JPEG (q=0.85, ~10–25 KB) e salvar como `data:URL` no campo `photoURL` do doc do usuário no Firestore. Sem Storage, sem CORS, sem billing. `updateProfile` do Auth não é chamado (limite ~2KB do photoURL do Auth não suporta data URLs).
+- **Regra de prevenção**: Para imagens pequenas e por usuário (avatar), preferir base64 no Firestore. Para mídias maiores ou compartilhadas, considerar Cloudinary free tier ou ImgBB antes de habilitar Storage pago.
+- **Status**: ✅ Resolvido em 31/05/2026 — telas que mostram avatar pelo `<img>` continuam funcionando porque data URLs são URLs válidas. Sidebar de outras telas que ainda usa só inicial fica como pendência.
+

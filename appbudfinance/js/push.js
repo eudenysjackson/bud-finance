@@ -4,9 +4,9 @@
 // Importado em configuracoes.js e dashboard.js.
 //
 // Estratégia:
-//   Firebase localiza '/appbudfinance/firebase-messaging-sw.js' automaticamente
-//   (arquivo nomeado conforme o padrão do Firebase SDK — nenhum registro manual
-//   de SW necessário aqui).
+//   SW registrado manualmente com path RELATIVO ao HTML
+//   ('firebase-messaging-sw.js'), funcionando em prod (budsolucoes.com.br/appbudfinance/)
+//   e em dev local (live-server na pasta appbudfinance/ servida como root).
 //
 // Referência: DECISIONS_LOG.md → DEC-050 (SW usa Compat SDK)
 // =============================================================================
@@ -53,15 +53,13 @@ export async function registerPushToken(app, user) {
   }
 
   // 2. Registrar o Service Worker explicitamente no path correto.
-  //    (Firebase SDK por padrão busca '/firebase-messaging-sw.js' na raiz do
-  //    domínio, mas hospedamos em '/appbudfinance/' — então passamos a
-  //    registration manualmente para o getToken.)
-  const SW_PATH  = '/appbudfinance/firebase-messaging-sw.js';
-  const SW_SCOPE = '/appbudfinance/';
+  //    Em produção o app é servido em '/appbudfinance/...'; em dev local
+  //    (live-server na pasta appbudfinance) é servido em '/'. Por isso usamos
+  //    paths RELATIVOS ao HTML atual, que funcionam nos dois ambientes.
+  //    O scope default é o diretório onde o SW está hospedado.
   let swReg;
   try {
-    swReg = await navigator.serviceWorker.register(SW_PATH, {
-      scope: SW_SCOPE,
+    swReg = await navigator.serviceWorker.register('firebase-messaging-sw.js', {
       updateViaCache: 'none'
     });
     // Aguardar ESTE swReg ficar ativo (não qualquer SW da página).
