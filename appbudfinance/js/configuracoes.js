@@ -1411,6 +1411,27 @@ onAuthStateChanged(auth, async function (user) {
         return;
       }
       if (window.BudPush) {
+        // _budRequestPushToken não está disponível em configuracoes (só em dashboard.js).
+        // Definir localmente para que bud-utils.js consiga registrar o token.
+        window._budRequestPushToken = async function (u) {
+          try {
+            await registerPushToken(app, u);
+            listenForeground(app, function (payload) {
+              var n = payload.notification || payload.data || {};
+              navigator.serviceWorker.ready.then(function (reg) {
+                reg.showNotification(n.title || 'Bud Finance', {
+                  body: n.body || '',
+                  icon: '/appbudfinance/icons/icon-192.png'
+                });
+              }).catch(function () {});
+            });
+            _mostrarBotaoTestar();
+            if (window.budShowToast) window.budShowToast('Notificações ativadas! O Buddy vai te avisar. 🔔', 'success');
+          } catch (err) {
+            if (window.budWarn) window.budWarn(err.message);
+            else alert('Erro ao ativar notificações:\n' + (err && err.message ? err.message : err));
+          }
+        };
         localStorage.removeItem('bud_push_asked');
         window.BudPush.requestIfNeeded(user);
         setTimeout(function () {
