@@ -11,7 +11,7 @@
   // For local development you can fill them in directly.
   // For production, inject via CI/CD environment variables or server-side rendering.
   const config = {
-    apiKey:            "AIzaSyBTd0q2XY6xHatUcqtyjcjv3q2u6xpXT-A",
+    apiKey:            "AIzaSyButVkGdicSWMBSeNJCfO01DQ3HXQR1O3Q",
     authDomain:        "bud-finance.firebaseapp.com",
     projectId:         "bud-finance",
     storageBucket:     "bud-finance.firebasestorage.app",
