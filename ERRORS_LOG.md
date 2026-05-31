@@ -590,3 +590,12 @@
 - **Solução aplicada**: Alterado `cssText` para usar `background:var(--card-bg)` + `border-left:4px solid #cor` colorida. O alerta sempre aparece como um card branco/glass com borda colorida semântica, independente do tema.
 - **Regra de prevenção**: Alertas inseridos diretamente no fundo de página (não dentro de `.summary-card`/`.section-card`) DEVEM usar `background:var(--card-bg)` como base. A técnica `rgba(cor, baixa-opacidade)` só funciona dentro de containers já brancos/glass.
 - **Status**: ✅ Resolvido em 18/05/2026.
+
+### ERR-057 — FCM `getToken` retornava 401 de `fcmregistrations.googleapis.com` após troca de VAPID key
+- **Data**: 31/05/2026
+- **Arquivo**: `appbudfinance/js/push.js` — `registerPushToken()`
+- **Sintoma**: Em `configuracoes.html`, ao clicar em "Ativar" notificações, console exibia `POST https://fcmregistrations.googleapis.com/v1/projects/bud-finance/registrations 401 (Unauthorized)` e em seguida `POST /api/push/test 400 (Bad Request)` com mensagem "Nenhum FCM token salvo. Ative as notificações primeiro."
+- **Causa raiz**: A VAPID key foi rotacionada em 23/05. Browsers que já tinham concedido permissão guardavam um `PushSubscription` antigo com `applicationServerKey` da VAPID antiga. Em chamadas subsequentes a `getToken()`, o Firebase tentava registrar essa subscription cacheada na FCM Registration API → 401 (chave não bate). O `/api/push/test` falhava porque nenhum token novo era salvo no backend.
+- **Solução aplicada**: Em `getToken()`, capturar o erro 401/`token-subscribe-failed`, executar `swReg.pushManager.getSubscription()` + `oldSub.unsubscribe()` para descartar a subscription antiga, e tentar `getToken()` novamente uma vez. A próxima chamada cria uma subscription nova com a VAPID atual e a registra com sucesso na FCM.
+- **Regra de prevenção**: Após qualquer troca de VAPID key, prever fallback de unsubscribe + retry no client. O usuário não deveria precisar de "Clear site data" manual.
+- **Status**: ✅ Resolvido em 31/05/2026.

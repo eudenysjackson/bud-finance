@@ -86,14 +86,34 @@ export async function registerPushToken(app, user) {
   // 3. Obter token FCM (passando a SW registration explicitamente)
   const messaging = getMessaging(app);
   let token;
+  // Retry uma vez após desfazer subscription antiga: 401 de fcmregistrations
+  // costuma significar PushSubscription cacheada com VAPID key antiga.
+  async function _getTokenOnce() {
+    return getToken(messaging, { vapidKey, serviceWorkerRegistration: swReg });
+  }
   try {
-    token = await getToken(messaging, {
-      vapidKey,
-      serviceWorkerRegistration: swReg
-    });
+    token = await _getTokenOnce();
   } catch (err) {
-    // Re-lança com contexto adicional para facilitar diagnóstico
-    throw new Error('[Push] getToken falhou: ' + (err.code || '') + ' — ' + err.message);
+    const msg = (err && (err.message || '')) + '';
+    const code = (err && err.code) || '';
+    const isAuthMismatch =
+      msg.indexOf('401') !== -1 ||
+      msg.indexOf('Unauthorized') !== -1 ||
+      msg.indexOf('push-service-error') !== -1 ||
+      code === 'messaging/token-subscribe-failed' ||
+      code === 'messaging/token-subscribe-no-token';
+    if (!isAuthMismatch) {
+      throw new Error('[Push] getToken falhou: ' + code + ' — ' + msg);
+    }
+    try {
+      const oldSub = await swReg.pushManager.getSubscription();
+      if (oldSub) await oldSub.unsubscribe();
+    } catch (_) {}
+    try {
+      token = await _getTokenOnce();
+    } catch (err2) {
+      throw new Error('[Push] getToken falhou após retry: ' + (err2.code || '') + ' — ' + err2.message);
+    }
   }
 
   if (!token) {

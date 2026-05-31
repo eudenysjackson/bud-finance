@@ -1319,6 +1319,21 @@ onAuthStateChanged(auth, async function (user) {
     }
 
     btnAtivarPush.addEventListener('click', function () {
+      // iOS Safari só permite push quando instalado como PWA (iOS 16.4+).
+      var ua = navigator.userAgent || '';
+      var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+      var isStandalone = window.navigator.standalone === true ||
+        window.matchMedia('(display-mode: standalone)').matches;
+      if (isIOS && !isStandalone) {
+        var modalPWA = document.getElementById('modalInstalarPWA');
+        if (modalPWA) {
+          modalPWA.style.display = 'flex';
+          var btnFecharPWA = document.getElementById('btnFecharModalInstalarPWA');
+          if (btnFecharPWA) btnFecharPWA.onclick = function () { modalPWA.style.display = 'none'; };
+          modalPWA.onclick = function (ev) { if (ev.target === modalPWA) modalPWA.style.display = 'none'; };
+        }
+        return;
+      }
       if (window.BudPush) {
         localStorage.removeItem('bud_push_asked');
         window.BudPush.requestIfNeeded(user);

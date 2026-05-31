@@ -877,6 +877,27 @@
       </div>
     </div>
   </div>
+
+  <!-- ═══ Modal: Instalar como App (iOS Safari) ═══════════════════════════ -->
+  <div id="modalInstalarPWA" role="dialog" aria-modal="true" aria-labelledby="modalInstalarPWATitulo" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:1rem;">
+    <div style="background:var(--bg-page,#fff);border:1px solid var(--card-border,#e2e8f0);border-radius:1.5rem;padding:2rem 1.75rem;width:100%;max-width:420px;box-shadow:0 24px 64px -12px rgba(0,0,0,0.3);">
+      <div style="width:4rem;height:4rem;border-radius:9999px;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:1.75rem;margin:0 auto 1rem;">📱</div>
+      <h2 id="modalInstalarPWATitulo" style="font-size:1.1875rem;font-weight:800;color:var(--card-text,#1e293b);text-align:center;margin:0 0 0.5rem;">Instale o Bud para receber notificações</h2>
+      <p style="font-size:0.8125rem;color:var(--card-text-sec,#64748b);text-align:center;margin:0 0 1.25rem;line-height:1.55;">No iPhone/iPad, o Safari só envia notificações quando o Bud está instalado como app na sua Tela de Início.</p>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.875rem;padding:0.875rem 1rem;margin-bottom:1rem;">
+        <div style="font-size:0.8125rem;color:var(--card-text,#1e293b);font-weight:700;margin-bottom:0.5rem;">Como instalar:</div>
+        <div style="font-size:0.8125rem;color:var(--card-text-sec,#64748b);line-height:1.7;">
+          <div>1. Toque no botão <strong>Compartilhar</strong> (⬆️) na barra do Safari.</div>
+          <div>2. Role e escolha <strong>“Adicionar à Tela de Início”</strong>.</div>
+          <div>3. Toque em <strong>Adicionar</strong> no canto superior direito.</div>
+          <div>4. Abra o ícone do Bud na sua Tela de Início e ative as notificações por lá.</div>
+        </div>
+      </div>
+      <p style="font-size:0.75rem;color:var(--card-text-sec,#64748b);text-align:center;margin:0 0 1.25rem;font-style:italic;">Requer iOS 16.4 ou superior.</p>
+      <button id="btnFecharModalInstalarPWA" class="cfg-btn cfg-btn-secondary" style="width:100%;">Entendi</button>
+    </div>
+  </div>
+
   <!-- ═══ Firebase + Config ════════════════════════════════════════ -->
   <script src="js/firebase-config.js"></script>
   <script src="js/bud-utils.js"></script>
