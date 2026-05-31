@@ -42,7 +42,6 @@ export async function registerPushToken(app, user) {
   if (!('Notification'    in window))    throw new Error('[Push] Browser não suporta Notifications API.');
   if (!('serviceWorker'   in navigator)) throw new Error('[Push] Browser não suporta Service Worker.');
   if (!('PushManager'     in window))    throw new Error('[Push] Browser não suporta Push API.');
-  console.log('[Push] #1 APIs OK, permissão atual:', Notification.permission);
 
   // 1. Solicitar permissão nativa (só pergunta se ainda for 'default')
   let perm = Notification.permission;
@@ -52,64 +51,34 @@ export async function registerPushToken(app, user) {
   if (perm !== 'granted') {
     throw new Error('[Push] Permissão de notificação negada. Verifique as configurações do navegador.');
   }
-  console.log('[Push] #2 Permissão concedida, registrando SW...');
 
   // 2. Registrar o Service Worker com path relativo e aguardar via
-  //    navigator.serviceWorker.ready (forma nativa — evita race condition
-  //    no wait manual de state change).
+  //    navigator.serviceWorker.ready (forma nativa — evita race condition).
   let swReg;
   try {
-    const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js', {
+    await navigator.serviceWorker.register('firebase-messaging-sw.js', {
       updateViaCache: 'none'
     });
-    console.log('[Push] #3 SW register() OK, estado active:', reg.active && reg.active.state, '| installing:', !!reg.installing, '| waiting:', !!reg.waiting);
-    // ready resolve com a registration do SW que controla a página atual.
-    console.log('[Push] #4 Aguardando navigator.serviceWorker.ready...');
     swReg = await navigator.serviceWorker.ready;
-    console.log('[Push] #5 SW ready, scope:', swReg.scope);
   } catch (err) {
     throw new Error('[Push] Falha ao registrar Service Worker: ' + err.message);
   }
 
-  // 3. Obter token FCM (passando a SW registration explicitamente)
-  console.log('[Push] #6 Chamando getToken()...');
+  // 3. Obter token FCM
   const messaging = getMessaging(app);
   let token;
 
-  // Sempre limpar subscription antiga antes de pedir token
+  // Limpar subscription antiga antes de pedir token:
+  // subscription cacheada com VAPID diferente faz getToken travar indefinidamente.
   try {
     const oldSub = await swReg.pushManager.getSubscription();
-    if (oldSub) {
-      console.log('[Push] #6a Desinscrevendo subscription antiga...');
-      await oldSub.unsubscribe();
-    }
+    if (oldSub) await oldSub.unsubscribe();
   } catch (_) {}
 
-  // Diagnóstico: testar PushManager.subscribe() direto (5s timeout)
-  // Se isso travar → VAPID key inválida ou rede bloqueando FCM
-  console.log('[Push] #6b Testando PushManager.subscribe() direto (VAPID key)...');
-  try {
-    const vapidBytes = (function(base64) {
-      const bin = atob(base64.replace(/-/g,'+').replace(/_/g,'/'));
-      const buf = new Uint8Array(bin.length);
-      for (let i=0;i<bin.length;i++) buf[i]=bin.charCodeAt(i);
-      return buf;
-    })(vapidKey);
-    const testSub = await Promise.race([
-      swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidBytes }),
-      new Promise(function(_,r){ setTimeout(function(){ r(new Error('PushManager timeout 8s — VAPID key inválida ou FCM bloqueado na rede')); }, 8000); })
-    ]);
-    console.log('[Push] #6c PushManager OK, endpoint:', testSub.endpoint.slice(0,60) + '...');
-    await testSub.unsubscribe();
-  } catch (subErr) {
-    throw new Error('[Push] PushManager.subscribe() falhou: ' + subErr.message);
-  }
-
   async function _getTokenOnce() {
-    // Timeout de 20s para evitar trava silenciosa do getToken
     const tokenPromise = getToken(messaging, { vapidKey, serviceWorkerRegistration: swReg });
     const timeoutPromise = new Promise(function (_, reject) {
-      setTimeout(function () { reject(new Error('[Push] getToken timeout 20s — verifique VAPID key e SW')); }, 20000);
+      setTimeout(function () { reject(new Error('[Push] getToken timeout 30s — verifique conexão e VAPID key')); }, 30000);
     });
     return Promise.race([tokenPromise, timeoutPromise]);
   }
