@@ -1300,7 +1300,8 @@ async function processarArquivoChat(file) {
       }
 
     } else {
-      addMsg('bot', '⚠️ Não encontrei transações neste arquivo. Verifique se é um extrato bancário ou planilha financeira válida.');
+      // PEND-063: nenhuma transação encontrada — tentar classificação inteligente do documento
+      await _detectarEProcessarDocumento(file);
     }
 
   } catch (err) {
@@ -1310,6 +1311,170 @@ async function processarArquivoChat(file) {
     _enviando = false;
     btnEnviar.disabled = false;
     chatInput.focus();
+  }
+}
+
+// ─── PEND-063: Detecção inteligente de documento financeiro ───────────────────
+// Chamado quando processarArquivoChat não encontra transações.
+// Envia o arquivo para /api/analisar-documento e renderiza o card adequado.
+async function _detectarEProcessarDocumento(file) {
+  if (!BACKEND_URL) {
+    addMsg('bot', formatarMensagemIA('⚠️ Não encontrei transações neste arquivo. Verifique se é um extrato bancário ou planilha financeira válida.'));
+    return;
+  }
+
+  const statusEl = addMsg('bot', formatarMensagemIA('🔍 Identificando tipo de documento...'));
+  try {
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) throw new Error('Usuário não autenticado.');
+
+    const fd = new FormData();
+    fd.append('arquivo', file);
+    const resp = await fetch(`${BACKEND_URL}/api/analisar-documento`, {
+      method:  'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body:    fd
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const anal = await resp.json();
+
+    // Remove a mensagem de "identificando..."
+    statusEl.remove();
+    _renderizarDocumentoDetectado(anal, file.name);
+
+  } catch (_err) {
+    statusEl.remove();
+    addMsg('bot', formatarMensagemIA(
+      '⚠️ Não encontrei transações neste arquivo. Caso seja um extrato, tente via **Carteira → Importar Extrato**.'
+    ));
+  }
+}
+
+// Renderiza o card/mensagem adequado para o documento detectado pelo backend
+function _renderizarDocumentoDetectado(anal, nomeArquivo) {
+  const { tipo = 'outro', confianca = 0, dados = {} } = anal;
+  const nomeSafe = escapeHTML(nomeArquivo);
+
+  if (tipo === 'fatura_cartao') {
+    addMsg('bot', formatarMensagemIA(
+      `💳 **Fatura de cartão detectada** em **${nomeSafe}**.\n\n` +
+      'Para importar as transações, use **Cartões → 📤 Importar IA** nessa fatura.'
+    ));
+    const chipDiv = document.createElement('div');
+    chipDiv.style.cssText = 'margin:0.4rem 0 0 2.625rem;';
+    const chipBtn = document.createElement('button');
+    chipBtn.className = 'sug-btn';
+    chipBtn.textContent = '💳 Ir para Cartões';
+    chipBtn.addEventListener('click', () => { window.location.href = 'cartoes.html'; });
+    chipDiv.appendChild(chipBtn);
+    chatContainer.appendChild(chipDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+  } else if (tipo === 'extrato_bancario') {
+    addMsg('bot', formatarMensagemIA(
+      `🏦 **Extrato bancário detectado** em **${nomeSafe}**.\n\n` +
+      'Para importar, use **Carteira → Importar Extrato** (OFX, PDF, CSV).'
+    ));
+    const chipDiv = document.createElement('div');
+    chipDiv.style.cssText = 'margin:0.4rem 0 0 2.625rem;';
+    const chipBtn = document.createElement('button');
+    chipBtn.className = 'sug-btn';
+    chipBtn.textContent = '🏦 Ir para Carteira';
+    chipBtn.addEventListener('click', () => { window.location.href = 'carteira.html'; });
+    chipDiv.appendChild(chipBtn);
+    chatContainer.appendChild(chipDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+  } else if (tipo === 'emprestimo') {
+    const { credor = '', valorParcela = 0, nParcelas = 0, taxa = 0, vencimento = null, tipoEmprestimo = '', totalFinanciado = 0 } = dados;
+    const totalCalc = (valorParcela && nParcelas) ? valorParcela * nParcelas : totalFinanciado;
+    let resumo = '';
+    if (credor)         resumo += `**Credor:** ${escapeHTML(credor)}\n`;
+    if (tipoEmprestimo) resumo += `**Tipo:** ${escapeHTML(tipoEmprestimo)}\n`;
+    if (nParcelas && valorParcela) resumo += `**Parcelas:** ${nParcelas}× ${fmtBRL(valorParcela)}\n`;
+    if (totalCalc > 0)  resumo += `**Total:** ${fmtBRL(totalCalc)}\n`;
+    if (taxa > 0)       resumo += `**Taxa:** ${taxa.toFixed(2)}% a.m.\n`;
+    if (vencimento)     resumo += `**1ª parcela:** ${vencimento.split('-').reverse().join('/')}\n`;
+
+    addMsg('bot', formatarMensagemIA(
+      `📄 **Contrato de empréstimo detectado** em **${nomeSafe}**.\n\n${resumo}\nDeseja registrar como dívida no Bud Finance?`
+    ));
+
+    if (credor && valorParcela > 0 && nParcelas > 0) {
+      const chipDiv = document.createElement('div');
+      chipDiv.style.cssText = 'margin:0.4rem 0 0 2.625rem;display:flex;gap:0.5rem;flex-wrap:wrap;';
+      const btnCriar = document.createElement('button');
+      btnCriar.className = 'sug-btn';
+      btnCriar.textContent = '➕ Registrar Dívida';
+      btnCriar.addEventListener('click', () => {
+        try {
+          sessionStorage.setItem('bud_prefill_divida', JSON.stringify({
+            nome: credor, valorParcela, parcelas: nParcelas, juros: taxa,
+            vencimento: vencimento || new Date().toISOString().slice(0, 10),
+            tipoEmprestimo
+          }));
+        } catch (_) {}
+        window.location.href = 'dividas.html?prefill=1';
+      });
+      chipDiv.appendChild(btnCriar);
+      chatContainer.appendChild(chipDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+  } else if (tipo === 'boleto') {
+    const { credor = '', valor = 0, vencimento = null, banco = '' } = dados;
+    let resumo = '';
+    if (credor)    resumo += `**Credor:** ${escapeHTML(credor)}\n`;
+    if (banco)     resumo += `**Banco:** ${escapeHTML(banco)}\n`;
+    if (valor > 0) resumo += `**Valor:** ${fmtBRL(valor)}\n`;
+    if (vencimento) resumo += `**Vencimento:** ${vencimento.split('-').reverse().join('/')}\n`;
+
+    const infoEl = addMsg('bot', formatarMensagemIA(
+      `📋 **Boleto detectado** em **${nomeSafe}**.\n\n${resumo}\nDeseja registrar como despesa?`
+    ));
+
+    if (valor > 0) {
+      renderizarCartaoTransacao({
+        descricao: credor ? `Pagamento boleto — ${credor}`.substring(0, 80) : 'Pagamento de boleto',
+        valor,
+        tipo:      'despesa',
+        categoria: 'Serviços',
+        data:      normalizarData(vencimento),
+        conta:     ''
+      }, infoEl);
+    }
+
+  } else if (tipo === 'contrato_investimento') {
+    const { produto = '', emissor = '', valor = 0, vencimento = null, taxa = 0 } = dados;
+    let resumo = '';
+    if (produto)   resumo += `**Produto:** ${escapeHTML(produto)}\n`;
+    if (emissor)   resumo += `**Emissor:** ${escapeHTML(emissor)}\n`;
+    if (valor > 0) resumo += `**Valor investido:** ${fmtBRL(valor)}\n`;
+    if (taxa > 0)  resumo += `**Taxa:** ${taxa.toFixed(2)}% a.a.\n`;
+    if (vencimento) resumo += `**Vencimento:** ${vencimento.split('-').reverse().join('/')}\n`;
+
+    addMsg('bot', formatarMensagemIA(
+      `📈 **Contrato de investimento detectado** em **${nomeSafe}**.\n\n${resumo}Para registrar, acesse a tela **Investimentos**.`
+    ));
+    const chipDiv = document.createElement('div');
+    chipDiv.style.cssText = 'margin:0.4rem 0 0 2.625rem;';
+    const chipBtn = document.createElement('button');
+    chipBtn.className = 'sug-btn';
+    chipBtn.textContent = '📈 Ir para Investimentos';
+    chipBtn.addEventListener('click', () => { window.location.href = 'investimentos.html'; });
+    chipDiv.appendChild(chipBtn);
+    chatContainer.appendChild(chipDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+  } else {
+    // outro | não identificado | baixa confiança
+    const extra = confianca < 40
+      ? '\n\nNão foi possível identificar o tipo de documento com confiança suficiente.'
+      : '';
+    addMsg('bot', formatarMensagemIA(
+      `📎 Documento **${nomeSafe}** recebido, mas não identifiquei o tipo automaticamente.${extra}\n\n` +
+      'Posso ajudar se você descrever o que é (ex: "É um contrato de empréstimo do Banco X").'
+    ));
   }
 }
 

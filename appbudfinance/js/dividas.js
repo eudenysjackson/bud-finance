@@ -2091,6 +2091,33 @@ onAuthStateChanged(auth, async (user) => {
   });
 
   _unsubs.push(unsubDividas);
+
+  // PEND-063: Verificar prefill vindo do Assistente IA (contrato detectado)
+  const _rawPrefill = sessionStorage.getItem('bud_prefill_divida');
+  if (_rawPrefill) {
+    sessionStorage.removeItem('bud_prefill_divida');
+    try {
+      const pf = JSON.parse(_rawPrefill);
+      // Aguarda a primeira renderização antes de abrir o modal
+      setTimeout(() => {
+        wizardTipo      = 'Empréstimo';
+        wizardTipoIcone = '💸';
+        wizardFormato   = pf.juros > 0 ? 'juros' : 'simples';
+        dadosIA = {
+          nomeCliente:   pf.nome         || '',
+          instituicao:   pf.nome         || '',
+          parcelas:      pf.parcelas     || '',
+          juros:         pf.juros        || '',
+          vencimento:    pf.vencimento   || '',
+          valorParcela:  pf.valorParcela || 0,
+          valorTotal:    pf.valorParcela && pf.parcelas ? pf.valorParcela * pf.parcelas : 0,
+          valorPago:     0
+        };
+        abrirFormManual(null, true);
+        window.budShowToast?.('Dados do contrato pré-preenchidos. Revise e salve.', 'info');
+      }, 700);
+    } catch (_) { /* JSON inválido — ignorar */ }
+  }
 });
 
 // ─── keyframe fadeInUp ────────────────────────────────────────────

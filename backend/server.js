@@ -1,7 +1,7 @@
-// backend/server.js — Bud Finance Backend
+﻿// backend/server.js â€” Bud Finance Backend
 // Generates Firebase password reset links via Admin SDK.
 // Sends the reset email server-side via EmailJS REST API.
-// Also: POST /api/extrair-fatura — extrai transações de PDF de fatura de cartão.
+// Also: POST /api/extrair-fatura â€” extrai transaÃ§Ãµes de PDF de fatura de cartÃ£o.
 // The oobCode NEVER leaves the backend.
 
 const express = require('express');
@@ -10,12 +10,12 @@ const admin   = require('firebase-admin');
 const multer  = require('multer');
 const pdfParse = require('pdf-parse');
 
-// ─── Firebase Admin init ────────────────────────────────────────────
+// â”€â”€â”€ Firebase Admin init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Service account credentials injected via environment variable.
 // On Render: FIREBASE_SERVICE_ACCOUNT = JSON string of the service account key.
-// Em dev local sem credenciais, o servidor sobe mesmo assim — apenas as rotas
-// que usam auth/db ficam indisponíveis (ex: /reset-senha). /api/extrair-cupom
-// não usa Firebase e funciona normalmente.
+// Em dev local sem credenciais, o servidor sobe mesmo assim â€” apenas as rotas
+// que usam auth/db ficam indisponÃ­veis (ex: /reset-senha). /api/extrair-cupom
+// nÃ£o usa Firebase e funciona normalmente.
 let auth, db;
 try {
   const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
@@ -23,10 +23,10 @@ try {
   auth = admin.auth();
   db   = admin.firestore();
 } catch (e) {
-  console.warn('[Firebase Admin] Credenciais ausentes ou inválidas. Rotas /reset-senha e similares não funcionarão:', e.message);
+  console.warn('[Firebase Admin] Credenciais ausentes ou invÃ¡lidas. Rotas /reset-senha e similares nÃ£o funcionarÃ£o:', e.message);
 }
 
-// ─── EmailJS config (env vars — set on Render) ─────────────────────
+// â”€â”€â”€ EmailJS config (env vars â€” set on Render) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const EMAILJS_PUBLIC_KEY  = process.env.EMAILJS_PUBLIC_KEY  || '';
 const EMAILJS_SERVICE_ID  = process.env.EMAILJS_SERVICE_ID  || '';
 const EMAILJS_TEMPLATE_ID           = process.env.EMAILJS_TEMPLATE_RECUPERAR_SENHA || '';
@@ -34,7 +34,7 @@ const EMAILJS_TEMPLATE_CHAMADO      = process.env.EMAILJS_TEMPLATE_CHAMADO || ''
 const EMAILJS_TEMPLATE_BOAS_VINDAS  = process.env.EMAILJS_TEMPLATE_BOAS_VINDAS || '';
 const FRONTEND_URL                  = process.env.FRONTEND_URL || 'https://budsolucoes.com.br/appbudfinance';
 
-// ─── WhatsApp config (env vars — set on Render) ─────────────────────
+// â”€â”€â”€ WhatsApp config (env vars â€” set on Render) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const WA_PHONE_NUMBER_ID  = process.env.WA_PHONE_NUMBER_ID  || '';
 const WA_API_TOKEN        = process.env.WA_API_TOKEN        || '';
 const WA_VERIFY_TOKEN     = process.env.WA_VERIFY_TOKEN     || 'bud-wh-verify';
@@ -46,22 +46,22 @@ const WA_EVOLUTION_URL      = process.env.WA_EVOLUTION_URL      || '';
 const WA_EVOLUTION_KEY      = process.env.WA_EVOLUTION_KEY      || '';
 const WA_EVOLUTION_INSTANCE = process.env.WA_EVOLUTION_INSTANCE || 'bud';
 
-// ─── Mercado Pago config ─────────────────────────────────────────────
+// â”€â”€â”€ Mercado Pago config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const MP_ACCESS_TOKEN   = process.env.MP_ACCESS_TOKEN   || '';
 const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET || '';
-// planKey → título e preço mensal (BRL)
+// planKey â†’ tÃ­tulo e preÃ§o mensal (BRL)
 const MP_PLANS = {
   starter: { title: 'Bud Finance Starter', amount: 9.99  },
   pro:     { title: 'Bud Finance Pro',     amount: 29.90 },
   plus:    { title: 'Bud Finance Plus',    amount: 49.90 }
 };
-const MP_INDICACAO_DESCONTO = 0.10; // 10% off para links de indicação
+const MP_INDICACAO_DESCONTO = 0.10; // 10% off para links de indicaÃ§Ã£o
 
-// ─── Express setup ──────────────────────────────────────────────────
+// â”€â”€â”€ Express setup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const app = express();
 app.use(express.json({ limit: '200kb' })); // aumentado para suportar mensagens com extratos/planilhas do Assistente IA
 
-// A3 fix: CORS allowlist split por NODE_ENV (dev permite localhost; prod só domínios públicos).
+// A3 fix: CORS allowlist split por NODE_ENV (dev permite localhost; prod sÃ³ domÃ­nios pÃºblicos).
 const IS_PROD = process.env.NODE_ENV === 'production';
 const ALLOWED_ORIGINS_DEV = [
   'http://localhost:8080',
@@ -81,7 +81,7 @@ const ALLOWED_ORIGINS_PROD = [
   'https://bud-finance.onrender.com',
   'https://budsolucoes.com.br',
   'https://www.budsolucoes.com.br',
-  // Origens locais de desenvolvimento — seguras pois localhost/127.0.0.1 não é acessível externamente.
+  // Origens locais de desenvolvimento â€” seguras pois localhost/127.0.0.1 nÃ£o Ã© acessÃ­vel externamente.
   'http://localhost:3000',
   'http://127.0.0.1:3000',
   'http://localhost:3001',
@@ -109,10 +109,10 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// ─── Rate limiting (simple in-memory) ───────────────────────────────
-// LIMITAÇÃO CONHECIDA (C4): este mapa vive em memória do processo.
-// Em deploys que reiniciam (Render free tier dorme após inatividade),
-// o estado é perdido. Para hardening real, migrar p/ Redis ou
+// â”€â”€â”€ Rate limiting (simple in-memory) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// LIMITAÃ‡ÃƒO CONHECIDA (C4): este mapa vive em memÃ³ria do processo.
+// Em deploys que reiniciam (Render free tier dorme apÃ³s inatividade),
+// o estado Ã© perdido. Para hardening real, migrar p/ Redis ou
 // Firestore (`usuarios/{uid}/_ratelimit`). Documentado em ROADMAP.md.
 const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
@@ -141,17 +141,17 @@ setInterval(function () {
   }
 }, 2 * 60 * 1000);
 
-// ─── Sanitize HTML tags (server-side equivalent of budSanitize) ─────
+// â”€â”€â”€ Sanitize HTML tags (server-side equivalent of budSanitize) â”€â”€â”€â”€â”€
 function sanitizeStr(str) {
   if (typeof str !== 'string') return '';
   return str.replace(/<[^>]*>?/g, '').replace(/\s+/g, ' ').trim();
 }
 
-// ─── Send email via EmailJS REST API ────────────────────────────────
+// â”€â”€â”€ Send email via EmailJS REST API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function sendEmailViaEmailJS(templateParams, templateId) {
   var tid = templateId || EMAILJS_TEMPLATE_ID;
   if (!EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID || !tid) {
-    // EmailJS not configured — skip silently
+    // EmailJS not configured â€” skip silently
     return;
   }
 
@@ -171,34 +171,34 @@ async function sendEmailViaEmailJS(templateParams, templateId) {
   }
 }
 
-// ─── POST /api/boas-vindas ────────────────────────────────────────
-// Gera o link de verificação de e-mail (Firebase Admin) e envia o
+// â”€â”€â”€ POST /api/boas-vindas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Gera o link de verificaÃ§Ã£o de e-mail (Firebase Admin) e envia o
 // email de boas-vindas com o link via EmailJS (server-side).
-// O link completo de verificação nunca é exposto ao cliente.
+// O link completo de verificaÃ§Ã£o nunca Ã© exposto ao cliente.
 app.post('/api/boas-vindas', async function (req, res) {
   try {
-    if (!auth) return res.status(503).json({ success: false, message: 'Serviço indisponível.' });
+    if (!auth) return res.status(503).json({ success: false, message: 'ServiÃ§o indisponÃ­vel.' });
 
     var email     = (req.body.email    || '').trim().toLowerCase();
-    var nome      = (req.body.nome     || 'Usuário').substring(0, 100);
+    var nome      = (req.body.nome     || 'UsuÃ¡rio').substring(0, 100);
     var matricula = (req.body.matricula || '').substring(0, 20);
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ success: false });
     }
 
-    // Gera o link de verificação de e-mail via Admin SDK
+    // Gera o link de verificaÃ§Ã£o de e-mail via Admin SDK
     var verifyLink;
     try {
       verifyLink = await auth.generateEmailVerificationLink(email, {
         url: FRONTEND_URL + '/index.html'
       });
     } catch (_linkErr) {
-      // Conta pode não existir ainda ou outro erro — não bloquear o cadastro
+      // Conta pode nÃ£o existir ainda ou outro erro â€” nÃ£o bloquear o cadastro
       verifyLink = FRONTEND_URL + '/index.html';
     }
 
-    // Envia email de boas-vindas com o link de verificação
+    // Envia email de boas-vindas com o link de verificaÃ§Ã£o
     try {
       await sendEmailViaEmailJS({
         to_email:   email,
@@ -208,7 +208,7 @@ app.post('/api/boas-vindas', async function (req, res) {
         app_url:    FRONTEND_URL + '/index.html'
       }, EMAILJS_TEMPLATE_BOAS_VINDAS);
     } catch (_emailErr) {
-      // Falha de email não bloqueia o cadastro
+      // Falha de email nÃ£o bloqueia o cadastro
     }
 
     return res.json({ success: true });
@@ -217,28 +217,28 @@ app.post('/api/boas-vindas', async function (req, res) {
   }
 });
 
-// ─── POST /api/iniciar-trial ───────────────────────────────────────
-// Ativado automaticamente após cadastro: concede 3 dias no plano Pro.
+// â”€â”€â”€ POST /api/iniciar-trial â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ativado automaticamente apÃ³s cadastro: concede 3 dias no plano Pro.
 // Usa Firebase Admin SDK para contornar regras Firestore de create.
 app.post('/api/iniciar-trial', express.json(), async function (req, res) {
-  if (!db) return res.status(503).json({ ok: false, error: 'Firebase Admin não inicializado.' });
+  if (!db) return res.status(503).json({ ok: false, error: 'Firebase Admin nÃ£o inicializado.' });
 
-  // Verificar token JWT — UID extraído do token, nunca do body
+  // Verificar token JWT â€” UID extraÃ­do do token, nunca do body
   var authHeader = req.headers.authorization || '';
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!idToken) return res.status(401).json({ ok: false, error: 'Token ausente.' });
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_e) { return res.status(401).json({ ok: false, error: 'Token inválido.' }); }
+  catch (_e) { return res.status(401).json({ ok: false, error: 'Token invÃ¡lido.' }); }
   var uid = decoded.uid;
   try {
     var ref = db.collection('usuarios').doc(uid);
     var snap = await ref.get();
-    if (!snap.exists) return res.status(404).json({ ok: false, error: 'Usuário não encontrado.' });
+    if (!snap.exists) return res.status(404).json({ ok: false, error: 'UsuÃ¡rio nÃ£o encontrado.' });
     var data = snap.data();
-    // Só ativa trial em contas sem plano ou no free (não sobrescreve planos pagos)
+    // SÃ³ ativa trial em contas sem plano ou no free (nÃ£o sobrescreve planos pagos)
     if (data.plano && data.plano !== 'free') {
-      return res.json({ ok: true, msg: 'Plano já definido.' });
+      return res.json({ ok: true, msg: 'Plano jÃ¡ definido.' });
     }
     var trialFim = new Date();
     trialFim.setDate(trialFim.getDate() + 3);
@@ -254,19 +254,19 @@ app.post('/api/iniciar-trial', express.json(), async function (req, res) {
   }
 });
 
-// ─── POST /api/expirar-trial ───────────────────────────────────────
+// â”€â”€â”€ POST /api/expirar-trial â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Chamado pelo dashboard quando detecta que o trial venceu.
 // Rebaixa o plano para 'free' e limpa os campos de trial.
 app.post('/api/expirar-trial', express.json(), async function (req, res) {
   if (!db) return res.status(503).json({ ok: false });
 
-  // Verificar token JWT — UID extraído do token, nunca do body
+  // Verificar token JWT â€” UID extraÃ­do do token, nunca do body
   var authHeader = req.headers.authorization || '';
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!idToken) return res.status(401).json({ ok: false, error: 'Token ausente.' });
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_e) { return res.status(401).json({ ok: false, error: 'Token inválido.' }); }
+  catch (_e) { return res.status(401).json({ ok: false, error: 'Token invÃ¡lido.' }); }
   var uid = decoded.uid;
   try {
     var ref = db.collection('usuarios').doc(uid);
@@ -291,9 +291,9 @@ app.post('/api/expirar-trial', express.json(), async function (req, res) {
   }
 });
 
-// ─── POST /reset-senha ─────────────────────────────────────────────
+// â”€â”€â”€ POST /reset-senha â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Generates a password reset link and sends the email SERVER-SIDE.
-// The oobCode NEVER leaves the backend — frontend only gets { success: true }.
+// The oobCode NEVER leaves the backend â€” frontend only gets { success: true }.
 app.post('/reset-senha', async function (req, res) {
   try {
     var email = (req.body.email || '').trim().toLowerCase();
@@ -316,19 +316,19 @@ app.post('/reset-senha', async function (req, res) {
     try {
       userRecord = await auth.getUserByEmail(email);
     } catch (_e) {
-      // User not found — return success anyway (anti-enumeration)
+      // User not found â€” return success anyway (anti-enumeration)
       return res.json({ success: true });
     }
 
     // Get user name from Firestore (sanitize to prevent stored XSS in email)
-    var userName = 'Usuário';
+    var userName = 'UsuÃ¡rio';
     try {
       var userDoc = await db.collection('usuarios').doc(userRecord.uid).get();
       if (userDoc.exists) {
-        userName = sanitizeStr(userDoc.data().nome) || 'Usuário';
+        userName = sanitizeStr(userDoc.data().nome) || 'UsuÃ¡rio';
       }
     } catch (_e) {
-      // Non-critical — use default name
+      // Non-critical â€” use default name
     }
 
     // Generate password reset link (Firebase Admin SDK)
@@ -346,7 +346,7 @@ app.post('/reset-senha', async function (req, res) {
         reset_url: resetUrl
       });
     } catch (_emailErr) {
-      // Email failed — but don't leak info to the client
+      // Email failed â€” but don't leak info to the client
     }
 
     return res.json({ success: true });
@@ -357,473 +357,64 @@ app.post('/reset-senha', async function (req, res) {
   }
 });
 
-// ─── Health check ───────────────────────────────────────────────────
+// â”€â”€â”€ Health check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.get('/', function (_req, res) {
   res.json({ status: 'ok', service: 'bud-finance-backend' });
 });
 
-// ─── Multer: upload de arquivo (PDF / imagem) ────────────────────────
+// â”€â”€â”€ Multer: upload de arquivo (PDF / imagem) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
   fileFilter: function (_req, file, cb) {
     const ok = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
     if (ok.includes(file.mimetype)) return cb(null, true);
-    cb(new Error('Formato não suportado. Use PDF, JPEG, PNG ou WEBP.'));
+    cb(new Error('Formato nÃ£o suportado. Use PDF, JPEG, PNG ou WEBP.'));
   }
 });
 
-// ─── Helpers de parsing ──────────────────────────────────────────────
-const MESES_PT = {
-  jan:1, fev:2, mar:3, abr:4, mai:5, jun:6,
-  jul:7, ago:8, set:9, out:10, nov:11, dez:12
-};
 
-function parseValorBRL(str) {
-  // Aceita: "1.234,56" ou "1234,56" ou "1234.56"
-  if (!str) return 0;
-  var s = str.trim();
-  // Se tem vírgula como decimal: "1.234,56"
-  if (/^\d{1,3}(\.\d{3})*,\d{2}$/.test(s)) {
-    return parseFloat(s.replace(/\./g, '').replace(',', '.'));
-  }
-  // "1234,56"
-  if (/^\d+,\d{2}$/.test(s)) {
-    return parseFloat(s.replace(',', '.'));
-  }
-  // fallback
-  return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
-}
+// ─── Helpers de parsing (extraídos para backend/parser.js — DT-004) ─────────
+const { MESES_PT, parseValorBRL, isNonTransactionLine, parseBankStatementText, extractMetaFromText } = require('./parser');
 
-function isNonTransactionLine(line) {
-  // Linhas de cabeçalho, rodapé e resumo que NÃO são transações
-  var keywords = /^(total|saldo|limite|fatura|pagamento|vencimento|encarg|iof|taxa|juros|subtotal|compras nacionais|compras internacionais|parceladas|demais cobranças|valor mínimo|valor da fatura|data de|fechamento|melhor dia|obrigado|olá|esta é)/i;
-  if (keywords.test(line.trim())) return true;
-  // Nubank CC extrato: headers "DD ABR YYYY Total de saídas/entradas" — evita Strategy 1 capturar como transação
-  if (/\btotal de (sa[íi]das?|entradas?)\b/i.test(line)) return true;
-  // Bradesco/Itaú multi-portador: "Cartão 6504 XXXX XXXX 9793" — seção de cartão, não transação
-  if (/^cart[aã]o\b/i.test(line.trim())) return true;
-  return false;
-}
-
-/**
- * Extrai transações do texto bruto de um PDF de fatura.
- * Estratégia dupla: layout horizontal + layout vertical (Nubank/C6/PicPay).
- */
-function parseBankStatementText(rawText) {
-  var normalized = rawText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  var lines = normalized.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
-
-  // Detectar ano do documento (mais frequente no texto)
-  var ano = new Date().getFullYear();
-  var anoMatches = normalized.match(/\b(202\d)\b/g);
-  if (anoMatches && anoMatches.length) {
-    var counts = {};
-    anoMatches.forEach(function(y){ counts[y] = (counts[y] || 0) + 1; });
-    var best = Object.keys(counts).sort(function(a,b){ return counts[b]-counts[a]; })[0];
-    if (best) ano = parseInt(best);
-  }
-
-  var results = [];
-  var seen = new Set();
-
-  // ─── Pre-pass: detectar seções de cartão (Bradesco/Itaú multi-portador) ──────
-  // "Cartão 6504 XXXX XXXX 9793" → captura os 4 últimos dígitos como contexto
-  var RE_CARD_SECTION = /^cart[aã]o\b.*?(\d{4})\s*$/i;
-  var cardForLine = new Array(lines.length);
-  var _curCard = null;
-  for (var _ci = 0; _ci < lines.length; _ci++) {
-    var _cm = lines[_ci].match(RE_CARD_SECTION);
-    if (_cm) _curCard = _cm[1];
-    cardForLine[_ci] = _curCard;
-  }
-
-  // tipo: 'credito' | 'debito' | null (usado pelo frontend para detectarTipo)
-  // card: 4 últimos dígitos do cartão portador (para dedup em faturas multi-portador)
-  function addTx(desc, valor, data, tipo, card) {
-    if (!desc || valor <= 0 || valor > 99999) return;
-    var key = desc.toLowerCase() + '|' + valor + '|' + data + (card ? '|' + card : '');
-    if (seen.has(key)) return;
-    seen.add(key);
-    results.push({ desc: desc, valor: valor, data: data, tipo: tipo || null });
-  }
-
-  // ─── Estratégia 1: layout horizontal ──────────────────────────────
-  // "DD ABR Description R$ 50,00" ou "DD/MM Description ±R$ 50,00"
-  var RE_PT   = /^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\s+(.{3,70}?)\s+([\d\.]+,\d{2})\s*$/i;
-  // Captura sinal opcional antes do R$ para determinar tipo (crédito/débito)
-  var RE_DDMM = /^(\d{2})\/(\d{2})(?:\/\d{4})?\s+(.{3,70}?)\s+([+-])?R?\$?\s*([\d\.]+,\d{2})\s*$/;
-
-  lines.forEach(function(line, _li) {
-    if (isNonTransactionLine(line)) return;
-
-    var m1 = line.match(RE_PT);
-    if (m1) {
-      var mes = MESES_PT[m1[2].toLowerCase()];
-      var desc = m1[3].replace(/R\$\s*/g, '').trim();
-      var valor = parseValorBRL(m1[4]);
-      if (mes) {
-        var data = ano + '-' + String(mes).padStart(2,'0') + '-' + String(m1[1]).padStart(2,'0');
-        addTx(desc, valor, data, null, cardForLine[_li]);
-      }
-      return;
-    }
-
-    var m2 = line.match(RE_DDMM);
-    if (m2) {
-      var desc2  = m2[3].replace(/R\$\s*/g, '').trim();
-      var sign2  = m2[4]; // '+' | '-' | undefined
-      var valor2 = parseValorBRL(m2[5]);
-      var data2  = ano + '-' + m2[2] + '-' + m2[1];
-      var tipo2  = sign2 === '+' ? 'credito' : sign2 === '-' ? 'debito' : null;
-      addTx(desc2, valor2, data2, tipo2, cardForLine[_li]);
-    }
-  });
-
-  // ─── Estratégia 2: layout vertical/bloco (Nubank, PicPay, C6) ─────
-  // Padrão: linha de data → linha(s) de descrição → linha de valor "R$ XX,XX"
-  if (results.length < 2) {
-    var i = 0;
-    while (i < lines.length) {
-      var line = lines[i];
-
-      // Detectar linha de data: "DD abr" (Nubank usa minúsculas)
-      var dateM = line.match(/^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)$/i);
-      if (dateM) {
-        var dia = dateM[1];
-        var mesV = MESES_PT[dateM[2].toLowerCase()];
-        if (mesV) {
-          var descLines = [];
-          var j = i + 1;
-          while (j < lines.length) {
-            var next = lines[j];
-            // Para ao encontrar linha de valor
-            if (/^-?R?\$?\s*[\d\.]+,\d{2}$/.test(next)) break;
-            // Para ao encontrar próxima data
-            if (/^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)$/i.test(next)) break;
-            // Para em palavras-chave de resumo (se já tem desc)
-            if (descLines.length > 0 && isNonTransactionLine(next)) break;
-            if (next.length >= 2 && next.length <= 100) descLines.push(next);
-            j++;
-            if (j > i + 5) break;
-          }
-          // Linha de valor — captura sinal +/- para determinar tipo crédito/débito
-          if (j < lines.length) {
-            var valLine = lines[j];
-            var valM = valLine.match(/^([+-])?R?\$?\s*([\d\.]+,\d{2})$/);
-            if (valM && descLines.length > 0) {
-              var desc3  = descLines.join(' ').replace(/\s+/g, ' ').trim();
-              var sign3  = valM[1]; // '+' | '-' | undefined
-              var valor3 = parseValorBRL(valM[2]);
-              var tipo3  = sign3 === '+' ? 'credito' : sign3 === '-' ? 'debito' : null;
-              var data3  = ano + '-' + String(mesV).padStart(2,'0') + '-' + String(dia).padStart(2,'0');
-              addTx(desc3, valor3, data3, tipo3, cardForLine[i]);
-              i = j + 1;
-              continue;
-            }
-          }
-        }
-      }
-      i++;
-    }
-  }
-
-  // ─── Estratégia 3: Nubank — data na linha, desc+valor concatenados ─────────
-  // Padrão:  "DD MMM"           → linha de data
-  //          "DescriçãoR$ X,XX" → descrição + valor na mesma linha (sem espaço)
-  if (results.length < 2) {
-    var RE_DATE3 = /^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)$/i;
-    var RE_DV    = /^(.+?)R\$\s*([\d\.]+,\d{2})$/;
-    var RE_NEG3  = /\u2212R\$/;   // sinal menos Unicode (estorno/crédito Nubank)
-    var SKIP3    = /^(pagamento|saldo restante|parcelamento|outros lan)/i;
-    // Coletar estornos para deduzir depois: "Estorno de X −R$ Y"
-    var RE_ESTORNO = /^Estorno de (.+?)\u2212R\$\s*([\d\.]+,\d{2})$/;
-    var estornos = []; // [{desc, valor}]
-
-    for (var k = 0; k < lines.length - 1; k++) {
-      var dm3 = lines[k].match(RE_DATE3);
-      if (!dm3) continue;
-      var nxt = lines[k + 1];
-      // Captura estornos para dedução posterior
-      var estM = nxt.match(RE_ESTORNO);
-      if (estM) {
-        var estDesc = estM[1].trim();
-        var estVal  = parseValorBRL(estM[2]);
-        estornos.push({ desc: estDesc, valor: estVal });
-        k++; continue;
-      }
-      // Pula pagamentos e cabeçalhos (mas não estornos — já tratados acima)
-      if (RE_NEG3.test(nxt) || SKIP3.test(nxt) || isNonTransactionLine(nxt)) { k++; continue; }
-      var dv = nxt.match(RE_DV);
-      if (!dv) { k++; continue; }
-      var mes3 = MESES_PT[dm3[2].toLowerCase()];
-      if (!mes3) { k++; continue; }
-      // Remove prefixo de cartão mascarado: "•••• 4567Loja" → "Loja"
-      var rawDesc3 = dv[1].trim().replace(/^•+\s*\d{4}/, '').trim();
-      if (!rawDesc3) { k++; continue; }
-      var valor3 = parseValorBRL(dv[2]);
-      var data3  = ano + '-' + String(mes3).padStart(2,'0') + '-' + String(dm3[1]).padStart(2,'0');
-      addTx(rawDesc3, valor3, data3, null, cardForLine[k]);
-      k++; // já consumiu a linha de desc+valor
-    }
-
-    // Deduzir estornos: remover UMA ocorrência da compra correspondente
-    estornos.forEach(function(est) {
-      var idx = results.findIndex(function(t) {
-        return t.desc === est.desc && Math.abs(t.valor - est.valor) < 0.01;
-      });
-      if (idx !== -1) results.splice(idx, 1);
-    });
-  }
-
-  // ─── Estratégia 4: Nubank — parcelamentos/financiamentos com juros ──────────
-  // Padrão:  "DD MMM"
-  //          "NOME DO CREDOR EM MAIÚSCULAS"
-  //          "Total a pagar: R$ X,XX (valor da transação...)"  ← linha longa descritiva
-  //          "R$ X,XX"  ← valor isolado na própria linha
-  // O valor que importa é o da última linha ("R$ X,XX") = total com juros/IOF
-  {
-    var RE_DATE4  = /^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)$/i;
-    var RE_VAL4   = /^R\$\s*([\d\.]+,\d{2})$/;
-    var RE_TOTAL4 = /^Total a pagar:/i;
-    var SKIP4     = /^(pagamento|estorno|saldo restante)/i;
-
-    for (var p = 0; p < lines.length - 3; p++) {
-      var dm4 = lines[p].match(RE_DATE4);
-      if (!dm4) continue;
-      var credorLine = lines[p + 1] || '';
-      // Credor deve ser texto puro sem "R$" e razoavelmente longo
-      if (!credorLine || /R\$/.test(credorLine) || SKIP4.test(credorLine)) continue;
-      if (credorLine.length < 4 || credorLine.length > 120) continue;
-      // Próximas linhas: procurar "Total a pagar:" seguido de "R$ X,XX"
-      var found = false;
-      for (var q = p + 2; q < Math.min(p + 6, lines.length - 1); q++) {
-        if (RE_TOTAL4.test(lines[q])) {
-          // Procurar linha de valor isolado logo após
-          for (var r = q + 1; r < Math.min(q + 4, lines.length); r++) {
-            var valM4 = lines[r].match(RE_VAL4);
-            if (valM4) {
-              var mes4 = MESES_PT[dm4[2].toLowerCase()];
-              if (mes4) {
-                var desc4  = credorLine.trim();
-                var valor4 = parseValorBRL(valM4[1]);
-                var data4  = ano + '-' + String(mes4).padStart(2,'0') + '-' + String(dm4[1]).padStart(2,'0');
-                addTx(desc4, valor4, data4, null, cardForLine[p]);
-              }
-              found = true;
-              p = r; // avança o índice externo
-              break;
-            }
-          }
-          break;
-        }
-      }
-    }
-  }
-
-  // ─── Estratégia 5: extrato conta corrente — data DD/MM ou DD/MM/YYYY sozinha ──
-  // Nubank conta: "DD/MM" ou "DD/MM/YYYY" em linha própria
-  //               → linhas de descrição
-  //               → linha de valor "[+-]R$ X,XX"
-  if (results.length < 2) {
-    var RE_DATE5 = /^(\d{2})\/(\d{2})(?:\/\d{4})?$/;
-    var RE_VAL5  = /^([+-])?R?\$?\s*([\d\.]+,\d{2})\s*$/;
-    var i5 = 0;
-    while (i5 < lines.length) {
-      var l5 = lines[i5];
-      var dm5 = l5.match(RE_DATE5);
-      if (dm5) {
-        var descLines5 = [];
-        var j5 = i5 + 1;
-        while (j5 < lines.length) {
-          var nxt5 = lines[j5];
-          if (RE_VAL5.test(nxt5)) break;
-          if (RE_DATE5.test(nxt5)) break;
-          if (descLines5.length > 0 && isNonTransactionLine(nxt5)) break;
-          if (nxt5.length >= 2 && nxt5.length <= 100) descLines5.push(nxt5);
-          j5++;
-          if (j5 > i5 + 5) break;
-        }
-        if (j5 < lines.length && descLines5.length > 0) {
-          var vl5 = lines[j5];
-          var vm5 = vl5.match(RE_VAL5);
-          if (vm5) {
-            var desc5  = descLines5.join(' ').replace(/\s+/g, ' ').trim();
-            var sign5  = vm5[1]; // '+' | '-' | undefined
-            var valor5 = parseValorBRL(vm5[2]);
-            var tipo5  = sign5 === '+' ? 'credito' : sign5 === '-' ? 'debito' : null;
-            var data5  = ano + '-' + dm5[2] + '-' + dm5[1];
-            addTx(desc5, valor5, data5, tipo5, cardForLine[i5]);
-            i5 = j5 + 1;
-            continue;
-          }
-        }
-      }
-      i5++;
-    }
-  }
-
-  // ─── Estratégia 6: Nubank extrato conta corrente PDF ───────────────
-  // Formato real (duas linhas separadas):
-  //   Linha A: "01 ABR 2026"           ← data isolada
-  //   Linha B: "Total de saídas- 84,96" ← tipo + total do dia
-  //   Linhas+: descrição multi-linha
-  //   Última:  "30,00"                  ← valor puro encerra tx
-  if (results.length < 2) {
-    var RE_HDR6  = /^(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\s+(\d{4})$/i;  // data sozinha
-    var RE_SUB6  = /^Total de (sa[íi]das?|entradas?)/i;   // define direção (mesmo dia pode alternar)
-    var RE_VAL6  = /^[\d\.]+,\d{2}$/;                    // valor puro: "30,00", "1.234,56"
-    var RE_SKIP6 = /^(saldo\b|rendimento\b|movimenta|cpf\b|tem alguma|caso a\b|extrato gerado|asseguramos|nu (financeira|pagamentos)|cnpj:|o saldo l[íi]quido|n[ãa]o nos|valores em|•••|página|de \d|\d+ de \d+$)/i;
-    var RE_ONLYNUMS6 = /^\d[\d\.\-]+$/; // linhas que são só números/conta (ex: "87450507-6", "4")
-
-    var curData6 = null;
-    var curTipo6 = null;
-    var descBuf6 = [];
-
-    for (var s6 = 0; s6 < lines.length; s6++) {
-      var line6 = lines[s6];
-
-      // Linha de data isolada: "01 ABR 2026"
-      var hm6 = line6.match(RE_HDR6);
-      if (hm6) {
-        descBuf6 = [];
-        var mes6 = MESES_PT[hm6[2].toLowerCase()];
-        if (mes6) {
-          curData6 = hm6[3] + '-' + String(mes6).padStart(2, '0') + '-' + String(parseInt(hm6[1])).padStart(2, '0');
-          curTipo6 = null; // será definido pela linha seguinte (Total de saídas/entradas)
-        }
-        continue;
-      }
-
-      // Linha de tipo/total do dia: "Total de saídas- 84,96" ou "Total de entradas+ 65,00"
-      if (RE_SUB6.test(line6)) {
-        descBuf6 = [];
-        curTipo6 = /sa[íi]da/i.test(line6) ? 'debito' : 'credito';
-        continue;
-      }
-
-      // Linhas de rodapé/cabeçalho irrelevantes
-      if (RE_SKIP6.test(line6)) { descBuf6 = []; continue; }
-
-      // Aguarda data E tipo estarem definidos
-      if (!curData6 || !curTipo6) { descBuf6 = []; continue; }
-
-      // Valor puro → cria transação com descrição acumulada
-      if (RE_VAL6.test(line6)) {
-        if (descBuf6.length > 0) {
-          var desc6  = descBuf6.join(' ').replace(/\s+/g, ' ').trim();
-          var valor6 = parseValorBRL(line6);
-          addTx(desc6, valor6, curData6, curTipo6, cardForLine[s6]);
-          descBuf6 = [];
-        }
-        continue;
-      }
-
-      // Acumula linhas de descrição (2–200 chars)
-      // Ignora linhas que são só números de conta (ex: "87450507-6", "4")
-      if (line6.length >= 2 && line6.length <= 200 && !RE_ONLYNUMS6.test(line6)) {
-        // Remove valores embutidos no final da linha (ex: "Resgate RDB1.592,47")
-        var cleanLine6 = line6.replace(/[\d\.]+,\d{2}$/, '').trim();
-        // "Resgate RDB", "Pagamento de fatura" SÃO transações válidas — não filtrar.
-        if (cleanLine6.length >= 2) descBuf6.push(cleanLine6);
-      }
-    }
-  }
-
-  return results;
-}
-
-/**
- * Extrai transações de imagem ou PDF complexo usando Groq (llama-4-scout vision).
- * Requer GROQ_API_KEY no ambiente.
- */
-// Extrai totais declarados no próprio texto do PDF (sem IA)
-function extractMetaFromText(text) {
-  function parseVal(str) { return parseFloat(str.replace(/\./g, '').replace(',', '.')); }
-  var meta = { totalEntradas: null, totalSaidas: null, saldoFinal: null, totalCompras: null, totalAPagar: null };
-
-  // "Total entradas +4.035,65" / "Total de entradas\n+R$ 4.035,65"
-  var mE = text.match(/total\s+d[eo]?\s*entradas?[\s\S]{0,40}?(\d[\d\.]*,\d{2})/i);
-  if (mE) meta.totalEntradas = parseVal(mE[1]);
-
-  // "Total saídas -3.939,32" / "Total de saídas\n-R$ 3.939,32"
-  var mS = text.match(/total\s+d[eo]?\s*sa[\u00ed\u0069]das?[\s\S]{0,40}?(\d[\d\.]*,\d{2})/i);
-  if (mS) meta.totalSaidas = parseVal(mS[1]);
-
-  // "Saldo final do período\nR$ 218,65" / "Saldo final R$ 218,65"
-  var mSaldo = text.match(/saldo\s+(?:final|do\s+per[\u00ed\u0069]odo|l[\u00ed\u0069]quido)[\s\S]{0,60}?(\d[\d\.]*,\d{2})/i);
-  if (mSaldo) meta.saldoFinal = parseVal(mSaldo[1]);
-
-  // Fatura cartão: "Total de compras de todos os cartões\nR$ 908,47"
-  // (só novas compras — sem saldo anterior, parcelas futuras, IOF)
-  // Janela ampliada (300 chars) porque PDFs com colunas separam label/valor no texto extraído
-  if (meta.totalEntradas === null) {
-    // Helper: dentro da janela após uma âncora, pega o MAIOR valor decimal
-    // (evita capturar IOF/conversão USD que aparece como primeiro número
-    // logo após "total a pagar" em PDFs Nubank).
-    function maiorAposAncora(ancoraRegex, janela) {
-      var m = text.match(ancoraRegex);
-      if (!m) return null;
-      var trecho = text.substring(m.index + m[0].length, m.index + m[0].length + janela);
-      var cands = (trecho.match(/\d{1,3}(?:\.\d{3})*,\d{2}/g) || [])
-        .map(parseVal)
-        .filter(function(v){ return v > 0; });
-      return cands.length ? Math.max.apply(null, cands) : null;
-    }
-
-    meta.totalCompras = maiorAposAncora(
-      /total\s+d[eo]?\s*compras?(?:\s+de\s+todos\s+os\s+cart[\u00f5o]es)?/i, 300
-    );
-
-    // "Total a pagar": tenta primeiro a frase mais específica do Nubank
-    // ("Pagamento total da fatura"), que está sempre próxima do valor correto.
-    meta.totalAPagar =
-      maiorAposAncora(/pagamento\s+total\s+d[ao]\s+fatura/i, 200) ||
-      maiorAposAncora(/total\s+a\s+pagar/i, 400);
-  }
-
-  if (meta.totalEntradas === null && meta.totalSaidas === null && meta.saldoFinal === null &&
-      meta.totalCompras === null && meta.totalAPagar === null) return null;
-  return meta;
-}
 
 // ===================================================================
-// Extração por IA usando TEXTO (mais preciso e rápido que visão p/ PDFs)
+// ExtraÃ§Ã£o por IA usando TEXTO (mais preciso e rÃ¡pido que visÃ£o p/ PDFs)
 // ===================================================================
 async function extractWithAIFromText(text, tipo) {
   var key = process.env.GROQ_API_KEY;
-  if (!key) throw new Error('GROQ_API_KEY não configurada no servidor.');
+  if (!key) throw new Error('GROQ_API_KEY nÃ£o configurada no servidor.');
 
   var isExtrato = (tipo === 'extrato');
   var promptInstrucoes = isExtrato ? [
-    'Você é um extrator preciso de extratos bancários brasileiros.',
-    'OBJETIVO: extrair TODAS as movimentações do texto abaixo, sem omitir NENHUMA linha de transação.',
-    'Inclua: Pix enviado/recebido, TED/DOC, transferências, pagamentos, compras no débito, salário, depósitos, tarifas, rendimentos, juros, IOF.',
-    'IGNORE: linhas de saldo, totais diários ("Total de saídas", "Total de entradas"), cabeçalhos, rodapés, números de página, CPF, CNPJ.',
-    'TIPO: "debito" para saídas/despesas (sinal -), "credito" para entradas/receitas (sinal +). VALOR sempre positivo.',
-    'NUNCA invente valores. Se uma linha estiver ambígua, copie a descrição exatamente como está.',
-    'TAREFA EXTRA: capture os totais declarados ("Total entradas", "Total saídas", "Saldo final") em "meta".',
-    'Retorne SOMENTE JSON válido neste formato exato:',
-    '{"transacoes":[{"desc":"PIX recebido - João","valor":150.00,"data":"2026-04-15","tipo":"credito"}],"meta":{"totalEntradas":4035.65,"totalSaidas":3939.32,"saldoFinal":218.65}}',
-    'Use null em campos meta não visíveis. SEM markdown, SEM comentários.'
+    'VocÃª Ã© um extrator preciso de extratos bancÃ¡rios brasileiros.',
+    'OBJETIVO: extrair TODAS as movimentaÃ§Ãµes do texto abaixo, sem omitir NENHUMA linha de transaÃ§Ã£o.',
+    'Inclua: Pix enviado/recebido, TED/DOC, transferÃªncias, pagamentos, compras no dÃ©bito, salÃ¡rio, depÃ³sitos, tarifas, rendimentos, juros, IOF.',
+    'IGNORE: linhas de saldo, totais diÃ¡rios ("Total de saÃ­das", "Total de entradas"), cabeÃ§alhos, rodapÃ©s, nÃºmeros de pÃ¡gina, CPF, CNPJ.',
+    'TIPO: "debito" para saÃ­das/despesas (sinal -), "credito" para entradas/receitas (sinal +). VALOR sempre positivo.',
+    'NUNCA invente valores. Se uma linha estiver ambÃ­gua, copie a descriÃ§Ã£o exatamente como estÃ¡.',
+    'TAREFA EXTRA: capture os totais declarados ("Total entradas", "Total saÃ­das", "Saldo final") em "meta".',
+    'Retorne SOMENTE JSON vÃ¡lido neste formato exato:',
+    '{"transacoes":[{"desc":"PIX recebido - JoÃ£o","valor":150.00,"data":"2026-04-15","tipo":"credito"}],"meta":{"totalEntradas":4035.65,"totalSaidas":3939.32,"saldoFinal":218.65}}',
+    'Use null em campos meta nÃ£o visÃ­veis. SEM markdown, SEM comentÃ¡rios.'
   ].join(' ') : [
-    'Você é um extrator preciso de faturas de cartão de crédito brasileiras.',
-    'OBJETIVO: extrair cada LINHA DE COMPRA/COBRANÇA individual present no detalhamento de transações da fatura.',
-    'INCLUA: compras à vista, parcelas de compras antigas (ex: "3/10 LOJA X"), IOF embutido em compras internacionais, juros de financiamento de compra específica, anuidade, ajustes a débito.',
-    'INCLUA ESTORNOS com valor NEGATIVO (ex: "Estorno de Uber" → valor: -11.93). Eles compensam compras e fazem parte da soma final.',
-    'IGNORE ESTRITAMENTE (nunca inclua como transação):',
+    'VocÃª Ã© um extrator preciso de faturas de cartÃ£o de crÃ©dito brasileiras.',
+    'OBJETIVO: extrair cada LINHA DE COMPRA/COBRANÃ‡A individual present no detalhamento de transaÃ§Ãµes da fatura.',
+    'INCLUA: compras Ã  vista, parcelas de compras antigas (ex: "3/10 LOJA X"), IOF embutido em compras internacionais, juros de financiamento de compra especÃ­fica, anuidade, ajustes a dÃ©bito.',
+    'INCLUA ESTORNOS com valor NEGATIVO (ex: "Estorno de Uber" â†’ valor: -11.93). Eles compensam compras e fazem parte da soma final.',
+    'IGNORE ESTRITAMENTE (nunca inclua como transaÃ§Ã£o):',
     '- Linhas de pagamento: "Pagamento recebido", "Pagamento em DD MMM", "Pagamento de fatura"',
-    '- Subtotais de seção: "Outros lançamentos R$ X", "Total de compras R$ X", "Pagamentos e Financiamentos R$ X", "Fatura anterior R$ X"',
-    '- Subtotais por portador: linha com nome de pessoa + valor (ex: "João Silva   R$ 1.756,22") que aparece antes das transações do portador',
-    '- Linhas de saldo: "Saldo restante da fatura anterior", "Saldo em aberto", "Pagamento mínimo"',
-    '- Tarifas e encargos bancários standalone: linhas como "CUSTO TRANS. EXTERIOR-IOF", "IOF OPERACAO", "ENCARGO FINANCEIRO", "TARIFA BANCARIA", "MULTA", "MORA", "JUROS ROTATIVO" que aparecem como cobranças avulsas sem uma compra associada',
-    '- Cabeçalhos de seção e rodapés (número de página, CNPJ, endereço)',
-    'A soma dos valores extraídos (positivos + negativos dos estornos) deve bater com "Pagamento total da fatura" / "Total a pagar" do documento.',
-    'TAREFA EXTRA: capture em "meta" DOIS totais: "totalCompras" ("Total de compras", só novas compras) E "totalAPagar" ("Pagamento total da fatura" ou "Total a pagar", valor cobrado).',
-    'Retorne SOMENTE JSON válido: {"transacoes":[{"desc":"Loja","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47,"totalAPagar":1242.36}}'
+    '- Subtotais de seÃ§Ã£o: "Outros lanÃ§amentos R$ X", "Total de compras R$ X", "Pagamentos e Financiamentos R$ X", "Fatura anterior R$ X"',
+    '- Subtotais por portador: linha com nome de pessoa + valor (ex: "JoÃ£o Silva   R$ 1.756,22") que aparece antes das transaÃ§Ãµes do portador',
+    '- Linhas de saldo: "Saldo restante da fatura anterior", "Saldo em aberto", "Pagamento mÃ­nimo"',
+    '- Tarifas e encargos bancÃ¡rios standalone: linhas como "CUSTO TRANS. EXTERIOR-IOF", "IOF OPERACAO", "ENCARGO FINANCEIRO", "TARIFA BANCARIA", "MULTA", "MORA", "JUROS ROTATIVO" que aparecem como cobranÃ§as avulsas sem uma compra associada',
+    '- CabeÃ§alhos de seÃ§Ã£o e rodapÃ©s (nÃºmero de pÃ¡gina, CNPJ, endereÃ§o)',
+    'A soma dos valores extraÃ­dos (positivos + negativos dos estornos) deve bater com "Pagamento total da fatura" / "Total a pagar" do documento.',
+    'TAREFA EXTRA: capture em "meta" DOIS totais: "totalCompras" ("Total de compras", sÃ³ novas compras) E "totalAPagar" ("Pagamento total da fatura" ou "Total a pagar", valor cobrado).',
+    'Retorne SOMENTE JSON vÃ¡lido: {"transacoes":[{"desc":"Loja","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47,"totalAPagar":1242.36}}'
   ].join(' ');
 
-  // Limita texto a 30k chars para não estourar contexto
+  // Limita texto a 30k chars para nÃ£o estourar contexto
   var textoLimitado = text.length > 30000 ? text.substring(0, 30000) : text;
 
   var body = JSON.stringify({
@@ -878,7 +469,7 @@ async function extractWithAIFromText(text, tipo) {
   }
 }
 
-// Soma transações por tipo para validar contra meta declarada
+// Soma transaÃ§Ãµes por tipo para validar contra meta declarada
 function sumByType(transacoes) {
   var creditos = 0, debitos = 0;
   (transacoes || []).forEach(function(t){
@@ -889,11 +480,11 @@ function sumByType(transacoes) {
   return { creditos: creditos, debitos: debitos };
 }
 
-// Calcula score de captura: mínimo entre %entradas e %saídas (1.0 = perfeito)
+// Calcula score de captura: mÃ­nimo entre %entradas e %saÃ­das (1.0 = perfeito)
 function captureScore(transacoes, meta) {
   if (!meta) return null;
-  // Fatura de cartão: alvo é o "Total a pagar" (inclui parcelas/IOF/encargos).
-  // Fallback: totalCompras (só novas compras, mais restritivo).
+  // Fatura de cartÃ£o: alvo Ã© o "Total a pagar" (inclui parcelas/IOF/encargos).
+  // Fallback: totalCompras (sÃ³ novas compras, mais restritivo).
   var alvo = meta.totalAPagar > 0 ? meta.totalAPagar : (meta.totalCompras > 0 ? meta.totalCompras : 0);
   if (alvo > 0) {
     var total = (transacoes || []).reduce(function(s, t){ return s + (parseFloat(t.valor) || 0); }, 0);
@@ -908,33 +499,33 @@ function captureScore(transacoes, meta) {
 
 async function extractWithAI(buffer, mimeType, tipo) {
   var key = process.env.GROQ_API_KEY;
-  if (!key) throw new Error('GROQ_API_KEY não configurada no servidor.');
+  if (!key) throw new Error('GROQ_API_KEY nÃ£o configurada no servidor.');
 
   var base64 = buffer.toString('base64');
   var isExtrato = (tipo === 'extrato');
   var prompt = isExtrato ? [
-    'Você está analisando um extrato de conta corrente/bancária brasileiro.',
-    'TAREFA 1 — Extraia TODAS as movimentações: débitos (saídas: Pix enviado, pagamentos, compras no débito, transferências enviadas, tarifas) E créditos (entradas: Pix recebido, salário, depósitos, transferências recebidas, rendimentos).',
-    'Campo "tipo": "debito" para saídas, "credito" para entradas. valor sempre positivo. data em YYYY-MM-DD.',
-    'NÃO omita nenhuma transação visível no extrato.',
-    'TAREFA 2 — Procure no documento os totais declarados (ex: "Total entradas", "Total saídas", "Saldo final") e inclua no campo "meta".',
-    'Retorne SOMENTE um JSON válido no formato:',
+    'VocÃª estÃ¡ analisando um extrato de conta corrente/bancÃ¡ria brasileiro.',
+    'TAREFA 1 â€” Extraia TODAS as movimentaÃ§Ãµes: dÃ©bitos (saÃ­das: Pix enviado, pagamentos, compras no dÃ©bito, transferÃªncias enviadas, tarifas) E crÃ©ditos (entradas: Pix recebido, salÃ¡rio, depÃ³sitos, transferÃªncias recebidas, rendimentos).',
+    'Campo "tipo": "debito" para saÃ­das, "credito" para entradas. valor sempre positivo. data em YYYY-MM-DD.',
+    'NÃƒO omita nenhuma transaÃ§Ã£o visÃ­vel no extrato.',
+    'TAREFA 2 â€” Procure no documento os totais declarados (ex: "Total entradas", "Total saÃ­das", "Saldo final") e inclua no campo "meta".',
+    'Retorne SOMENTE um JSON vÃ¡lido no formato:',
     '{"transacoes":[{"desc":"...","valor":50.00,"data":"2026-04-01","tipo":"debito"}],"meta":{"totalEntradas":4035.65,"totalSaidas":3939.32,"saldoFinal":218.65}}',
-    'Se algum campo de meta não estiver visível no documento, use null. Responda APENAS com o JSON, sem explicações ou markdown.'
+    'Se algum campo de meta nÃ£o estiver visÃ­vel no documento, use null. Responda APENAS com o JSON, sem explicaÃ§Ãµes ou markdown.'
   ].join(' ') : [
-    'Você está analisando uma IMAGEM de fatura de cartão de crédito brasileiro.',
-    'LEIA A IMAGEM LINHA POR LINHA, do topo ao final. Cada linha com data + descrição + valor = UMA transação no JSON.',
-    'REGRA CRÍTICA — FIDELIDADE: copie o valor EXATAMENTE como escrito na imagem (ex: R$ 150,00 → 150.00). NÃO arredonde, NÃO some, NÃO invente valores.',
-    'REGRA CRÍTICA — COMPLETUDE: inclua TODAS as linhas de compra visíveis, sem pular nenhuma, mesmo que pareçam repetidas ou tenham valores similares.',
-    'REGRA CRÍTICA — SEM DUPLICATAS: cada linha da imagem gera EXATAMENTE UMA entrada no JSON. NÃO duplique nenhuma linha.',
-    'INCLUA: compras à vista, parcelas (ex: "Cobasi 1/2" → inclua só a parcela visível, não invente as demais), IOF embutido em compras internacionais, anuidade, ajustes a débito.',
-    'INCLUA ESTORNOS com valor NEGATIVO (ex: "Estorno de Uber" → valor: -11.93). Eles compensam compras e fazem parte da soma final.',
-    'IGNORE ESTRITAMENTE: linhas de "Pagamento recebido", "Pagamento em DD MMM", subtotais de seção (ex: "Outros lançamentos R$ X", "Total de compras R$ X"), nome de portador seguido de valor sem data, saldos, cabeçalhos, rodapés, tarifas standalone como "CUSTO TRANS. EXTERIOR-IOF", "IOF OPERACAO", "ENCARGO FINANCEIRO", "TARIFA BANCARIA", "JUROS ROTATIVO".',
+    'VocÃª estÃ¡ analisando uma IMAGEM de fatura de cartÃ£o de crÃ©dito brasileiro.',
+    'LEIA A IMAGEM LINHA POR LINHA, do topo ao final. Cada linha com data + descriÃ§Ã£o + valor = UMA transaÃ§Ã£o no JSON.',
+    'REGRA CRÃTICA â€” FIDELIDADE: copie o valor EXATAMENTE como escrito na imagem (ex: R$ 150,00 â†’ 150.00). NÃƒO arredonde, NÃƒO some, NÃƒO invente valores.',
+    'REGRA CRÃTICA â€” COMPLETUDE: inclua TODAS as linhas de compra visÃ­veis, sem pular nenhuma, mesmo que pareÃ§am repetidas ou tenham valores similares.',
+    'REGRA CRÃTICA â€” SEM DUPLICATAS: cada linha da imagem gera EXATAMENTE UMA entrada no JSON. NÃƒO duplique nenhuma linha.',
+    'INCLUA: compras Ã  vista, parcelas (ex: "Cobasi 1/2" â†’ inclua sÃ³ a parcela visÃ­vel, nÃ£o invente as demais), IOF embutido em compras internacionais, anuidade, ajustes a dÃ©bito.',
+    'INCLUA ESTORNOS com valor NEGATIVO (ex: "Estorno de Uber" â†’ valor: -11.93). Eles compensam compras e fazem parte da soma final.',
+    'IGNORE ESTRITAMENTE: linhas de "Pagamento recebido", "Pagamento em DD MMM", subtotais de seÃ§Ã£o (ex: "Outros lanÃ§amentos R$ X", "Total de compras R$ X"), nome de portador seguido de valor sem data, saldos, cabeÃ§alhos, rodapÃ©s, tarifas standalone como "CUSTO TRANS. EXTERIOR-IOF", "IOF OPERACAO", "ENCARGO FINANCEIRO", "TARIFA BANCARIA", "JUROS ROTATIVO".',
     'TAREFA EXTRA: capture em "meta": "totalCompras" ("Total de compras") e "totalAPagar" ("Pagamento total" ou "Total a pagar").',
-    'Formato de resposta — SOMENTE este JSON, sem markdown, sem explicação:',
+    'Formato de resposta â€” SOMENTE este JSON, sem markdown, sem explicaÃ§Ã£o:',
     '{"transacoes":[{"desc":"nome exato do estabelecimento","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47,"totalAPagar":1242.36}}',
-    'Regras: valor é float, negativo para estornos/créditos. data em YYYY-MM-DD. Se data ilegível use "2000-01-01".',
-    'Se não houver transações visíveis: {"transacoes":[],"meta":null}'
+    'Regras: valor Ã© float, negativo para estornos/crÃ©ditos. data em YYYY-MM-DD. Se data ilegÃ­vel use "2000-01-01".',
+    'Se nÃ£o houver transaÃ§Ãµes visÃ­veis: {"transacoes":[],"meta":null}'
   ].join(' ');
 
   var messages = [
@@ -984,7 +575,7 @@ async function extractWithAI(buffer, mimeType, tipo) {
     var data = await resp.json();
     var content = (data.choices || [])[0]?.message?.content || '[]';
 
-    // Tenta extrair JSON válido da resposta (objeto {transacoes,meta} ou array)
+    // Tenta extrair JSON vÃ¡lido da resposta (objeto {transacoes,meta} ou array)
     var parsed;
     try {
       parsed = JSON.parse(content);
@@ -995,7 +586,7 @@ async function extractWithAI(buffer, mimeType, tipo) {
       catch (_e2) { parsed = null; }
     }
 
-    // Formato esperado: {"transacoes":[...], "meta":{...}} — tanto extrato como fatura
+    // Formato esperado: {"transacoes":[...], "meta":{...}} â€” tanto extrato como fatura
     var txArr   = Array.isArray(parsed) ? parsed : ((parsed && parsed.transacoes) || []);
     var metaObj = (!Array.isArray(parsed) && parsed && parsed.meta) ? parsed.meta : null;
     return { transacoes: txArr.filter(function(t){ return t.desc && parseFloat(t.valor) !== 0; }), meta: metaObj };
@@ -1006,9 +597,9 @@ async function extractWithAI(buffer, mimeType, tipo) {
   }
 }
 
-// ─── POST /api/extrair-fatura ────────────────────────────────────────
+// â”€â”€â”€ POST /api/extrair-fatura â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Recebe: multipart/form-data { arquivo: File (PDF|JPEG|PNG|WEBP) }
-// Retorna: [{desc, valor, data}] — transações extraídas
+// Retorna: [{desc, valor, data}] â€” transaÃ§Ãµes extraÃ­das
 app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, res) {
   try {
     if (!req.file) {
@@ -1023,28 +614,28 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
     var textMeta = null;
 
     if (mimeType === 'application/pdf') {
-      // ── 1) Extrair texto do PDF com pdf-parse ──────────────────────
+      // â”€â”€ 1) Extrair texto do PDF com pdf-parse â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       var pdfData;
       try {
         pdfData = await pdfParse(buffer, { max: 20 });
       } catch (pdfErr) {
-        // PDF ilegível ou criptografado — retornar erro direto (visão IA não lê PDFs binários)
+        // PDF ilegÃ­vel ou criptografado â€” retornar erro direto (visÃ£o IA nÃ£o lÃª PDFs binÃ¡rios)
         return res.status(422).json({
-          error: 'Não foi possível ler o PDF. O arquivo pode estar protegido por senha ou corrompido. Tente exportar o extrato como imagem ou use um arquivo OFX.'
+          error: 'NÃ£o foi possÃ­vel ler o PDF. O arquivo pode estar protegido por senha ou corrompido. Tente exportar o extrato como imagem ou use um arquivo OFX.'
         });
       }
 
       if (pdfData) {
-        // ── 2) Extrair meta do texto e preparar transações ─────────
+        // â”€â”€ 2) Extrair meta do texto e preparar transaÃ§Ãµes â”€â”€â”€â”€â”€â”€â”€â”€â”€
         textMeta = extractMetaFromText(pdfData.text || '');
 
-        // Fatura de cartão: parseBankStatementText é para extratos bancários
+        // Fatura de cartÃ£o: parseBankStatementText Ã© para extratos bancÃ¡rios
         // Para faturas, vai sempre para IA (mais preciso e evita garbage)
         if (tipo !== 'fatura') {
           transacoes = parseBankStatementText(pdfData.text || '');
         }
 
-        // ── 3) IA texto-mode se necessário ───────────────────────
+        // â”€â”€ 3) IA texto-mode se necessÃ¡rio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         var parserScore = captureScore(transacoes, textMeta);
         var precisaIA = tipo === 'fatura' ||
           (transacoes.length < 2) ||
@@ -1057,7 +648,7 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
             var bestMeta = aiMeta || textMeta;
             var aiScore     = captureScore(aiTextResult.transacoes, bestMeta);
             var parserScore2 = captureScore(transacoes, bestMeta);
-            // Adota IA se capturou mais transações ou se score é maior
+            // Adota IA se capturou mais transaÃ§Ãµes ou se score Ã© maior
             if (aiTextResult.transacoes.length > transacoes.length ||
                 (aiScore !== null && (parserScore2 === null || aiScore > parserScore2))) {
               transacoes = aiTextResult.transacoes;
@@ -1067,15 +658,15 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
           }
         }
 
-        // Nota: IA-visão removida para PDFs — modelos de visão não processam PDF binário.
-        // Somente imagens (JPEG/PNG/WEBP/HEIC) são enviadas para extractWithAI.
+        // Nota: IA-visÃ£o removida para PDFs â€” modelos de visÃ£o nÃ£o processam PDF binÃ¡rio.
+        // Somente imagens (JPEG/PNG/WEBP/HEIC) sÃ£o enviadas para extractWithAI.
       }
 
     } else {
-      // ── Imagem: IA-visão obrigatória ─────────────────────────────
+      // â”€â”€ Imagem: IA-visÃ£o obrigatÃ³ria â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       if (!process.env.GROQ_API_KEY) {
         return res.status(503).json({
-          error: 'Extração de imagens requer configuração do servidor (GROQ_API_KEY). Use PDF ou OFX.'
+          error: 'ExtraÃ§Ã£o de imagens requer configuraÃ§Ã£o do servidor (GROQ_API_KEY). Use PDF ou OFX.'
         });
       }
       var imgResult = await extractWithAI(buffer, mimeType, tipo);
@@ -1085,7 +676,7 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
 
     if (!transacoes || transacoes.length === 0) {
       return res.status(422).json({
-        error: 'Nenhuma transação encontrada. Verifique se o arquivo é um extrato válido e tente novamente.'
+        error: 'Nenhuma transaÃ§Ã£o encontrada. Verifique se o arquivo Ã© um extrato vÃ¡lido e tente novamente.'
       });
     }
 
@@ -1099,9 +690,9 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
   }
 });
 
-// ─── Cache em memória de extração de cupom (24h) ────────────────────
+// â”€â”€â”€ Cache em memÃ³ria de extraÃ§Ã£o de cupom (24h) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Chave: SHA-256 do buffer de cada arquivo combinado.
-// Reduz custo Gemini quando o usuário re-envia o mesmo print.
+// Reduz custo Gemini quando o usuÃ¡rio re-envia o mesmo print.
 var crypto = require('crypto');
 var cupomCache = new Map();
 var CUPOM_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
@@ -1137,38 +728,38 @@ function hashBuffers(buffers) {
  */
 async function extractCupomWithGroq(buffers, mimeTypes) {
   var key = process.env.GROQ_API_KEY;
-  if (!key) throw new Error('GROQ_API_KEY não configurada no servidor.');
+  if (!key) throw new Error('GROQ_API_KEY nÃ£o configurada no servidor.');
 
   var prompt = [
-    'Você está analisando um CUPOM FISCAL NFC-e de supermercado brasileiro OU um PRINT de app de mercado/delivery (Rappi, iFood, Zé Delivery, Cornershop).',
+    'VocÃª estÃ¡ analisando um CUPOM FISCAL NFC-e de supermercado brasileiro OU um PRINT de app de mercado/delivery (Rappi, iFood, ZÃ© Delivery, Cornershop).',
     '',
     'ESTRUTURA DO CUPOM FISCAL NFC-e: cada item ocupa DUAS linhas:',
-    '  Linha 1: ITEM(3 dígitos) CODIGO DESCRICAO UN',
-    '  Linha 2: QTD UN x VL.UNIT  VL.TOTAL  (ou só "UN  VL.TOTAL" quando qtd=1)',
-    '"valor" = VL.TOTAL (último número da linha 2). NUNCA use VL.UNIT.',
+    '  Linha 1: ITEM(3 dÃ­gitos) CODIGO DESCRICAO UN',
+    '  Linha 2: QTD UN x VL.UNIT  VL.TOTAL  (ou sÃ³ "UN  VL.TOTAL" quando qtd=1)',
+    '"valor" = VL.TOTAL (Ãºltimo nÃºmero da linha 2). NUNCA use VL.UNIT.',
     'Quando a linha 2 mostra apenas "UN  14,99" sem "x", significa qtd=1 e valor=14.99.',
     '',
-    'REGRA CRÍTICA — COMPLETUDE: leia do TOPO ao FIM. Cada número 001/002/003... é um item DISTINTO. Conte quantos números de item existem e garanta que o JSON tenha EXATAMENTE a mesma quantidade.',
-    'REGRA CRÍTICA — FIDELIDADE: copie o VL.TOTAL EXATAMENTE. NÃO arredonde, NÃO recalcule.',
-    'REGRA CRÍTICA — NOMES: copie a DESCRICAO EXATAMENTE como aparece (abreviações incluídas). NUNCA substitua por outro nome. "FILTR PAP MELIT" → "FILTR PAP MELIT", não "Feijão". "SACOLA PLAST TRANS" → "SACOLA PLAST TRANS", não "Salada". Máximo 60 chars.',
-    'REGRA CRÍTICA — NUNCA INVENTE: se não conseguir ler, copie o que conseguir. JAMAIS substitua por produto diferente.',
+    'REGRA CRÃTICA â€” COMPLETUDE: leia do TOPO ao FIM. Cada nÃºmero 001/002/003... Ã© um item DISTINTO. Conte quantos nÃºmeros de item existem e garanta que o JSON tenha EXATAMENTE a mesma quantidade.',
+    'REGRA CRÃTICA â€” FIDELIDADE: copie o VL.TOTAL EXATAMENTE. NÃƒO arredonde, NÃƒO recalcule.',
+    'REGRA CRÃTICA â€” NOMES: copie a DESCRICAO EXATAMENTE como aparece (abreviaÃ§Ãµes incluÃ­das). NUNCA substitua por outro nome. "FILTR PAP MELIT" â†’ "FILTR PAP MELIT", nÃ£o "FeijÃ£o". "SACOLA PLAST TRANS" â†’ "SACOLA PLAST TRANS", nÃ£o "Salada". MÃ¡ximo 60 chars.',
+    'REGRA CRÃTICA â€” NUNCA INVENTE: se nÃ£o conseguir ler, copie o que conseguir. JAMAIS substitua por produto diferente.',
     '',
-    'Extraia TAMBÉM: nome curto do mercado/loja (ex: "Prezunic"), CNPJ (14 dígitos, se visível), data (YYYY-MM-DD).',
+    'Extraia TAMBÃ‰M: nome curto do mercado/loja (ex: "Prezunic"), CNPJ (14 dÃ­gitos, se visÃ­vel), data (YYYY-MM-DD).',
     'IGNORE: subtotais, total a pagar, formas de pagamento, troco, descontos.',
-    'Se houver MÚLTIPLAS imagens, CONSOLIDE num único array.',
+    'Se houver MÃšLTIPLAS imagens, CONSOLIDE num Ãºnico array.',
     '',
-    'Categorias: "Mercado" (alimentos, hortifrúti, carnes, laticínios), "Padaria/Café" (pães, bolos, café), "Bares/Baladas" (bebidas alcoólicas, refrigerantes), "Farmácia" (higiene, medicamentos, limpeza), "Pets" (ração, areia), "Material Escolar", "Outros" (sacolas, embalagens, demais).',
+    'Categorias: "Mercado" (alimentos, hortifrÃºti, carnes, laticÃ­nios), "Padaria/CafÃ©" (pÃ£es, bolos, cafÃ©), "Bares/Baladas" (bebidas alcoÃ³licas, refrigerantes), "FarmÃ¡cia" (higiene, medicamentos, limpeza), "Pets" (raÃ§Ã£o, areia), "Material Escolar", "Outros" (sacolas, embalagens, demais).',
     '',
     'Exemplo NFC-e (2 itens):',
-    '  005 7896982103388 OVGS MANT GDE C/20 UN → { "nome":"OVGS MANT GDE C/20", "qtd":1, "valor":14.99, "cat":"Mercado" }',
-    '  006 7896016500978 FARINH MAND GRANFI UN → 4.000 UN x 6.99  27.96 → { "nome":"FARINH MAND GRANFI", "qtd":4, "valor":27.96, "cat":"Mercado" }',
+    '  005 7896982103388 OVGS MANT GDE C/20 UN â†’ { "nome":"OVGS MANT GDE C/20", "qtd":1, "valor":14.99, "cat":"Mercado" }',
+    '  006 7896016500978 FARINH MAND GRANFI UN â†’ 4.000 UN x 6.99  27.96 â†’ { "nome":"FARINH MAND GRANFI", "qtd":4, "valor":27.96, "cat":"Mercado" }',
     '',
     'Retorne SOMENTE JSON (sem markdown):',
     '{"mercado":"Prezunic","cnpj":"12345678000199","data":"2026-04-25","itens":[{"nome":"LAMEN MIOJO 85G","qtd":4,"valor":12.76,"cat":"Mercado"}]}',
-    'Se não houver itens: {"mercado":"","cnpj":"","data":"","itens":[]}'
+    'Se nÃ£o houver itens: {"mercado":"","cnpj":"","data":"","itens":[]}'
   ].join('\n');
 
-  // Monta content: imagens primeiro (mesmo padrão do extractWithAI que funciona em cartões/extrato)
+  // Monta content: imagens primeiro (mesmo padrÃ£o do extractWithAI que funciona em cartÃµes/extrato)
   var imgContent = buffers.map(function (buf, i) {
     return { type: 'image_url', image_url: { url: 'data:' + (mimeTypes[i] || 'image/jpeg') + ';base64,' + buf.toString('base64') } };
   });
@@ -1194,7 +785,7 @@ async function extractCupomWithGroq(buffers, mimeTypes) {
 
   try {
     var resp = await callGroq();
-    // Retry automático em rate limit (mesmo padrão do extractWithAI)
+    // Retry automÃ¡tico em rate limit (mesmo padrÃ£o do extractWithAI)
     if (resp.status === 429) {
       await new Promise(function(r){ setTimeout(r, 1500); });
       resp = await callGroq();
@@ -1242,21 +833,21 @@ async function extractCupomWithGroq(buffers, mimeTypes) {
 
 /**
  * Extrai itens de TEXTO COLADO (cupom digitado/copiado) usando Groq.
- * Mais barato e rápido que enviar imagem.
+ * Mais barato e rÃ¡pido que enviar imagem.
  */
 async function extractCupomFromText(texto) {
   var key = process.env.GROQ_API_KEY;
-  if (!key) throw new Error('GROQ_API_KEY não configurada no servidor.');
+  if (!key) throw new Error('GROQ_API_KEY nÃ£o configurada no servidor.');
 
-  var systemPrompt = 'Você é um extrator preciso de cupons fiscais e prints de apps de mercado/delivery brasileiros. Extraia TODOS os itens e cobranças. NUNCA invente valores. Retorne APENAS JSON válido.';
+  var systemPrompt = 'VocÃª Ã© um extrator preciso de cupons fiscais e prints de apps de mercado/delivery brasileiros. Extraia TODOS os itens e cobranÃ§as. NUNCA invente valores. Retorne APENAS JSON vÃ¡lido.';
 
   var userPrompt = [
-    'Extraia TODOS os itens e cobranças do texto abaixo: produtos, taxa de entrega, embalagem, serviço — qualquer linha com valor cobrado.',
+    'Extraia TODOS os itens e cobranÃ§as do texto abaixo: produtos, taxa de entrega, embalagem, serviÃ§o â€” qualquer linha com valor cobrado.',
     'IGNORE APENAS: subtotais, total a pagar, formas de pagamento, troco e descontos.',
-    'Identifique também: nome do mercado, CNPJ (14 dígitos, apenas números), data (YYYY-MM-DD).',
-    'Categorias: "Mercado", "Padaria/Café", "Bares/Baladas", "Farmácia", "Pets", "Material Escolar", "Outros".',
-    '"valor" = valor total do item (float positivo). "qtd" = quantidade (1 se desconhecido). "nome" até 50 chars.',
-    'Formato obrigatório: {"mercado":"...","cnpj":"...","data":"...","itens":[{"nome":"...","qtd":1,"valor":0.00,"cat":"Mercado"}]}',
+    'Identifique tambÃ©m: nome do mercado, CNPJ (14 dÃ­gitos, apenas nÃºmeros), data (YYYY-MM-DD).',
+    'Categorias: "Mercado", "Padaria/CafÃ©", "Bares/Baladas", "FarmÃ¡cia", "Pets", "Material Escolar", "Outros".',
+    '"valor" = valor total do item (float positivo). "qtd" = quantidade (1 se desconhecido). "nome" atÃ© 50 chars.',
+    'Formato obrigatÃ³rio: {"mercado":"...","cnpj":"...","data":"...","itens":[{"nome":"...","qtd":1,"valor":0.00,"cat":"Mercado"}]}',
     '',
     'TEXTO DO CUPOM:',
     '"""',
@@ -1326,27 +917,27 @@ async function extractCupomFromText(texto) {
   }
 }
 
-// ─── Multer pra cupom (até 3 arquivos) ──────────────────────────────
+// â”€â”€â”€ Multer pra cupom (atÃ© 3 arquivos) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 var uploadCupom = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 3 * 1024 * 1024, files: 3 }, // 3 MB cada (base64 ≈ 4MB = limite Groq)
+  limits: { fileSize: 3 * 1024 * 1024, files: 3 }, // 3 MB cada (base64 â‰ˆ 4MB = limite Groq)
   fileFilter: function (_req, file, cb) {
     var ok = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
     if (ok.includes(file.mimetype)) return cb(null, true);
-    cb(new Error('Formato não suportado. Use PDF, JPEG, PNG ou WEBP.'));
+    cb(new Error('Formato nÃ£o suportado. Use PDF, JPEG, PNG ou WEBP.'));
   }
 });
 
-// ─── POST /api/extrair-cupom ─────────────────────────────────────────
+// â”€â”€â”€ POST /api/extrair-cupom â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Aceita:
 //   - multipart/form-data { arquivos: 1-3 files (image|pdf) }
 //   - application/json     { texto: "..." } para colar texto direto
 // Retorna: { mercado, cnpj, data, itens:[{nome,qtd,valor,cat}], cached?: true }
-// PEND-MER-07: quotas server-side (free=5, starter=30, trial=30, pro/plus=∞)
+// PEND-MER-07: quotas server-side (free=5, starter=30, trial=30, pro/plus=âˆž)
 var IA_LIMITES_CUPOM = { free: 5, starter: 30, trial: 30, pro: 9999, plus: 9999 };
 
 async function verificarQuotaIA(uid) {
-  if (!db) return; // Firebase não iniciado — permite (degrada gracefully)
+  if (!db) return; // Firebase nÃ£o iniciado â€” permite (degrada gracefully)
   var anoMes = (function() {
     var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
   })();
@@ -1358,7 +949,7 @@ async function verificarQuotaIA(uid) {
   var usoSnap = await db.collection('usuarios').doc(uid).collection('uso-ia').doc(anoMes).get();
   var uso = (usoSnap.exists && usoSnap.data() && usoSnap.data().mercado) ? usoSnap.data().mercado : 0;
   if (uso >= limite) {
-    var err = new Error('Limite mensal de ' + limite + ' extrações atingido. Faça upgrade para continuar.');
+    var err = new Error('Limite mensal de ' + limite + ' extraÃ§Ãµes atingido. FaÃ§a upgrade para continuar.');
     err.status = 429;
     throw err;
   }
@@ -1381,12 +972,12 @@ app.post('/api/extrair-cupom', function (req, res) {
   uploadCupom.array('arquivos', 3)(req, res, async function (multerErr) {
   if (multerErr) {
     var msg = multerErr.code === 'LIMIT_FILE_SIZE'
-      ? 'Imagem muito grande. Máximo 3MB por arquivo. Comprima a imagem ou use a aba Texto.'
+      ? 'Imagem muito grande. MÃ¡ximo 3MB por arquivo. Comprima a imagem ou use a aba Texto.'
       : multerErr.message || 'Erro ao processar arquivo.';
     return res.status(413).json({ error: msg });
   }
   try {
-    // PEND-MER-07: autenticação + quota server-side
+    // PEND-MER-07: autenticaÃ§Ã£o + quota server-side
     var cupomUid = null;
     var authHeaderCupom = req.headers.authorization || '';
     var idTokenCupom = authHeaderCupom.startsWith('Bearer ') ? authHeaderCupom.slice(7) : null;
@@ -1397,7 +988,7 @@ app.post('/api/extrair-cupom', function (req, res) {
         await verificarQuotaIA(cupomUid);
       } catch (authErr) {
         if (authErr.status === 429) return res.status(429).json({ error: authErr.message });
-        // token inválido → continua sem quota (não bloqueia usuário)
+        // token invÃ¡lido â†’ continua sem quota (nÃ£o bloqueia usuÃ¡rio)
         cupomUid = null;
       }
     }
@@ -1422,7 +1013,7 @@ app.post('/api/extrair-cupom', function (req, res) {
     }
     if (!process.env.GROQ_API_KEY) {
       return res.status(503).json({
-        error: 'Extração por IA não está configurada no servidor. Use a entrada manual.'
+        error: 'ExtraÃ§Ã£o por IA nÃ£o estÃ¡ configurada no servidor. Use a entrada manual.'
       });
     }
 
@@ -1436,7 +1027,7 @@ app.post('/api/extrair-cupom', function (req, res) {
       return res.json(Object.assign({}, cached, { cached: true }));
     }
 
-    // ── PDFs: extrair texto com pdf-parse → enviar como texto (Groq vision não aceita PDF) ──
+    // â”€â”€ PDFs: extrair texto com pdf-parse â†’ enviar como texto (Groq vision nÃ£o aceita PDF) â”€â”€
     var hasPdf = mimeTypes.some(function (m) { return m === 'application/pdf'; });
     if (hasPdf) {
       var pdfTexts = [];
@@ -1454,7 +1045,7 @@ app.post('/api/extrair-cupom', function (req, res) {
       }
       var combinedPdfText = pdfTexts.join('\n\n---\n\n').trim();
       if (!combinedPdfText || combinedPdfText.length < 20) {
-        return res.status(422).json({ error: 'Não foi possível extrair texto do PDF. Tente fotografar o cupom (aba Foto).' });
+        return res.status(422).json({ error: 'NÃ£o foi possÃ­vel extrair texto do PDF. Tente fotografar o cupom (aba Foto).' });
       }
       var resultPdf = await extractCupomFromText(combinedPdfText);
       cupomCacheSet(cacheKey, resultPdf);
@@ -1481,52 +1072,199 @@ app.post('/api/extrair-cupom', function (req, res) {
   }); // fim uploadCupom callback
 });
 
-// ─── Health check ───────────────────────────────────────────────────
+// â”€â”€â”€ POST /api/analisar-documento â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// PEND-063: Classifica automaticamente documentos financeiros (contrato de
+// emprÃ©stimo, boleto, fatura de cartÃ£o, extrato bancÃ¡rio, investimento etc.)
+// sem exigir que o usuÃ¡rio identifique o tipo manualmente.
+// Aceita PDF e imagens. Retorna { ok, tipo, confianca, dados }.
+app.post('/api/analisar-documento', upload.single('arquivo'), async function (req, res) {
+  // AutenticaÃ§Ã£o via Bearer token
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ ok: false, error: 'Token ausente.' });
+  try { await auth.verifyIdToken(idToken); }
+  catch (_e) { return res.status(401).json({ ok: false, error: 'Token invÃ¡lido.' }); }
+
+  if (!req.file) return res.status(400).json({ ok: false, error: 'Arquivo nÃ£o enviado.' });
+
+  var GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+  if (!GROQ_API_KEY) return res.status(503).json({ ok: false, error: 'ServiÃ§o de IA nÃ£o configurado.' });
+
+  var buffer = req.file.buffer;
+  var mime   = req.file.mimetype;
+
+  try {
+    var textoPDF = '';
+    var imageB64 = null;
+
+    if (mime === 'application/pdf') {
+      try {
+        var pdfResult = await pdfParse(buffer, { max: 3 });
+        textoPDF = (pdfResult.text || '').substring(0, 6000).trim();
+      } catch (_pdfErr) {
+        textoPDF = '';
+      }
+    } else {
+      imageB64 = buffer.toString('base64');
+    }
+
+    // Monta prompt de classificaÃ§Ã£o
+    var USER_PROMPT =
+      (textoPDF
+        ? ('Texto extraÃ­do do documento:\n\n' + textoPDF)
+        : 'Documento financeiro fornecido como imagem. Analise o conteÃºdo visÃ­vel.'
+      ) +
+      '\n\nIdentifique o tipo do documento financeiro e extraia os campos relevantes.' +
+      '\nResponda APENAS com JSON vÃ¡lido, sem markdown, neste formato exato:\n' +
+      '{\n' +
+      '  "tipo": "<emprestimo|fatura_cartao|extrato_bancario|cupom_fiscal|boleto|contrato_investimento|outro>",\n' +
+      '  "confianca": <0 a 100>,\n' +
+      '  "dados": {\n' +
+      '    // emprestimo: credor(string), valorParcela(number), nParcelas(number), taxa(number), vencimento("YYYY-MM-DD"), totalFinanciado(number), tipoEmprestimo(string)\n' +
+      '    // boleto: credor(string), valor(number), vencimento("YYYY-MM-DD"), banco(string)\n' +
+      '    // contrato_investimento: produto(string), emissor(string), valor(number), vencimento("YYYY-MM-DD"), taxa(number)\n' +
+      '    // outro: descricao(string)\n' +
+      '    // fatura_cartao | extrato_bancario | cupom_fiscal: {}\n' +
+      '  }\n' +
+      '}';
+
+    var messages = [];
+    if (imageB64) {
+      messages.push({
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: 'data:' + mime + ';base64,' + imageB64 } },
+          { type: 'text', text: USER_PROMPT }
+        ]
+      });
+    } else {
+      messages.push({ role: 'user', content: USER_PROMPT });
+    }
+
+    var modelName = imageB64
+      ? 'meta-llama/llama-4-scout-17b-16e-instruct'
+      : 'llama3-8b-8192';
+
+    var aiResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method:  'POST',
+      headers: {
+        'Authorization': 'Bearer ' + GROQ_API_KEY,
+        'Content-Type':  'application/json'
+      },
+      body: JSON.stringify({
+        model:           modelName,
+        messages:        [
+          { role: 'system', content: 'VocÃª Ã© especialista em documentos financeiros brasileiros. Retorne APENAS JSON vÃ¡lido, sem markdown, sem explicaÃ§Ãµes.' },
+          ...messages
+        ],
+        temperature:     0,
+        max_tokens:      600,
+        response_format: { type: 'json_object' }
+      })
+    });
+
+    if (!aiResp.ok) {
+      console.error('[analisar-documento] Groq HTTP', aiResp.status);
+      return res.status(502).json({ ok: false, error: 'Erro ao analisar documento.' });
+    }
+
+    var aiJson = await aiResp.json();
+    var rawContent = ((aiJson.choices || [])[0] || {});
+    var rawText = (rawContent.message && rawContent.message.content || '').trim();
+
+    var resultado;
+    try { resultado = JSON.parse(rawText); }
+    catch (_je) { return res.status(502).json({ ok: false, error: 'Resposta da IA invÃ¡lida.' }); }
+
+    // Sanitizar e validar campos
+    var TIPOS_VALIDOS = ['emprestimo','fatura_cartao','extrato_bancario','cupom_fiscal','boleto','contrato_investimento','outro'];
+    var tipo = sanitizeStr(String(resultado.tipo || '')).toLowerCase();
+    if (!TIPOS_VALIDOS.includes(tipo)) tipo = 'outro';
+    var confianca = Math.max(0, Math.min(100, Number(resultado.confianca) || 0));
+    var rawDados = resultado.dados || {};
+    var dados = {};
+
+    function validDate(s) {
+      return (typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)) ? s : null;
+    }
+
+    if (tipo === 'emprestimo') {
+      dados.credor          = sanitizeStr(String(rawDados.credor          || '')).substring(0, 100);
+      dados.valorParcela    = Math.max(0, Number(rawDados.valorParcela)    || 0);
+      dados.nParcelas       = Math.max(0, Math.floor(Number(rawDados.nParcelas) || 0));
+      dados.taxa            = Math.max(0, Number(rawDados.taxa)            || 0);
+      dados.totalFinanciado = Math.max(0, Number(rawDados.totalFinanciado) || 0);
+      dados.tipoEmprestimo  = sanitizeStr(String(rawDados.tipoEmprestimo  || '')).substring(0, 80);
+      dados.vencimento      = validDate(rawDados.vencimento);
+    } else if (tipo === 'boleto') {
+      dados.credor     = sanitizeStr(String(rawDados.credor  || '')).substring(0, 100);
+      dados.valor      = Math.max(0, Number(rawDados.valor)  || 0);
+      dados.banco      = sanitizeStr(String(rawDados.banco   || '')).substring(0, 80);
+      dados.vencimento = validDate(rawDados.vencimento);
+    } else if (tipo === 'contrato_investimento') {
+      dados.produto    = sanitizeStr(String(rawDados.produto  || '')).substring(0, 100);
+      dados.emissor    = sanitizeStr(String(rawDados.emissor  || '')).substring(0, 100);
+      dados.valor      = Math.max(0, Number(rawDados.valor)   || 0);
+      dados.taxa       = Math.max(0, Number(rawDados.taxa)    || 0);
+      dados.vencimento = validDate(rawDados.vencimento);
+    } else if (tipo === 'outro') {
+      dados.descricao  = sanitizeStr(String(rawDados.descricao || '')).substring(0, 200);
+    }
+
+    return res.json({ ok: true, tipo, confianca, dados });
+
+  } catch (e) {
+    console.error('[analisar-documento]', e.message);
+    return res.status(500).json({ ok: false, error: 'Erro interno ao processar documento.' });
+  }
+});
+
+// â”€â”€â”€ Health check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.get('/', function (_req, res) {
   res.json({ status: 'ok', service: 'bud-finance-backend' });
 });
 
-// ─── POST /api/processar-recorrentes ────────────────────────────────
-// Lança transações de recorrentes cujo diaVencimento coincide com hoje (fuso Brasília).
-// Autenticação: Bearer token do Firebase ID verificado server-side (anti-IDOR).
-// Idempotência: antes de criar, verifica se já existe transação com
-//   recorrenteId === id AND mesReferencia === YYYY-MM do mês atual.
+// â”€â”€â”€ POST /api/processar-recorrentes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// LanÃ§a transaÃ§Ãµes de recorrentes cujo diaVencimento coincide com hoje (fuso BrasÃ­lia).
+// AutenticaÃ§Ã£o: Bearer token do Firebase ID verificado server-side (anti-IDOR).
+// IdempotÃªncia: antes de criar, verifica se jÃ¡ existe transaÃ§Ã£o com
+//   recorrenteId === id AND mesReferencia === YYYY-MM do mÃªs atual.
 app.post('/api/processar-recorrentes', async function (req, res) {
   if (!auth || !db) {
-    return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+    return res.status(503).json({ error: 'Firebase Admin nÃ£o inicializado.' });
   }
 
-  // ── Autenticação via Bearer token ──────────────────────────────────
+  // â”€â”€ AutenticaÃ§Ã£o via Bearer token â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var authHeader = req.headers.authorization || '';
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!idToken) {
-    return res.status(401).json({ error: 'Token de autenticação ausente.' });
+    return res.status(401).json({ error: 'Token de autenticaÃ§Ã£o ausente.' });
   }
 
   var decoded;
   try {
     decoded = await auth.verifyIdToken(idToken);
   } catch (_e) {
-    return res.status(401).json({ error: 'Token inválido ou expirado.' });
+    return res.status(401).json({ error: 'Token invÃ¡lido ou expirado.' });
   }
   var uid = decoded.uid;
 
-  // ── Gate por plano (server-side — PEND-034) ───────────────────────
+  // â”€â”€ Gate por plano (server-side â€” PEND-034) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var PLANOS_PERMITIDOS_REC = ['pro', 'plus', 'trial'];
   try {
     var userDoc = await db.collection('usuarios').doc(uid).get();
     var plano = (userDoc.exists && userDoc.data().plano) ? userDoc.data().plano.toLowerCase() : 'free';
     if (!PLANOS_PERMITIDOS_REC.includes(plano)) {
-      return res.status(403).json({ error: 'Recurso disponível apenas nos planos Pro, Plus e Trial.' });
+      return res.status(403).json({ error: 'Recurso disponÃ­vel apenas nos planos Pro, Plus e Trial.' });
     }
   } catch (_e) {
-    return res.status(500).json({ error: 'Erro ao verificar plano do usuário.' });
+    return res.status(500).json({ error: 'Erro ao verificar plano do usuÃ¡rio.' });
   }
 
-  // ── Fuso horário Brasília (UTC-3) ───────────────────────────────────
+  // â”€â”€ Fuso horÃ¡rio BrasÃ­lia (UTC-3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   var agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
   var hojeAno  = agora.getFullYear();
-  var hojeMes  = agora.getMonth() + 1;           // 1–12
+  var hojeMes  = agora.getMonth() + 1;           // 1â€“12
   var hojeDia  = agora.getDate();
   var mesRef   = hojeAno + '-' + String(hojeMes).padStart(2, '0'); // "YYYY-MM"
 
@@ -1556,7 +1294,7 @@ app.post('/api/processar-recorrentes', async function (req, res) {
         var diffDias = Math.round((agora - proxDate) / (1000 * 60 * 60 * 24));
         return diffDias >= 0 && diffDias % 7 === 0;
       }
-      // mensal: clamp ao último dia do mês
+      // mensal: clamp ao Ãºltimo dia do mÃªs
       var maxDia = new Date(hojeAno, hojeMes, 0).getDate();
       return Math.min(dia, maxDia) === hojeDia;
     });
@@ -1565,7 +1303,7 @@ app.post('/api/processar-recorrentes', async function (req, res) {
       return res.json({ success: true, processadas: 0, mensagem: 'Nenhuma recorrente vence hoje.' });
     }
 
-    // Anti-duplicidade: buscar transações já lançadas neste mês por recorrenteId
+    // Anti-duplicidade: buscar transaÃ§Ãµes jÃ¡ lanÃ§adas neste mÃªs por recorrenteId
     var snapTx = await db
       .collection('usuarios').doc(uid).collection('transacoes')
       .where('mesReferencia', '==', mesRef)
@@ -1581,10 +1319,10 @@ app.post('/api/processar-recorrentes', async function (req, res) {
     });
 
     if (novas.length === 0) {
-      return res.json({ success: true, processadas: 0, mensagem: 'Todas as recorrentes de hoje já foram lançadas.' });
+      return res.json({ success: true, processadas: 0, mensagem: 'Todas as recorrentes de hoje jÃ¡ foram lanÃ§adas.' });
     }
 
-    // Criar transações em batch (chunks de 400)
+    // Criar transaÃ§Ãµes em batch (chunks de 400)
     var CHUNK = 400;
     var colTx = db.collection('usuarios').doc(uid).collection('transacoes');
     var dataHoje = hojeAno + '-' + String(hojeMes).padStart(2,'0') + '-' + String(hojeDia).padStart(2,'0');
@@ -1601,7 +1339,7 @@ app.post('/api/processar-recorrentes', async function (req, res) {
           categoria:      sanitizeStr(rec.categoria || 'Outros'),
           dataReferencia: dataHoje,
           mesReferencia:  mesRef,
-          formaPagamento: rec.cartaoId ? 'Crédito' : 'Débito',
+          formaPagamento: rec.cartaoId ? 'CrÃ©dito' : 'DÃ©bito',
           cartaoId:       rec.cartaoId || null,
           recorrenteId:   rec.id,
           origem:         'recorrente',
@@ -1612,7 +1350,7 @@ app.post('/api/processar-recorrentes', async function (req, res) {
       await batch.commit();
     }
 
-    // Registrar último processamento no doc do usuário
+    // Registrar Ãºltimo processamento no doc do usuÃ¡rio
     await db.collection('usuarios').doc(uid).update({
       recorrentesUltimoProcessamento: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -1620,7 +1358,7 @@ app.post('/api/processar-recorrentes', async function (req, res) {
     return res.json({
       success: true,
       processadas: novas.length,
-      mensagem: novas.length + ' recorrente' + (novas.length !== 1 ? 's lançadas' : ' lançada') + ' no Extrato.',
+      mensagem: novas.length + ' recorrente' + (novas.length !== 1 ? 's lanÃ§adas' : ' lanÃ§ada') + ' no Extrato.',
       itens: novas.map(function (r) { return { id: r.id, descricao: r.descricao, valor: r.valor }; }),
     });
 
@@ -1630,22 +1368,22 @@ app.post('/api/processar-recorrentes', async function (req, res) {
   }
 });
 
-// ─── POST /api/chat ─────────────────────────────────────────────────
+// â”€â”€â”€ POST /api/chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Chat com IA financeiro pessoal via Groq (llama-4-scout).
 // Auth: Bearer Firebase ID Token. Gate: plano plus/trial.
 // Rate limit: 30 msg/min por uid (in-memory).
 app.post('/api/chat', async function (req, res) {
   if (!auth || !db) {
-    return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+    return res.status(503).json({ error: 'Firebase Admin nÃ£o inicializado.' });
   }
 
   var authHeader = req.headers.authorization || '';
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!idToken) return res.status(401).json({ error: 'Token de autenticação ausente.' });
+  if (!idToken) return res.status(401).json({ error: 'Token de autenticaÃ§Ã£o ausente.' });
 
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_e) { return res.status(401).json({ error: 'Token inválido ou expirado.' }); }
+  catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido ou expirado.' }); }
 
   var uid = decoded.uid;
 
@@ -1655,7 +1393,7 @@ app.post('/api/chat', async function (req, res) {
     var userSnap = await db.collection('usuarios').doc(uid).get();
     var plano = (userSnap.exists && userSnap.data().plano) ? userSnap.data().plano.toLowerCase() : 'free';
     if (!PLANOS_CHAT.includes(plano)) {
-      return res.status(403).json({ error: 'Assistente IA disponível apenas no plano Plus.' });
+      return res.status(403).json({ error: 'Assistente IA disponÃ­vel apenas no plano Plus.' });
     }
   } catch (_e) {
     return res.status(500).json({ error: 'Erro ao verificar plano.' });
@@ -1679,14 +1417,14 @@ app.post('/api/chat', async function (req, res) {
   var messages = req.body.messages;
   var contexto = req.body.contexto || {};
   if (!Array.isArray(messages) || messages.length === 0) {
-    return res.status(400).json({ error: 'messages é obrigatório.' });
+    return res.status(400).json({ error: 'messages Ã© obrigatÃ³rio.' });
   }
 
   var key = process.env.GROQ_API_KEY;
-  if (!key) return res.status(503).json({ error: 'Serviço de IA não configurado.' });
+  if (!key) return res.status(503).json({ error: 'ServiÃ§o de IA nÃ£o configurado.' });
 
   // System prompt com contexto financeiro + knowledge base do app
-  var nome    = sanitizeStr(String(contexto.nome  || 'usuário')).substring(0, 60);
+  var nome    = sanitizeStr(String(contexto.nome  || 'usuÃ¡rio')).substring(0, 60);
   var mesAno  = sanitizeStr(String(contexto.mesAno || '')).substring(0, 30);
   var r = contexto.resumo || {};
   var oculto  = contexto.valoresOcultos === true;
@@ -1696,126 +1434,126 @@ app.post('/api/chat', async function (req, res) {
   var hoje = new Date().toISOString().slice(0, 10);
 
   var systemPrompt = [
-    // ── REGRAS ABSOLUTAS — lidas primeiro pelo modelo ───────────────────────────
-    '⚡ REGRA ABSOLUTA #1 — REGISTRAR TRANSAÇÃO (prioridade máxima):',
-    'Quando o usuário disser que GASTOU, PAGOU, COMPROU, RECEBEU, GANHOU, TRANSFERIU dinheiro → você DEVE:',
+    // â”€â”€ REGRAS ABSOLUTAS â€” lidas primeiro pelo modelo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    'âš¡ REGRA ABSOLUTA #1 â€” REGISTRAR TRANSAÃ‡ÃƒO (prioridade mÃ¡xima):',
+    'Quando o usuÃ¡rio disser que GASTOU, PAGOU, COMPROU, RECEBEU, GANHOU, TRANSFERIU dinheiro â†’ vocÃª DEVE:',
     '  a) Responder em 1-2 frases curtas confirmando o que entendeu.',
-    '  b) Incluir IMEDIATAMENTE ao final da resposta o bloco JSON abaixo. SEM perguntar. SEM pedir permissão.',
-    '[ACTION:TRANSACTION]{"descricao":"descrição real do gasto","valor":0.00,"tipo":"despesa","categoria":"Outros","data":"' + hoje + '","conta":"nome exato da conta ou cartão do usuário, ou vazio se não mencionado"}[/ACTION]',
-    'ATENÇÃO: o `[/ACTION]` de fechamento é OBRIGATÓRIO — NUNCA omita. O bloco deve ser o ÚLTIMO elemento da resposta — NÃO adicione texto depois do `[/ACTION]`.',
-    'PROIBIDO: NÃO escreva "posso registrar?", NÃO pergunte "quer que eu registre?", NÃO diga "registrado" ou "foi salvo" — o usuário ainda precisa confirmar no app.',
-    'Data de HOJE: ' + hoje + '. Use formato YYYY-MM-DD. NUNCA escreva "[data atual]" ou "[data de hoje]" — use a data real.',
+    '  b) Incluir IMEDIATAMENTE ao final da resposta o bloco JSON abaixo. SEM perguntar. SEM pedir permissÃ£o.',
+    '[ACTION:TRANSACTION]{"descricao":"descriÃ§Ã£o real do gasto","valor":0.00,"tipo":"despesa","categoria":"Outros","data":"' + hoje + '","conta":"nome exato da conta ou cartÃ£o do usuÃ¡rio, ou vazio se nÃ£o mencionado"}[/ACTION]',
+    'ATENÃ‡ÃƒO: o `[/ACTION]` de fechamento Ã© OBRIGATÃ“RIO â€” NUNCA omita. O bloco deve ser o ÃšLTIMO elemento da resposta â€” NÃƒO adicione texto depois do `[/ACTION]`.',
+    'PROIBIDO: NÃƒO escreva "posso registrar?", NÃƒO pergunte "quer que eu registre?", NÃƒO diga "registrado" ou "foi salvo" â€” o usuÃ¡rio ainda precisa confirmar no app.',
+    'Data de HOJE: ' + hoje + '. Use formato YYYY-MM-DD. NUNCA escreva "[data atual]" ou "[data de hoje]" â€” use a data real.',
     'tipo: "despesa" se gastou/pagou/comprou. "receita" se recebeu/ganhou.',
-    'Categorias disponíveis (use SOMENTE estas no campo "categoria" do JSON): ' + (Array.isArray(r.categorias) && r.categorias.length ? r.categorias.join(', ') : 'Alimentação, Transporte, Saúde, Educação, Lazer, Moradia, Vestuário, Tecnologia, Serviços, Outros') + '.',
+    'Categorias disponÃ­veis (use SOMENTE estas no campo "categoria" do JSON): ' + (Array.isArray(r.categorias) && r.categorias.length ? r.categorias.join(', ') : 'AlimentaÃ§Ã£o, Transporte, SaÃºde, EducaÃ§Ã£o, Lazer, Moradia, VestuÃ¡rio, Tecnologia, ServiÃ§os, Outros') + '.',
     '',
-    '⚡ REGRA ABSOLUTA #2 — CARTÃO DE CRÉDITO SEM CADASTRO:',
-    (Array.isArray(r.cartoes) && r.cartoes.length === 0) ? 'O usuário NÃO tem nenhum cartão de crédito cadastrado no app.' : '',
-    (Array.isArray(r.cartoes) && r.cartoes.length === 0) ? 'Se o usuário mencionar gasto no "cartão de crédito" → NÃO emitir [ACTION:TRANSACTION]. Responda informando que ele ainda não tem cartão cadastrado e oriente-o a ir em Cartões (menu lateral) > "Adicionar cartão" para cadastrar antes de registrar gastos. NÃO pergunte detalhes do cartão (limite, saldo, etc.).' : '',
+    'âš¡ REGRA ABSOLUTA #2 â€” CARTÃƒO DE CRÃ‰DITO SEM CADASTRO:',
+    (Array.isArray(r.cartoes) && r.cartoes.length === 0) ? 'O usuÃ¡rio NÃƒO tem nenhum cartÃ£o de crÃ©dito cadastrado no app.' : '',
+    (Array.isArray(r.cartoes) && r.cartoes.length === 0) ? 'Se o usuÃ¡rio mencionar gasto no "cartÃ£o de crÃ©dito" â†’ NÃƒO emitir [ACTION:TRANSACTION]. Responda informando que ele ainda nÃ£o tem cartÃ£o cadastrado e oriente-o a ir em CartÃµes (menu lateral) > "Adicionar cartÃ£o" para cadastrar antes de registrar gastos. NÃƒO pergunte detalhes do cartÃ£o (limite, saldo, etc.).' : '',
     '',
-    '⚡ REGRA ABSOLUTA #3 — CONTA BANCÁRIA SEM CADASTRO:',
-    (Array.isArray(r.carteira) && r.carteira.length === 0) ? 'O usuário NÃO tem nenhuma conta bancária cadastrada na Carteira.' : '',
-    (Array.isArray(r.carteira) && r.carteira.length === 0) ? 'Se o usuário mencionar gasto em conta bancária e não há contas → pode registrar a transação sem vincular conta (deixe "conta" vazio no JSON), mas avise que ele pode cadastrar uma conta em Carteira para controle completo.' : '',
+    'âš¡ REGRA ABSOLUTA #3 â€” CONTA BANCÃRIA SEM CADASTRO:',
+    (Array.isArray(r.carteira) && r.carteira.length === 0) ? 'O usuÃ¡rio NÃƒO tem nenhuma conta bancÃ¡ria cadastrada na Carteira.' : '',
+    (Array.isArray(r.carteira) && r.carteira.length === 0) ? 'Se o usuÃ¡rio mencionar gasto em conta bancÃ¡ria e nÃ£o hÃ¡ contas â†’ pode registrar a transaÃ§Ã£o sem vincular conta (deixe "conta" vazio no JSON), mas avise que ele pode cadastrar uma conta em Carteira para controle completo.' : '',
     '',
-    '⚡ REGRA ABSOLUTA #4 — METAS SEM CADASTRO:',
-    (r.metas === 0) ? 'O usuário NÃO tem nenhuma meta cadastrada no app.' : '',
-    (r.metas === 0) ? 'Se o usuário disser que "depositou em uma meta", "guardou para uma meta" ou perguntar sobre progresso de metas → NÃO emitir [ACTION:TRANSACTION]. Oriente-o a ir em Metas (menu lateral) > "Nova meta" para criar antes de registrar aportes.' : '',
+    'âš¡ REGRA ABSOLUTA #4 â€” METAS SEM CADASTRO:',
+    (r.metas === 0) ? 'O usuÃ¡rio NÃƒO tem nenhuma meta cadastrada no app.' : '',
+    (r.metas === 0) ? 'Se o usuÃ¡rio disser que "depositou em uma meta", "guardou para uma meta" ou perguntar sobre progresso de metas â†’ NÃƒO emitir [ACTION:TRANSACTION]. Oriente-o a ir em Metas (menu lateral) > "Nova meta" para criar antes de registrar aportes.' : '',
     '',
-    '⚡ REGRA ABSOLUTA #5 — DÍVIDAS SEM CADASTRO:',
-    (r.dividasAtivas === 0) ? 'O usuário NÃO tem nenhuma dívida registrada no app.' : '',
-    (r.dividasAtivas === 0) ? 'Se o usuário disser que "pagou parcela de dívida/financiamento/empréstimo" → registre normalmente como despesa via [ACTION:TRANSACTION], mas adicione um aviso de que a dívida não está cadastrada no app e que ele pode registrá-la em Dívidas (menu lateral) para controle completo das parcelas.' : '',
+    'âš¡ REGRA ABSOLUTA #5 â€” DÃVIDAS SEM CADASTRO:',
+    (r.dividasAtivas === 0) ? 'O usuÃ¡rio NÃƒO tem nenhuma dÃ­vida registrada no app.' : '',
+    (r.dividasAtivas === 0) ? 'Se o usuÃ¡rio disser que "pagou parcela de dÃ­vida/financiamento/emprÃ©stimo" â†’ registre normalmente como despesa via [ACTION:TRANSACTION], mas adicione um aviso de que a dÃ­vida nÃ£o estÃ¡ cadastrada no app e que ele pode registrÃ¡-la em DÃ­vidas (menu lateral) para controle completo das parcelas.' : '',
     '',
-    '⚡ REGRA ABSOLUTA #6 — INVESTIMENTOS SEM CADASTRO:',
-    (r.investimentos === 0) ? 'O usuário NÃO tem nenhum investimento cadastrado no app.' : '',
-    (r.investimentos === 0) ? 'Se o usuário mencionar compra de ações, CDB, FII, cripto ou qualquer investimento → NÃO registre como despesa comum. Oriente-o a ir em Investimentos (menu lateral) para registrar o ativo corretamente com rentabilidade e acompanhamento. Se ele quiser apenas registrar a saída de dinheiro, esclareça a diferença.' : '',
+    'âš¡ REGRA ABSOLUTA #6 â€” INVESTIMENTOS SEM CADASTRO:',
+    (r.investimentos === 0) ? 'O usuÃ¡rio NÃƒO tem nenhum investimento cadastrado no app.' : '',
+    (r.investimentos === 0) ? 'Se o usuÃ¡rio mencionar compra de aÃ§Ãµes, CDB, FII, cripto ou qualquer investimento â†’ NÃƒO registre como despesa comum. Oriente-o a ir em Investimentos (menu lateral) para registrar o ativo corretamente com rentabilidade e acompanhamento. Se ele quiser apenas registrar a saÃ­da de dinheiro, esclareÃ§a a diferenÃ§a.' : '',
     '',
     '=== IDENTIDADE ===',
-    'Você é o Buddy, assistente financeiro inteligente do app Bud Finance.',
-    'Seu nome é Buddy. Quando se apresentar, diga: Olá! Sou o Buddy, seu assistente financeiro do Bud Finance.',
-    'Tom: amigável, motivador, direto, empático. Use emojis com moderação — mas seja caloroso como o Buddy que é.',
+    'VocÃª Ã© o Buddy, assistente financeiro inteligente do app Bud Finance.',
+    'Seu nome Ã© Buddy. Quando se apresentar, diga: OlÃ¡! Sou o Buddy, seu assistente financeiro do Bud Finance.',
+    'Tom: amigÃ¡vel, motivador, direto, empÃ¡tico. Use emojis com moderaÃ§Ã£o â€” mas seja caloroso como o Buddy que Ã©.',
 
-    'Responda SEMPRE em português brasileiro.',
+    'Responda SEMPRE em portuguÃªs brasileiro.',
     'Use Markdown para formatar suas respostas: **negrito**, listas, tabelas quando fizer sentido.',
     '',
     '=== SOBRE O BUD FINANCE ===',
     'Site/landing: https://budsolucoes.com.br',
     'App (login): https://budsolucoes.com.br/appbudfinance/',
-    'Desenvolvido por: Bud Soluções',
+    'Desenvolvido por: Bud SoluÃ§Ãµes',
     '',
-    '=== PLANOS E PREÇOS ===',
-    '• Gratuito (Free): funcionalidades básicas — lançamento manual de receitas e despesas, carteira, extrato, categorias, dashboard, metas e investimentos.',
-    '• Starter — R$ 9,99/mês: tudo do Free + Mercado de compras, Limites por categoria, Comparativo mensal, Relatórios PDF/CSV.',
-    '• Pro — R$ 29,90/mês: tudo do Starter + Recorrentes automáticas, Dívidas com Tabela Price, Gráficos avançados, Importação de extratos (PDF/OFX/CSV/imagem), Insights de saúde financeira, Balanço mensal.',
-    '• Plus — R$ 49,90/mês: tudo do Pro + Assistente de IA (você, o Buddy), Assistente WhatsApp (em breve), Parcelamento inteligente de cartão via IA.',
-    '• Trial: 3 dias grátis com funcionalidades Pro ao criar conta.',
-    'Para assinar: acessar https://budsolucoes.com.br (seção Planos) ou dentro do app em qualquer banner de upgrade.',
+    '=== PLANOS E PREÃ‡OS ===',
+    'â€¢ Gratuito (Free): funcionalidades bÃ¡sicas â€” lanÃ§amento manual de receitas e despesas, carteira, extrato, categorias, dashboard, metas e investimentos.',
+    'â€¢ Starter â€” R$ 9,99/mÃªs: tudo do Free + Mercado de compras, Limites por categoria, Comparativo mensal, RelatÃ³rios PDF/CSV.',
+    'â€¢ Pro â€” R$ 29,90/mÃªs: tudo do Starter + Recorrentes automÃ¡ticas, DÃ­vidas com Tabela Price, GrÃ¡ficos avanÃ§ados, ImportaÃ§Ã£o de extratos (PDF/OFX/CSV/imagem), Insights de saÃºde financeira, BalanÃ§o mensal.',
+    'â€¢ Plus â€” R$ 49,90/mÃªs: tudo do Pro + Assistente de IA (vocÃª, o Buddy), Assistente WhatsApp (em breve), Parcelamento inteligente de cartÃ£o via IA.',
+    'â€¢ Trial: 3 dias grÃ¡tis com funcionalidades Pro ao criar conta.',
+    'Para assinar: acessar https://budsolucoes.com.br (seÃ§Ã£o Planos) ou dentro do app em qualquer banner de upgrade.',
     '',
     '=== CONTATO E SUPORTE ===',
     'E-mail: budsolucoes@gmail.com',
-    'WhatsApp: (21) 98355-4954 — https://wa.me/5521983554954',
-    'Instagram: @appbudfinance — https://www.instagram.com/appbudfinance',
+    'WhatsApp: (21) 98355-4954 â€” https://wa.me/5521983554954',
+    'Instagram: @appbudfinance â€” https://www.instagram.com/appbudfinance',
     'Site: https://budsolucoes.com.br',
-    'Se o usuário tiver dúvidas que você não consegue resolver, oriente-o a entrar em contato pelo WhatsApp ou e-mail acima.',
-    'Para reportar bugs ou sugestões: dentro do app, botão "?" no Assistente de IA → opção "Reportar problema" ou "Enviar sugestão".',
+    'Se o usuÃ¡rio tiver dÃºvidas que vocÃª nÃ£o consegue resolver, oriente-o a entrar em contato pelo WhatsApp ou e-mail acima.',
+    'Para reportar bugs ou sugestÃµes: dentro do app, botÃ£o "?" no Assistente de IA â†’ opÃ§Ã£o "Reportar problema" ou "Enviar sugestÃ£o".',
     '',
-    '=== REGRAS CRÍTICAS ===',
+    '=== REGRAS CRÃTICAS ===',
     '- NUNCA invente dados financeiros. Use APENAS os dados do contexto abaixo.',
-    '- Se o usuário perguntar algo fora de finanças pessoais ou uso do app, redirecione gentilmente.',
-    '- Se não tiver dados suficientes para responder, diga que o usuário precisa cadastrar mais informações no app.',
-    oculto ? '- O usuário ativou o modo privacidade. NÃO exiba valores monetários explícitos. Use termos como "seu saldo", "seus gastos" sem números.' : '',
+    '- Se o usuÃ¡rio perguntar algo fora de finanÃ§as pessoais ou uso do app, redirecione gentilmente.',
+    '- Se nÃ£o tiver dados suficientes para responder, diga que o usuÃ¡rio precisa cadastrar mais informaÃ§Ãµes no app.',
+    oculto ? '- O usuÃ¡rio ativou o modo privacidade. NÃƒO exiba valores monetÃ¡rios explÃ­citos. Use termos como "seu saldo", "seus gastos" sem nÃºmeros.' : '',
     '',
-    '=== REGISTRAR TRANSAÇÕES — LEMBRETE ===',
-    'Reforçando: qualquer frase como "gastei X", "paguei Y", "comprei Z", "recebi W" = incluir [ACTION:TRANSACTION]{...}[/ACTION] sem hesitar.',
-    'Não use o bloco para análises, perguntas ou dúvidas — apenas quando o usuário relata uma movimentação financeira concreta.',
+    '=== REGISTRAR TRANSAÃ‡Ã•ES â€” LEMBRETE ===',
+    'ReforÃ§ando: qualquer frase como "gastei X", "paguei Y", "comprei Z", "recebi W" = incluir [ACTION:TRANSACTION]{...}[/ACTION] sem hesitar.',
+    'NÃ£o use o bloco para anÃ¡lises, perguntas ou dÃºvidas â€” apenas quando o usuÃ¡rio relata uma movimentaÃ§Ã£o financeira concreta.',
     '',
-    '=== FUNCIONALIDADES DO BUD FINANCE (para ajudar o usuário) ===',
-    '• Dashboard: visão geral com saldo, resumo do mês, últimas transações, lembretes de vencimento em 7 dias, widget de limites, widget de carteira, score de saúde financeira, gráfico de categorias, dica financeira do dia e streak de uso.',
-    '• Extrato: histórico completo de transações com filtros por data, categoria, tipo. Para lançar: botão "+" no extrato ou dashboard.',
-    '• Carteira (Contas): gerenciar contas bancárias, poupança, benefícios (vale alimentação, etc). Importar extratos CSV/OFX/PDF/imagem via IA. Ver histórico de importações anteriores.',
-    '• Transferências: mover saldo entre contas cadastradas. Gera dois lançamentos automáticos. Botão "Transferir" na tela Carteira.',
-    '• Cartões: gerenciar múltiplos cartões de crédito. Acompanhar fatura atual, limite disponível, parcelas em aberto e parcelamento inteligente via IA (plano Plus). Pagar fatura de uma conta cadastrada.',
-    '• Recorrentes: lançar automaticamente contas fixas (aluguel, streaming, etc.) todo mês no dia configurado. Suporta parcelas restantes. (plano Pro+)',
-    '• Dívidas: controlar empréstimos e financiamentos com Tabela Price, simulador de quitação antecipada e acompanhamento de parcelas. (plano Pro+)',
-    '• Metas: definir objetivos financeiros (viagem, reserva, etc) e acompanhar progresso com aportes manuais.',
-    '• Limites: definir teto de gastos por categoria (ex: máx R$ 500 em restaurantes/mês). Alertas ao aproximar do limite. (plano Starter+)',
-    '• Investimentos: registrar renda fixa, ações, FIIs, cripto e ver rentabilidade consolidada.',
-    '• Análises/Gráficos: gráficos de pizza, barras e evolução dos gastos por categoria. (plano Pro+)',
-    '• Insights: score de saúde financeira 0-100, alertas automáticos, projeções e dicas personalizadas. (plano Pro+)',
-    '• Balanço Mensal: fechar o mês e ver resultado geral consolidado. (plano Pro+)',
-    '• Comparativo: comparar meses lado a lado para ver evolução. (plano Starter+)',
-    '• Relatórios: exportar dados em PDF/CSV. (plano Starter+)',
-    '• Mercado: lista de compras inteligente com estimativa de valor. (plano Starter+)',
-    '• Categorias: criar e personalizar categorias de gastos (ícone, cor, nome).',
-    '• Onboarding: ao criar a conta, fluxo guiado para cadastrar conta principal, renda e primeira despesa fixa.',
-    '• Configurações: mudar plano, tema de cor (8 opções: Padrão Gelo, Dark HBO e 6 temas coloridos), foto de perfil, ocultar valores (privacidade), exportar dados, excluir conta, resetar dados financeiros.',
-    '• Assistente de IA (Buddy — você): chat financeiro com contexto real do usuário, registro de transações por voz/texto, chamados de suporte. (plano Plus)',
-    '• Assistente WhatsApp: controle financeiro direto pelo WhatsApp — EM BREVE, aguardando infraestrutura. (plano Plus)',
+    '=== FUNCIONALIDADES DO BUD FINANCE (para ajudar o usuÃ¡rio) ===',
+    'â€¢ Dashboard: visÃ£o geral com saldo, resumo do mÃªs, Ãºltimas transaÃ§Ãµes, lembretes de vencimento em 7 dias, widget de limites, widget de carteira, score de saÃºde financeira, grÃ¡fico de categorias, dica financeira do dia e streak de uso.',
+    'â€¢ Extrato: histÃ³rico completo de transaÃ§Ãµes com filtros por data, categoria, tipo. Para lanÃ§ar: botÃ£o "+" no extrato ou dashboard.',
+    'â€¢ Carteira (Contas): gerenciar contas bancÃ¡rias, poupanÃ§a, benefÃ­cios (vale alimentaÃ§Ã£o, etc). Importar extratos CSV/OFX/PDF/imagem via IA. Ver histÃ³rico de importaÃ§Ãµes anteriores.',
+    'â€¢ TransferÃªncias: mover saldo entre contas cadastradas. Gera dois lanÃ§amentos automÃ¡ticos. BotÃ£o "Transferir" na tela Carteira.',
+    'â€¢ CartÃµes: gerenciar mÃºltiplos cartÃµes de crÃ©dito. Acompanhar fatura atual, limite disponÃ­vel, parcelas em aberto e parcelamento inteligente via IA (plano Plus). Pagar fatura de uma conta cadastrada.',
+    'â€¢ Recorrentes: lanÃ§ar automaticamente contas fixas (aluguel, streaming, etc.) todo mÃªs no dia configurado. Suporta parcelas restantes. (plano Pro+)',
+    'â€¢ DÃ­vidas: controlar emprÃ©stimos e financiamentos com Tabela Price, simulador de quitaÃ§Ã£o antecipada e acompanhamento de parcelas. (plano Pro+)',
+    'â€¢ Metas: definir objetivos financeiros (viagem, reserva, etc) e acompanhar progresso com aportes manuais.',
+    'â€¢ Limites: definir teto de gastos por categoria (ex: mÃ¡x R$ 500 em restaurantes/mÃªs). Alertas ao aproximar do limite. (plano Starter+)',
+    'â€¢ Investimentos: registrar renda fixa, aÃ§Ãµes, FIIs, cripto e ver rentabilidade consolidada.',
+    'â€¢ AnÃ¡lises/GrÃ¡ficos: grÃ¡ficos de pizza, barras e evoluÃ§Ã£o dos gastos por categoria. (plano Pro+)',
+    'â€¢ Insights: score de saÃºde financeira 0-100, alertas automÃ¡ticos, projeÃ§Ãµes e dicas personalizadas. (plano Pro+)',
+    'â€¢ BalanÃ§o Mensal: fechar o mÃªs e ver resultado geral consolidado. (plano Pro+)',
+    'â€¢ Comparativo: comparar meses lado a lado para ver evoluÃ§Ã£o. (plano Starter+)',
+    'â€¢ RelatÃ³rios: exportar dados em PDF/CSV. (plano Starter+)',
+    'â€¢ Mercado: lista de compras inteligente com estimativa de valor. (plano Starter+)',
+    'â€¢ Categorias: criar e personalizar categorias de gastos (Ã­cone, cor, nome).',
+    'â€¢ Onboarding: ao criar a conta, fluxo guiado para cadastrar conta principal, renda e primeira despesa fixa.',
+    'â€¢ ConfiguraÃ§Ãµes: mudar plano, tema de cor (8 opÃ§Ãµes: PadrÃ£o Gelo, Dark HBO e 6 temas coloridos), foto de perfil, ocultar valores (privacidade), exportar dados, excluir conta, resetar dados financeiros.',
+    'â€¢ Assistente de IA (Buddy â€” vocÃª): chat financeiro com contexto real do usuÃ¡rio, registro de transaÃ§Ãµes por voz/texto, chamados de suporte. (plano Plus)',
+    'â€¢ Assistente WhatsApp: controle financeiro direto pelo WhatsApp â€” EM BREVE, aguardando infraestrutura. (plano Plus)',
     '',
-    '=== PROBLEMAS COMUNS E SOLUÇÕES ===',
-    '- Transação não aparece: checar filtros de data no Extrato (pode estar fora do período selecionado).',
-    '- Saldo errado: verificar em Carteira se todas as contas têm saldo correto e se há lançamentos duplicados.',
-    '- Recorrente não lançou: verificar dia de vencimento em Recorrentes e aguardar o processamento automático (ocorre todo dia).',
-    '- Notificação não chegou: verificar permissões de notificação no navegador → Configurações → Notificações.',
-    '- Meta não avança: os aportes são manuais — ir em Metas e clicar em "Depositar" na meta desejada.',
-    '- Limite não aparece: verificar em Limites se a categoria está corretamente configurada.',
+    '=== PROBLEMAS COMUNS E SOLUÃ‡Ã•ES ===',
+    '- TransaÃ§Ã£o nÃ£o aparece: checar filtros de data no Extrato (pode estar fora do perÃ­odo selecionado).',
+    '- Saldo errado: verificar em Carteira se todas as contas tÃªm saldo correto e se hÃ¡ lanÃ§amentos duplicados.',
+    '- Recorrente nÃ£o lanÃ§ou: verificar dia de vencimento em Recorrentes e aguardar o processamento automÃ¡tico (ocorre todo dia).',
+    '- NotificaÃ§Ã£o nÃ£o chegou: verificar permissÃµes de notificaÃ§Ã£o no navegador â†’ ConfiguraÃ§Ãµes â†’ NotificaÃ§Ãµes.',
+    '- Meta nÃ£o avanÃ§a: os aportes sÃ£o manuais â€” ir em Metas e clicar em "Depositar" na meta desejada.',
+    '- Limite nÃ£o aparece: verificar em Limites se a categoria estÃ¡ corretamente configurada.',
     '',
-    '=== DADOS FINANCEIROS REAIS DO USUÁRIO ===',
+    '=== DADOS FINANCEIROS REAIS DO USUÃRIO ===',
     'Nome: ' + nome,
-    'Período atual: ' + mesAno,
+    'PerÃ­odo atual: ' + mesAno,
     'Receitas: ' + fmtVal(r.receitas),
     'Despesas: ' + fmtVal(r.despesas),
     'Resultado: ' + fmtVal((r.receitas||0) - (r.despesas||0)),
     'Saldo total contas: ' + fmtVal(r.saldoContas),
     'Contas: ' + (Array.isArray(r.contas) && r.contas.length ? r.contas.join(' | ') : 'nenhuma cadastrada'),
-    'Contas bancárias cadastradas: ' + (Array.isArray(r.carteira) && r.carteira.length ? r.carteira.map(function(c){return c.nome;}).join(', ') : 'NENHUMA'),
-    'Cartões de crédito cadastrados: ' + (Array.isArray(r.cartoes) && r.cartoes.length ? r.cartoes.map(function(c){return c.nome;}).join(', ') : 'NENHUM'),
+    'Contas bancÃ¡rias cadastradas: ' + (Array.isArray(r.carteira) && r.carteira.length ? r.carteira.map(function(c){return c.nome;}).join(', ') : 'NENHUMA'),
+    'CartÃµes de crÃ©dito cadastrados: ' + (Array.isArray(r.cartoes) && r.cartoes.length ? r.cartoes.map(function(c){return c.nome;}).join(', ') : 'NENHUM'),
     'Top categorias de gasto: ' + (Array.isArray(r.topCats) && r.topCats.length ? r.topCats.join(' | ') : 'sem dados'),
-    'Dívidas ativas: ' + (r.dividasAtivas || 0),
+    'DÃ­vidas ativas: ' + (r.dividasAtivas || 0),
     'Metas ativas: ' + (r.metas || 0),
     Array.isArray(r.metasDetalhe) && r.metasDetalhe.length ? 'Detalhe metas: ' + r.metasDetalhe.join(' | ') : '',
     'Limites estourados: ' + (r.limitesEstourados || 0),
     Array.isArray(r.limites) && r.limites.length ? 'Detalhe limites: ' + r.limites.join(' | ') : '',
     'Investimentos cadastrados: ' + (r.investimentos || 0),
-    r.mesAnoAnt ? ('Mês anterior (' + r.mesAnoAnt + '): Receitas ' + fmtVal(r.receitasAnt) + ' | Despesas ' + fmtVal(r.despesasAnt) + ' | Saldo ' + fmtVal(r.saldoAnt)) : '',
+    r.mesAnoAnt ? ('MÃªs anterior (' + r.mesAnoAnt + '): Receitas ' + fmtVal(r.receitasAnt) + ' | Despesas ' + fmtVal(r.despesasAnt) + ' | Saldo ' + fmtVal(r.saldoAnt)) : '',
   ].filter(Boolean).join('\n');
 
   // Converter formato de mensagens para Groq
@@ -1851,7 +1589,7 @@ app.post('/api/chat', async function (req, res) {
     }
 
     if (streamMode) {
-      // ── Streaming SSE ────────────────────────────────────────────────────────
+      // â”€â”€ Streaming SSE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('X-Accel-Buffering', 'no');
@@ -1871,14 +1609,14 @@ app.post('/api/chat', async function (req, res) {
       return res.end();
     }
 
-    // ── Resposta JSON (fallback sem streaming) ───────────────────────────────
+    // â”€â”€ Resposta JSON (fallback sem streaming) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     var data   = await resp.json();
-    var reply  = (data.choices || [])[0]?.message?.content || 'Não consegui gerar uma resposta.';
+    var reply  = (data.choices || [])[0]?.message?.content || 'NÃ£o consegui gerar uma resposta.';
 
     // Detectar truncamento
     var finishReason = (data.choices || [])[0]?.finish_reason;
     if (finishReason === 'length') {
-      reply += '\n\n_⚠️ Resposta resumida. Peça "continue" para mais detalhes._';
+      reply += '\n\n_âš ï¸ Resposta resumida. PeÃ§a "continue" para mais detalhes._';
     }
 
     return res.json({ reply: reply });
@@ -1890,28 +1628,28 @@ app.post('/api/chat', async function (req, res) {
       return res.end();
     }
     if (err.name === 'AbortError') {
-      return res.status(504).json({ error: 'Timeout na geração da resposta. Tente novamente.' });
+      return res.status(504).json({ error: 'Timeout na geraÃ§Ã£o da resposta. Tente novamente.' });
     }
     console.error('[/api/chat]', err.message);
     return res.status(500).json({ error: 'Erro ao gerar resposta. Tente novamente.' });
   }
 });
 
-// ─── POST /api/chamado ───────────────────────────────────────────────
-// Registra bug ou sugestão no Firestore + envia email ao suporte.
+// â”€â”€â”€ POST /api/chamado â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Registra bug ou sugestÃ£o no Firestore + envia email ao suporte.
 // Auth: Bearer Firebase ID Token. Rate limit: 5 chamados/15 min.
 app.post('/api/chamado', async function (req, res) {
   if (!auth || !db) {
-    return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+    return res.status(503).json({ error: 'Firebase Admin nÃ£o inicializado.' });
   }
 
   var authHeader = req.headers.authorization || '';
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!idToken) return res.status(401).json({ error: 'Token de autenticação ausente.' });
+  if (!idToken) return res.status(401).json({ error: 'Token de autenticaÃ§Ã£o ausente.' });
 
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_e) { return res.status(401).json({ error: 'Token inválido ou expirado.' }); }
+  catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido ou expirado.' }); }
 
   var uid = decoded.uid;
 
@@ -1932,10 +1670,10 @@ app.post('/api/chamado', async function (req, res) {
 
   var tipo        = sanitizeStr(String(req.body.tipo        || '')).substring(0, 20);
   var descricao   = sanitizeStr(String(req.body.descricao   || '')).substring(0, 2000);
-  var nomeUsuario = sanitizeStr(String(req.body.nomeUsuario || 'Anônimo')).substring(0, 100);
+  var nomeUsuario = sanitizeStr(String(req.body.nomeUsuario || 'AnÃ´nimo')).substring(0, 100);
 
   if (!tipo || !descricao) {
-    return res.status(400).json({ error: 'tipo e descricao são obrigatórios.' });
+    return res.status(400).json({ error: 'tipo e descricao sÃ£o obrigatÃ³rios.' });
   }
   if (!['bug', 'sugestao'].includes(tipo)) {
     return res.status(400).json({ error: 'tipo deve ser "bug" ou "sugestao".' });
@@ -1945,20 +1683,20 @@ app.post('/api/chamado', async function (req, res) {
     await db.collection('chamados').add({
       tipo,
       descricao,
-      uid:           uid,                              // fonte confiável (BUG 13)
+      uid:           uid,                              // fonte confiÃ¡vel (BUG 13)
       emailUsuario:  decoded.email || '',              // email do token (mais seguro)
       nomeUsuario,
       criadoEm:      new Date().toISOString(),
       status:        'aberto',
-      notificadoUser: true,                            // criador já sabe que abriu
+      notificadoUser: true,                            // criador jÃ¡ sabe que abriu
       plataforma:    (req.headers['user-agent'] || '').substring(0, 200),
     });
 
-    // Email de notificação ao suporte (fire-and-forget, sem bloquear resposta)
+    // Email de notificaÃ§Ã£o ao suporte (fire-and-forget, sem bloquear resposta)
     sendEmailViaEmailJS({
       to_email:  'suporte@budfinance.com.br',
       to_name:   nomeUsuario,
-      tipo:      tipo === 'bug' ? '🐛 Bug' : '💡 Sugestão',
+      tipo:      tipo === 'bug' ? 'ðŸ› Bug' : 'ðŸ’¡ SugestÃ£o',
       message:   descricao,
       admin_url: FRONTEND_URL + '/admin.html',
     }, EMAILJS_TEMPLATE_CHAMADO).catch(function () { /* ignora falha de email */ });
@@ -1971,10 +1709,10 @@ app.post('/api/chamado', async function (req, res) {
   }
 });
 
-// ─── GET /api/chamados ────────────────────────────────────────────────
+// â”€â”€â”€ GET /api/chamados â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Lista chamados para o painel admin. Auth: role === 'admin'.
 app.get('/api/chamados', async function (req, res) {
-  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin nÃ£o inicializado.' });
 
   var authHeader = req.headers.authorization || '';
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -1982,7 +1720,7 @@ app.get('/api/chamados', async function (req, res) {
 
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+  catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   // Verificar role admin
   try {
@@ -2007,10 +1745,10 @@ app.get('/api/chamados', async function (req, res) {
   }
 });
 
-// ─── PATCH /api/chamados/:id ──────────────────────────────────────────
+// â”€â”€â”€ PATCH /api/chamados/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Atualiza status de um chamado. Auth: role === 'admin'.
 app.patch('/api/chamados/:id', async function (req, res) {
-  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin nÃ£o inicializado.' });
 
   var authHeader = req.headers.authorization || '';
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -2018,7 +1756,7 @@ app.patch('/api/chamados/:id', async function (req, res) {
 
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+  catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   try {
     var userSnap = await db.collection('usuarios').doc(decoded.uid).get();
@@ -2031,14 +1769,14 @@ app.patch('/api/chamados/:id', async function (req, res) {
   var novoStatus = sanitizeStr(String(req.body.status || '')).substring(0, 30);
   var statusValidos = ['aberto', 'em_analise', 'resolvido'];
   if (!statusValidos.includes(novoStatus)) {
-    return res.status(400).json({ error: 'Status inválido.' });
+    return res.status(400).json({ error: 'Status invÃ¡lido.' });
   }
 
   try {
     var update = { status: novoStatus };
-    // Quando resolvido, marcar como não-notificado para o usuário ver no IA
+    // Quando resolvido, marcar como nÃ£o-notificado para o usuÃ¡rio ver no IA
     if (novoStatus === 'resolvido') update.notificadoUser = false;
-    // Ao reabrir, limpa a flag para não mostrar notificação velha
+    // Ao reabrir, limpa a flag para nÃ£o mostrar notificaÃ§Ã£o velha
     if (novoStatus === 'aberto') update.notificadoUser = true;
     await db.collection('chamados').doc(chamadoId).update(update);
     return res.json({ success: true });
@@ -2048,11 +1786,11 @@ app.patch('/api/chamados/:id', async function (req, res) {
   }
 });
 
-// ─── GET /api/meus-chamados ───────────────────────────────────────────
-// Retorna chamados do usuário logado com notificadoUser === false (resolvidos não vistos).
-// Após retornar, marca todos como notificadoUser: true em batch.
+// â”€â”€â”€ GET /api/meus-chamados â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Retorna chamados do usuÃ¡rio logado com notificadoUser === false (resolvidos nÃ£o vistos).
+// ApÃ³s retornar, marca todos como notificadoUser: true em batch.
 app.get('/api/meus-chamados', async function (req, res) {
-  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin nÃ£o inicializado.' });
 
   var authHeader = req.headers.authorization || '';
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -2060,7 +1798,7 @@ app.get('/api/meus-chamados', async function (req, res) {
 
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+  catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   try {
     var snap = await db.collection('chamados')
@@ -2086,13 +1824,13 @@ app.get('/api/meus-chamados', async function (req, res) {
   }
 });
 
-// ─── POST /api/alerta-financeiro ────────────────────────────────────
-// Enviado pelo frontend quando detecta problemas críticos (saldo negativo,
-// despesas > receitas, limites estourados). Envia email para o usuário
+// â”€â”€â”€ POST /api/alerta-financeiro â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Enviado pelo frontend quando detecta problemas crÃ­ticos (saldo negativo,
+// despesas > receitas, limites estourados). Envia email para o usuÃ¡rio
 // e registra no Firestore. Rate limit: 1 por uid a cada 24h.
 app.post('/api/alerta-financeiro', async function (req, res) {
   if (!auth || !db) {
-    return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+    return res.status(503).json({ error: 'Firebase Admin nÃ£o inicializado.' });
   }
 
   var authHeader = req.headers.authorization || '';
@@ -2101,7 +1839,7 @@ app.post('/api/alerta-financeiro', async function (req, res) {
 
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+  catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   var uid = decoded.uid;
 
@@ -2116,7 +1854,7 @@ app.post('/api/alerta-financeiro', async function (req, res) {
   rateLimitMap.set(rlKey, { start: now, count: 1 });
 
   var alertas     = req.body.alertas || [];
-  var nomeUsuario = sanitizeStr(String(req.body.nomeUsuario || 'Usuário')).substring(0, 100);
+  var nomeUsuario = sanitizeStr(String(req.body.nomeUsuario || 'UsuÃ¡rio')).substring(0, 100);
   var emailUser   = decoded.email || '';
 
   if (!Array.isArray(alertas) || alertas.length === 0) {
@@ -2140,10 +1878,10 @@ app.post('/api/alerta-financeiro', async function (req, res) {
     plataforma:   (req.headers['user-agent'] || '').substring(0, 200),
   });
 
-  // Enviar email de alerta para o usuário (fire-and-forget)
+  // Enviar email de alerta para o usuÃ¡rio (fire-and-forget)
   if (emailUser) {
     var alertasTexto = alertasSanitizados.map(function (a) {
-      var icone = a.nivel === 'critico' ? '🚨' : a.nivel === 'alerta' ? '⚠️' : 'ℹ️';
+      var icone = a.nivel === 'critico' ? 'ðŸš¨' : a.nivel === 'alerta' ? 'âš ï¸' : 'â„¹ï¸';
       return icone + ' ' + a.texto;
     }).join('\n');
 
@@ -2151,11 +1889,11 @@ app.post('/api/alerta-financeiro', async function (req, res) {
       to_email:      emailUser,
       to_name:       nomeUsuario,
       assunto:       'Alerta financeiro detectado no Bud Finance',
-      corpo:         'O Bud detectou os seguintes pontos de atenção nas suas finanças:\n\n' + alertasTexto + '\n\nAcesse o app para ver detalhes e tomar ação.',
+      corpo:         'O Bud detectou os seguintes pontos de atenÃ§Ã£o nas suas finanÃ§as:\n\n' + alertasTexto + '\n\nAcesse o app para ver detalhes e tomar aÃ§Ã£o.',
     }).catch(function () { /* ignora falha */ });
   }
 
-  // PEND-047: Enviar push FCM se o usuário tiver token registrado
+  // PEND-047: Enviar push FCM se o usuÃ¡rio tiver token registrado
   (async function () {
     try {
       var userDoc2 = await db.collection('usuarios').doc(uid).get();
@@ -2164,10 +1902,10 @@ app.post('/api/alerta-financeiro', async function (req, res) {
 
       var criticos = alertasSanitizados.filter(function (a) { return a.nivel === 'critico'; });
       var pushTitle = criticos.length > 0
-        ? '🚨 ' + criticos.length + ' alerta(s) crítico(s) — Bud Finance'
-        : '⚠️ Alertas financeiros — Bud Finance';
-      var pushBody = alertasSanitizados.slice(0, 2).map(function (a) { return a.texto; }).join(' · ');
-      if (pushBody.length > 120) pushBody = pushBody.substring(0, 117) + '…';
+        ? 'ðŸš¨ ' + criticos.length + ' alerta(s) crÃ­tico(s) â€” Bud Finance'
+        : 'âš ï¸ Alertas financeiros â€” Bud Finance';
+      var pushBody = alertasSanitizados.slice(0, 2).map(function (a) { return a.texto; }).join(' Â· ');
+      if (pushBody.length > 120) pushBody = pushBody.substring(0, 117) + 'â€¦';
 
       await admin.messaging().send({
         token: fcmTok,
@@ -2176,7 +1914,7 @@ app.post('/api/alerta-financeiro', async function (req, res) {
           body:  pushBody,
           url:   'assistente-ia.html',
           tag:   'alerta-saude-' + new Date().toISOString().slice(0, 10),
-          emoji: '🚨'
+          emoji: 'ðŸš¨'
         },
         webpush: {
           notification: {
@@ -2195,7 +1933,7 @@ app.post('/api/alerta-financeiro', async function (req, res) {
           await db.collection('usuarios').doc(uid).update({ fcmToken: null, pushEnabled: false });
         } catch (_) {}
       }
-      // Push falhou silenciosamente — email já foi enviado
+      // Push falhou silenciosamente â€” email jÃ¡ foi enviado
     }
   })();
 
@@ -2204,22 +1942,22 @@ app.post('/api/alerta-financeiro', async function (req, res) {
     return res.json({ success: true, enviado: true });
   } catch (err) {
     console.error('[/api/alerta-financeiro]', err.message);
-    return res.json({ success: true, enviado: false }); // não falha o cliente
+    return res.json({ success: true, enviado: false }); // nÃ£o falha o cliente
   }
 });
 
-// ─── GET /api/ping ─────────────────────────────────────────────────
+// â”€â”€â”€ GET /api/ping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Rota leve para acordar o servidor no Render free tier.
-// Chamada silenciosa no carregamento de qualquer página que use o backend.
+// Chamada silenciosa no carregamento de qualquer pÃ¡gina que use o backend.
 app.get('/api/ping', function (_req, res) {
   res.json({ ok: true, ts: Date.now() });
 });
 
-// ══════════════════════════════════════════════════════════════════════
-// ASSISTENTE WHATSAPP — FASE 1: Vínculo via Token de Pareamento
-// ══════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ASSISTENTE WHATSAPP â€” FASE 1: VÃ­nculo via Token de Pareamento
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-// Helper: gera token alfanumérico 4 chars
+// Helper: gera token alfanumÃ©rico 4 chars
 function gerarTokenWA() {
   var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sem I/O/1/0 (confusos)
   var t = '';
@@ -2257,24 +1995,24 @@ async function enviarMensagemWA(numero, texto) {
   }).catch(function (e) { console.error('[WA] enviarMensagem:', e.message); });
 }
 
-// ─── Helper compartilhado: processa mensagem WA (pareamento Fase 1) ──
+// â”€â”€â”€ Helper compartilhado: processa mensagem WA (pareamento Fase 1) â”€â”€
 // jid = JID completo (ex: 5521999999@s.whatsapp.net ou 18962346@lid)
-// numero = apenas dígitos/id sem sufixo (para Firestore)
+// numero = apenas dÃ­gitos/id sem sufixo (para Firestore)
 async function processarMensagemWA(jid, texto) {
   if (!db) return;
-  // Normalizar: remover espaços, aceitar minúsculas (bud-xxxx ou BUD - XXXX)
+  // Normalizar: remover espaÃ§os, aceitar minÃºsculas (bud-xxxx ou BUD - XXXX)
   texto = texto.replace(/\s+/g, '').trim();
   if (!/^BUD-[A-Z0-9]{4}$/i.test(texto)) return; // Fase 2 (futura): chat IA
 
   var codigo = texto.toUpperCase();
-  var numero = jid.split('@')[0]; // apenas dígitos para Firestore
+  var numero = jid.split('@')[0]; // apenas dÃ­gitos para Firestore
   var agora  = Date.now();
   var snap   = await db.collection('usuarios')
     .where('whatsappToken', '==', codigo)
     .limit(1).get();
 
   if (snap.empty) {
-    await enviarMensagemWA(jid, '❌ Código inválido ou expirado. Gere um novo código em Ajustes → WhatsApp no app.');
+    await enviarMensagemWA(jid, 'âŒ CÃ³digo invÃ¡lido ou expirado. Gere um novo cÃ³digo em Ajustes â†’ WhatsApp no app.');
     return;
   }
 
@@ -2282,30 +2020,30 @@ async function processarMensagemWA(jid, texto) {
   var userData = userDoc.data();
 
   if (!userData.whatsappTokenExp || agora > userData.whatsappTokenExp) {
-    await enviarMensagemWA(jid, '⏰ Código expirado. Gere um novo em Ajustes → WhatsApp no app.');
+    await enviarMensagemWA(jid, 'â° CÃ³digo expirado. Gere um novo em Ajustes â†’ WhatsApp no app.');
     return;
   }
 
   await userDoc.ref.update({
-    whatsappVinculado:   numero, // armazena só os dígitos (sem @lid/@s.whatsapp.net)
+    whatsappVinculado:   numero, // armazena sÃ³ os dÃ­gitos (sem @lid/@s.whatsapp.net)
     whatsappToken:       null,
     whatsappTokenExp:    null,
     whatsappVinculadoEm: new Date().toISOString()
   });
 
-  var nome = (userData.nome || '').split(' ')[0] || 'usuário';
+  var nome = (userData.nome || '').split(' ')[0] || 'usuÃ¡rio';
   await enviarMensagemWA(jid,
-    '✅ Olá, ' + nome + '! Seu WhatsApp está vinculado ao Bud Finance. 🎉\n\n' +
-    'Agora você pode:\n' +
-    '• Registrar gastos: _"gastei 50 de gasolina"_\n' +
-    '• Consultar saldo: _"qual meu saldo?"_\n' +
-    '• Tirar foto de cupom e eu registro automaticamente\n\n' +
-    'Pode começar! 🚀'
+    'âœ… OlÃ¡, ' + nome + '! Seu WhatsApp estÃ¡ vinculado ao Bud Finance. ðŸŽ‰\n\n' +
+    'Agora vocÃª pode:\n' +
+    'â€¢ Registrar gastos: _"gastei 50 de gasolina"_\n' +
+    'â€¢ Consultar saldo: _"qual meu saldo?"_\n' +
+    'â€¢ Tirar foto de cupom e eu registro automaticamente\n\n' +
+    'Pode comeÃ§ar! ðŸš€'
   );
-  console.log('[WA] número vinculado:', numero, '→ uid:', userDoc.id);
+  console.log('[WA] nÃºmero vinculado:', numero, 'â†’ uid:', userDoc.id);
 }
 
-// ─── GET /webhook/whatsapp ─── verificação Meta ─────────────────────
+// â”€â”€â”€ GET /webhook/whatsapp â”€â”€â”€ verificaÃ§Ã£o Meta â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.get('/webhook/whatsapp', function (req, res) {
   if (req.query['hub.mode'] === 'subscribe' &&
       req.query['hub.verify_token'] === WA_VERIFY_TOKEN) {
@@ -2315,7 +2053,7 @@ app.get('/webhook/whatsapp', function (req, res) {
   res.sendStatus(403);
 });
 
-// ─── POST /webhook/whatsapp ─── recebe mensagens (Meta Cloud API) ───
+// â”€â”€â”€ POST /webhook/whatsapp â”€â”€â”€ recebe mensagens (Meta Cloud API) â”€â”€â”€
 app.post('/webhook/whatsapp', async function (req, res) {
   // Verificar assinatura HMAC se WA_APP_SECRET configurado
   if (WA_APP_SECRET) {
@@ -2324,9 +2062,9 @@ app.post('/webhook/whatsapp', async function (req, res) {
       .createHmac('sha256', WA_APP_SECRET)
       .update(JSON.stringify(req.body))
       .digest('hex');
-    if (sig !== expected) { console.warn('[WA] assinatura inválida'); return res.sendStatus(403); }
+    if (sig !== expected) { console.warn('[WA] assinatura invÃ¡lida'); return res.sendStatus(403); }
   }
-  res.sendStatus(200); // responder rápido ao Meta
+  res.sendStatus(200); // responder rÃ¡pido ao Meta
 
   try {
     var entry  = (req.body.entry  || [])[0];
@@ -2344,19 +2082,19 @@ app.post('/webhook/whatsapp', async function (req, res) {
   }
 });
 
-// ─── POST /webhook/evolution ─── recebe mensagens (Evolution API) ───
+// â”€â”€â”€ POST /webhook/evolution â”€â”€â”€ recebe mensagens (Evolution API) â”€â”€â”€
 // Formato Evolution API v2. Configurar no painel da Evolution:
 //   URL: https://nexo-backend-4kmu.onrender.com/webhook/evolution
 //   Events: MESSAGES_UPSERT
 app.post('/webhook/evolution', async function (req, res) {
-  res.sendStatus(200); // responder rápido
+  res.sendStatus(200); // responder rÃ¡pido
   // Log completo apenas para messages.upsert (debug @lid)
   if (req.body?.event === 'messages.upsert') {
     console.log('[EVO-DEBUG] messages.upsert FULL:', JSON.stringify(req.body));
   }
 
   try {
-    // Nota: Evolution API não envia apikey nos webhooks. Auth via URL secreta opcional.
+    // Nota: Evolution API nÃ£o envia apikey nos webhooks. Auth via URL secreta opcional.
     var event = req.body?.event || '';
     if (event !== 'messages.upsert') return; // ignorar status, qr, etc.
 
@@ -2381,10 +2119,10 @@ app.post('/webhook/evolution', async function (req, res) {
   }
 });
 
-// ─── POST /api/whatsapp/gerar-token ─────────────────────────────────
-// Gera código de pareamento para vincular WhatsApp. Auth: Bearer token.
+// â”€â”€â”€ POST /api/whatsapp/gerar-token â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Gera cÃ³digo de pareamento para vincular WhatsApp. Auth: Bearer token.
 app.post('/api/whatsapp/gerar-token', async function (req, res) {
-  if (!auth || !db) return res.status(503).json({ error: 'Firebase não inicializado.' });
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase nÃ£o inicializado.' });
 
   var authHeader = req.headers.authorization || '';
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -2392,14 +2130,14 @@ app.post('/api/whatsapp/gerar-token', async function (req, res) {
 
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+  catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   // Verificar plano
   try {
     var userSnap = await db.collection('usuarios').doc(decoded.uid).get();
     var plano = (userSnap.data()?.plano || 'free').toLowerCase();
     if (!['plus', 'pro', 'trial'].includes(plano)) {
-      return res.status(403).json({ error: 'Recurso disponível apenas nos planos Plus, Pro e Trial.' });
+      return res.status(403).json({ error: 'Recurso disponÃ­vel apenas nos planos Plus, Pro e Trial.' });
     }
   } catch (_e) { return res.status(403).json({ error: 'Erro ao verificar plano.' }); }
 
@@ -2414,7 +2152,7 @@ app.post('/api/whatsapp/gerar-token', async function (req, res) {
     return res.json({
       token,
       expiresAt:       new Date(expMs).toISOString(),
-      waNumeroDisplay: WA_NUMERO_DISPLAY || '(número não configurado)',
+      waNumeroDisplay: WA_NUMERO_DISPLAY || '(nÃºmero nÃ£o configurado)',
       waLink:          WA_NUMERO_LINK ? 'https://wa.me/' + WA_NUMERO_LINK + '?text=' + encodeURIComponent(token) : null
     });
   } catch (err) {
@@ -2423,10 +2161,10 @@ app.post('/api/whatsapp/gerar-token', async function (req, res) {
   }
 });
 
-// ─── GET /api/whatsapp/status ─────────────────────────────────────
-// Retorna status do vínculo WhatsApp do usuário autenticado.
+// â”€â”€â”€ GET /api/whatsapp/status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Retorna status do vÃ­nculo WhatsApp do usuÃ¡rio autenticado.
 app.get('/api/whatsapp/status', async function (req, res) {
-  if (!auth || !db) return res.status(503).json({ error: 'Firebase não inicializado.' });
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase nÃ£o inicializado.' });
 
   var authHeader = req.headers.authorization || '';
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -2434,7 +2172,7 @@ app.get('/api/whatsapp/status', async function (req, res) {
 
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+  catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   try {
     var snap    = await db.collection('usuarios').doc(decoded.uid).get();
@@ -2446,10 +2184,10 @@ app.get('/api/whatsapp/status', async function (req, res) {
   }
 });
 
-// ─── POST /api/whatsapp/desvincular ──────────────────────────────────
-// Remove vínculo WhatsApp do usuário.
+// â”€â”€â”€ POST /api/whatsapp/desvincular â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Remove vÃ­nculo WhatsApp do usuÃ¡rio.
 app.post('/api/whatsapp/desvincular', async function (req, res) {
-  if (!auth || !db) return res.status(503).json({ error: 'Firebase não inicializado.' });
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase nÃ£o inicializado.' });
 
   var authHeader = req.headers.authorization || '';
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -2457,7 +2195,7 @@ app.post('/api/whatsapp/desvincular', async function (req, res) {
 
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+  catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   try {
     await db.collection('usuarios').doc(decoded.uid).update({
@@ -2472,14 +2210,14 @@ app.post('/api/whatsapp/desvincular', async function (req, res) {
   }
 });
 
-// ─── POST /mercadopago/create-subscription ──────────────────────────
+// â”€â”€â”€ POST /mercadopago/create-subscription â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Cria uma assinatura recorrente (preapproval) no Mercado Pago.
 // Auth: Bearer Firebase ID Token.
 // Body: { planKey: 'starter'|'pro'|'plus', ref?: string }
-// Segurança: uid e email extraídos do Bearer token — nunca do body.
+// SeguranÃ§a: uid e email extraÃ­dos do Bearer token â€” nunca do body.
 app.post('/mercadopago/create-subscription', async function (req, res) {
-  if (!MP_ACCESS_TOKEN) return res.status(503).json({ error: 'Pagamentos não configurados.' });
-  if (!auth || !db)     return res.status(503).json({ error: 'Firebase não inicializado.' });
+  if (!MP_ACCESS_TOKEN) return res.status(503).json({ error: 'Pagamentos nÃ£o configurados.' });
+  if (!auth || !db)     return res.status(503).json({ error: 'Firebase nÃ£o inicializado.' });
 
   // 1. Verificar token
   var authHeader = req.headers.authorization || '';
@@ -2488,19 +2226,19 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
 
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+  catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   var uid   = decoded.uid;
   var email = decoded.email || '';
 
   // 2. Validar planKey
   var planKey = String(req.body.planKey || '').toLowerCase().trim();
-  if (!MP_PLANS[planKey]) return res.status(400).json({ error: 'Plano inválido.' });
+  if (!MP_PLANS[planKey]) return res.status(400).json({ error: 'Plano invÃ¡lido.' });
 
   var plan   = MP_PLANS[planKey];
   var amount = plan.amount;
 
-  // 3. Validar ref code e aplicar desconto de 10% se indicação legítima
+  // 3. Validar ref code e aplicar desconto de 10% se indicaÃ§Ã£o legÃ­tima
   var rawRef  = req.body.ref ? String(req.body.ref).trim() : null;
   var refCode = rawRef ? rawRef.slice(0, 32).replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : null;
   if (refCode) {
@@ -2508,17 +2246,17 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
       var refSnap = await db.collection('usuarios')
         .where('codigoIndicacao', '==', refCode).limit(1).get();
       if (refSnap.empty) {
-        refCode = null; // código não encontrado — sem desconto
+        refCode = null; // cÃ³digo nÃ£o encontrado â€” sem desconto
       } else {
         amount = Math.round(plan.amount * (1 - MP_INDICACAO_DESCONTO) * 100) / 100;
       }
     } catch (_e) { refCode = null; }
   }
 
-  // 4. external_reference: uid|planKey[|refCode] — recuperado no webhook
+  // 4. external_reference: uid|planKey[|refCode] â€” recuperado no webhook
   var externalRef = uid + '|' + planKey + (refCode ? '|' + refCode : '');
 
-  // 4.5. Buscar dados do usuário no Firestore para enriquecer o payer (melhora aprovação)
+  // 4.5. Buscar dados do usuÃ¡rio no Firestore para enriquecer o payer (melhora aprovaÃ§Ã£o)
   var firstName = '', lastName = '', payerPhone = null;
   try {
     var userSnap = await db.collection('usuarios').doc(uid).get();
@@ -2532,10 +2270,10 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
         payerPhone = { area_code: telLimpo.slice(0, 2), number: telLimpo.slice(2) };
       }
     }
-  } catch (_e) { /* não bloqueia o fluxo */ }
+  } catch (_e) { /* nÃ£o bloqueia o fluxo */ }
 
   // 5. Criar preapproval no Mercado Pago
-  // Link expira em 2 horas — impede que o link seja usado por terceiros após esse período
+  // Link expira em 2 horas â€” impede que o link seja usado por terceiros apÃ³s esse perÃ­odo
   var linkExpira = new Date();
   linkExpira.setHours(linkExpira.getHours() + 2);
 
@@ -2580,20 +2318,20 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
     return res.json({ init_point: checkoutUrl });
   } catch (err) {
     console.error('[MP] create-subscription fetch error:', err.message);
-    return res.status(500).json({ error: 'Erro de comunicação com Mercado Pago.' });
+    return res.status(500).json({ error: 'Erro de comunicaÃ§Ã£o com Mercado Pago.' });
   }
 });
 
-// ─── POST /webhook/mercadopago ───────────────────────────────────────
-// Recebe notificações do Mercado Pago e atualiza o plano no Firestore.
-// Configurar no painel MP → Integrações → Webhooks:
+// â”€â”€â”€ POST /webhook/mercadopago â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Recebe notificaÃ§Ãµes do Mercado Pago e atualiza o plano no Firestore.
+// Configurar no painel MP â†’ IntegraÃ§Ãµes â†’ Webhooks:
 //   URL: https://bud-finance-backend.onrender.com/webhook/mercadopago
 //   Eventos: subscription_preapproval, payment
 app.post('/webhook/mercadopago', async function (req, res) {
-  // 1. Verificar assinatura HMAC-SHA256 (obrigatório — falha se secret não configurado)
+  // 1. Verificar assinatura HMAC-SHA256 (obrigatÃ³rio â€” falha se secret nÃ£o configurado)
   if (!MP_WEBHOOK_SECRET) {
-    console.error('[MP webhook] MP_WEBHOOK_SECRET não configurado — rejeitando requisição');
-    return res.status(503).json({ error: 'Webhook não configurado.' });
+    console.error('[MP webhook] MP_WEBHOOK_SECRET nÃ£o configurado â€” rejeitando requisiÃ§Ã£o');
+    return res.status(503).json({ error: 'Webhook nÃ£o configurado.' });
   }
   var xSig    = req.headers['x-signature']  || '';
   var xReqId  = req.headers['x-request-id'] || '';
@@ -2605,11 +2343,11 @@ app.post('/webhook/mercadopago', async function (req, res) {
   var manifest = 'id:' + dataId + ';request-id:' + xReqId + ';ts:' + ts + ';';
   var expected = require('crypto').createHmac('sha256', MP_WEBHOOK_SECRET).update(manifest).digest('hex');
   if (expected !== v1) {
-    console.warn('[MP webhook] Assinatura inválida — ignorando');
-    return res.status(401).json({ error: 'Assinatura inválida.' });
+    console.warn('[MP webhook] Assinatura invÃ¡lida â€” ignorando');
+    return res.status(401).json({ error: 'Assinatura invÃ¡lida.' });
   }
 
-  // 2. Responder imediatamente (MP exige resposta rápida)
+  // 2. Responder imediatamente (MP exige resposta rÃ¡pida)
   res.sendStatus(200);
 
   if (!db) return;
@@ -2622,7 +2360,7 @@ app.post('/webhook/mercadopago', async function (req, res) {
     if      (type === 'subscription_preapproval') await _mpHandleSubscription(dataId);
     else if (type === 'payment')                  await _mpHandlePayment(dataId);
   } catch (err) {
-    console.error('[MP webhook] Erro ao processar notificação:', err.message);
+    console.error('[MP webhook] Erro ao processar notificaÃ§Ã£o:', err.message);
   }
 });
 
@@ -2643,31 +2381,31 @@ async function _mpHandleSubscription(preapprovalId) {
   var status = String(sub.status || '').toLowerCase();
 
   if (status === 'authorized') {
-    // Validar que quem pagou é o dono da conta Bud Finance
+    // Validar que quem pagou Ã© o dono da conta Bud Finance
     var payerEmail = String(sub.payer_email || '').toLowerCase().trim();
     try {
       var userSnap2 = await db.collection('usuarios').doc(uid).get();
       if (userSnap2.exists) {
         var userEmail2 = String(userSnap2.data().email || '').toLowerCase().trim();
         if (payerEmail && userEmail2 && payerEmail !== userEmail2) {
-          console.warn('[MP webhook] Pagador inválido — cancelando assinatura:', uid, payerEmail, '!=', userEmail2);
-          // Cancelar no MP para evitar cobranças futuras
+          console.warn('[MP webhook] Pagador invÃ¡lido â€” cancelando assinatura:', uid, payerEmail, '!=', userEmail2);
+          // Cancelar no MP para evitar cobranÃ§as futuras
           try {
             await fetch('https://api.mercadopago.com/preapproval/' + preapprovalId, {
               method:  'PUT',
               headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN },
               body:    JSON.stringify({ status: 'cancelled' })
             });
-          } catch (_ec) { /* cancelamento falhou — ativação bloqueada de qualquer forma */ }
+          } catch (_ec) { /* cancelamento falhou â€” ativaÃ§Ã£o bloqueada de qualquer forma */ }
           await db.collection('usuarios').doc(uid).update({
             pagamentoPendente: true,
             erroAssinatura:    'pagador_invalido',
             planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp()
           });
-          return; // não ativa o plano
+          return; // nÃ£o ativa o plano
         }
       }
-    } catch (_ev) { /* se validação falhar, prossegue com ativação normal */ }
+    } catch (_ev) { /* se validaÃ§Ã£o falhar, prossegue com ativaÃ§Ã£o normal */ }
 
     var expira = new Date();
     expira.setMonth(expira.getMonth() + 1);
@@ -2714,7 +2452,7 @@ async function _mpHandlePayment(paymentId) {
             mpSubscriptionId:    String(payment.preapproval_id),
             planoAtualizadoEm:   admin.firestore.FieldValue.serverTimestamp()
           });
-          console.log('[MP webhook] Pagamento recusado — flag pagamentoPendente:', uid, payment.status_detail);
+          console.log('[MP webhook] Pagamento recusado â€” flag pagamentoPendente:', uid, payment.status_detail);
         }
       }
     } catch (e) { console.error('[MP webhook] Erro ao marcar pagamentoPendente:', e.message); }
@@ -2724,7 +2462,7 @@ async function _mpHandlePayment(paymentId) {
   if (payment.preapproval_id) await _mpHandleSubscription(String(payment.preapproval_id));
 }
 
-// Registra indicação bem-sucedida na subcoleção do referrer
+// Registra indicaÃ§Ã£o bem-sucedida na subcoleÃ§Ã£o do referrer
 async function _mpCreditarIndicacao(refCode, novoUid, planKey) {
   try {
     var snap = await db.collection('usuarios')
@@ -2736,19 +2474,19 @@ async function _mpCreditarIndicacao(refCode, novoUid, planKey) {
         planKey:     planKey,
         creditadoEm: admin.firestore.FieldValue.serverTimestamp()
       });
-    console.log('[MP] Indicação creditada:', refCode, '→', novoUid);
+    console.log('[MP] IndicaÃ§Ã£o creditada:', refCode, 'â†’', novoUid);
   } catch (err) {
-    console.error('[MP] Erro ao creditar indicação:', err.message);
+    console.error('[MP] Erro ao creditar indicaÃ§Ã£o:', err.message);
   }
 }
 
-// ─── POST /mercadopago/sandbox-activate (APENAS sandbox) ────────────
-// Simula ativação de plano sem passar pelo checkout do MP.
-// Útil para testar o pipeline Firestore em ambiente de teste.
+// â”€â”€â”€ POST /mercadopago/sandbox-activate (APENAS sandbox) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Simula ativaÃ§Ã£o de plano sem passar pelo checkout do MP.
+// Ãštil para testar o pipeline Firestore em ambiente de teste.
 app.post('/mercadopago/sandbox-activate', async function (req, res) {
   if (!MP_ACCESS_TOKEN.startsWith('TEST-'))
-    return res.status(403).json({ error: 'Endpoint disponível apenas em modo sandbox.' });
-  if (!auth || !db) return res.status(503).json({ error: 'Firebase não inicializado.' });
+    return res.status(403).json({ error: 'Endpoint disponÃ­vel apenas em modo sandbox.' });
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase nÃ£o inicializado.' });
 
   var authHeader = req.headers.authorization || '';
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -2756,11 +2494,11 @@ app.post('/mercadopago/sandbox-activate', async function (req, res) {
 
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+  catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   var uid     = decoded.uid;
   var planKey = String(req.body.planKey || 'pro').toLowerCase().trim();
-  if (!MP_PLANS[planKey]) return res.status(400).json({ error: 'Plano inválido.' });
+  if (!MP_PLANS[planKey]) return res.status(400).json({ error: 'Plano invÃ¡lido.' });
 
   var expira = new Date();
   expira.setMonth(expira.getMonth() + 1);
@@ -2777,10 +2515,10 @@ app.post('/mercadopago/sandbox-activate', async function (req, res) {
   return res.json({ ok: true, uid, planKey, mpSubscriptionId: mockSubId, planoExpira: expira.toISOString() });
 });
 
-// ─── POST /mercadopago/cancelar-assinatura ─────────────────────────
-// Cancela a assinatura ativa do usuário no Mercado Pago e rebaixa para free.
+// â”€â”€â”€ POST /mercadopago/cancelar-assinatura â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Cancela a assinatura ativa do usuÃ¡rio no Mercado Pago e rebaixa para free.
 app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req, res) {
-  if (!auth || !db) return res.status(503).json({ error: 'Firebase não inicializado.' });
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase nÃ£o inicializado.' });
 
   var authHeader = req.headers.authorization || '';
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -2788,13 +2526,13 @@ app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req
 
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_e) { return res.status(401).json({ error: 'Token inválido.' }); }
+  catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   var uid = decoded.uid;
   try {
     var userRef = db.collection('usuarios').doc(uid);
     var snap    = await userRef.get();
-    if (!snap.exists) return res.status(404).json({ error: 'Usuário não encontrado.' });
+    if (!snap.exists) return res.status(404).json({ error: 'UsuÃ¡rio nÃ£o encontrado.' });
 
     var userData = snap.data();
     var subId    = userData.mpSubscriptionId;
@@ -2834,10 +2572,10 @@ app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req
   }
 });
 
-// ─── POST /api/push/token — salva FCM token do usuário ──────────────────
+// â”€â”€â”€ POST /api/push/token â€” salva FCM token do usuÃ¡rio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Auth: Bearer ID token
 app.post('/api/push/token', async function (req, res) {
-  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin nÃ£o inicializado.' });
 
   var authHeader = req.headers.authorization || '';
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -2845,12 +2583,12 @@ app.post('/api/push/token', async function (req, res) {
 
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_) { return res.status(401).json({ error: 'Token inválido.' }); }
+  catch (_) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   var token    = sanitizeStr(String(req.body.token    || '')).substring(0, 500);
   var platform = sanitizeStr(String(req.body.platform || 'web')).substring(0, 20);
 
-  if (!token) return res.status(400).json({ error: 'token é obrigatório.' });
+  if (!token) return res.status(400).json({ error: 'token Ã© obrigatÃ³rio.' });
 
   try {
     await db.collection('usuarios').doc(decoded.uid).update({
@@ -2866,9 +2604,9 @@ app.post('/api/push/token', async function (req, res) {
   }
 });
 
-// ─── POST /api/push/test — dispara notificação de teste para o próprio usuário ──
+// â”€â”€â”€ POST /api/push/test â€” dispara notificaÃ§Ã£o de teste para o prÃ³prio usuÃ¡rio â”€â”€
 app.post('/api/push/test', async function (req, res) {
-  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin nÃ£o inicializado.' });
 
   var authHeader = req.headers.authorization || '';
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -2876,19 +2614,19 @@ app.post('/api/push/test', async function (req, res) {
 
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_) { return res.status(401).json({ error: 'Token inválido.' }); }
+  catch (_) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   try {
     var userDoc = await db.collection('usuarios').doc(decoded.uid).get();
-    if (!userDoc.exists) return res.status(404).json({ error: 'Usuário não encontrado.' });
+    if (!userDoc.exists) return res.status(404).json({ error: 'UsuÃ¡rio nÃ£o encontrado.' });
     var fcmToken = (userDoc.data() || {}).fcmToken;
-    if (!fcmToken) return res.status(400).json({ error: 'Nenhum FCM token salvo. Ative as notificações primeiro.' });
+    if (!fcmToken) return res.status(400).json({ error: 'Nenhum FCM token salvo. Ative as notificaÃ§Ãµes primeiro.' });
 
     await admin.messaging().send({
       token: fcmToken,
       notification: {
-        title: '🧪 Teste — Bud Finance',
-        body: 'Notificações push funcionando perfeitamente!'
+        title: 'ðŸ§ª Teste â€” Bud Finance',
+        body: 'NotificaÃ§Ãµes push funcionando perfeitamente!'
       },
       webpush: {
         fcmOptions: { link: FRONTEND_URL + '/dashboard.html' }
@@ -2897,7 +2635,7 @@ app.post('/api/push/test', async function (req, res) {
     return res.json({ ok: true });
   } catch (e) {
     console.error('[/api/push/test]', e.message);
-    // Token inválido/expirado: limpar do Firestore para forçar re-registro
+    // Token invÃ¡lido/expirado: limpar do Firestore para forÃ§ar re-registro
     var code = (e && e.errorInfo && e.errorInfo.code) || e.code || '';
     if (code === 'messaging/registration-token-not-registered' ||
         code === 'messaging/invalid-registration-token' ||
@@ -2908,16 +2646,16 @@ app.post('/api/push/test', async function (req, res) {
           pushEnabled: false
         });
       } catch (_) {}
-      return res.status(410).json({ error: 'Token expirado. Reative as notificações em Configurações.' });
+      return res.status(410).json({ error: 'Token expirado. Reative as notificaÃ§Ãµes em ConfiguraÃ§Ãµes.' });
     }
-    return res.status(500).json({ error: 'Erro ao enviar notificação: ' + e.message });
+    return res.status(500).json({ error: 'Erro ao enviar notificaÃ§Ã£o: ' + e.message });
   }
 });
 
-// ─── POST /api/push/admin-broadcast — admin dispara push para todos os usuários ──
-// Auth: Bearer ID token (caller deve ser admin — verificado via admins/{uid})
+// â”€â”€â”€ POST /api/push/admin-broadcast â€” admin dispara push para todos os usuÃ¡rios â”€â”€
+// Auth: Bearer ID token (caller deve ser admin â€” verificado via admins/{uid})
 app.post('/api/push/admin-broadcast', async function (req, res) {
-  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin nÃ£o inicializado.' });
 
   var authHeader = req.headers.authorization || '';
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -2925,12 +2663,12 @@ app.post('/api/push/admin-broadcast', async function (req, res) {
 
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken); }
-  catch (_) { return res.status(401).json({ error: 'Token inválido.' }); }
+  catch (_) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
-  // Verificar se é admin
+  // Verificar se Ã© admin
   try {
     var adminDoc = await db.collection('admins').doc(decoded.uid).get();
-    if (!adminDoc.exists) return res.status(403).json({ error: 'Acesso negado. Não é admin.' });
+    if (!adminDoc.exists) return res.status(403).json({ error: 'Acesso negado. NÃ£o Ã© admin.' });
   } catch (e) {
     return res.status(500).json({ error: 'Erro ao verificar admin: ' + e.message });
   }
@@ -2940,10 +2678,10 @@ app.post('/api/push/admin-broadcast', async function (req, res) {
   var tipo     = sanitizeStr(String(req.body.tipo     || 'info')).substring(0, 20);
   var destino  = sanitizeStr(String(req.body.destino  || 'all')).substring(0, 50);
 
-  if (!titulo) return res.status(400).json({ error: 'titulo é obrigatório.' });
+  if (!titulo) return res.status(400).json({ error: 'titulo Ã© obrigatÃ³rio.' });
 
-  var tipoEmoji = { info: '💡', promo: '🎉', update: '🚀', alert: '⚠️' };
-  var notifTitle = (tipoEmoji[tipo] || '🔔') + ' ' + titulo;
+  var tipoEmoji = { info: 'ðŸ’¡', promo: 'ðŸŽ‰', update: 'ðŸš€', alert: 'âš ï¸' };
+  var notifTitle = (tipoEmoji[tipo] || 'ðŸ””') + ' ' + titulo;
 
   try {
     var usersQuery = db.collection('usuarios').where('pushEnabled', '==', true);
@@ -3002,13 +2740,13 @@ app.post('/api/push/admin-broadcast', async function (req, res) {
   }
 });
 
-// ─── GET /api/notifications/daily — cron de notificações personalizadas ──
+// â”€â”€â”€ GET /api/notifications/daily â€” cron de notificaÃ§Ãµes personalizadas â”€â”€
 // Auth: x-cron-secret header (env CRON_SECRET)
-// Trigger sugerido: Upstash QStash, diariamente às 11:00 UTC (08:00 Brasília)
-//   → GET https://bud-finance-backend.onrender.com/api/notifications/daily
-//   → Header: x-cron-secret: <CRON_SECRET>
+// Trigger sugerido: Upstash QStash, diariamente Ã s 11:00 UTC (08:00 BrasÃ­lia)
+//   â†’ GET https://bud-finance-backend.onrender.com/api/notifications/daily
+//   â†’ Header: x-cron-secret: <CRON_SECRET>
 app.get('/api/notifications/daily', async function (req, res) {
-  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin não inicializado.' });
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin nÃ£o inicializado.' });
 
   var cronSecret = process.env.CRON_SECRET;
   var provided   = req.headers['x-cron-secret'] || req.query.secret;
@@ -3016,7 +2754,7 @@ app.get('/api/notifications/daily', async function (req, res) {
     return res.status(401).json({ error: 'Unauthorized.' });
   }
 
-  // Hora atual em Brasília
+  // Hora atual em BrasÃ­lia
   var agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
   var hojeStr   = agora.toISOString().slice(0, 10);
   var mesRef    = hojeStr.slice(0, 7);
@@ -3025,19 +2763,19 @@ app.get('/api/notifications/daily', async function (req, res) {
   var isMonday  = agora.getDay() === 1;
   var horaAtual = agora.getHours();
 
-  // Quiet hours 22h–8h Brasília
+  // Quiet hours 22hâ€“8h BrasÃ­lia
   if (horaAtual < 8 || horaAtual >= 22) {
     return res.json({ ok: true, skipped: 'quiet_hours', hora: horaAtual });
   }
 
   var groqKey = process.env.GROQ_API_KEY || '';
 
-  // Buscar usuários com push ativado (max 500 por execução)
+  // Buscar usuÃ¡rios com push ativado (max 500 por execuÃ§Ã£o)
   var usersSnap;
   try {
     usersSnap = await db.collection('usuarios').where('pushEnabled', '==', true).limit(500).get();
   } catch (e) {
-    return res.status(500).json({ error: 'Erro ao buscar usuários: ' + e.message });
+    return res.status(500).json({ error: 'Erro ao buscar usuÃ¡rios: ' + e.message });
   }
 
   if (usersSnap.empty) return res.json({ ok: true, sent: 0, total: 0 });
@@ -3054,7 +2792,7 @@ app.get('/api/notifications/daily', async function (req, res) {
     try {
       var notifs = [];
 
-      // Buscar dados do usuário em paralelo
+      // Buscar dados do usuÃ¡rio em paralelo
       var [recSnap, cartSnap, metaSnap, dividaSnap, limiteSnap, txSnap, carteiraSnap] = await Promise.all([
         db.collection('usuarios').doc(uid).collection('recorrentes')
           .where('ativa', '==', true).limit(50).get(),
@@ -3075,7 +2813,7 @@ app.get('/api/notifications/daily', async function (req, res) {
       var limites  = limiteSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
       var contas   = carteiraSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
 
-      // Totais do mês (reutilizados por limites, saldo e Buddy AI)
+      // Totais do mÃªs (reutilizados por limites, saldo e Buddy AI)
       var gastosPorCat = {}, totalReceitasMes = 0, totalDespesasMes = 0;
       txSnap.docs.forEach(function (d) {
         var tx = d.data();
@@ -3091,7 +2829,7 @@ app.get('/api/notifications/daily', async function (req, res) {
       var amanhaDia  = amanha.getDate();
       var amanhaMes  = amanha.getMonth() + 1;
 
-      // 1. Recorrentes vencendo amanhã
+      // 1. Recorrentes vencendo amanhÃ£
       recs.forEach(function (r) {
         var dia = parseInt(r.diaVencimento, 10) || 1;
         var maxD = new Date(amanha.getFullYear(), amanhaMes, 0).getDate();
@@ -3099,35 +2837,35 @@ app.get('/api/notifications/daily', async function (req, res) {
           var val = 'R$ ' + (Number(r.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
           if (r.tipo === 'receita') {
             notifs.push({
-              emoji: '💰', tag: 'rec-rec-' + r._id + '-' + amanhaStr,
-              title: '💰 Você recebe amanhã!',
-              body:  (r.descricao || 'Receita') + ' — ' + val,
+              emoji: 'ðŸ’°', tag: 'rec-rec-' + r._id + '-' + amanhaStr,
+              title: 'ðŸ’° VocÃª recebe amanhÃ£!',
+              body:  (r.descricao || 'Receita') + ' â€” ' + val,
               url:   'extrato.html'
             });
           } else {
             notifs.push({
-              emoji: '⏰', tag: 'rec-desp-' + r._id + '-' + amanhaStr,
-              title: '⏰ Vence amanhã: ' + (r.descricao || 'Conta'),
-              body:  val + ' — não esqueça de registrar o pagamento.',
+              emoji: 'â°', tag: 'rec-desp-' + r._id + '-' + amanhaStr,
+              title: 'â° Vence amanhÃ£: ' + (r.descricao || 'Conta'),
+              body:  val + ' â€” nÃ£o esqueÃ§a de registrar o pagamento.',
               url:   'recorrentes.html',
-              actions: [{ action: 'ok', title: '✅ Registrar' }]
+              actions: [{ action: 'ok', title: 'âœ… Registrar' }]
             });
           }
         }
       });
 
-      // 2. Faturas de cartão: vencimento amanhã / fechamento em 2 dias
+      // 2. Faturas de cartÃ£o: vencimento amanhÃ£ / fechamento em 2 dias
       cartoes.forEach(function (c) {
         var diaVenc = parseInt(c.diaVencimento || c.vencimento, 10);
         if (diaVenc) {
           var maxDV = new Date(amanha.getFullYear(), amanhaMes, 0).getDate();
           if (Math.min(diaVenc, maxDV) === amanhaDia) {
             notifs.push({
-              emoji: '📅', tag: 'cartao-venc-' + c._id + '-' + amanhaStr,
-              title: '📅 Fatura vence amanhã',
-              body:  'Fatura do ' + (c.nome || 'cartão') + ' vence amanhã. Não perca o prazo!',
+              emoji: 'ðŸ“…', tag: 'cartao-venc-' + c._id + '-' + amanhaStr,
+              title: 'ðŸ“… Fatura vence amanhÃ£',
+              body:  'Fatura do ' + (c.nome || 'cartÃ£o') + ' vence amanhÃ£. NÃ£o perca o prazo!',
               url:   'cartoes.html',
-              actions: [{ action: 'ver', title: '💳 Ver fatura' }]
+              actions: [{ action: 'ver', title: 'ðŸ’³ Ver fatura' }]
             });
           }
         }
@@ -3137,16 +2875,16 @@ app.get('/api/notifications/daily', async function (req, res) {
           var maxDF = new Date(doisDias.getFullYear(), doisDias.getMonth() + 1, 0).getDate();
           if (Math.min(diaFech, maxDF) === doisDias.getDate()) {
             notifs.push({
-              emoji: '💳', tag: 'cartao-fech-' + c._id + '-' + hojeStr,
-              title: '💳 Fatura fecha em 2 dias',
-              body:  'Sua fatura do ' + (c.nome || 'cartão') + ' fecha em 2 dias. Tudo lançado?',
+              emoji: 'ðŸ’³', tag: 'cartao-fech-' + c._id + '-' + hojeStr,
+              title: 'ðŸ’³ Fatura fecha em 2 dias',
+              body:  'Sua fatura do ' + (c.nome || 'cartÃ£o') + ' fecha em 2 dias. Tudo lanÃ§ado?',
               url:   'cartoes.html'
             });
           }
         }
       });
 
-      // 3. Metas próximas de concluir (≥90%)
+      // 3. Metas prÃ³ximas de concluir (â‰¥90%)
       metas.forEach(function (m) {
         var atual = Number(m.valorAtual || m.valorDepositado || 0);
         var alvo  = Number(m.valorAlvo  || m.valor || 0);
@@ -3155,29 +2893,29 @@ app.get('/api/notifications/daily', async function (req, res) {
           var nomeMeta = sanitizeStr(m.nome || m.descricao || 'Meta').substring(0, 40);
           if (pct >= 1.0) {
             notifs.push({
-              emoji: '🎉', tag: 'meta-100-' + m._id + '-' + mesRef,
-              title: '🎉 Meta atingida!',
-              body:  'Parabéns! Você concluiu a meta "' + nomeMeta + '"! 🏆',
+              emoji: 'ðŸŽ‰', tag: 'meta-100-' + m._id + '-' + mesRef,
+              title: 'ðŸŽ‰ Meta atingida!',
+              body:  'ParabÃ©ns! VocÃª concluiu a meta "' + nomeMeta + '"! ðŸ†',
               url:   'metas.html'
             });
           } else if (pct >= 0.9) {
             notifs.push({
-              emoji: '🎯', tag: 'meta-90-' + m._id + '-' + mesRef,
-              title: '🎯 Quase lá na meta!',
+              emoji: 'ðŸŽ¯', tag: 'meta-90-' + m._id + '-' + mesRef,
+              title: 'ðŸŽ¯ Quase lÃ¡ na meta!',
               body:  Math.round(pct * 100) + '% da meta "' + nomeMeta + '". Continue assim!',
               url:   'metas.html'
             });
           }
-          // Meta parada: sem atualização há ≥15 dias e ainda não concluída
+          // Meta parada: sem atualizaÃ§Ã£o hÃ¡ â‰¥15 dias e ainda nÃ£o concluÃ­da
           if (pct < 1.0 && m.atualizadoEm) {
             try {
               var updDate2 = m.atualizadoEm.toDate ? m.atualizadoEm.toDate() : new Date(m.atualizadoEm);
               var diasSemDep = Math.floor((agora - updDate2) / 86400000);
               if (diasSemDep >= 15 && diasSemDep < 60) {
                 notifs.push({
-                  emoji: '😴', tag: 'meta-parada-' + m._id + '-' + Math.floor(diasSemDep / 15),
-                  title: '😴 Meta parada: ' + nomeMeta,
-                  body:  'Faz ' + diasSemDep + ' dias sem depósito. ' + Math.round(pct * 100) + '% concluída.',
+                  emoji: 'ðŸ˜´', tag: 'meta-parada-' + m._id + '-' + Math.floor(diasSemDep / 15),
+                  title: 'ðŸ˜´ Meta parada: ' + nomeMeta,
+                  body:  'Faz ' + diasSemDep + ' dias sem depÃ³sito. ' + Math.round(pct * 100) + '% concluÃ­da.',
                   url:   'metas.html'
                 });
               }
@@ -3186,23 +2924,23 @@ app.get('/api/notifications/daily', async function (req, res) {
         }
       });
 
-      // 4. Dívidas: parcela vencendo amanhã (vencimento = string ISO YYYY-MM-DD)
+      // 4. DÃ­vidas: parcela vencendo amanhÃ£ (vencimento = string ISO YYYY-MM-DD)
       dividas.forEach(function (d) {
         if (!d.vencimento) return;
-        // Ignora se já quitada (todas parcelas pagas)
+        // Ignora se jÃ¡ quitada (todas parcelas pagas)
         var pagas = parseInt(d.parcelasPagas || 0, 10);
         var total = parseInt(d.parcelas || 1, 10);
         if (pagas >= total) return;
         try {
           var vencDate = new Date(d.vencimento + 'T12:00:00');
           if (vencDate.toISOString().slice(0, 10) === amanhaStr) {
-            var nomeDivida = sanitizeStr(String(d.nome || d.instituicao || 'Dívida')).substring(0, 40);
+            var nomeDivida = sanitizeStr(String(d.nome || d.instituicao || 'DÃ­vida')).substring(0, 40);
             var valParcela = Number(d.valorParcela || (d.valorTotal / total) || 0);
             var valStr = 'R$ ' + valParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             notifs.push({
-              emoji: '💸', tag: 'divida-venc-' + d._id + '-' + amanhaStr,
-              title: '💸 Parcela vence amanhã',
-              body:  nomeDivida + ' — ' + valStr + (total > 1 ? ' (' + (pagas + 1) + '/' + total + ')' : ''),
+              emoji: 'ðŸ’¸', tag: 'divida-venc-' + d._id + '-' + amanhaStr,
+              title: 'ðŸ’¸ Parcela vence amanhÃ£',
+              body:  nomeDivida + ' â€” ' + valStr + (total > 1 ? ' (' + (pagas + 1) + '/' + total + ')' : ''),
               url:   'dividas.html'
             });
           }
@@ -3218,79 +2956,79 @@ app.get('/api/notifications/daily', async function (req, res) {
         var pctLim   = gastoLim / limValor;
         if (pctLim >= 1.0) {
           notifs.push({
-            emoji: '🚨', tag: 'limite-100-' + lim._id + '-' + mesRef,
-            title: '🚨 Limite estourado: ' + catNome,
+            emoji: 'ðŸš¨', tag: 'limite-100-' + lim._id + '-' + mesRef,
+            title: 'ðŸš¨ Limite estourado: ' + catNome,
             body:  'R$' + gastoLim.toFixed(0) + ' gastos de R$' + limValor.toFixed(0) + ' em ' + catNome + '.',
             url:   'limites.html'
           });
         } else if (pctLim >= 0.8) {
           notifs.push({
-            emoji: '⚠️', tag: 'limite-80-' + lim._id + '-' + mesRef,
-            title: '⚠️ ' + Math.round(pctLim * 100) + '% do limite: ' + catNome,
+            emoji: 'âš ï¸', tag: 'limite-80-' + lim._id + '-' + mesRef,
+            title: 'âš ï¸ ' + Math.round(pctLim * 100) + '% do limite: ' + catNome,
             body:  'R$' + gastoLim.toFixed(0) + ' gastos de R$' + limValor.toFixed(0) + ' em ' + catNome + '.',
             url:   'limites.html'
           });
         }
       });
 
-      // 6. Saldo negativo no mês
+      // 6. Saldo negativo no mÃªs
       if (totalDespesasMes > totalReceitasMes && totalReceitasMes > 0) {
         var saldoNeg = totalReceitasMes - totalDespesasMes;
         notifs.push({
-          emoji: '📉', tag: 'saldo-neg-' + mesRef + '-' + uid,
-          title: '📉 Gastos maiores que receitas',
-          body:  'Este mês você gastou R$' + Math.abs(saldoNeg).toFixed(0) + ' a mais do que recebeu.',
+          emoji: 'ðŸ“‰', tag: 'saldo-neg-' + mesRef + '-' + uid,
+          title: 'ðŸ“‰ Gastos maiores que receitas',
+          body:  'Este mÃªs vocÃª gastou R$' + Math.abs(saldoNeg).toFixed(0) + ' a mais do que recebeu.',
           url:   'balanco-mensal.html'
         });
       }
 
-      // 7. Resumo do mês (último dia)
+      // 7. Resumo do mÃªs (Ãºltimo dia)
       var ultimoDiaMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0).getDate();
       if (agora.getDate() === ultimoDiaMes) {
         var saldoFim    = totalReceitasMes - totalDespesasMes;
         var saldoFimStr = (saldoFim >= 0 ? '+R$' : '-R$') + Math.abs(saldoFim).toFixed(0);
         var nomeMesArr  = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
         notifs.push({
-          emoji: '📊', tag: 'resumo-mes-' + mesRef + '-' + uid,
-          title: '📊 Resumo de ' + nomeMesArr[agora.getMonth()] + ': saldo ' + saldoFimStr,
-          body:  'Receitas R$' + totalReceitasMes.toFixed(0) + ' · Despesas R$' + totalDespesasMes.toFixed(0) + '. Confira o balanço!',
+          emoji: 'ðŸ“Š', tag: 'resumo-mes-' + mesRef + '-' + uid,
+          title: 'ðŸ“Š Resumo de ' + nomeMesArr[agora.getMonth()] + ': saldo ' + saldoFimStr,
+          body:  'Receitas R$' + totalReceitasMes.toFixed(0) + ' Â· Despesas R$' + totalDespesasMes.toFixed(0) + '. Confira o balanÃ§o!',
           url:   'balanco-mensal.html'
         });
       }
 
-      // 8. Início do mês: total de recorrentes programadas
+      // 8. InÃ­cio do mÃªs: total de recorrentes programadas
       if (agora.getDate() === 1) {
         var recsDesp    = recs.filter(function (r) { return r.tipo === 'despesa'; });
         var totalRecsV  = recsDesp.reduce(function (s, r) { return s + (Number(r.valor) || 0); }, 0);
         if (totalRecsV > 0) {
           notifs.push({
-            emoji: '📋', tag: 'inicio-mes-recs-' + mesRef + '-' + uid,
-            title: '📋 Novo mês! R$' + totalRecsV.toFixed(0) + ' em contas fixas',
-            body:  recsDesp.length + ' conta' + (recsDesp.length > 1 ? 's' : '') + ' programada' + (recsDesp.length > 1 ? 's' : '') + ' para este mês.',
+            emoji: 'ðŸ“‹', tag: 'inicio-mes-recs-' + mesRef + '-' + uid,
+            title: 'ðŸ“‹ Novo mÃªs! R$' + totalRecsV.toFixed(0) + ' em contas fixas',
+            body:  recsDesp.length + ' conta' + (recsDesp.length > 1 ? 's' : '') + ' programada' + (recsDesp.length > 1 ? 's' : '') + ' para este mÃªs.',
             url:   'recorrentes.html'
           });
         }
       }
 
-      // 9. Incentivo upgrade (plano free, dia 15, com ≥5 transações no mês)
+      // 9. Incentivo upgrade (plano free, dia 15, com â‰¥5 transaÃ§Ãµes no mÃªs)
       if ((!ud.plano || ud.plano === 'free') && agora.getDate() === 15 && txSnap.size >= 5) {
         notifs.push({
-          emoji: '⭐', tag: 'upgrade-' + mesRef + '-' + uid,
-          title: '⭐ Desbloqueie tudo no Bud Finance',
-          body:  'Você já fez ' + txSnap.size + ' lançamentos este mês. Conheça o plano Premium!',
+          emoji: 'â­', tag: 'upgrade-' + mesRef + '-' + uid,
+          title: 'â­ Desbloqueie tudo no Bud Finance',
+          body:  'VocÃª jÃ¡ fez ' + txSnap.size + ' lanÃ§amentos este mÃªs. ConheÃ§a o plano Premium!',
           url:   'configuracoes.html'
         });
       }
 
-      // 10. Plano expirando amanhã
+      // 10. Plano expirando amanhÃ£
       var expField = ud.planoExpira || ud.assinaturaExpira;
       if (expField && ud.plano && ud.plano !== 'free') {
         try {
           var expDate = expField.toDate ? expField.toDate() : new Date(expField);
           if (expDate.toISOString().slice(0, 10) === amanhaStr) {
             notifs.push({
-              emoji: '🔔', tag: 'plano-expire-' + amanhaStr + '-' + uid,
-              title: '🔔 Seu plano expira amanhã',
+              emoji: 'ðŸ””', tag: 'plano-expire-' + amanhaStr + '-' + uid,
+              title: 'ðŸ”” Seu plano expira amanhÃ£',
               body:  'Renove seu plano ' + (ud.plano || '') + ' para continuar com todas as funcionalidades.',
               url:   'configuracoes.html'
             });
@@ -3298,28 +3036,28 @@ app.get('/api/notifications/daily', async function (req, res) {
         } catch (_) {}
       }
 
-      // 12. PEND-066: Saldo de conta desatualizado há ≥7 dias
+      // 12. PEND-066: Saldo de conta desatualizado hÃ¡ â‰¥7 dias
       contas.forEach(function (c) {
         var updField = c.atualizadaEm || c.criadaEm;
         if (!updField) return;
         try {
           var updDate3 = updField.toDate ? updField.toDate() : new Date(updField);
           var diasSemAtualizar = Math.floor((agora - updDate3) / 86400000);
-          // Avisar semanalmente (7, 14, 21... dias) para não spam
+          // Avisar semanalmente (7, 14, 21... dias) para nÃ£o spam
           if (diasSemAtualizar >= 7 && diasSemAtualizar % 7 === 0) {
             var nomeConta = sanitizeStr(String(c.nome || 'Conta')).substring(0, 30);
             var semanas = Math.floor(diasSemAtualizar / 7);
             notifs.push({
-              emoji: '🏦', tag: 'saldo-stale-' + c._id + '-' + hojeStr,
-              title: '🏦 Saldo desatualizado: ' + nomeConta,
-              body:  'Faz ' + (semanas === 1 ? '1 semana' : semanas + ' semanas') + ' sem confirmar o saldo. Ainda está correto?',
+              emoji: 'ðŸ¦', tag: 'saldo-stale-' + c._id + '-' + hojeStr,
+              title: 'ðŸ¦ Saldo desatualizado: ' + nomeConta,
+              body:  'Faz ' + (semanas === 1 ? '1 semana' : semanas + ' semanas') + ' sem confirmar o saldo. Ainda estÃ¡ correto?',
               url:   'carteira.html'
             });
           }
         } catch (_) {}
       });
 
-      // 11. Re-engagement: sem abrir o app há 5–30 dias
+      // 11. Re-engagement: sem abrir o app hÃ¡ 5â€“30 dias
       var lastField = ud.ultimoAcesso || ud.lastLoginAt;
       if (lastField) {
         try {
@@ -3328,16 +3066,16 @@ app.get('/api/notifications/daily', async function (req, res) {
           if (inativos >= 5 && inativos < 30) {
             var kReeng = 'reeng-' + Math.floor(inativos / 5) + '-' + uid;
             notifs.push({
-              emoji: '🤖', tag: kReeng,
-              title: '👋 O Buddy sentiu sua falta!',
-              body:  'Faz ' + inativos + ' dias sem abrir o app. Que tal uma conferida rápida?',
+              emoji: 'ðŸ¤–', tag: kReeng,
+              title: 'ðŸ‘‹ O Buddy sentiu sua falta!',
+              body:  'Faz ' + inativos + ' dias sem abrir o app. Que tal uma conferida rÃ¡pida?',
               url:   'dashboard.html'
             });
           }
         } catch (_) {}
       }
 
-      // 12. Buddy AI insight (às segundas ou quando não há regras)
+      // 12. Buddy AI insight (Ã s segundas ou quando nÃ£o hÃ¡ regras)
       if (groqKey && (isMonday || notifs.length === 0)) {
         try {
           var gastos = {};
@@ -3355,17 +3093,17 @@ app.get('/api/notifications/daily', async function (req, res) {
             .slice(0, 3)
             .map(function (e) { return e[0] + ' R$' + e[1].toFixed(0); })
             .join(', ');
-          var nomeU = sanitizeStr(String(ud.nome || 'usuário')).split(' ')[0].substring(0, 30);
-          var diasSemana = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+          var nomeU = sanitizeStr(String(ud.nome || 'usuÃ¡rio')).split(' ')[0].substring(0, 30);
+          var diasSemana = ['domingo','segunda','terÃ§a','quarta','quinta','sexta','sÃ¡bado'];
 
           var budPrompt =
-            'Você é o Buddy, assistente financeiro do Bud Finance.\n' +
-            'Usuário: ' + nomeU + '\n' +
-            'Top gastos do mês (' + mesRef + '): ' + (topCats || 'sem dados ainda') + '\n' +
+            'VocÃª Ã© o Buddy, assistente financeiro do Bud Finance.\n' +
+            'UsuÃ¡rio: ' + nomeU + '\n' +
+            'Top gastos do mÃªs (' + mesRef + '): ' + (topCats || 'sem dados ainda') + '\n' +
             'Total despesas: R$' + totalDesp.toFixed(0) + '\n' +
             'Hoje: ' + diasSemana[agora.getDay()] + '\n\n' +
-            'Crie UMA notificação push curta e personalizada (título ≤40 chars, corpo ≤90 chars).\n' +
-            'Pode ser: dica de economia, observação sobre padrões, motivação de meta, ou curiosidade financeira.\n' +
+            'Crie UMA notificaÃ§Ã£o push curta e personalizada (tÃ­tulo â‰¤40 chars, corpo â‰¤90 chars).\n' +
+            'Pode ser: dica de economia, observaÃ§Ã£o sobre padrÃµes, motivaÃ§Ã£o de meta, ou curiosidade financeira.\n' +
             'Formato de resposta: JSON puro {"title":"...","body":"...","emoji":"emoji"}\n' +
             'Retorne APENAS o JSON, sem markdown ou texto extra.';
 
@@ -3385,7 +3123,7 @@ app.get('/api/notifications/daily', async function (req, res) {
             var parsed = JSON.parse(raw.trim());
             if (parsed && parsed.title && parsed.body) {
               notifs.push({
-                emoji:    sanitizeStr(parsed.emoji || '🤖').substring(0, 5),
+                emoji:    sanitizeStr(parsed.emoji || 'ðŸ¤–').substring(0, 5),
                 tag:      'buddy-' + hojeStr + '-' + uid,
                 title:    sanitizeStr(parsed.emoji + ' ' + parsed.title).substring(0, 60),
                 body:     sanitizeStr(parsed.body).substring(0, 120),
@@ -3395,13 +3133,13 @@ app.get('/api/notifications/daily', async function (req, res) {
             }
           }
         } catch (_buddyErr) {
-          // Buddy insight é opcional — continua sem ele
+          // Buddy insight Ã© opcional â€” continua sem ele
         }
       }
 
       if (notifs.length === 0) continue;
 
-      // Smart bundling: se >3 notificações de regras → resumo + Buddy separado
+      // Smart bundling: se >3 notificaÃ§Ãµes de regras â†’ resumo + Buddy separado
       var toSend;
       if (notifs.length > 3) {
         var buddyItem = notifs.find(function (n) { return n.isBuddy; });
@@ -3409,10 +3147,10 @@ app.get('/api/notifications/daily', async function (req, res) {
         toSend = [];
         if (ruleItems.length > 0) {
           toSend.push({
-            emoji: '📋',
+            emoji: 'ðŸ“‹',
             tag:   'bundle-' + hojeStr + '-' + uid,
-            title: '📋 ' + ruleItems.length + ' avisos de hoje',
-            body:  ruleItems.slice(0, 3).map(function (n) { return n.emoji + ' ' + n.body.substring(0, 35); }).join(' · '),
+            title: 'ðŸ“‹ ' + ruleItems.length + ' avisos de hoje',
+            body:  ruleItems.slice(0, 3).map(function (n) { return n.emoji + ' ' + n.body.substring(0, 35); }).join(' Â· '),
             url:   'dashboard.html'
           });
         }
@@ -3421,14 +3159,14 @@ app.get('/api/notifications/daily', async function (req, res) {
         toSend = notifs;
       }
 
-      // Enviar cada notificação via FCM + salvar no Firestore
+      // Enviar cada notificaÃ§Ã£o via FCM + salvar no Firestore
       var batch  = db.batch();
       var notifRef = db.collection('usuarios').doc(uid).collection('notificacoes');
 
       for (var j = 0; j < toSend.length; j++) {
         var n = toSend[j];
 
-        // Deduplicação por tag
+        // DeduplicaÃ§Ã£o por tag
         var existSnap = await db.collection('usuarios').doc(uid).collection('notificacoes')
           .where('tag', '==', n.tag).limit(1).get();
         if (!existSnap.empty) continue;
@@ -3442,7 +3180,7 @@ app.get('/api/notifications/daily', async function (req, res) {
               body:    n.body   || '',
               url:     n.url    || 'dashboard.html',
               tag:     n.tag    || 'bud',
-              emoji:   n.emoji  || '📢',
+              emoji:   n.emoji  || 'ðŸ“¢',
               actions: JSON.stringify(n.actions || [{ action: 'open', title: 'Abrir app' }])
             },
             webpush: {
@@ -3458,7 +3196,7 @@ app.get('/api/notifications/daily', async function (req, res) {
           });
           sent++;
         } catch (fcmErr) {
-          // Token inválido ou expirado — limpar do Firestore
+          // Token invÃ¡lido ou expirado â€” limpar do Firestore
           if (fcmErr.code === 'messaging/registration-token-not-registered' ||
               fcmErr.code === 'messaging/invalid-registration-token') {
             try {
@@ -3469,13 +3207,13 @@ app.get('/api/notifications/daily', async function (req, res) {
           continue;
         }
 
-        // Salvar histórico
+        // Salvar histÃ³rico
         var docRef = notifRef.doc();
         batch.set(docRef, {
           tag:      n.tag,
           title:    n.title,
           body:     n.body,
-          emoji:    n.emoji || '📢',
+          emoji:    n.emoji || 'ðŸ“¢',
           url:      n.url || 'dashboard.html',
           isBuddy:  n.isBuddy || false,
           read:     false,
@@ -3494,7 +3232,7 @@ app.get('/api/notifications/daily', async function (req, res) {
   return res.json({ ok: true, sent: sent, errors: errors, total: usersSnap.size });
 });
 
-// ─── Start server ───────────────────────────────────────────────────
+// â”€â”€â”€ Start server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 var PORT = process.env.PORT || 3000;
 app.listen(PORT, function () {
   console.log('[Bud Finance Backend] Running on port ' + PORT);
