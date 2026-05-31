@@ -52,31 +52,16 @@ export async function registerPushToken(app, user) {
     throw new Error('[Push] Permissão de notificação negada. Verifique as configurações do navegador.');
   }
 
-  // 2. Registrar o Service Worker explicitamente no path correto.
-  //    Em produção o app é servido em '/appbudfinance/...'; em dev local
-  //    (live-server na pasta appbudfinance) é servido em '/'. Por isso usamos
-  //    paths RELATIVOS ao HTML atual, que funcionam nos dois ambientes.
-  //    O scope default é o diretório onde o SW está hospedado.
+  // 2. Registrar o Service Worker com path relativo e aguardar via
+  //    navigator.serviceWorker.ready (forma nativa — evita race condition
+  //    no wait manual de state change).
   let swReg;
   try {
-    swReg = await navigator.serviceWorker.register('firebase-messaging-sw.js', {
+    await navigator.serviceWorker.register('firebase-messaging-sw.js', {
       updateViaCache: 'none'
     });
-    // Aguardar ESTE swReg ficar ativo (não qualquer SW da página).
-    // navigator.serviceWorker.ready resolve com o SW atualmente ativo, que pode
-    // ser um SW diferente (ex: sw.js antigo ainda cacheado). Por isso esperamos
-    // especificamente por swReg.active antes de passar para getToken().
-    if (!swReg.active) {
-      await new Promise(function (resolve, reject) {
-        var sw = swReg.installing || swReg.waiting;
-        if (!sw) { resolve(); return; } // já deve estar ativo
-        var t = setTimeout(function () { reject(new Error('SW activation timeout')); }, 15000);
-        sw.addEventListener('statechange', function () {
-          if (this.state === 'activated') { clearTimeout(t); resolve(); }
-          if (this.state === 'redundant') { clearTimeout(t); reject(new Error('SW became redundant')); }
-        });
-      });
-    }
+    // ready resolve com a registration do SW que controla a página atual.
+    swReg = await navigator.serviceWorker.ready;
   } catch (err) {
     throw new Error('[Push] Falha ao registrar Service Worker: ' + err.message);
   }
