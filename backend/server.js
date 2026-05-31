@@ -401,6 +401,8 @@ function isNonTransactionLine(line) {
   if (keywords.test(line.trim())) return true;
   // Nubank CC extrato: headers "DD ABR YYYY Total de saídas/entradas" — evita Strategy 1 capturar como transação
   if (/\btotal de (sa[íi]das?|entradas?)\b/i.test(line)) return true;
+  // Bradesco/Itaú multi-portador: "Cartão 6504 XXXX XXXX 9793" — seção de cartão, não transação
+  if (/^cart[aã]o\b/i.test(line.trim())) return true;
   return false;
 }
 
@@ -425,10 +427,22 @@ function parseBankStatementText(rawText) {
   var results = [];
   var seen = new Set();
 
+  // ─── Pre-pass: detectar seções de cartão (Bradesco/Itaú multi-portador) ──────
+  // "Cartão 6504 XXXX XXXX 9793" → captura os 4 últimos dígitos como contexto
+  var RE_CARD_SECTION = /^cart[aã]o\b.*?(\d{4})\s*$/i;
+  var cardForLine = new Array(lines.length);
+  var _curCard = null;
+  for (var _ci = 0; _ci < lines.length; _ci++) {
+    var _cm = lines[_ci].match(RE_CARD_SECTION);
+    if (_cm) _curCard = _cm[1];
+    cardForLine[_ci] = _curCard;
+  }
+
   // tipo: 'credito' | 'debito' | null (usado pelo frontend para detectarTipo)
-  function addTx(desc, valor, data, tipo) {
+  // card: 4 últimos dígitos do cartão portador (para dedup em faturas multi-portador)
+  function addTx(desc, valor, data, tipo, card) {
     if (!desc || valor <= 0 || valor > 99999) return;
-    var key = desc.toLowerCase() + '|' + valor + '|' + data;
+    var key = desc.toLowerCase() + '|' + valor + '|' + data + (card ? '|' + card : '');
     if (seen.has(key)) return;
     seen.add(key);
     results.push({ desc: desc, valor: valor, data: data, tipo: tipo || null });
@@ -440,7 +454,7 @@ function parseBankStatementText(rawText) {
   // Captura sinal opcional antes do R$ para determinar tipo (crédito/débito)
   var RE_DDMM = /^(\d{2})\/(\d{2})(?:\/\d{4})?\s+(.{3,70}?)\s+([+-])?R?\$?\s*([\d\.]+,\d{2})\s*$/;
 
-  lines.forEach(function(line) {
+  lines.forEach(function(line, _li) {
     if (isNonTransactionLine(line)) return;
 
     var m1 = line.match(RE_PT);
@@ -450,7 +464,7 @@ function parseBankStatementText(rawText) {
       var valor = parseValorBRL(m1[4]);
       if (mes) {
         var data = ano + '-' + String(mes).padStart(2,'0') + '-' + String(m1[1]).padStart(2,'0');
-        addTx(desc, valor, data);
+        addTx(desc, valor, data, null, cardForLine[_li]);
       }
       return;
     }
@@ -462,7 +476,7 @@ function parseBankStatementText(rawText) {
       var valor2 = parseValorBRL(m2[5]);
       var data2  = ano + '-' + m2[2] + '-' + m2[1];
       var tipo2  = sign2 === '+' ? 'credito' : sign2 === '-' ? 'debito' : null;
-      addTx(desc2, valor2, data2, tipo2);
+      addTx(desc2, valor2, data2, tipo2, cardForLine[_li]);
     }
   });
 
@@ -503,7 +517,7 @@ function parseBankStatementText(rawText) {
               var valor3 = parseValorBRL(valM[2]);
               var tipo3  = sign3 === '+' ? 'credito' : sign3 === '-' ? 'debito' : null;
               var data3  = ano + '-' + String(mesV).padStart(2,'0') + '-' + String(dia).padStart(2,'0');
-              addTx(desc3, valor3, data3, tipo3);
+              addTx(desc3, valor3, data3, tipo3, cardForLine[i]);
               i = j + 1;
               continue;
             }
@@ -549,7 +563,7 @@ function parseBankStatementText(rawText) {
       if (!rawDesc3) { k++; continue; }
       var valor3 = parseValorBRL(dv[2]);
       var data3  = ano + '-' + String(mes3).padStart(2,'0') + '-' + String(dm3[1]).padStart(2,'0');
-      addTx(rawDesc3, valor3, data3);
+      addTx(rawDesc3, valor3, data3, null, cardForLine[k]);
       k++; // já consumiu a linha de desc+valor
     }
 
@@ -594,7 +608,7 @@ function parseBankStatementText(rawText) {
                 var desc4  = credorLine.trim();
                 var valor4 = parseValorBRL(valM4[1]);
                 var data4  = ano + '-' + String(mes4).padStart(2,'0') + '-' + String(dm4[1]).padStart(2,'0');
-                addTx(desc4, valor4, data4);
+                addTx(desc4, valor4, data4, null, cardForLine[p]);
               }
               found = true;
               p = r; // avança o índice externo
@@ -639,7 +653,7 @@ function parseBankStatementText(rawText) {
             var valor5 = parseValorBRL(vm5[2]);
             var tipo5  = sign5 === '+' ? 'credito' : sign5 === '-' ? 'debito' : null;
             var data5  = ano + '-' + dm5[2] + '-' + dm5[1];
-            addTx(desc5, valor5, data5, tipo5);
+            addTx(desc5, valor5, data5, tipo5, cardForLine[i5]);
             i5 = j5 + 1;
             continue;
           }
@@ -699,7 +713,7 @@ function parseBankStatementText(rawText) {
         if (descBuf6.length > 0) {
           var desc6  = descBuf6.join(' ').replace(/\s+/g, ' ').trim();
           var valor6 = parseValorBRL(line6);
-          addTx(desc6, valor6, curData6, curTipo6);
+          addTx(desc6, valor6, curData6, curTipo6, cardForLine[s6]);
           descBuf6 = [];
         }
         continue;

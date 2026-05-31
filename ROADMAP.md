@@ -1,8 +1,8 @@
 # ROADMAP.md — Foco e Controle de Escopo
 
 **Projeto**: Bud Finance  
-**Última atualização**: 31/05/2026 — Sistema de notificações push completo (PEND-046/084 ✅), cron automático com 12 regras (PEND-032 ✅), Mercado Pago checkout (PEND-001 backend ✅). Aguardando: teste E2E sandbox MP (PEND-081) e resolução billing GitHub Actions (PEND-083).  
-**Item atual**: Sem item ativo — próximos candidatos: PEND-081 (validar MP sandbox) ou PEND-074 (fix Tailwind dinâmico em configuracoes.js)
+**Última atualização**: 31/05/2026 — PEND-056 ✔️ parser multi-cartão Bradesco/Itaú; PEND-082 ✔️ migração URL já concluída; PEND-MER-11 ✔️ backend usa Groq (não Gemini). Pendentes de ação manual do usuário: PEND-079 (DNS Registro.br + GitHub Pages), PEND-081 (teste E2E MP sandbox), PEND-083 (billing GitHub Actions).  
+**Item atual**: Sem item ativo
 
 > **REGRA**: NÃO implementar itens do Backlog sem pedido explícito do usuário.
 
@@ -224,6 +224,9 @@
 
 > Anotados em memória do repo. Atacar quando a tela for tocada por outro motivo.
 
+- ~~**PEND-056**~~ — ✅ **RESOLVIDO 31/05/2026** — Parser `parseBankStatementText` agora detecta seções de portador (`Cartão XXXX XXXX XXXX 1234`) e inclui o sufixo do cartão na chave de dedup — compras idênticas de titulares diferentes não são mais eliminadas como falsos duplicados (Bradesco/Itaú faturas multi-portador).
+- ~~**PEND-082**~~ — ✅ **CONFIRMADO RESOLVIDO 31/05/2026** — Migração URL `appbudfinance/` concluída desde 20/05/2026. DNS + GitHub Pages Actions são tarefas separadas (PEND-079/083).
+- ~~**PEND-MER-11**~~ — ✅ **CONFIRMADO RESOLVIDO 31/05/2026** — Backend usa Groq (`GROQ_API_KEY`), não mais Gemini.
 - ~~**DT-001**~~ — ✅ **RESOLVIDO 29/04/2026** — `salvarTransacoesIA` convertido para `writeBatch` em chunks de 400 com suporte a expansão de parcelas (PEND-012).
 - **DT-002** — `js/cartoes.js#L824` `perfilPlano = null` hardcoded. Buscar `userData.plano` do Firestore quando feature de planos pagos for ativada.
 - **DT-003** — `js/configuracoes.js#exportarCSV` cobre apenas `transacoes`. Expandir para 14 subcoleções quando a feature LGPD completa (item 25) entrar no escopo.
