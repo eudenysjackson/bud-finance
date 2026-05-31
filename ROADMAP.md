@@ -1,8 +1,8 @@
 # ROADMAP.md — Foco e Controle de Escopo
 
 **Projeto**: Bud Finance  
-**Última atualização**: 30/04/2026 — PEND-031 concluído: `POST /api/processar-recorrentes` implementado com auth ID Token + botão na UI. Próximos: Configurações LGPD (PEND-005 / PEND-007).  
-**Item atual**: Configurações LGPD — Exportar dados (PEND-005) + Excluir conta (PEND-007)
+**Última atualização**: 31/05/2026 — Sistema de notificações push completo (PEND-046/084 ✅), cron automático com 12 regras (PEND-032 ✅), Mercado Pago checkout (PEND-001 backend ✅). Aguardando: teste E2E sandbox MP (PEND-081) e resolução billing GitHub Actions (PEND-083).  
+**Item atual**: Sem item ativo — próximos candidatos: PEND-081 (validar MP sandbox) ou PEND-074 (fix Tailwind dinâmico em configuracoes.js)
 
 > **REGRA**: NÃO implementar itens do Backlog sem pedido explícito do usuário.
 
@@ -212,13 +212,13 @@
 > Auditoria 23/04/2026 — `cérebro/configuracoes.md` documenta uma versão muito mais ampla da tela do que o MVP atual. Os itens abaixo NÃO existem no código e ficam explicitamente fora do escopo até pedido.
 
 21. **Gestão de Assinatura (Mercado Pago)** — card premium glassmorphism, exibição de plano/trial/expiração, botões de upgrade/downgrade, integração com `/mercadopago/create-subscription`, banner de status `pending`, cancelamento de assinatura
-22. **Notificações Push (FCM)** — `verificarEstadoPush()`, registro/revogação de token em `usuarios/{uid}/tokens/fcm`, modal de instalação iOS Safari → PWA
+22. ~~**Notificações Push (FCM)**~~ ✅ **CONCLUÍDO 21/05/2026** — `verificarEstadoPush()` implementado, token em `usuarios/{uid}/tokens/fcm`, modal iOS Safari → PWA. Botão "Testar" restrito a admin.
 23. **Reset do Tutorial** — botão integrado a `NexoTutorial.resetAll()` (depende da tela de Onboarding)
-24. **Assistente WhatsApp (vincular número)** — `vincularWhatsApp()` / `desvincularWhatsApp()`, gravação de `whatsappVinculado` em `usuarios/{uid}`, feature-gate por plano Plus, badge de status (decorativa enquanto webhook só loga)
-25. **LGPD: Exportar Dados Completo (XLSX)** — `exportarMeusDados()` cobrindo as 14 subcoleções (`transacoes`, `metas`, `metas/{id}/depositos`, `cartoes`/`carteira` tipo `credito`, `categorias`, `dividas`, `investimentos`, `limites`, `recorrentes`, `compras`, `listas-compras`, `tokens`, `notificacoes_eventos_enviadas`, `perfil/config`) via SheetJS. _MVP atual exporta só `transacoes` em CSV — ver DT-003._
-26. **LGPD: Revogar Consentimento de Notificações** — desativa FCM e marca `revogadoEm` em `tokens/fcm`
-27. **LGPD: Excluir Conta Permanentemente** — `executarExclusaoConta()` com modal de confirmação por digitação ("EXCLUIR"), batch chunks de 400 deletando todas as subcoleções + `usuarios/{uid}` + `auth.currentUser.delete()`
-28. **Reset Total da Conta** — `executarReset()` apaga todas as subcoleções financeiras (mantém doc do usuário) e redireciona para `onboarding.html`
+24. ~~**Assistente WhatsApp (vincular número)**~~ ✅ **CONCLUÍDO 30/04/2026** — `vincularWhatsApp()` / `desvincularWhatsApp()` em `configuracoes.js`. Feature desabilitada via flag (`BUD_FEATURES.whatsapp = false`) — aguardando Evolution API v2 + VPS (PEND-053/080).
+25. ~~**LGPD: Exportar Dados Completo**~~ ✅ **CONCLUÍDO 29/04/2026** — `exportarDadosJSON()` cobre 9 subcoleções + perfil.
+26. ~~**LGPD: Revogar Consentimento de Notificações**~~ ✅ **CONCLUÍDO 30/04/2026** — `revogarConsentimentoNotificacoes()` implementada.
+27. ~~**LGPD: Excluir Conta Permanentemente**~~ ✅ **CONCLUÍDO 29/04/2026** — modal com digitação "EXCLUIR", batch chunks de 400, deleta 13 subcoleções + auth.
+28. ~~**Reset Total da Conta**~~ ✅ **CONCLUÍDO 29/04/2026** — `executarReset()` + modal de confirmação implementados.
 
 ### Débitos Técnicos Mapeados (não-bloqueantes)
 

@@ -19,6 +19,7 @@ let uid = null;
 let _skipThemeSync = false;let _userPlano = 'free';
 let _whatsappNumero = null;
 let _hoverOrigTheme = null;
+let _isAdmin = false;
 
 // ─── Push token (necessário para o botão Ativar funcionar nesta página) ──
 // ─── Push token (necessário para o botão Ativar funcionar nesta página) ──
@@ -1246,6 +1247,12 @@ onAuthStateChanged(auth, async function (user) {
 
   uid = user.uid;
 
+  // Verificar role admin (restringe botão Testar Push a admins)
+  try {
+    const adminSnap = await getDoc(doc(db, 'admins', uid));
+    _isAdmin = adminSnap.exists() && adminSnap.data().role === 'admin';
+  } catch (_) { _isAdmin = false; }
+
   await carregarPerfil(user);
   renderThemeBubbles();
   setupSeguranca();
@@ -1326,7 +1333,7 @@ onAuthStateChanged(auth, async function (user) {
 
   function _mostrarBotaoTestar() {
     if (btnAtivarPush) { btnAtivarPush.textContent = '✅ Ativado'; btnAtivarPush.disabled = true; btnAtivarPush.style.background = '#16a34a'; }
-    if (btnTestarPush) btnTestarPush.style.display = '';
+    if (btnTestarPush && _isAdmin) btnTestarPush.style.display = '';
     if (pushDesc) pushDesc.textContent = 'O Buddy já está te enviando alertas personalizados.';
   }
 
