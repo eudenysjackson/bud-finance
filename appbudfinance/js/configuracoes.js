@@ -52,7 +52,7 @@ import { registerPushToken, listenForeground } from './push.js?v=6';
     const existing = await reg.pushManager.getSubscription();
     if (existing) await existing.unsubscribe();
     const sub = await Promise.race([
-      reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: 'BPoKCYZJukhQbcnO7xUbUQJ_RJC4Q1vgcJfscmHlgnnvz_qP7vkuacOnuAUNqCZjYfKigs6bcosO8xg5NQ66dA4' }),
+      reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: 'BI068YABPMnualEC3exPyfCdgPjoAhIIznZ94JNEvEWyaSB1NWQGsfpJ0zZ4v3rDghMceaubWxhIG3mJfbLRFkQ' }),
       new Promise(function(_,rej){ setTimeout(function(){ rej(new Error('TIMEOUT 15s')); }, 15000); })
     ]);
     console.log('[DIAG] ✅ PushManager.subscribe() OK! endpoint:', sub.endpoint.slice(0, 80));

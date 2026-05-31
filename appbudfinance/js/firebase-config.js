@@ -52,7 +52,7 @@
   //   1. Acesse Firebase Console → Project Settings → Cloud Messaging
   //   2. Em "Web Push certificates", clique em "Generate key pair"
   //   3. Copie o valor da chave e substitua abaixo
-  window.BUD_FCM_VAPID_KEY = 'BPoKCYZJukhQbcnO7xUbUQJ_RJC4Q1vgcJfscmHlgnnvz_qP7vkuacOnuAUNqCZjYfKigs6bcosO8xg5NQ66dA4';
+  window.BUD_FCM_VAPID_KEY = 'BI068YABPMnualEC3exPyfCdgPjoAhIIznZ94JNEvEWyaSB1NWQGsfpJ0zZ4v3rDghMceaubWxhIG3mJfbLRFkQ';
 
   // Expose Firebase config as a frozen object
   window.BUD_FIREBASE_CONFIG = Object.freeze(config);
