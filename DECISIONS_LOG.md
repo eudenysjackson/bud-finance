@@ -8,6 +8,20 @@
 
 ---
 
+### DEC-051 — Não criar tela dedicada de Carteira — cobrir via telas existentes
+
+- **Data**: 31/05/2026
+- **O que foi decidido**: Não será criado um `carteira-contas.html` dedicado. As funcionalidades do CRUD de `usuarios/{uid}/carteira/{id}` já estão distribuídas:
+  - **Contas corrente/poupança/dinheiro**: gerenciadas em `carteira.html` (importar extrato + confirmar saldo).
+  - **Cartões de crédito** (`tipo='credito'`): gerenciados em `cartoes.html`.
+  - **Dropdown Conta/Cartão** em `mercado.js` já consome a coleção com fallback.
+- **Por quê**: Criar uma terceira tela seria redundância de UI. Usuário já tem acesso a todas as operações pelas telas existentes.
+- **Consequencias**:
+  - PEND-MER-09 removida das pendências ativas.
+  - Se surgir necessidade de painel unificado de saldo, implementar como widget/tab em `carteira.html` (não nova tela).
+
+---
+
 ### DEC-048 — Configurações do VS Code: workspace file tem prioridade sobre settings.json
 
 - **Data**: 21/05/2026
