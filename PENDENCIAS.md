@@ -105,7 +105,7 @@ _Sem pendências ativas._
 | ~~PEND-019~~ | ~~Integrar `categorias-padrao.js` nas telas existentes~~ | ✅ Resolvido | — | `cartoes.js` já usa `window.BUD_CATEGORIAS_PADRAO` + `categoriasGlobal` do Firestore. Confirmado em auditoria 23/04/2026. |
 | ~~PEND-020~~ | ~~Propagação de rename para coleções futuras~~ | ✅ Resolvido 31/05/2026 | — | Extrato, Recorrentes e Limites já implementados e propagam rename (confirado em PEND-030). |
 | PEND-021 | **Gate de plano para categorias personalizadas** — MVP libera para todos (DEC-037). Ao implementar Mercado Pago (PEND-001), adicionar verificação em `salvarCategoria()`. | 🚀 FUT | PEND-001 | Comentário no código indica onde inserir |
-| PEND-022 | **Skeleton loader para categorias** — enquanto `onSnapshot` carrega, exibir placeholders em vez de seção vazia. | 🟢 Baixa | — | — |
+| ~~PEND-022~~ | ~~**Skeleton loader para categorias**~~ ✅ **JA EXISTIA (auditoria 04/06/2026)** — `categorias.html` já tinha skeleton + wired em `categorias.js`. | ✅ Resolvido | — | — |
 | PEND-023 | **Reordenação de categorias personalizadas** — drag-and-drop ou campo `ordem` em Firestore para o usuário ordenar seus atalhos. | 🚀 FUT | — | Não previsto no cérebro |
 | PEND-024 | **Ícone de contagem de uso** — mostrar "usada em X transações" no tooltip/hover do card de categoria padrão ou personalizada. | 🚀 FUT | — | UX improvement |
 
@@ -140,7 +140,7 @@ _Sem pendências ativas._
 | ~~PEND-033~~ | ~~**Integração dashboard**~~ ✅ **RESOLVIDO** — Auditoria 29/04/2026 confirmou: `dashboard.js` l.634 já usa `t.recorrenteId !== r.id` (não match por nome). Bug 4 do cérebro estava resolvido desde a implementação inicial do dashboard. | ✅ Resolvido | — | `js/dashboard.js` l.634 |
 | PEND-034 | ~~**Filtragem por plano na Cloud Function**~~ — Verificação de plano adicionada server-side em `POST /api/processar-recorrentes`: consulta `usuarios/{uid}.plano`, rejeita Free/Starter com 403. | ✅ RESOLVIDO 29/04/2026 | — | — |
 | ~~PEND-069~~ | ~~Recorrentes — Filtro/ordenação na lista~~ | ✅ Resolvido (já estava implementado) | — | Auditoria 31/05/2026: input #recBusca, chips tipo/status/ordem, variáveis filtroTexto/filtroTipo/filtroStatus/filtroOrdem em recorrentes.js, renderizar() aplica todos os filtros. |
-| PEND-070 | **Recorrentes — Botão "Processar Hoje" sem contexto em mobile** — o `title` attribute não aparece em touch. Usuários mobile não entendem a função do botão ⚙️. Sugestão: ocultar o label "Processar Hoje" em telas < 480px ou adicionar tooltip tappable. | 🟢 Baixa | — | Auditoria 16/05/2026 |
+| ~~PEND-070~~ | ~~**Recorrentes — Botão "Processar Hoje" sem contexto em mobile**~~ ✅ **JA EXISTIA (auditoria 04/06/2026)** — botão já tinha label de texto visível em mobile. | ✅ Resolvido | — | — |
 
 ---
 
@@ -193,10 +193,10 @@ _Sem pendências ativas._
 | PEND-MER-08 | **OCR fallback offline (Tesseract.js)** — quando GEMINI_API_KEY indisponível ou usuário sem quota, oferecer extração local com qualidade reduzida. | 🟢 Baixa | Spin-off PEND-MER-01 | — |
 | PEND-MER-09 | **Tela de Carteira** — CRUD de `usuarios/{uid}/carteira/{id}` (conta corrente + cartões + vales + dinheiro). Mercado.js já consome essa collection no dropdown "Conta / Cartão" com fallback. | 🟡 Média | Solicitação 27/04/2026 | Ver `cérebro/carteira-importar.md` para schema completo. |
 | PEND-MER-10 | ~~Backend `/api/extrair-cupom` deploy no Render~~ ✅ **Deploy feito** — commits `fb014d8`, `5932ef3`, `563cd86`, `0a17aa1` publicados. Modelo atualizado para `gemini-2.0-flash`. Agora bloqueia apenas PEND-MER-11 (chave). | ✅ Concluído | 27/04/2026 | — |
-| PEND-MER-02 | **Filtros e busca na lista de compras** — busca por mercado, filtro por mês/forma de pagamento. Hoje só pagina. | 🟢 Baixa | Implementação inicial 27/04/2026 | — |
-| PEND-MER-03 | **Gráfico de gastos por mercado / por categoria** — donut ou barras na aba Compras (top 5 mercados, distribuição de categorias). | 🟢 Baixa | Implementação inicial 27/04/2026 | Reutilizar Chart.js já carregado em outras telas. |
+| ~~PEND-MER-02~~ | ~~**Filtros e busca na lista de compras**~~ ✅ **JA EXISTIA (auditoria 04/06/2026)** — `mercado.js` já tinha `filtroBar` com busca por mercado + filtro por mês/forma de pagamento. | ✅ Resolvido | — | — |
+| ~~PEND-MER-03~~ | ~~**Gráfico de gastos por mercado / por categoria**~~ ✅ **JA EXISTIA (auditoria 04/06/2026)** — `mercado.html` já tinha canvas `donutCategoria` + `renderGraficoCategoria()` em `mercado.js`. | ✅ Resolvido | — | — |
 | ~~PEND-MER-04~~ | ~~**Comparar listas vs realizado**~~ ✅ **RESOLVIDO 04/06/2026** — Ao concluir lista, `mercado.js` salva `totalEstimado` (sum de `ultimoPrecoItem × qtd`) junto com `totalGasto`. `renderListas()` exibe gasto real + indicador ▲/▼ vs estimado com cor verde/vermelho. | ✅ Resolvido | — | — |
-| PEND-MER-05 | **Estimativa de preço por item na lista** — sugerir preço médio com base no histórico ao montar a lista. | 🟢 Baixa | Implementação inicial 27/04/2026 | Helper `categoriaMajoritaria` + `historicoPrecos` pode evoluir para isso. |
+| ~~PEND-MER-05~~ | ~~**Estimativa de preço por item na lista**~~ ✅ **JA EXISTIA (auditoria 04/06/2026)** — `renderItensLista()` já chamava `ultimoPrecoItem()` por item e exibia total estimado com contagem de itens com histórico. | ✅ Resolvido | — | — |
 
 ---
 
