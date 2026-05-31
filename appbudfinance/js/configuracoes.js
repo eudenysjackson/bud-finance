@@ -7,7 +7,7 @@ import { getAuth, onAuthStateChanged, signOut, updateProfile }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, getDocs, updateDoc, deleteDoc, deleteField, setDoc, collection, query, orderBy, writeBatch }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
-import { registerPushToken, listenForeground } from './push.js?v=2';
+import { registerPushToken, listenForeground } from './push.js?v=3';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);

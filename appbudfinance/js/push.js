@@ -42,6 +42,7 @@ export async function registerPushToken(app, user) {
   if (!('Notification'    in window))    throw new Error('[Push] Browser não suporta Notifications API.');
   if (!('serviceWorker'   in navigator)) throw new Error('[Push] Browser não suporta Service Worker.');
   if (!('PushManager'     in window))    throw new Error('[Push] Browser não suporta Push API.');
+  console.log('[Push] #1 APIs OK, permissão atual:', Notification.permission);
 
   // 1. Solicitar permissão nativa (só pergunta se ainda for 'default')
   let perm = Notification.permission;
@@ -51,22 +52,27 @@ export async function registerPushToken(app, user) {
   if (perm !== 'granted') {
     throw new Error('[Push] Permissão de notificação negada. Verifique as configurações do navegador.');
   }
+  console.log('[Push] #2 Permissão concedida, registrando SW...');
 
   // 2. Registrar o Service Worker com path relativo e aguardar via
   //    navigator.serviceWorker.ready (forma nativa — evita race condition
   //    no wait manual de state change).
   let swReg;
   try {
-    await navigator.serviceWorker.register('firebase-messaging-sw.js', {
+    const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js', {
       updateViaCache: 'none'
     });
+    console.log('[Push] #3 SW register() OK, estado active:', reg.active && reg.active.state, '| installing:', !!reg.installing, '| waiting:', !!reg.waiting);
     // ready resolve com a registration do SW que controla a página atual.
+    console.log('[Push] #4 Aguardando navigator.serviceWorker.ready...');
     swReg = await navigator.serviceWorker.ready;
+    console.log('[Push] #5 SW ready, scope:', swReg.scope);
   } catch (err) {
     throw new Error('[Push] Falha ao registrar Service Worker: ' + err.message);
   }
 
   // 3. Obter token FCM (passando a SW registration explicitamente)
+  console.log('[Push] #6 Chamando getToken()...');
   const messaging = getMessaging(app);
   let token;
   // Retry uma vez após desfazer subscription antiga: 401 de fcmregistrations
