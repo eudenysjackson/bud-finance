@@ -86,7 +86,7 @@
 | ~~PEND-015~~ | ~~**Empty state ilustrado**~~ ✅ **RESOLVIDO 29/04/2026** — empty state agora exibe ilustração CSS de 3 cartões sobrepostos (roxo/azul/teal), CTA "Adicionar meu primeiro Cartão" e linha de bandeiras suportadas. | ✅ Resolvido | — | `cartoes.html` |
 | ~~PEND-016~~ | ~~**Cores de bandeira automatizadas**~~ ✅ **RESOLVIDO 29/04/2026** — `setupFormCartao` adiciona listener no campo nome: detecta 13 bancos/marcas (Nubank, Itaú, Bradesco, Santander, BB, Caixa, Inter, XP, C6, Sicoob, Elo, Amex, Hipercard) e pré-seleciona bandeira e cor automaticamente ao criar (não sobrescreve ao editar). | ✅ Resolvido | — | `js/cartoes.js` |
 | ~~PEND-017~~ | ~~**Comparativo mês-a-mês da fatura**~~ ✅ **RESOLVIDO 29/04/2026** — Gráfico de linha na tela Gráficos (`graficos.html` + `js/graficos.js`): busca `usuarios/{uid}/carteira` (tipo='credito'), calcula fatura mensal por cartão nos últimos 6 meses, renderiza line chart com um dataset por cartão. Integrado com `cartoesCredito[]` global e responde a `valoresOcultos`. | ✅ Resolvido | — | `renderFaturas()` em `js/graficos.js` |
-| PEND-018 | **Alerta push de fatura fechando** — notificação "Sua fatura do Nubank fecha amanhã". | 🚀 FUT | PEND-002 (Push FCM) | — |
+| ~~PEND-018~~ | ~~**Alerta push de fatura fechando**~~ ✅ **JÁ EXISTIA (auditoria 04/06/2026)** — `/api/notifications/daily` (seção 2) já envia push "📅 Fatura vence amanhã" e "💳 Fatura fecha em 2 dias" para cada cartão do usuário. | ✅ Resolvido | — | — |
 
 ### 🎯 Metas
 
@@ -136,7 +136,7 @@ _Sem pendências ativas._
 | ID | Descrição | Prioridade | Depende de | Observação |
 |---|---|---|---|---|
 | PEND-031 | ~~**Cloud Function `processarRecorrentes`**~~ — Endpoint `POST /api/processar-recorrentes` implementado em `backend/server.js`. Auth via ID Token (anti-IDOR). Filtros por dia de vencimento + fuso Brasília. Anti-duplic. por `mesReferencia`. Botão "⚙️ Processar Hoje" na tela Recorrentes. | ✅ RESOLVIDO 30/04/2026 | — | — |
-| PEND-032 | **Cloud Function `enviarLembretesFinanceiros`** — cron `0 7 * * *`, envia FCM quando conta vence hoje/amanha. | 🚀 FUT | PEND-031 + PEND-002 (Push FCM) | Depen de de PEND-031 estar pronto |
+| ~~PEND-032~~ | ~~**Cloud Function `enviarLembretesFinanceiros`**~~ ✅ **JÁ EXISTIA (auditoria 04/06/2026)** — `/api/notifications/daily` (seção 1) já envia push "⏰ Vence amanhã" para recorrentes despesas e "💰 Você recebe amanhã!" para recorrentes receitas. GitHub Actions dispara diariamente. | ✅ Resolvido | — | — |
 | ~~PEND-033~~ | ~~**Integração dashboard**~~ ✅ **RESOLVIDO** — Auditoria 29/04/2026 confirmou: `dashboard.js` l.634 já usa `t.recorrenteId !== r.id` (não match por nome). Bug 4 do cérebro estava resolvido desde a implementação inicial do dashboard. | ✅ Resolvido | — | `js/dashboard.js` l.634 |
 | PEND-034 | ~~**Filtragem por plano na Cloud Function**~~ — Verificação de plano adicionada server-side em `POST /api/processar-recorrentes`: consulta `usuarios/{uid}.plano`, rejeita Free/Starter com 403. | ✅ RESOLVIDO 29/04/2026 | — | — |
 | ~~PEND-069~~ | ~~Recorrentes — Filtro/ordenação na lista~~ | ✅ Resolvido (já estava implementado) | — | Auditoria 31/05/2026: input #recBusca, chips tipo/status/ordem, variáveis filtroTexto/filtroTipo/filtroStatus/filtroOrdem em recorrentes.js, renderizar() aplica todos os filtros. |
@@ -167,13 +167,13 @@ _Sem pendências ativas._
 | ID | Descrição | Prioridade | Depende de | Observação |
 |---|---|---|---|---|
 | ~~PEND-035~~ | ~~Previsão de quitação automática~~ | ✅ Resolvido 31/05/2026 | — | Card de dívida exibe "🏁 MM/YYYY" = addMonthsSafe(vencimento, parcelas). |
-| PEND-036 | **Notificações de vencimento de parcelas** — FCM push quando parcela vence hoje/amanhã. | 🚀 FUT | PEND-002 (Push FCM) | Depende de infra FCM |
+| ~~PEND-036~~ | ~~**Notificações de vencimento de parcelas**~~ ✅ **JÁ EXISTIA (auditoria 04/06/2026)** — `/api/notifications/daily` (seção 4) já envia push "💸 Parcela vence amanhã" para dívidas com parcela no dia seguinte. | ✅ Resolvido | — | — |
 | ~~PEND-037~~ | ~~Histórico de datas de pagamento~~ | ✅ Resolvido 31/05/2026 | — | marcarParcelaPaga grava `parcelasDatas.{i}` = ISO string. desmarcarParcela remove a chave. |
 | PEND-038 | **Exportar relatório de dívidas em PDF** — botão na tela principal para gerar PDF com resumo de todas as dívidas (saldo devedor, parcelas, projeção). | 🚀 FUT | PDF.js já importado | — |
 | ~~PEND-039~~ | ~~**Campos CET, IOF e seguro no formulário manual**~~ ✅ **RESOLVIDO 04/06/2026** — `dividas.html` tem seção colapsável "Custos adicionais" com campos CET/IOF/Seguro. `dividas.js` lê, salva e exibe esses campos no modal de detalhes. | ✅ Resolvido | — | — |
 | PEND-071 | ~~**Dívidas — KPIs e dados não alimentam Relatórios/Insights**~~ — `js/relatorios.js` e `js/insights.js` NÃO leem a coleção `usuarios/{uid}/dividas`. Comprometimento mensal, saldo devedor total e juros pagos não aparecem na análise de saúde financeira. Requer integração cross-módulo. | ✅ Resolvido | 16/05/2026 | Integração implementada: `insights.js` (score + alertas + insights), `relatorios.js` (comprometimento + insightBanner), `assistente-ia.js` (buildContexto enriquecido + analisarSaudeFinanceira reescrito). |
 | PEND-040 | **MANUAL_USO.md** — criar documento com descrição de uso de todas as telas existentes: Dashboard, Extrato, Metas, Cartões, Categorias, Recorrentes, Dívidas, Limites, Configurações. | 🟡 Média | — | Útil para onboarding e suporte |
-| PEND-041 | **Limites — Notificação push ao atingir 80% do limite** — FCM push quando gasto atingir ≥80% de um limite de categoria no mês vigente. | 🚀 FUT | PEND-002 (Push FCM) | Depende de Cloud Function + FCM |
+| ~~PEND-041~~ | ~~**Limites — Notificação push ao atingir 80% do limite**~~ ✅ **JÁ EXISTIA (auditoria 04/06/2026)** — `/api/notifications/daily` (seção 5) já envia push "⚠️ X% do limite: Categoria" (≥80%) e "🚨 Limite estourado" (≥100%) comparando gastos do mês com limites cadastrados. | ✅ Resolvido | — | — |
 | ~~PEND-042~~ | ~~**Limites — "Copiar do Mês Anterior" exclusivo para plano Plus**~~ ✅ **RESOLVIDO 29/04/2026** — `limites.js` lê `userData.plano` no auth guard, armazena em `_userPlano`. `setupBotoes()` verifica `PLANOS_COPIAR = ['plus','pro','trial']`: se sem acesso, desabilita `btnCopiar` (opacity 0.5, cursor not-allowed, 🔒 no texto, toast de upgrade ao clicar). `copiarMesAnterior()` também verifica no início como defesa. | ✅ Resolvido | — | `js/limites.js` |
 | PEND-043 | **Limites — Índice composto Firestore** — `transacoes` com index `data ASC` + `data DESC` (já em uso em Extrato); confirmar que índice existe para evitar fallback. | 🟢 Baixa | — | Ver extrato.js como referência |
 
