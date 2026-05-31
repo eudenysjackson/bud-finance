@@ -9,6 +9,31 @@ import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, g
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 import { registerPushToken, listenForeground } from './push.js?v=6';
 
+// ─── DIAGNÓSTICO TEMPORÁRIO: testa PushManager.subscribe() direto ──────
+(async function diagPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('[DIAG] SW ou PushManager não suportados');
+    return;
+  }
+  try {
+    await navigator.serviceWorker.register('firebase-messaging-sw.js', { updateViaCache: 'none' });
+    const reg = await navigator.serviceWorker.ready;
+    console.log('[DIAG] SW ready, scope:', reg.scope);
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) { await existing.unsubscribe(); console.log('[DIAG] subscription antiga removida'); }
+    console.log('[DIAG] Chamando PushManager.subscribe()...');
+    const sub = await Promise.race([
+      reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: 'BPoKCYZJukhQbcnO7xUbUQJ_RJC4Q1vgcJfscmHlgnnvz_qP7vkuacOnuAUNqCZjYfKigs6bcosO8xg5NQ66dA4' }),
+      new Promise(function(_,r){ setTimeout(function(){ r(new Error('TIMEOUT 10s')); }, 10000); })
+    ]);
+    console.log('[DIAG] PushManager OK! endpoint:', sub.endpoint.slice(0,60) + '...');
+    await sub.unsubscribe();
+  } catch(e) {
+    console.error('[DIAG] PushManager FALHOU:', e.name, '-', e.message);
+  }
+})();
+// ─────────────────────────────────────────────────────────────────────────
+
 // ─── Firebase init ──────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
