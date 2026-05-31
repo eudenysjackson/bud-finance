@@ -678,6 +678,8 @@ function setupModais() {
 
   // Month dropdown: iaMes
   _initIaMesDropdown();
+  // Ano: atualizar banner ao digitar
+  document.getElementById('iaAno')?.addEventListener('input', _atualizarBannerMes);
 
   // ESC fecha modais / Enter confirma
   document.addEventListener('keydown', (e) => {
@@ -1512,6 +1514,15 @@ function _setIaMes(value) {
   document.querySelectorAll('#iaMesDropdown .custom-select-option').forEach(o => {
     o.classList.toggle('selected', o.dataset.value === value);
   });
+  _atualizarBannerMes();
+}
+
+function _atualizarBannerMes() {
+  const banner = document.getElementById('iaBannerMesTexto');
+  if (!banner) return;
+  const mes  = document.getElementById('iaMesTexto')?.textContent || '';
+  const ano  = document.getElementById('iaAno')?.value || '';
+  banner.textContent = mes && ano ? `${mes} ${ano}` : '—';
 }
 
 // Helper: inicializa o custom dropdown de mês no modal Review IA
@@ -2212,6 +2223,7 @@ function abrirModalReviewIA() {
   const sub = document.getElementById('subtitleModalReviewIA');
   if (sub) sub.textContent = c ? `💳 ${c.nome} — ${itensIAExtraidos.length} transações encontradas` : `${itensIAExtraidos.length} transações encontradas`;
 
+  _atualizarBannerMes();
   renderListaReviewIA();
   _renderConfiabilidadeBadge();
   document.getElementById('modalReviewIA')?.classList.add('open');
