@@ -1,7 +1,7 @@
 # ROADMAP.md — Foco e Controle de Escopo
 
 **Projeto**: Bud Finance  
-**Última atualização**: 31/05/2026 — PEND-056 ✔️ parser multi-cartão Bradesco/Itaú; PEND-082 ✔️ migração URL já concluída; PEND-MER-11 ✔️ backend usa Groq (não Gemini). Pendentes de ação manual do usuário: PEND-079 (DNS Registro.br + GitHub Pages), PEND-081 (teste E2E MP sandbox), PEND-083 (billing GitHub Actions).  
+**Última atualização**: 31/05/2026 — PEND-056 ✔️ parser multi-cartão Bradesco/Itaú; PEND-079 ✔️ DNS + GitHub Pages; PEND-081 ✔️ E2E Mercado Pago sandbox; PEND-082 ✔️ migração URL; PEND-083 ✔️ GitHub Actions billing + CI/CD; PEND-MER-11 ✔️ backend usa Groq. Sem pendentes 🔴 Alta em aberto.  
 **Item atual**: Sem item ativo
 
 > **REGRA**: NÃO implementar itens do Backlog sem pedido explícito do usuário.
