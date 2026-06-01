@@ -334,17 +334,36 @@ function renderizarGraficos(transacoesDoMes) {
       var ctx2  = chart.ctx;
       var cx    = chart.chartArea.left + (chart.chartArea.right  - chart.chartArea.left) / 2;
       var cy    = chart.chartArea.top  + (chart.chartArea.bottom - chart.chartArea.top)  / 2;
+
+      // Raio interno para calcular espaço disponível
+      var meta   = chart.getDatasetMeta(0);
+      var innerR = (meta && meta.data && meta.data[0])
+        ? meta.data[0].innerRadius
+        : Math.min(chart.chartArea.right - chart.chartArea.left,
+                   chart.chartArea.bottom - chart.chartArea.top) / 2 * 0.70;
+      var maxW = innerR * 1.75; // 87% do diâmetro
+
       ctx2.save();
-      ctx2.textAlign = 'center';
+      ctx2.textAlign    = 'center';
       ctx2.textBaseline = 'middle';
-      var labelColor = getComputedStyle(document.documentElement).getPropertyValue('--card-text').trim() || '#0f172a';
+      var labelColor = getComputedStyle(document.documentElement).getPropertyValue('--card-text').trim()     || '#0f172a';
       var subColor   = getComputedStyle(document.documentElement).getPropertyValue('--card-text-sec').trim() || '#64748b';
-      ctx2.font = '700 0.75rem Inter, sans-serif';
+
+      ctx2.font      = '700 0.65rem Inter, sans-serif';
       ctx2.fillStyle = subColor;
       ctx2.fillText('DESPESAS', cx, cy - 14);
-      ctx2.font = '800 1rem Inter, sans-serif';
+
+      // Font-size adaptativo: reduz até caber no buraco do donut
+      var valueText = valoresOcultos ? '•••' : formatarValor(total);
+      var fontSize  = 16;
+      ctx2.font = '800 ' + fontSize + 'px Inter, sans-serif';
+      var textW = ctx2.measureText(valueText).width;
+      if (textW > maxW) {
+        fontSize = Math.max(9, Math.floor(fontSize * (maxW / textW)));
+        ctx2.font = '800 ' + fontSize + 'px Inter, sans-serif';
+      }
       ctx2.fillStyle = '#dc2626';
-      ctx2.fillText(valoresOcultos ? '•••' : formatarValor(total), cx, cy + 8);
+      ctx2.fillText(valueText, cx, cy + 8);
       ctx2.restore();
     }
   };

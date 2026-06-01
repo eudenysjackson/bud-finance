@@ -568,7 +568,7 @@ function buildContaCard(conta) {
       <div class="conta-saldo" style="color:${saldoColor};">${saldoStr}</div>
       ${confirmacaoHtml}
       <div class="conta-btns-grid">
-        <button class="conta-import-btn" id="btnImport_${conta.id}" style="${btnStyle}">📥 Importar</button>
+        ${conta.tipo !== 'dinheiro' ? `<button class="conta-import-btn" id="btnImport_${conta.id}" style="${btnStyle}">📥 Importar</button>` : ''}
         <a href="extrato.html" class="conta-import-btn" style="text-decoration:none;text-align:center;${btnStyle}">📋 Extrato</a>
       </div>
     </div>`;

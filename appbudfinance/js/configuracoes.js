@@ -3,7 +3,7 @@
 // Modular Firebase SDK v10.8.1
 
 import { initializeApp, getApps }                from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
-import { getAuth, onAuthStateChanged, signOut, updateProfile }
+import { getAuth, onAuthStateChanged, signOut, updateProfile, sendPasswordResetEmail }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, getDocs, updateDoc, deleteDoc, deleteField, setDoc, collection, query, orderBy, writeBatch }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
@@ -20,6 +20,8 @@ let _skipThemeSync = false;let _userPlano = 'free';
 let _whatsappNumero = null;
 let _hoverOrigTheme = null;
 let _isAdmin = false;
+let _pushSetupDone = false;
+let _pushAtivo = false;
 
 // ─── Push token (necessário para o botão Ativar funcionar nesta página) ──
 // ─── Push token (necessário para o botão Ativar funcionar nesta página) ──
@@ -618,7 +620,8 @@ async function exportarDadosJSON() {
   try {
     const COLECOES = [
       'transacoes', 'carteira', 'cartoes', 'metas',
-      'limites', 'categorias', 'recorrentes', 'dividas', 'investimentos'
+      'limites', 'categorias', 'recorrentes', 'dividas', 'investimentos',
+      'compras', 'listas-compras', 'importacoes'
     ];
 
     const [perfilSnap, ...colSnaps] = await Promise.all([
@@ -705,7 +708,7 @@ async function confirmarExcluirConta() {
   const COLECOES = [
     'transacoes', 'carteira', 'cartoes', 'metas',
     'limites', 'categorias', 'recorrentes', 'dividas', 'investimentos',
-    'compras', 'listas-compras', 'tokens', 'notificacoes_eventos_enviadas'
+    'compras', 'listas-compras', 'tokens', 'notificacoes_eventos_enviadas', 'importacoes'
   ];
 
   try {
@@ -1112,7 +1115,7 @@ async function executarReset() {
   const COLECOES = [
     'transacoes', 'carteira', 'cartoes', 'metas',
     'limites', 'categorias', 'recorrentes', 'dividas', 'investimentos',
-    'compras', 'listas-compras', 'tokens', 'notificacoes_eventos_enviadas'
+    'compras', 'listas-compras', 'tokens', 'notificacoes_eventos_enviadas', 'importacoes'
   ];
 
   try {
@@ -1131,8 +1134,19 @@ async function executarReset() {
       await batch.commit();
     }
 
-    // Marcar onboarding como não concluído (mantém conta ativa)
-    await updateDoc(doc(db, 'usuarios', uid), { onboardingConcluido: false });
+    // Marcar onboarding como não concluído e limpar foto de perfil
+    await updateDoc(doc(db, 'usuarios', uid), {
+      onboardingConcluido: false,
+      photoURL: deleteField(),
+      fcmToken: deleteField(),
+      fcmTokenAt: deleteField(),
+      pushEnabled: false
+    });
+    // Limpar foto do Firebase Auth
+    try {
+      const authUser = auth.currentUser;
+      if (authUser) await updateProfile(authUser, { photoURL: null });
+    } catch (_) {}
 
     // Limpar chaves de tutorial do localStorage
     Object.keys(localStorage)
@@ -1186,15 +1200,22 @@ function setupSeguranca() {
       btnReset.textContent = 'Enviando...';
 
       const backendUrl = (window.BUD_FUNCTIONS_URL || '').replace(/\/$/, '');
-      try {
-        const res = await fetch(backendUrl + '/reset-senha', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: user.email })
-        });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-      } catch (_) {
-        // Continua mesmo com erro — anti-enumeração
+      let backendOk = false;
+      if (backendUrl) {
+        try {
+          const res = await fetch(backendUrl + '/reset-senha', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: user.email })
+          });
+          if (res.ok) backendOk = true;
+        } catch (_) {
+          // backend indisponível — usa Firebase Auth como fallback
+        }
+      }
+      // Fallback: Firebase Auth envia o email diretamente
+      if (!backendOk) {
+        try { await sendPasswordResetEmail(auth, user.email); } catch (_) {}
       }
 
       // Sempre mostra sucesso (anti-enumeração)
@@ -1344,15 +1365,28 @@ onAuthStateChanged(auth, async function (user) {
   if (btnRevogar) btnRevogar.addEventListener('click', revogarConsentimentoNotificacoes);
 
   // ── Notificações Push ─────────────────────────────────────────────────
+  if (!_pushSetupDone) {
+  _pushSetupDone = true;
   const btnAtivarPush = document.getElementById('btnAtivarPush');
   const btnTestarPush = document.getElementById('btnTestarPush');
   const pushDesc      = document.getElementById('pushStatusDesc');
 
-  function _mostrarBotaoTestar() {
-    if (btnAtivarPush) { btnAtivarPush.textContent = '✅ Ativado'; btnAtivarPush.disabled = true; btnAtivarPush.style.background = '#16a34a'; }
+  function _mostrarBotaoAtivado() {
+    _pushAtivo = true;
+    if (btnAtivarPush) { btnAtivarPush.textContent = '🔕 Desativar'; btnAtivarPush.disabled = false; btnAtivarPush.style.background = '#64748b'; }
     if (btnTestarPush && _isAdmin) btnTestarPush.style.display = '';
     if (pushDesc) pushDesc.textContent = 'O Buddy já está te enviando alertas personalizados.';
   }
+
+  function _mostrarBotaoAtivar() {
+    _pushAtivo = false;
+    if (btnAtivarPush) { btnAtivarPush.textContent = 'Ativar'; btnAtivarPush.disabled = false; btnAtivarPush.style.background = 'linear-gradient(135deg,#2563eb,#4f46e5)'; }
+    if (btnTestarPush) btnTestarPush.style.display = 'none';
+    if (pushDesc) pushDesc.textContent = 'Receba alertas de vencimentos, metas e dicas do Buddy';
+  }
+
+  // alias para compatibilidade com chamadas existentes
+  function _mostrarBotaoTestar() { _mostrarBotaoAtivado(); }
 
   if (btnAtivarPush) {
     const pushed = localStorage.getItem('bud_push_asked');
@@ -1374,7 +1408,23 @@ onAuthStateChanged(auth, async function (user) {
       }
     }
 
-    btnAtivarPush.addEventListener('click', function () {
+    btnAtivarPush.addEventListener('click', async function () {
+      // Se push já está ativo, o botão serve para DESATIVAR
+      if (_pushAtivo) {
+        btnAtivarPush.disabled = true;
+        btnAtivarPush.textContent = 'Desativando...';
+        try {
+          // Timeout de 5s para evitar que revokePushToken trave a UI (ex: SW sem rede)
+          await Promise.race([
+            revokePushToken(app, user),
+            new Promise(resolve => window.setTimeout(resolve, 5000))
+          ]);
+        } catch (_) {}
+        localStorage.removeItem('bud_push_asked');
+        _mostrarBotaoAtivar();
+        if (window.budShowToast) window.budShowToast('Notificações desativadas.', 'info');
+        return;
+      }
       // iOS Safari só permite push quando instalado como PWA (iOS 16.4+).
       var ua = navigator.userAgent || '';
       var isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
@@ -1387,6 +1437,28 @@ onAuthStateChanged(auth, async function (user) {
           var btnFecharPWA = document.getElementById('btnFecharModalInstalarPWA');
           if (btnFecharPWA) btnFecharPWA.onclick = function () { modalPWA.style.display = 'none'; };
           modalPWA.onclick = function (ev) { if (ev.target === modalPWA) modalPWA.style.display = 'none'; };
+        }
+        return;
+      }
+      // Permissão já concedida (ex: após revogar token e re-ativar) → registrar direto
+      if (Notification.permission === 'granted') {
+        try {
+          await registerPushToken(app, user);
+          listenForeground(app, function (payload) {
+            var n = payload.notification || payload.data || {};
+            navigator.serviceWorker.ready.then(function (reg) {
+              reg.showNotification(n.title || 'Bud Finance', {
+                body: n.body || '',
+                icon: '/appbudfinance/icons/icon-192.png'
+              });
+            }).catch(function () {});
+          });
+          localStorage.setItem('bud_push_asked', 'granted');
+          _mostrarBotaoAtivado();
+          if (window.budShowToast) window.budShowToast('Notificações ativadas! O Buddy vai te avisar. 🔔', 'success');
+        } catch (err) {
+          if (window.budWarn) window.budWarn(err.message);
+          else if (window.budShowToast) window.budShowToast('Erro ao ativar notificações: ' + (err && err.message ? err.message : err), 'error');
         }
         return;
       }
@@ -1405,7 +1477,7 @@ onAuthStateChanged(auth, async function (user) {
                 });
               }).catch(function () {});
             });
-            _mostrarBotaoTestar();
+            _mostrarBotaoAtivado();
             if (window.budShowToast) window.budShowToast('Notificações ativadas! O Buddy vai te avisar. 🔔', 'success');
           } catch (err) {
             if (window.budWarn) window.budWarn(err.message);
@@ -1415,7 +1487,7 @@ onAuthStateChanged(auth, async function (user) {
         localStorage.removeItem('bud_push_asked');
         window.BudPush.requestIfNeeded(user);
         setTimeout(function () {
-          if (localStorage.getItem('bud_push_asked') === 'granted') _mostrarBotaoTestar();
+          if (localStorage.getItem('bud_push_asked') === 'granted') _mostrarBotaoAtivado();
         }, 2000);
       }
     });
@@ -1468,4 +1540,5 @@ onAuthStateChanged(auth, async function (user) {
       }
     });
   }
+  } // end !_pushSetupDone
 });

@@ -2167,7 +2167,8 @@ async function _tentarOcrFallback(file, prog, progBar, progText, btn) {
   }
 }
 
-
+// ─── Pós-processar resposta da IA ────────────────────────────────
+function posProcessarIA(data) {
   // 1) Mercado: se o CNPJ já é conhecido, usa o nome curto que o usuário gravou
   let mercado = data.mercado || '';
   if (data.cnpj && _mercadosConhecidos[data.cnpj]) {

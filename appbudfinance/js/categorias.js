@@ -304,9 +304,6 @@ window.selecionarCor = function (id) {
   atualizarPreview();
 };
 
-  atualizarPreview();
-};
-
 /* ─────────────────────────────────────────────────────────────────
    PEND-023: Drag-and-drop para reordenar categorias personalizadas
 ───────────────────────────────────────────────────────────────── */
