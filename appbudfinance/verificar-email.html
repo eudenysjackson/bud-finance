@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verificar E-mail — Bud Finance</title>
+  <link rel="icon" href="favicon.ico">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', Arial, sans-serif;
+      background: linear-gradient(135deg, #eff6ff 0%, #f0f4f8 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(37,99,235,0.10);
+      padding: 48px 40px;
+      max-width: 440px;
+      width: 100%;
+      text-align: center;
+    }
+    .icon { font-size: 56px; margin-bottom: 20px; }
+    h1 { font-size: 22px; font-weight: 800; color: #1e293b; margin-bottom: 10px; }
+    p { font-size: 14px; color: #64748b; line-height: 1.7; margin-bottom: 0; }
+    .email-box {
+      background: #f1f5f9;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin: 20px 0;
+      font-size: 15px;
+      font-weight: 700;
+      color: #2563eb;
+      word-break: break-all;
+    }
+    .btn {
+      display: inline-block;
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: none;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .2s;
+      margin-top: 8px;
+    }
+    .btn-primary { background: #2563eb; color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+    .btn-secondary { background: #f1f5f9; color: #475569; margin-top: 10px; }
+    .btn-secondary:hover { background: #e2e8f0; }
+    .success { color: #059669; font-weight: 700; font-size: 15px; margin-top: 16px; display: none; }
+    .error-msg { color: #dc2626; font-size: 13px; margin-top: 10px; display: none; }
+    .divider { border: none; border-top: 1px solid #f1f5f9; margin: 24px 0; }
+    .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="icon">📧</div>
+    <h1>Verifique seu e-mail</h1>
+    <p>Enviamos um link de verificação para:</p>
+    <div class="email-box" id="emailDisplay">carregando...</div>
+    <p>Clique no botão abaixo para reenviar o link caso não tenha recebido.</p>
+
+    <hr class="divider">
+
+    <button class="btn btn-primary" id="btnReenviar" onclick="reenviar()">
+      ✉️ Reenviar link de verificação
+    </button>
+    <div class="success" id="successMsg">✅ Link reenviado! Verifique sua caixa de entrada e o spam.</div>
+    <div class="error-msg" id="errorMsg"></div>
+
+    <button class="btn btn-secondary" onclick="window.location.href='index.html'">
+      ← Ir para o login
+    </button>
+  </div>
+
+  <script src="js/firebase-config.js"></script>
+  <script type="module">
+    import { initializeApp }   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+    import { getAuth, sendEmailVerification, signInWithEmailAndPassword, signOut }
+      from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
+
+    const app  = initializeApp(window.BUD_FIREBASE_CONFIG);
+    const auth = getAuth(app);
+
+    // Ler email da URL (?email=xxx)
+    const params = new URLSearchParams(window.location.search);
+    const email  = params.get('email') || '';
+    document.getElementById('emailDisplay').textContent = email || '(e-mail não informado)';
+
+    window.reenviar = async function () {
+      if (!email) {
+        showError('URL inválida — e-mail não informado.');
+        return;
+      }
+      const btn = document.getElementById('btnReenviar');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Enviando...';
+
+      try {
+        // Verifica se o usuário já está autenticado (sessão ativa pós-cadastro)
+        const currentUser = auth.currentUser;
+        if (currentUser && currentUser.email === email) {
+          await sendEmailVerification(currentUser);
+          showSuccess();
+          return;
+        }
+
+        // Sem sessão ativa: instrui o usuário a usar o modal do login
+        showError('Sessão expirada. Vá para o login e use o botão "Reenviar" no modal de verificação.');
+        btn.innerHTML = '✉️ Reenviar link de verificação';
+        btn.disabled  = false;
+      } catch (err) {
+        if (err.code === 'auth/too-many-requests') {
+          showError('Muitas tentativas. Aguarde alguns minutos e tente novamente.');
+        } else {
+          showError('Erro ao reenviar: ' + err.message);
+        }
+        btn.innerHTML = '✉️ Reenviar link de verificação';
+        btn.disabled  = false;
+      }
+    };
+
+    function showSuccess() {
+      document.getElementById('successMsg').style.display = 'block';
+      document.getElementById('errorMsg').style.display   = 'none';
+      document.getElementById('btnReenviar').style.display = 'none';
+      setTimeout(() => { window.location.href = 'index.html'; }, 4000);
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorMsg');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+  </script>
+</body>
+</html>

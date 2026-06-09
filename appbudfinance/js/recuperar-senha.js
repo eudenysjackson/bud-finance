@@ -1,26 +1,59 @@
-// js/recuperar-senha.js — Bud Finance Password Recovery (ES Module)
-// Calls backend /reset-senha which generates the link AND sends the email.
-// The oobCode never reaches the frontend.
-// Firebase SDK Modular v10.8.1 — NO compat layer.
+// js/recuperar-senha.js — Bud Finance Password Recovery
+// Usa Firebase Auth sendPasswordResetEmail diretamente (sem backend).
+// EmailJS envia uma notificação de suporte em paralelo.
 
-var BACKEND_URL = window.BUD_FUNCTIONS_URL || '';
+import { initializeApp }         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { getAuth, sendPasswordResetEmail }
+  from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 
-var form  = document.getElementById('formRecuperar');
-var btn   = document.getElementById('btnRecuperar');
+// ─── Firebase init ───────────────────────────────────────────────────
+var app  = initializeApp(window.BUD_FIREBASE_CONFIG);
+var auth = getAuth(app);
+
+// ─── EmailJS init ────────────────────────────────────────────────────
+(function () {
+  var cfg = window.BUD_EMAILJS_CONFIG;
+  if (cfg && cfg.publicKey && !cfg.publicKey.startsWith('__') && window.emailjs) {
+    window.emailjs.init({ publicKey: cfg.publicKey });
+  }
+})();
+
+// ─── DOM ─────────────────────────────────────────────────────────────
+var form       = document.getElementById('formRecuperar');
+var btn        = document.getElementById('btnRecuperar');
 var emailInput = document.getElementById('email');
 
-// ─── Email regex ────────────────────────────────────────────────────
-function isEmailValido(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+function isEmailValido(e) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 }
 
 function resetBtn() {
   btn.textContent = 'Enviar link de recuperação';
-  btn.disabled = false;
+  btn.disabled    = false;
   btn.classList.remove('bud-btn-success');
 }
 
-// ─── Form submit ────────────────────────────────────────────────────
+// ─── Enviar email de recuperação via EmailJS (opcional, suporte) ─────
+async function enviarEmailRecuperacao(email) {
+  var cfg = window.BUD_EMAILJS_CONFIG;
+  if (!cfg || cfg.publicKey.startsWith('__') || !window.emailjs) return;
+  try {
+    await window.emailjs.send(
+      cfg.serviceId,
+      cfg.templates.recuperarSenha,
+      {
+        to_email: email,
+        email:    email,
+        reply_to: email
+      }
+    );
+    console.log('[Bud] Email de recuperação enviado via EmailJS.');
+  } catch (err) {
+    console.warn('[Bud] EmailJS recuperar-senha:', err);
+  }
+}
+
+// ─── Form submit ─────────────────────────────────────────────────────
 form.addEventListener('submit', async function (e) {
   e.preventDefault();
 
@@ -38,26 +71,27 @@ form.addEventListener('submit', async function (e) {
   }
 
   btn.textContent = 'Enviando...';
-  btn.disabled = true;
+  btn.disabled    = true;
 
   try {
-    var res = await fetch(BACKEND_URL + '/reset-senha', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email })
-    });
+    // 1. Firebase envia o link de reset diretamente (sem backend)
+    // Sem actionCodeSettings: Firebase usa o domínio padrão (sempre autorizado)
+    await sendPasswordResetEmail(auth, email);
+    console.log('[Bud] sendPasswordResetEmail OK para:', email);
 
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    // Backend sends email server-side — no oobCode returned
-  } catch (_err) {
-    // Silently continue — always show success (anti-enumeration)
+    // 2. EmailJS envia notificação de suporte em paralelo (fire-and-forget)
+    enviarEmailRecuperacao(email);
+
+  } catch (err) {
+    // auth/user-not-found: não revelar (anti-enumeração) — continua mostrando sucesso
+    console.warn('[Bud] sendPasswordResetEmail:', err.code, err.message);
   }
 
-  // Always show success (anti-enumeration)
+  // Sempre mostrar sucesso (anti-enumeração de e-mails)
   btn.textContent = '✅ Link enviado!';
   btn.classList.add('bud-btn-success');
   window.budShowToast(
-    'Se este e-mail estiver cadastrado, você receberá um link. Verifique também a caixa de spam.',
+    'Se este e-mail estiver cadastrado, você receberá o link. Verifique também o spam.',
     'success',
     4000
   );

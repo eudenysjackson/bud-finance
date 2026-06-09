@@ -1,0 +1,32 @@
+# ── Firebase ────────────────────────────────────────────────────────────────
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+auth-debug.log
+database-debug.log
+hosting-debug.log
+
+# Dados exportados dos emulators (gerado por npm run emulators:export)
+emulator-data/
+
+# ── Node ─────────────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Playwright ───────────────────────────────────────────────────────────────
+playwright-report/
+
+# ── Credenciais locais (NUNCA commitar) ──────────────────────────────────────
+.env
+
+# ── Configs locais sensiveis ──────────────────────────────────────────────────
+# js/firebase-config.js contém API keys - NAO commitar em repos publicos
+# js/firebase-config.js
+
+# Backup files
+*.bak*
+
+# ── OS / IDE ─────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/settings.json

@@ -28,19 +28,34 @@
     );
   }
 
+  // ─── Detecção de ambiente (local vs produção) ─────────────────────────
+  var _hostname = window.location.hostname;
+  var _isLocal  = (_hostname === 'localhost' || _hostname === '127.0.0.1' || _hostname === '');
+  window.BUD_IS_LOCAL = _isLocal;
+
+  // ─── Emulator: ativado APENAS via localStorage explícito ────────────
+  // Emulators NÃO são ativados por padrão — precisam ser explicitamente habilitados.
+  // Para usar emulators locais (requer `npm run emulators` rodando):
+  //   localStorage.setItem('bud_use_emulator', 'true')   → ativa emulators
+  //   localStorage.removeItem('bud_use_emulator')         → volta para produção
+  var _emulatorOverride = null;
+  try { _emulatorOverride = localStorage.getItem('bud_use_emulator'); } catch (_) {}
+  window.BUD_USE_EMULATOR = _emulatorOverride === 'true';
+
   // ─── Cloud Functions URL ──────────────────────────────────────────────
-  // Base URL for Firebase Cloud Functions (used by recuperar-senha, etc.)
-  window.BUD_FUNCTIONS_URL = "https://bud-finance-backend.onrender.com";
+  window.BUD_FUNCTIONS_URL = (window.BUD_USE_EMULATOR && _isLocal)
+    ? 'http://127.0.0.1:5001/bud-finance/us-central1'
+    : 'https://bud-finance-backend.onrender.com';
 
   // ─── EmailJS protected config ─────────────────────────────────────────
   // In production, move email sending to a Cloud Function (server-side).
   // These are kept here as placeholders for the client-side fallback.
   window.BUD_EMAILJS_CONFIG = Object.freeze({
-    publicKey:  "__EMAILJS_PUBLIC_KEY__",
-    serviceId:  "__EMAILJS_SERVICE_ID__",
+    publicKey:  "H6fMBL3s0Npuw8O0e",
+    serviceId:  "service_tg3mlvh",
     templates: Object.freeze({
-      boasVindas:     "__EMAILJS_TEMPLATE_BOAS_VINDAS__",
-      recuperarSenha: "__EMAILJS_TEMPLATE_RECUPERAR_SENHA__"
+      boasVindas:     "template_pdch2ip",
+      recuperarSenha: "template_2mp7qgq"
     })
   });
 

@@ -4,32 +4,34 @@
 
 import { initializeApp, getApps }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut }
+import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut, sendEmailVerification }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
   doc, setDoc, getDoc, collection, query, where, getDocs,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { connectEmulators } from "./bud-emulator-connect.js";
 
 // ─── Firebase init ──────────────────────────────────────────────────
-const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
+const app = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
-const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+const db = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch (e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 // ─── DOM refs ───────────────────────────────────────────────────────
-const formSection       = document.getElementById('formSection');
-const successSection    = document.getElementById('successSection');
-const form              = document.getElementById('formCadastro');
-const nomeInput         = document.getElementById('nome');
-const emailInput        = document.getElementById('email');
-const telefoneInput     = document.getElementById('telefone');
-const novaSenhaInput    = document.getElementById('novaSenha');
-const confirmarInput    = document.getElementById('confirmarSenha');
-const codigoInput       = document.getElementById('codigoIndicacao');
-const lgpdCheckbox      = document.getElementById('lgpdConsent');
-const btn               = document.getElementById('btnCadastro');
-const showMatriculaEl   = document.getElementById('showMatricula');
+const formSection = document.getElementById('formSection');
+const successSection = document.getElementById('successSection');
+const form = document.getElementById('formCadastro');
+const nomeInput = document.getElementById('nome');
+const emailInput = document.getElementById('email');
+const telefoneInput = document.getElementById('telefone');
+const novaSenhaInput = document.getElementById('novaSenha');
+const confirmarInput = document.getElementById('confirmarSenha');
+const codigoInput = document.getElementById('codigoIndicacao');
+const lgpdCheckbox = document.getElementById('lgpdConsent');
+const btn = document.getElementById('btnCadastro');
+const showMatriculaEl = document.getElementById('showMatricula');
 
 // ─── SENHAS_COMUNS and calcStrength are in bud-utils.js ────────────
 // window.BUD_SENHAS_COMUNS and window.budCalcStrength
@@ -96,17 +98,67 @@ function resetBtn() {
   btn.disabled = false;
 }
 
-// ─── Send welcome email via backend (fire-and-forget) ──────────────
-// Backend gera o link de verificação Firebase + envia via EmailJS.
-function enviarEmailBoasVindas(email, nome, matricula) {
-  var backendUrl = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\/$/, '');
-  fetch(backendUrl + '/api/boas-vindas', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email, nome: nome, matricula: matricula })
-  }).catch(function () {
-    // Fire-and-forget — email failure is non-critical
-  });
+// ─── EmailJS: inicializar SDK ────────────────────────────────────────
+(function () {
+  var cfg = window.BUD_EMAILJS_CONFIG;
+  if (cfg && cfg.publicKey && !cfg.publicKey.startsWith('__') && window.emailjs) {
+    window.emailjs.init({ publicKey: cfg.publicKey });
+    console.log('[Bud] EmailJS inicializado.');
+  }
+})();
+
+// ─── Enviar email de boas-vindas ─────────────────────────────────────
+// Tenta obter o link de verificação via backend (Admin SDK) para incluir
+// no botão do email. Se o backend não suportar, envia sem o link
+// e retorna false para que o caller use sendEmailVerification como fallback.
+async function enviarEmailBoasVindas(user, email, nome, matricula) {
+  var cfg = window.BUD_EMAILJS_CONFIG;
+  var verificationLink = null;
+
+  // 1. Pedir ao backend para gerar o link de verificação
+  try {
+    var idToken = await user.getIdToken();
+    var backendUrl = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\/$/, '');
+    var res = await fetch(backendUrl + '/api/boas-vindas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+      body: JSON.stringify({ email: email, nome: nome, matricula: matricula, generateVerificationLink: true })
+    });
+    var body = await res.json().catch(function () { return {}; });
+    if (res.ok) {
+      console.log('[Bud] Backend boas-vindas OK:', body);
+      verificationLink = body.verificationLink || null;
+    } else {
+      console.warn('[Bud] Backend boas-vindas retornou ' + res.status + ':', body);
+    }
+  } catch (err) {
+    console.warn('[Bud] Backend boas-vindas indisponível:', err.message);
+  }
+
+  // 2. Enviar email via EmailJS com ou sem o link de verificação
+  if (!cfg || !cfg.publicKey || cfg.publicKey.startsWith('__') || !window.emailjs) {
+    console.warn('[Bud] EmailJS não configurado — pulando envio de boas-vindas.');
+    return !verificationLink; // true = precisa de fallback
+  }
+  try {
+    var templateParams = {
+      to_name: nome,
+      to_email: email,
+      matricula: matricula,
+      nome: nome,
+      email: email,
+      reply_to: email,
+      verify_url: verificationLink
+        || ('https://budsolucoes.com.br/appbudfinance/verificar-email.html?email=' + encodeURIComponent(email))
+    };
+    var result = await window.emailjs.send(cfg.serviceId, cfg.templates.boasVindas, templateParams);
+    console.log('[Bud] Email de boas-vindas enviado via EmailJS:', result.status, result.text);
+  } catch (err) {
+    console.error('[Bud] Falha EmailJS boas-vindas:', err);
+  }
+
+  // Retorna true se precisa de fallback (quando backend não gerou o link)
+  return !verificationLink;
 }
 
 // ─── Main form submit ───────────────────────────────────────────────
@@ -114,10 +166,10 @@ form.addEventListener('submit', async function (e) {
   e.preventDefault();
 
   // 1. Sanitize inputs
-  var nome     = window.budSanitize(nomeInput.value);
-  var email    = window.budSanitize(emailInput.value).toLowerCase();
+  var nome = window.budSanitize(nomeInput.value);
+  var email = window.budSanitize(emailInput.value).toLowerCase();
   var telefone = window.budSanitize(telefoneInput.value);
-  var senha    = novaSenhaInput.value;
+  var senha = novaSenhaInput.value;
   var confirma = confirmarInput.value;
   var codigoRaw = window.budSanitize(codigoInput.value).toUpperCase();
 
@@ -188,8 +240,8 @@ form.addEventListener('submit', async function (e) {
 
     // 9. Build user doc — dates use serverTimestamp (NOT client-side)
     var docData = {
-      nome:     nome.substring(0, 100),
-      email:    email,
+      nome: nome.substring(0, 100),
+      email: email,
       telefone: telefone,
       matricula: matricula,
       primeiroLogin: false, // User chose own password — no forced change
@@ -208,8 +260,8 @@ form.addEventListener('submit', async function (e) {
     // Referral data
     if (indicador) {
       docData.indicadoPor = {
-        uid:    indicador.uid,
-        nome:   indicador.nome,
+        uid: indicador.uid,
+        nome: indicador.nome,
         codigo: codigoRaw
       };
       docData.descontoIndicacao = 30;
@@ -220,12 +272,12 @@ form.addEventListener('submit', async function (e) {
     await setDoc(doc(db, 'usuarios', user.uid), docData);
 
     // 10b. Ativar trial Pro de 3 dias (fire-and-forget — não bloqueia cadastro)
-    user.getIdToken().then(function(token) {
+    user.getIdToken().then(function (token) {
       return fetch(
         (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com') + '/api/iniciar-trial',
         { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token } }
       );
-    }).catch(function() {});
+    }).catch(function () { });
 
     // 11. Register referral in subcollection (NOT arrayUnion)
     if (indicador) {
@@ -244,8 +296,20 @@ form.addEventListener('submit', async function (e) {
       }
     }
 
-    // 12. Fire-and-forget welcome email BEFORE signOut
-    enviarEmailBoasVindas(email, nome, matricula);
+    // 12. Enviar email de boas-vindas via backend/EmailJS.
+    // O backend gera o link de verificação Firebase (Admin SDK) e o inclui no template.
+    // Se o backend não retornar o link, usamos sendEmailVerification como fallback.
+    var needsVerificationFallback = await enviarEmailBoasVindas(user, email, nome, matricula);
+
+    // 12b. Fallback: backend não gerou o link → Firebase envia email de verificação separado
+    if (needsVerificationFallback) {
+      try {
+        await sendEmailVerification(user);
+        console.log('[Bud] Fallback: email de verificação enviado pelo Firebase Auth.');
+      } catch (_verifyErr) {
+        console.error('[Bud] Falha ao enviar email de verificação (fallback):', _verifyErr);
+      }
+    }
 
     // 13. Sign out (user will log in from login page)
     await signOut(auth);
@@ -257,20 +321,20 @@ form.addEventListener('submit', async function (e) {
 
     // 14b. Se veio com ?plano= pago, exibir oferta de checkout imediato
     (function () {
-      var _params  = new URLSearchParams(window.location.search);
-      var _plano   = (_params.get('plano') || '').toLowerCase().trim();
-      var _ref     = _params.get('ref') || '';
-      var _labels  = { starter: 'Starter — R$ 9,99/mês', pro: 'Pro — R$ 29,90/mês', plus: 'Plus — R$ 49,90/mês' };
+      var _params = new URLSearchParams(window.location.search);
+      var _plano = (_params.get('plano') || '').toLowerCase().trim();
+      var _ref = _params.get('ref') || '';
+      var _labels = { starter: 'Starter — R$ 9,99/mês', pro: 'Pro — R$ 29,90/mês', plus: 'Plus — R$ 49,90/mês' };
       if (!_labels[_plano]) return;
 
-      var offer    = document.getElementById('checkoutOffer');
-      var planLbl  = document.getElementById('checkoutPlanLabel');
-      var btnNow   = document.getElementById('btnCheckoutNow');
+      var offer = document.getElementById('checkoutOffer');
+      var planLbl = document.getElementById('checkoutPlanLabel');
+      var btnNow = document.getElementById('btnCheckoutNow');
       var btnLogin = document.getElementById('btnLoginNormal');
       if (!offer || !planLbl || !btnNow) return;
 
       planLbl.textContent = _plano.charAt(0).toUpperCase() + _plano.slice(1);
-      btnNow.textContent  = 'Assinar ' + _labels[_plano];
+      btnNow.textContent = 'Assinar ' + _labels[_plano];
 
       var loginUrl = 'index.html?checkout=' + encodeURIComponent(_plano);
       if (_ref) loginUrl += '&ref=' + encodeURIComponent(_ref);

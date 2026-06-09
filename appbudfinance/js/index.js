@@ -7,12 +7,14 @@ import { getAuth, signInWithEmailAndPassword, signOut, sendEmailVerification, on
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, collection, query, where, getDocs }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { connectEmulators } from "./bud-emulator-connect.js";
 
 // ─── Firebase init ──────────────────────────────────────────────────
 const firebaseConfig = window.BUD_FIREBASE_CONFIG;
 const app  = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 // Auto-redirect usuario ja autenticado
 // Se o usuario ja tem sessao ativa, redireciona sem precisar de login
@@ -227,6 +229,7 @@ formLogin.addEventListener('submit', async function (e) {
           await sendEmailVerification(user);
           window.budShowToast('Link de verificação reenviado! Verifique seu e-mail.', 'success');
         } catch (_verifyErr) {
+          console.error('[Bud] Falha ao reenviar verificação:', _verifyErr);
           window.budShowToast('Não foi possível reenviar. Tente novamente mais tarde.', 'error');
         }
       }
