@@ -25,18 +25,37 @@
       width: 100%;
       text-align: center;
     }
-    .icon { font-size: 56px; margin-bottom: 20px; }
-    h1 { font-size: 22px; font-weight: 800; color: #1e293b; margin-bottom: 10px; }
-    p { font-size: 14px; color: #64748b; line-height: 1.7; margin-bottom: 0; }
+    .icon { font-size: 56px; margin-bottom: 16px; }
+    h1 { font-size: 22px; font-weight: 800; color: #1e293b; margin-bottom: 8px; }
+    .subtitle { font-size: 14px; color: #64748b; line-height: 1.7; margin-bottom: 0; }
     .email-box {
-      background: #f1f5f9;
+      background: #eff6ff;
+      border: 1.5px solid #bfdbfe;
       border-radius: 10px;
-      padding: 12px 16px;
-      margin: 20px 0;
+      padding: 10px 16px;
+      margin: 16px 0;
       font-size: 15px;
       font-weight: 700;
       color: #2563eb;
       word-break: break-all;
+    }
+    .divider { border: none; border-top: 1px solid #f1f5f9; margin: 20px 0; }
+    label { display: block; text-align: left; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+    .input-wrap { position: relative; margin-bottom: 16px; }
+    input[type="password"], input[type="text"] {
+      width: 100%;
+      padding: 12px 40px 12px 14px;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 15px;
+      outline: none;
+      transition: border-color .2s;
+      color: #1e293b;
+    }
+    input:focus { border-color: #2563eb; }
+    .toggle-pw {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 18px; padding: 0;
     }
     .btn {
       display: inline-block;
@@ -48,34 +67,56 @@
       font-weight: 700;
       cursor: pointer;
       transition: background .2s;
-      margin-top: 8px;
+      margin-top: 4px;
     }
     .btn-primary { background: #2563eb; color: #fff; }
     .btn-primary:hover { background: #1d4ed8; }
     .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
     .btn-secondary { background: #f1f5f9; color: #475569; margin-top: 10px; }
     .btn-secondary:hover { background: #e2e8f0; }
-    .success { color: #059669; font-weight: 700; font-size: 15px; margin-top: 16px; display: none; }
-    .error-msg { color: #dc2626; font-size: 13px; margin-top: 10px; display: none; }
-    .divider { border: none; border-top: 1px solid #f1f5f9; margin: 24px 0; }
+    .success { color: #059669; font-weight: 700; font-size: 15px; margin-top: 14px; display: none; line-height: 1.6; }
+    .error-msg { color: #dc2626; font-size: 13px; margin-top: 10px; display: none; line-height: 1.5; }
     .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    /* Estado: só sessão ativa (sem campo de senha) */
+    #loginSection { display: none; }
+    #directSection { display: none; }
   </style>
 </head>
 <body>
-  <div class="card" id="card">
+  <div class="card">
     <div class="icon">📧</div>
-    <h1>Verifique seu e-mail</h1>
-    <p>Enviamos um link de verificação para:</p>
+    <h1>Verificar e-mail</h1>
+    <p class="subtitle">Precisamos confirmar que este e-mail é seu.</p>
     <div class="email-box" id="emailDisplay">carregando...</div>
-    <p>Clique no botão abaixo para reenviar o link caso não tenha recebido.</p>
 
-    <hr class="divider">
+    <!-- Seção A: já logado, envia direto -->
+    <div id="directSection">
+      <p class="subtitle">Você está conectado. Clique para receber o link de verificação.</p>
+      <hr class="divider">
+      <button class="btn btn-primary" id="btnDirect" onclick="enviarDireto()">
+        ✉️ Enviar link de verificação
+      </button>
+    </div>
 
-    <button class="btn btn-primary" id="btnReenviar" onclick="reenviar()">
-      ✉️ Reenviar link de verificação
-    </button>
-    <div class="success" id="successMsg">✅ Link reenviado! Verifique sua caixa de entrada e o spam.</div>
+    <!-- Seção B: não logado, pede senha -->
+    <div id="loginSection">
+      <p class="subtitle">Digite sua senha para receber o link de verificação no e-mail acima.</p>
+      <hr class="divider">
+      <label for="senhaInput">Senha</label>
+      <div class="input-wrap">
+        <input type="password" id="senhaInput" placeholder="Digite sua senha" autocomplete="current-password">
+        <button class="toggle-pw" onclick="toggleSenha()" type="button" title="Mostrar/ocultar senha">👁</button>
+      </div>
+      <button class="btn btn-primary" id="btnLogin" onclick="logarEReenviar()">
+        ✉️ Enviar link de verificação
+      </button>
+    </div>
+
+    <div class="success" id="successMsg">
+      ✅ Link enviado! Verifique sua caixa de entrada (e o spam).<br>
+      <small style="font-weight:400;color:#047857">Você será redirecionado ao login em instantes...</small>
+    </div>
     <div class="error-msg" id="errorMsg"></div>
 
     <button class="btn btn-secondary" onclick="window.location.href='index.html'">
@@ -85,62 +126,102 @@
 
   <script src="js/firebase-config.js"></script>
   <script type="module">
-    import { initializeApp }   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
-    import { getAuth, sendEmailVerification, signInWithEmailAndPassword, signOut }
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+    import { getAuth, onAuthStateChanged, sendEmailVerification, signInWithEmailAndPassword }
       from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 
     const app  = initializeApp(window.BUD_FIREBASE_CONFIG);
     const auth = getAuth(app);
 
-    // Ler email da URL (?email=xxx)
     const params = new URLSearchParams(window.location.search);
     const email  = params.get('email') || '';
     document.getElementById('emailDisplay').textContent = email || '(e-mail não informado)';
 
-    window.reenviar = async function () {
-      if (!email) {
-        showError('URL inválida — e-mail não informado.');
-        return;
+    // Verificar sessão ativa
+    onAuthStateChanged(auth, function (user) {
+      if (user && (!email || user.email === email)) {
+        // Usuário já logado com o email correto → mostra botão direto
+        document.getElementById('directSection').style.display = 'block';
+        document.getElementById('loginSection').style.display  = 'none';
+      } else {
+        // Sem sessão → pede senha
+        document.getElementById('directSection').style.display = 'none';
+        if (email) {
+          document.getElementById('loginSection').style.display = 'block';
+        } else {
+          showError('URL inválida — e-mail não informado. Use o botão abaixo para ir ao login.');
+        }
       }
-      const btn = document.getElementById('btnReenviar');
+    });
+
+    window.toggleSenha = function () {
+      const inp = document.getElementById('senhaInput');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    };
+
+    window.enviarDireto = async function () {
+      const btn = document.getElementById('btnDirect');
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner"></span>Enviando...';
-
       try {
-        // Verifica se o usuário já está autenticado (sessão ativa pós-cadastro)
-        const currentUser = auth.currentUser;
-        if (currentUser && currentUser.email === email) {
-          await sendEmailVerification(currentUser);
-          showSuccess();
-          return;
-        }
-
-        // Sem sessão ativa: instrui o usuário a usar o modal do login
-        showError('Sessão expirada. Vá para o login e use o botão "Reenviar" no modal de verificação.');
-        btn.innerHTML = '✉️ Reenviar link de verificação';
-        btn.disabled  = false;
+        await sendEmailVerification(auth.currentUser);
+        showSuccess();
       } catch (err) {
-        if (err.code === 'auth/too-many-requests') {
-          showError('Muitas tentativas. Aguarde alguns minutos e tente novamente.');
-        } else {
-          showError('Erro ao reenviar: ' + err.message);
-        }
-        btn.innerHTML = '✉️ Reenviar link de verificação';
+        showError(erroAmigavel(err));
+        btn.innerHTML = '✉️ Enviar link de verificação';
         btn.disabled  = false;
       }
     };
 
+    window.logarEReenviar = async function () {
+      const senha = document.getElementById('senhaInput').value.trim();
+      if (!senha) { showError('Digite sua senha.'); return; }
+      if (!email) { showError('URL inválida — e-mail não informado.'); return; }
+
+      const btn = document.getElementById('btnLogin');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Verificando...';
+
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, senha);
+        await sendEmailVerification(cred.user);
+        showSuccess();
+      } catch (err) {
+        showError(erroAmigavel(err));
+        btn.innerHTML = '✉️ Enviar link de verificação';
+        btn.disabled  = false;
+      }
+    };
+
+    // Permitir Enter no campo de senha
+    document.getElementById('senhaInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') window.logarEReenviar();
+    });
+
     function showSuccess() {
       document.getElementById('successMsg').style.display = 'block';
       document.getElementById('errorMsg').style.display   = 'none';
-      document.getElementById('btnReenviar').style.display = 'none';
-      setTimeout(() => { window.location.href = 'index.html'; }, 4000);
+      document.getElementById('directSection').style.display = 'none';
+      document.getElementById('loginSection').style.display  = 'none';
+      setTimeout(function () { window.location.href = 'index.html'; }, 4000);
     }
 
     function showError(msg) {
       const el = document.getElementById('errorMsg');
       el.textContent = msg;
       el.style.display = 'block';
+    }
+
+    function erroAmigavel(err) {
+      if (!err || !err.code) return 'Erro desconhecido. Tente novamente.';
+      switch (err.code) {
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential': return 'Senha incorreta. Verifique e tente novamente.';
+        case 'auth/user-not-found':     return 'E-mail não encontrado. Verifique o endereço.';
+        case 'auth/too-many-requests':  return 'Muitas tentativas. Aguarde alguns minutos.';
+        case 'auth/invalid-email':      return 'E-mail inválido.';
+        default:                        return err.message || 'Erro ao enviar. Tente novamente.';
+      }
     }
   </script>
 </body>
