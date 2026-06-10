@@ -149,7 +149,7 @@ async function enviarEmailBoasVindas(user, email, nome, matricula) {
       email: email,
       reply_to: email,
       verify_url: verificationLink
-        || ('https://budsolucoes.com.br/appbudfinance/verificar-email.html?email=' + encodeURIComponent(email))
+        || 'https://budsolucoes.com.br/appbudfinance/index.html'
     };
     var result = await window.emailjs.send(cfg.serviceId, cfg.templates.boasVindas, templateParams);
     console.log('[Bud] Email de boas-vindas enviado via EmailJS:', result.status, result.text);

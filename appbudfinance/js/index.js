@@ -69,9 +69,10 @@ async function buscarEmailPorMatricula(matricula) {
 }
 
 // ─── Email verification modal ───────────────────────────────────────
+// Sends the verification email internally and shows feedback inside the modal.
 // Uses style.cssText (NOT Tailwind classes) because modal is created at
 // runtime and dynamic Tailwind classes won't exist in the static build.
-function showEmailVerificationModal() {
+function showEmailVerificationModal(user) {
   return new Promise(function (resolve) {
     // Overlay
     const overlay = document.createElement('div');
@@ -89,8 +90,7 @@ function showEmailVerificationModal() {
 
     // Icon
     const icon = document.createElement('div');
-    icon.style.cssText =
-      'font-size:2.5rem;margin-bottom:0.75rem;';
+    icon.style.cssText = 'font-size:2.5rem;margin-bottom:0.75rem;';
     icon.textContent = '📧';
 
     // Title
@@ -103,19 +103,24 @@ function showEmailVerificationModal() {
     const desc = document.createElement('p');
     desc.style.cssText =
       'font-size:0.8125rem;color:#64748b;margin-bottom:1.25rem;line-height:1.5;';
-    desc.textContent = 'Sua conta exige verificação de e-mail. Deseja reenviar o link de verificação?';
+    desc.textContent = 'Sua conta exige verificação de e-mail. Clique em "Reenviar" para receber o link.';
+
+    // Feedback message
+    const feedback = document.createElement('p');
+    feedback.style.cssText =
+      'font-size:0.8125rem;font-weight:600;margin:0.75rem 0 1rem;line-height:1.5;display:none;';
 
     // Buttons row
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;gap:0.75rem;';
 
-    // "Não" button
+    // "Fechar" button
     const btnNo = document.createElement('button');
     btnNo.style.cssText =
       'flex:1;padding:0.625rem;border-radius:0.625rem;border:1px solid #e2e8f0;' +
       'background:#f8fafc;color:#475569;font-weight:700;font-size:0.875rem;' +
       'cursor:pointer;font-family:inherit;';
-    btnNo.textContent = 'Não';
+    btnNo.textContent = 'Fechar';
 
     // "Reenviar" button
     const btnYes = document.createElement('button');
@@ -125,19 +130,41 @@ function showEmailVerificationModal() {
       'cursor:pointer;font-family:inherit;';
     btnYes.textContent = 'Reenviar';
 
-    function cleanup(result) {
+    btnNo.addEventListener('click', function () {
       overlay.remove();
-      resolve(result);
-    }
+      resolve(false);
+    });
 
-    btnNo.addEventListener('click', function () { cleanup(false); });
-    btnYes.addEventListener('click', function () { cleanup(true); });
+    btnYes.addEventListener('click', async function () {
+      btnYes.disabled = true;
+      btnYes.textContent = 'Enviando...';
+      feedback.style.display = 'none';
+      try {
+        await sendEmailVerification(user);
+        feedback.style.color = '#059669';
+        feedback.textContent = '✅ Link enviado! Verifique sua caixa de entrada e o spam.';
+        feedback.style.display = 'block';
+        btnYes.textContent = 'Enviado ✓';
+        // Fecha o modal após 3 s e sinaliza que foi enviado (sem fallback extra)
+        setTimeout(function () { overlay.remove(); resolve(true); }, 3000);
+      } catch (err) {
+        var msg = err.code === 'auth/too-many-requests'
+          ? 'Muitas tentativas. Aguarde alguns minutos.'
+          : 'Não foi possível enviar. Tente novamente.';
+        feedback.style.color = '#dc2626';
+        feedback.textContent = '⚠️ ' + msg;
+        feedback.style.display = 'block';
+        btnYes.disabled = false;
+        btnYes.textContent = 'Reenviar';
+      }
+    });
 
     row.appendChild(btnNo);
     row.appendChild(btnYes);
     card.appendChild(icon);
     card.appendChild(title);
     card.appendChild(desc);
+    card.appendChild(feedback);
     card.appendChild(row);
     overlay.appendChild(card);
     document.body.appendChild(overlay);
@@ -223,16 +250,8 @@ formLogin.addEventListener('submit', async function (e) {
 
     // 7. Check: email verified (ERR-006 — enforced for ALL users)
     if (!user.emailVerified) {
-      var wantsResend = await showEmailVerificationModal();
-      if (wantsResend) {
-        try {
-          await sendEmailVerification(user);
-          window.budShowToast('Link de verificação reenviado! Verifique seu e-mail.', 'success');
-        } catch (_verifyErr) {
-          console.error('[Bud] Falha ao reenviar verificação:', _verifyErr);
-          window.budShowToast('Não foi possível reenviar. Tente novamente mais tarde.', 'error');
-        }
-      }
+      // Modal handles sending internally and shows feedback
+      await showEmailVerificationModal(user);
       await signOut(auth);
       resetBtn();
       return;
