@@ -301,13 +301,25 @@ form.addEventListener('submit', async function (e) {
     // Se o backend não retornar o link, usamos sendEmailVerification como fallback.
     var needsVerificationFallback = await enviarEmailBoasVindas(user, email, nome, matricula);
 
-    // 12b. Fallback: backend não gerou o link → Firebase envia email de verificação separado
-    if (needsVerificationFallback) {
-      try {
-        await sendEmailVerification(user);
-        console.log('[Bud] Fallback: email de verificação enviado pelo Firebase Auth.');
-      } catch (_verifyErr) {
-        console.error('[Bud] Falha ao enviar email de verificação (fallback):', _verifyErr);
+    // 12b. Firebase envia email de verificação com redirect para o login após verificar
+    // O actionCodeSettings.url redireciona o usuário para a tela de login após clicar no link.
+    // O domínio budsolucoes.com.br deve estar nos Authorized Domains do Firebase Auth.
+    try {
+      await sendEmailVerification(user, {
+        url: 'https://budsolucoes.com.br/appbudfinance/index.html'
+      });
+      console.log('[Bud] Email de verificação enviado pelo Firebase Auth.');
+    } catch (_verifyErr) {
+      // Se o domínio não estiver autorizado, tenta sem actionCodeSettings
+      if (_verifyErr.code === 'auth/unauthorized-continue-uri') {
+        try {
+          await sendEmailVerification(user);
+          console.log('[Bud] Email de verificação enviado (sem redirect URL).');
+        } catch (_e2) {
+          console.error('[Bud] Falha ao enviar email de verificação:', _e2);
+        }
+      } else {
+        console.error('[Bud] Falha ao enviar email de verificação:', _verifyErr);
       }
     }
 

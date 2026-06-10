@@ -140,7 +140,9 @@ function showEmailVerificationModal(user) {
       btnYes.textContent = 'Enviando...';
       feedback.style.display = 'none';
       try {
-        await sendEmailVerification(user);
+        await sendEmailVerification(user, {
+          url: 'https://budsolucoes.com.br/appbudfinance/index.html'
+        });
         feedback.style.color = '#059669';
         feedback.textContent = '✅ Link enviado! Verifique sua caixa de entrada e o spam.';
         feedback.style.display = 'block';
