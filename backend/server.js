@@ -203,25 +203,15 @@ app.post('/api/boas-vindas', async function (req, res) {
       }
     }
 
-    // Envia email de boas-vindas com o link real (ou fallback para login)
-    var emailSent = false;
-    try {
-      await sendEmailViaEmailJS({
-        to_email:   email,
-        to_name:    nome,
-        matricula:  matricula,
-        verify_url: verifyLink || (FRONTEND_URL + '/index.html'),
-        app_url:    FRONTEND_URL + '/index.html'
-      }, EMAILJS_TEMPLATE_BOAS_VINDAS);
-      emailSent = true;
-    } catch (_emailErr) {
-      // Falha de email nao bloqueia o cadastro
-    }
-
-    // Retorna se o email foi enviado — frontend nao deve duplicar
-    return res.json({ success: true, emailSent: emailSent, hasVerifyLink: !!verifyLink });
+    // Retorna o link para o frontend enviar o email (frontend conhece o EmailJS configurado).
+    // Se nao conseguiu gerar o link, retorna fallback para o login.
+    return res.json({
+      success:     true,
+      verifyLink:  verifyLink || (FRONTEND_URL + '/index.html'),
+      hasRealLink: !!verifyLink
+    });
   } catch (_err) {
-    return res.json({ success: true, emailSent: false, hasVerifyLink: false });
+    return res.json({ success: true, verifyLink: null, hasRealLink: false });
   }
 });
 

@@ -111,10 +111,14 @@ function resetBtn() {
 // Tenta obter o link de verificação via backend (Admin SDK) para incluir
 // no botão do email. Se o backend não suportar, envia sem o link
 // e retorna false para que o caller use sendEmailVerification como fallback.
-// Chama o backend para gerar o link de verificação Firebase (Admin SDK) e enviar
-// o e-mail de boas-vindas via EmailJS server-side.
-// Retorna true se o backend NÃO enviou o e-mail (frontend deve usar sendEmailVerification).
+// Obtém o link de verificação Firebase do backend (Admin SDK) e envia o e-mail
+// de boas-vindas via EmailJS (client-side). Se o backend falhar, usa link fallback.
+// Retorna true se o EmailJS não pôde ser enviado (precisa de sendEmailVerification).
 async function enviarEmailBoasVindas(user, email, nome, matricula) {
+  var cfg = window.BUD_EMAILJS_CONFIG;
+
+  // 1. Pedir ao backend o link de verificação gerado via Admin SDK
+  var verifyUrl = null;
   try {
     var idToken    = await user.getIdToken();
     var backendUrl = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\/$/, '');
@@ -124,16 +128,39 @@ async function enviarEmailBoasVindas(user, email, nome, matricula) {
       body:    JSON.stringify({ email: email, nome: nome, matricula: matricula })
     });
     var body = await res.json().catch(function () { return {}; });
-    if (res.ok && body.emailSent) {
-      console.log('[Bud] Backend enviou o email de boas-vindas com link de verificacao.',
-        'hasVerifyLink:', body.hasVerifyLink);
-      return false; // backend cuidou de tudo — sem fallback
+    if (res.ok && body.verifyLink && body.hasRealLink) {
+      verifyUrl = body.verifyLink;
+      console.log('[Bud] Backend retornou link real de verificacao Firebase.');
+    } else {
+      console.warn('[Bud] Backend sem link real. hasRealLink:', body.hasRealLink);
     }
-    console.warn('[Bud] Backend nao enviou email:', body);
   } catch (err) {
     console.warn('[Bud] Backend boas-vindas indisponivel:', err.message);
   }
-  return true; // precisa de fallback
+
+  // 2. Enviar e-mail de boas-vindas via EmailJS com o link obtido (ou fallback)
+  if (!cfg || !cfg.publicKey || cfg.publicKey.startsWith('__') || !window.emailjs) {
+    console.warn('[Bud] EmailJS nao configurado — pulando envio de boas-vindas.');
+    return true; // precisa de fallback via sendEmailVerification
+  }
+  try {
+    var templateParams = {
+      to_name:   nome,
+      to_email:  email,
+      matricula: matricula,
+      nome:      nome,
+      email:     email,
+      reply_to:  email,
+      verify_url: verifyUrl || 'https://budsolucoes.com.br/appbudfinance/index.html'
+    };
+    var result = await window.emailjs.send(cfg.serviceId, cfg.templates.boasVindas, templateParams);
+    console.log('[Bud] Email de boas-vindas enviado via EmailJS:', result.status,
+      '| link real:', !!verifyUrl);
+    return false; // EmailJS enviou — sem fallback
+  } catch (err) {
+    console.error('[Bud] Falha EmailJS boas-vindas:', err);
+    return true; // precisa de fallback
+  }
 }
 
 // ─── Main form submit ───────────────────────────────────────────────
