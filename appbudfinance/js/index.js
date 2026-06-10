@@ -140,14 +140,41 @@ function showEmailVerificationModal(user) {
       btnYes.textContent = 'Enviando...';
       feedback.style.display = 'none';
       try {
-        await sendEmailVerification(user, {
-          url: 'https://budsolucoes.com.br/appbudfinance/index.html'
-        });
+        // 1. Pedir ao backend o link real de verificação Firebase (Admin SDK)
+        var verifyUrl = null;
+        try {
+          var idToken    = await user.getIdToken();
+          var backendUrl = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\/$/, '');
+          var resp = await fetch(backendUrl + '/api/boas-vindas', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+            body:    JSON.stringify({ email: user.email, nome: user.displayName || user.email, matricula: '' })
+          });
+          var bdata = await resp.json().catch(function () { return {}; });
+          if (resp.ok && bdata.hasRealLink) verifyUrl = bdata.verifyLink;
+        } catch (_be) { /* ignora — usa fallback */ }
+
+        // 2. Enviar e-mail de boas-vindas via EmailJS com o link real
+        var cfg = window.BUD_EMAILJS_CONFIG;
+        if (cfg && cfg.publicKey && !cfg.publicKey.startsWith('__') && window.emailjs && verifyUrl) {
+          await window.emailjs.send(cfg.serviceId, cfg.templates.boasVindas, {
+            to_name:    user.displayName || user.email,
+            to_email:   user.email,
+            matricula:  '',
+            nome:       user.displayName || user.email,
+            email:      user.email,
+            reply_to:   user.email,
+            verify_url: verifyUrl
+          });
+        } else {
+          // Fallback: e-mail padrão do Firebase (sem template bonito)
+          await sendEmailVerification(user);
+        }
+
         feedback.style.color = '#059669';
         feedback.textContent = '✅ Link enviado! Verifique sua caixa de entrada e o spam.';
         feedback.style.display = 'block';
         btnYes.textContent = 'Enviado ✓';
-        // Fecha o modal após 3 s e sinaliza que foi enviado (sem fallback extra)
         setTimeout(function () { overlay.remove(); resolve(true); }, 3000);
       } catch (err) {
         var msg = err.code === 'auth/too-many-requests'
