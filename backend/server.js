@@ -177,43 +177,51 @@ async function sendEmailViaEmailJS(templateParams, templateId) {
 // O link completo de verificaÃ§Ã£o nunca Ã© exposto ao cliente.
 app.post('/api/boas-vindas', async function (req, res) {
   try {
-    if (!auth) return res.status(503).json({ success: false, message: 'ServiÃ§o indisponÃ­vel.' });
+    if (!auth) return res.status(503).json({ success: false, message: 'Servico indisponivel.' });
 
     var email     = (req.body.email    || '').trim().toLowerCase();
-    var nome      = (req.body.nome     || 'UsuÃ¡rio').substring(0, 100);
+    var nome      = (req.body.nome     || 'Usuario').substring(0, 100);
     var matricula = (req.body.matricula || '').substring(0, 20);
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ success: false });
     }
 
-    // Gera o link de verificaÃ§Ã£o de e-mail via Admin SDK
-    var verifyLink;
-    try {
-      verifyLink = await auth.generateEmailVerificationLink(email, {
-        url: FRONTEND_URL + '/index.html'
-      });
-    } catch (_linkErr) {
-      // Conta pode nÃ£o existir ainda ou outro erro â€” nÃ£o bloquear o cadastro
-      verifyLink = FRONTEND_URL + '/index.html';
+    // Gera o link de verificacao via Admin SDK.
+    // Tenta 3x com intervalo de 1.5s — conta recem-criada pode levar instantes para propagar.
+    var verifyLink = null;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        verifyLink = await auth.generateEmailVerificationLink(email, {
+          url: FRONTEND_URL + '/index.html'
+        });
+        break;
+      } catch (_linkErr) {
+        if (attempt < 2) {
+          await new Promise(function (r) { setTimeout(r, 1500); });
+        }
+      }
     }
 
-    // Envia email de boas-vindas com o link de verificaÃ§Ã£o
+    // Envia email de boas-vindas com o link real (ou fallback para login)
+    var emailSent = false;
     try {
       await sendEmailViaEmailJS({
         to_email:   email,
         to_name:    nome,
         matricula:  matricula,
-        verify_url: verifyLink,
+        verify_url: verifyLink || (FRONTEND_URL + '/index.html'),
         app_url:    FRONTEND_URL + '/index.html'
       }, EMAILJS_TEMPLATE_BOAS_VINDAS);
+      emailSent = true;
     } catch (_emailErr) {
-      // Falha de email nÃ£o bloqueia o cadastro
+      // Falha de email nao bloqueia o cadastro
     }
 
-    return res.json({ success: true });
+    // Retorna se o email foi enviado — frontend nao deve duplicar
+    return res.json({ success: true, emailSent: emailSent, hasVerifyLink: !!verifyLink });
   } catch (_err) {
-    return res.json({ success: true });
+    return res.json({ success: true, emailSent: false, hasVerifyLink: false });
   }
 });
 

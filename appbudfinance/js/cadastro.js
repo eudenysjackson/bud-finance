@@ -111,54 +111,29 @@ function resetBtn() {
 // Tenta obter o link de verificação via backend (Admin SDK) para incluir
 // no botão do email. Se o backend não suportar, envia sem o link
 // e retorna false para que o caller use sendEmailVerification como fallback.
+// Chama o backend para gerar o link de verificação Firebase (Admin SDK) e enviar
+// o e-mail de boas-vindas via EmailJS server-side.
+// Retorna true se o backend NÃO enviou o e-mail (frontend deve usar sendEmailVerification).
 async function enviarEmailBoasVindas(user, email, nome, matricula) {
-  var cfg = window.BUD_EMAILJS_CONFIG;
-  var verificationLink = null;
-
-  // 1. Pedir ao backend para gerar o link de verificação
   try {
-    var idToken = await user.getIdToken();
+    var idToken    = await user.getIdToken();
     var backendUrl = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\/$/, '');
     var res = await fetch(backendUrl + '/api/boas-vindas', {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
-      body: JSON.stringify({ email: email, nome: nome, matricula: matricula, generateVerificationLink: true })
+      body:    JSON.stringify({ email: email, nome: nome, matricula: matricula })
     });
     var body = await res.json().catch(function () { return {}; });
-    if (res.ok) {
-      console.log('[Bud] Backend boas-vindas OK:', body);
-      verificationLink = body.verificationLink || null;
-    } else {
-      console.warn('[Bud] Backend boas-vindas retornou ' + res.status + ':', body);
+    if (res.ok && body.emailSent) {
+      console.log('[Bud] Backend enviou o email de boas-vindas com link de verificacao.',
+        'hasVerifyLink:', body.hasVerifyLink);
+      return false; // backend cuidou de tudo — sem fallback
     }
+    console.warn('[Bud] Backend nao enviou email:', body);
   } catch (err) {
-    console.warn('[Bud] Backend boas-vindas indisponível:', err.message);
+    console.warn('[Bud] Backend boas-vindas indisponivel:', err.message);
   }
-
-  // 2. Enviar email via EmailJS com ou sem o link de verificação
-  if (!cfg || !cfg.publicKey || cfg.publicKey.startsWith('__') || !window.emailjs) {
-    console.warn('[Bud] EmailJS não configurado — pulando envio de boas-vindas.');
-    return !verificationLink; // true = precisa de fallback
-  }
-  try {
-    var templateParams = {
-      to_name: nome,
-      to_email: email,
-      matricula: matricula,
-      nome: nome,
-      email: email,
-      reply_to: email,
-      verify_url: verificationLink
-        || 'https://budsolucoes.com.br/appbudfinance/index.html'
-    };
-    var result = await window.emailjs.send(cfg.serviceId, cfg.templates.boasVindas, templateParams);
-    console.log('[Bud] Email de boas-vindas enviado via EmailJS:', result.status, result.text);
-  } catch (err) {
-    console.error('[Bud] Falha EmailJS boas-vindas:', err);
-  }
-
-  // Retorna true se precisa de fallback (quando backend não gerou o link)
-  return !verificationLink;
+  return true; // precisa de fallback
 }
 
 // ─── Main form submit ───────────────────────────────────────────────
@@ -296,30 +271,15 @@ form.addEventListener('submit', async function (e) {
       }
     }
 
-    // 12. Enviar email de boas-vindas via backend/EmailJS.
-    // O backend gera o link de verificação Firebase (Admin SDK) e o inclui no template.
-    // Se o backend não retornar o link, usamos sendEmailVerification como fallback.
-    var needsVerificationFallback = await enviarEmailBoasVindas(user, email, nome, matricula);
-
-    // 12b. Firebase envia email de verificação com redirect para o login após verificar
-    // O actionCodeSettings.url redireciona o usuário para a tela de login após clicar no link.
-    // O domínio budsolucoes.com.br deve estar nos Authorized Domains do Firebase Auth.
-    try {
-      await sendEmailVerification(user, {
-        url: 'https://budsolucoes.com.br/appbudfinance/index.html'
-      });
-      console.log('[Bud] Email de verificação enviado pelo Firebase Auth.');
-    } catch (_verifyErr) {
-      // Se o domínio não estiver autorizado, tenta sem actionCodeSettings
-      if (_verifyErr.code === 'auth/unauthorized-continue-uri') {
-        try {
-          await sendEmailVerification(user);
-          console.log('[Bud] Email de verificação enviado (sem redirect URL).');
-        } catch (_e2) {
-          console.error('[Bud] Falha ao enviar email de verificação:', _e2);
-        }
-      } else {
-        console.error('[Bud] Falha ao enviar email de verificação:', _verifyErr);
+    // 12. Backend envia o email de boas-vindas com link real de verificação (Admin SDK).
+    // Se o backend falhar, Firebase envia seu próprio email de verificação como fallback.
+    var needsFallback = await enviarEmailBoasVindas(user, email, nome, matricula);
+    if (needsFallback) {
+      try {
+        await sendEmailVerification(user);
+        console.log('[Bud] Fallback: email de verificacao enviado pelo Firebase Auth.');
+      } catch (_verifyErr) {
+        console.error('[Bud] Falha ao enviar email de verificacao (fallback):', _verifyErr);
       }
     }
 
