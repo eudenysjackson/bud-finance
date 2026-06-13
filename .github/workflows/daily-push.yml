@@ -2,8 +2,6 @@ name: Daily Push Notifications
 
 on:
   workflow_dispatch: {}
-  schedule:
-    - cron: '0 11 * * *'
 
 jobs:
   notify:
