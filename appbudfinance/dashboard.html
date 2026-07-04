@@ -888,6 +888,51 @@
         </div>
       </div>
 
+      <!-- Saúde do Mês: receitas totais − gastos totais (como planilha) -->
+      <div class="dash-section" id="secSaudeMes" style="display:none;">
+        <div style="margin-bottom:0.875rem;">
+          <div class="dash-section-title">📊 Saúde do Mês</div>
+          <div style="font-size:0.75rem;color:var(--card-text-sec);margin-top:0.125rem;">Saldo de tudo lançado neste mês</div>
+        </div>
+
+        <div id="saudeMesHero" style="border-radius:1rem;padding:1rem 1.125rem;margin-bottom:0.875rem;background:linear-gradient(135deg,rgba(37,99,235,0.08),rgba(16,185,129,0.06));border:1.5px solid var(--card-border);">
+          <div style="font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem;">Resultado do mês</div>
+          <div id="saudeMesProjValor" style="font-size:1.75rem;font-weight:800;line-height:1.1;margin-bottom:0.25rem;">R$ 0,00</div>
+          <div id="saudeMesProjStatus" style="font-size:0.875rem;font-weight:700;margin-bottom:0.5rem;">—</div>
+          <div id="saudeMesProjFormula" style="font-size:0.75rem;color:var(--card-text-sec);">—</div>
+        </div>
+
+        <div style="display:flex;gap:0.625rem;margin-bottom:0.875rem;flex-wrap:wrap;">
+          <div style="flex:1;min-width:8rem;background:var(--sidebar-link-hover-bg);border:1px solid var(--card-border);border-radius:0.75rem;padding:0.625rem 0.75rem;">
+            <div style="font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);margin-bottom:0.2rem;">Receitas totais</div>
+            <div id="saudeMesRecValor" style="font-size:1rem;font-weight:800;color:#16a34a;">R$ 0,00</div>
+            <div id="saudeMesRecSub" style="font-size:0.6875rem;color:var(--card-text-sec);margin-top:0.15rem;">lançadas no extrato</div>
+          </div>
+          <div style="flex:1;min-width:8rem;background:var(--sidebar-link-hover-bg);border:1px solid var(--card-border);border-radius:0.75rem;padding:0.625rem 0.75rem;">
+            <div style="font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);margin-bottom:0.2rem;">Gastos totais</div>
+            <div id="saudeMesGastosValor" style="font-size:1rem;font-weight:800;color:#dc2626;">R$ 0,00</div>
+            <div id="saudeMesGastosSub" style="font-size:0.6875rem;color:var(--card-text-sec);margin-top:0.15rem;">conta + cartão + faturas</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:0.75rem;">
+          <div style="display:flex;justify-content:space-between;font-size:0.6875rem;color:var(--card-text-sec);margin-bottom:0.35rem;">
+            <span>Gastos em relação à renda</span>
+            <span id="saudeMesPctLabel">0%</span>
+          </div>
+          <div style="height:0.5rem;background:var(--card-border);border-radius:9999px;overflow:hidden;">
+            <div id="saudeMesBar" style="height:100%;width:0%;background:#16a34a;border-radius:9999px;transition:width .5s ease,background .3s;"></div>
+          </div>
+        </div>
+
+        <button type="button" id="btnSaudeMesDetalhe" onclick="toggleSaudeMesDetalhe()" style="width:100%;padding:0.5rem;border:1px solid var(--card-border);border-radius:0.625rem;background:var(--input-bg);color:var(--card-text-sec);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:0.5rem;">
+          ▾ Ver detalhamento
+        </button>
+        <div id="saudeMesDetalhe" style="display:none;">
+          <div id="saudeMesDetalheBody"></div>
+        </div>
+      </div>
+
       <!-- Quick Actions -->
       <div class="quick-actions">
         <button class="quick-btn quick-btn-receita" id="btnNovaReceita">

@@ -23,7 +23,7 @@ import { getAuth, onAuthStateChanged, updateProfile }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
-  doc, getDoc, updateDoc, addDoc, getDocs,
+  doc, getDoc, updateDoc, setDoc, addDoc, getDocs,
   collection, serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
@@ -356,7 +356,7 @@ async function concluirOnboarding() {
       comoConheceu: dados.comoConheceu || 'Outro',
     };
     if (nomeFinal) payload.nome = nomeFinal;
-    await updateDoc(doc(db, 'usuarios', uid), payload);
+    await setDoc(doc(db, 'usuarios', uid), payload, { merge: true });
 
     // ── 3. Criar carteira ──────────────────────────────────────────
     const carteiraRef  = collection(db, 'usuarios', uid, 'carteira');

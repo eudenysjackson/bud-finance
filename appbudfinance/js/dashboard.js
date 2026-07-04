@@ -10,11 +10,13 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 import { getMessaging, getToken, onMessage, deleteToken } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
 import { registerPushToken, listenForeground } from './push.js';
+import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 // ─── Push: exposto para BudPush.requestIfNeeded() (bud-utils.js) ────────────
 // dashboard.js é a página principal — aqui ficam o registro e o listener.
@@ -254,6 +256,9 @@ function renderizarDashboard() {
   // Economia potencial
   atualizarEconomiaPotencial(transacoesDoMes);
 
+  // Saúde do mês (compromissos totais)
+  atualizarSaudeMes();
+
   // Saúde financeira
   atualizarSaudeFinanceira(transacoesDoMes, entradas, saidas);
 
@@ -422,6 +427,180 @@ function addMonthsDash(date, months) {
     d.setDate(0);
   }
   return d;
+}
+
+// ─── Saúde do Mês: saldo de tudo lançado no mês (extrato) ──
+function getMesKeyDash(ano, mes) {
+  return ano + '-' + String(mes + 1).padStart(2, '0');
+}
+
+// Soma apenas transações lançadas no mês — nada projetado ou pendente de cadastro.
+function calcularTotaisSaudeMes(transacoesDoMes) {
+  var receitasTotal = 0;
+  var receitasPendentes = 0;
+  var gastosConta = 0;
+  var gastosCartao = 0;
+  var gastosFatura = 0;
+
+  transacoesDoMes.forEach(function (t) {
+    if (t.status === 'estornado' || t.status === 'cancelado') return;
+    var valor = parseFloat(t.valor) || 0;
+    if (valor <= 0) return;
+
+    if (t.tipo === 'receita') {
+      if (t.confirmado === false) receitasPendentes += valor;
+      else receitasTotal += valor;
+    } else if (t.tipo === 'despesa') {
+      if (t.pagamentoFatura)      gastosFatura += valor;
+      else if (t.cartaoId)        gastosCartao += valor;
+      else                        gastosConta += valor;
+    }
+  });
+
+  var gastosTotal = gastosConta + gastosCartao + gastosFatura;
+
+  return {
+    receitasTotal: receitasTotal,
+    receitasPendentes: receitasPendentes,
+    gastosConta: gastosConta,
+    gastosCartao: gastosCartao,
+    gastosFatura: gastosFatura,
+    gastosTotal: gastosTotal,
+    saldo: receitasTotal - gastosTotal
+  };
+}
+
+window.toggleSaudeMesDetalhe = function () {
+  var el = document.getElementById('saudeMesDetalhe');
+  var btn = document.getElementById('btnSaudeMesDetalhe');
+  if (!el || !btn) return;
+  var aberto = el.style.display !== 'none';
+  el.style.display = aberto ? 'none' : '';
+  btn.textContent = aberto ? '▾ Ver detalhamento' : '▴ Ocultar detalhamento';
+};
+
+function atualizarSaudeMes() {
+  var sec = document.getElementById('secSaudeMes');
+  if (!sec) return;
+
+  var transacoesDoMes = transacoesGlobais.filter(function (t) {
+    if (!t.data) return false;
+    var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
+    return d.getMonth() === mesVisualizado && d.getFullYear() === anoVisualizado;
+  });
+
+  var tot = calcularTotaisSaudeMes(transacoesDoMes);
+
+  var temDados = tot.receitasTotal > 0 || tot.gastosTotal > 0 || tot.receitasPendentes > 0 ||
+    transacoesDoMes.length > 0;
+
+  if (!temDados) {
+    sec.style.display = 'none';
+    return;
+  }
+  sec.style.display = '';
+
+  var saldo = tot.saldo;
+  var cor = saldo >= 0 ? '#16a34a' : '#dc2626';
+  var status = saldo >= 0
+    ? '🟢 No azul — sobra ' + formatarValor(saldo)
+    : '🔴 No vermelho — faltam ' + formatarValor(Math.abs(saldo));
+
+  var elProjVal = document.getElementById('saudeMesProjValor');
+  var elProjSt  = document.getElementById('saudeMesProjStatus');
+  var elProjFm  = document.getElementById('saudeMesProjFormula');
+  var elRecVal  = document.getElementById('saudeMesRecValor');
+  var elRecSub  = document.getElementById('saudeMesRecSub');
+  var elGastVal = document.getElementById('saudeMesGastosValor');
+  var elGastSub = document.getElementById('saudeMesGastosSub');
+  var elPct     = document.getElementById('saudeMesPctLabel');
+  var elBar     = document.getElementById('saudeMesBar');
+  var elHero    = document.getElementById('saudeMesHero');
+  var elDetBody = document.getElementById('saudeMesDetalheBody');
+
+  if (valoresOcultos) {
+    if (elProjVal) { elProjVal.textContent = 'R$ •••••'; elProjVal.style.color = 'var(--card-text)'; }
+    if (elProjSt)  elProjSt.textContent = saldo >= 0 ? '🟢 No azul' : '🔴 No vermelho';
+    if (elProjFm)  elProjFm.textContent = 'Valores ocultos';
+    if (elRecVal)  elRecVal.textContent = 'R$ •••••';
+    if (elGastVal) elGastVal.textContent = 'R$ •••••';
+    if (elPct)     elPct.textContent = '—';
+    if (elBar)     elBar.style.width = '0%';
+    if (elDetBody) elDetBody.innerHTML = '';
+    return;
+  }
+
+  if (elProjVal) {
+    elProjVal.textContent = (saldo >= 0 ? '+' : '−') + ' ' + formatarValor(Math.abs(saldo));
+    elProjVal.style.color = cor;
+  }
+  if (elProjSt) {
+    elProjSt.textContent = status;
+    elProjSt.style.color = cor;
+  }
+  if (elProjFm) {
+    elProjFm.textContent = formatarValor(tot.receitasTotal) + ' receitas − ' + formatarValor(tot.gastosTotal) + ' gastos';
+  }
+  if (elHero) {
+    elHero.style.borderColor = saldo >= 0 ? 'rgba(22,163,74,0.35)' : 'rgba(220,38,38,0.35)';
+    elHero.style.background = saldo >= 0
+      ? 'linear-gradient(135deg,rgba(22,163,74,0.08),rgba(37,99,235,0.05))'
+      : 'linear-gradient(135deg,rgba(220,38,38,0.08),rgba(245,158,11,0.05))';
+  }
+
+  if (elRecVal) elRecVal.textContent = formatarValor(tot.receitasTotal);
+  if (elRecSub) {
+    elRecSub.textContent = tot.receitasPendentes > 0
+      ? formatarValor(tot.receitasPendentes) + ' aguardando confirmação'
+      : 'lançadas no extrato deste mês';
+  }
+
+  if (elGastVal) elGastVal.textContent = formatarValor(tot.gastosTotal);
+  if (elGastSub) {
+    var partes = [];
+    if (tot.gastosConta > 0)   partes.push(formatarValor(tot.gastosConta) + ' conta');
+    if (tot.gastosCartao > 0)  partes.push(formatarValor(tot.gastosCartao) + ' cartão');
+    if (tot.gastosFatura > 0)  partes.push(formatarValor(tot.gastosFatura) + ' faturas');
+    elGastSub.textContent = partes.length ? partes.join(' · ') : 'nenhum gasto lançado';
+  }
+
+  var pct = tot.receitasTotal > 0
+    ? Math.min(150, Math.round((tot.gastosTotal / tot.receitasTotal) * 100))
+    : (tot.gastosTotal > 0 ? 100 : 0);
+  if (elPct) elPct.textContent = pct + '%';
+  if (elBar) {
+    elBar.style.width = Math.min(100, pct) + '%';
+    elBar.style.background = pct > 100 ? '#dc2626' : pct > 90 ? '#f59e0b' : '#16a34a';
+  }
+
+  if (elDetBody) {
+    function linha(emoji, titulo, valor, link) {
+      if (valor <= 0) return '';
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid var(--card-border);">'
+        + '<div style="min-width:0;"><div style="font-size:0.8125rem;font-weight:700;">' + emoji + ' ' + titulo + '</div></div>'
+        + '<div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">'
+        + '<span style="font-size:0.8125rem;font-weight:700;color:#dc2626;">' + formatarValor(valor) + '</span>'
+        + (link ? '<a href="' + link + '" style="font-size:0.6875rem;font-weight:700;color:var(--theme-accent);text-decoration:none;">Ver →</a>' : '')
+        + '</div></div>';
+    }
+    function linhaRec(emoji, titulo, valor, link) {
+      if (valor <= 0) return '';
+      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.5rem 0;border-bottom:1px solid var(--card-border);">'
+        + '<div style="min-width:0;"><div style="font-size:0.8125rem;font-weight:700;">' + emoji + ' ' + titulo + '</div></div>'
+        + '<div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">'
+        + '<span style="font-size:0.8125rem;font-weight:700;color:#16a34a;">' + formatarValor(valor) + '</span>'
+        + (link ? '<a href="' + link + '" style="font-size:0.6875rem;font-weight:700;color:var(--theme-accent);text-decoration:none;">Ver →</a>' : '')
+        + '</div></div>';
+    }
+    elDetBody.innerHTML =
+      '<div style="font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;margin:0.25rem 0 0.35rem;">Receitas lançadas</div>'
+      + linhaRec('📋', 'Confirmadas', tot.receitasTotal, 'extrato.html')
+      + (tot.receitasPendentes > 0 ? linhaRec('⏳', 'Aguardando confirmação', tot.receitasPendentes, 'extrato.html') : '')
+      + '<div style="font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;margin:0.75rem 0 0.35rem;">Gastos lançados</div>'
+      + linha('💳', 'Conta / débito / pix', tot.gastosConta, 'extrato.html')
+      + linha('💳', 'Compras no cartão', tot.gastosCartao, 'cartoes.html')
+      + linha('📄', 'Pagamento de faturas', tot.gastosFatura, 'cartoes.html');
+  }
 }
 
 // ─── Helpers limites widget ────────────────────────────────────────────
@@ -2485,6 +2664,7 @@ function setupListeners(uid) {
       return Object.assign({}, d.data(), { id: d.id });
     });
     atualizarDividasAtraso();
+    atualizarSaudeMes();
   }, function () {}));
 
   // Limites — widget "Limites do Mês"
@@ -2504,6 +2684,7 @@ function setupListeners(uid) {
       return Object.assign({}, d.data(), { id: d.id });
     });
     atualizarWidgetCarteira();
+    atualizarSaudeMes();
   }, function () {}));
 
   // Recorrentes — widget lembretes 7 dias
@@ -2515,6 +2696,7 @@ function setupListeners(uid) {
     _dispararNotifRecorrentesUrgentes();
     atualizarLembretes7Dias();
     atualizarTudoEmDia();
+    atualizarSaudeMes();
   }, function () {}));
 
   // Metas — widget Meta em Destaque

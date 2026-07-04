@@ -824,6 +824,15 @@ function abrirFormManual(rec, comDadosIA = false) {
   dividaAtual = rec || null;
   const isEditar = !!rec;
 
+  // Valores monetários (máscara BRL)
+  const setMoeda = (id, v) => {
+    if (!v) { document.getElementById(id).value = ''; return; }
+    const cents  = Math.round(v * 100);
+    const reais  = Math.floor(cents / 100);
+    const cStr   = String(cents % 100).padStart(2, '0');
+    document.getElementById(id).value = reais.toLocaleString('pt-BR') + ',' + cStr;
+  };
+
   document.getElementById('tituloDivida').textContent = isEditar ? 'Editar Dívida' : 'Nova Dívida';
   document.getElementById('dividaId').value           = isEditar ? rec.id : '';
   document.getElementById('dividaNome').value         = isEditar ? (rec.nome || '') : '';
@@ -843,14 +852,6 @@ function abrirFormManual(rec, comDadosIA = false) {
   if (iconCustos)   iconCustos.textContent      = temCustos ? '▾' : '▸';
   document.getElementById('dividaVencimento').value   = isEditar && rec.vencimento ? formatDataBR(rec.vencimento) : '';
 
-  // Valores monetários (máscara BRL)
-  const setMoeda = (id, v) => {
-    if (!v) { document.getElementById(id).value = ''; return; }
-    const cents  = Math.round(v * 100);
-    const reais  = Math.floor(cents / 100);
-    const cStr   = String(cents % 100).padStart(2, '0');
-    document.getElementById(id).value = reais.toLocaleString('pt-BR') + ',' + cStr;
-  };
   setMoeda('dividaValorTotal',   isEditar ? rec.valorTotal : 0);
   setMoeda('dividaValorPago',    isEditar ? rec.valorPago  : 0);
   setMoeda('dividaValorParcela', isEditar ? rec.valorParcela : 0);
