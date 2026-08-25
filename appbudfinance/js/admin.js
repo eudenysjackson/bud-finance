@@ -984,6 +984,8 @@ window.deletePromo = function(id) {
 //  FEATURE FLAGS
 // ═══════════════════════════════════════════════════════════════
 const DEFAULT_FLAGS = [
+  { nome: 'Compras',              key: 'compras',              desc: 'Exibe o menu e libera a tela de compras',      planos: ['free','starter','trial','plus','pro'], enabled: true },
+  { nome: 'Grupo Bud Plus',       key: 'grupo_bud_plus',       desc: 'Exibe o título Bud Plus na barra lateral',     planos: ['free','starter','trial','plus','pro'], enabled: true },
   { nome: 'Dashboard Avançado',   key: 'dashboard_avancado',  desc: 'Gráficos e insights avançados no dashboard', planos: ['plus','pro'], enabled: true },
   { nome: 'Importação por IA',    key: 'importacao_ia',       desc: 'Importar extrato via Gemini/OCR',           planos: ['pro'],         enabled: true },
   { nome: 'Limites de Gastos',    key: 'limites_gastos',      desc: 'Definir orçamento por categoria',           planos: ['starter','trial','plus','pro'], enabled: true },
@@ -996,7 +998,6 @@ const DEFAULT_FLAGS = [
   { nome: 'Comparativo Mensal',   key: 'comparativo',         desc: 'Comparar receitas/despesas por mês',        planos: ['plus','pro'], enabled: true },
   { nome: 'Dívidas e Empréstimos',key: 'dividas',             desc: 'Controle de dívidas e parcelamentos',       planos: ['trial','plus','pro'], enabled: true },
   { nome: 'Investimentos',        key: 'investimentos',       desc: 'Carteira de investimentos e rendimentos',   planos: ['plus','pro'], enabled: true },
-  { nome: 'Mercado de Preços',    key: 'mercado',             desc: 'Consultar preços de produtos',              planos: ['pro'],         enabled: true },
   { nome: 'Balanço Mensal',       key: 'balanco',             desc: 'Resumo detalhado por mês',                  planos: ['starter','trial','plus','pro'], enabled: true },
   { nome: 'Extrato Completo',     key: 'extrato',             desc: 'Extrato com filtros avançados',             planos: ['free','starter','trial','plus','pro'], enabled: true },
   { nome: 'Insights Automáticos', key: 'insights',            desc: 'Sugestões e análises automáticas',          planos: ['pro'],         enabled: true },
@@ -1008,20 +1009,62 @@ const DEFAULT_FLAGS = [
 async function loadFlags() {
   try {
     const snap = await getDocs(collection(db, 'featureFlags'));
-    if (snap.empty) {
-      // Seed defaults
-      for (const f of DEFAULT_FLAGS) {
-        await addDoc(collection(db, 'featureFlags'), { ...f, criadoEm: serverTimestamp() });
-      }
+    const legacyMercado = snap.docs.filter(d => d.data()?.key === 'mercado');
+    if (legacyMercado.length) {
+      await Promise.all(legacyMercado.map(flagDoc => updateDoc(flagDoc.ref, {
+        key: 'compras', nome: 'Compras', desc: 'Exibe o menu e libera a tela de compras',
+        atualizadoEm: serverTimestamp()
+      })));
       await loadFlags();
       return;
     }
-    _allFlags = [];
-    snap.forEach(d => _allFlags.push({ id: d.id, ...d.data() }));
+    const existingKeys = new Set();
+    snap.forEach(d => {
+      const key = d.data()?.key;
+      if (key) existingKeys.add(key);
+    });
+
+    // Cria cada flag padrão ausente, mesmo quando a coleção já possui outras flags.
+    const missingFlags = DEFAULT_FLAGS.filter(f => !existingKeys.has(f.key));
+    if (missingFlags.length) {
+      await Promise.all(missingFlags.map(f =>
+        addDoc(collection(db, 'featureFlags'), { ...f, criadoEm: serverTimestamp() })
+      ));
+      await loadFlags();
+      return;
+    }
+    const uniqueFlags = new Map();
+    snap.forEach(d => {
+      const current = { id: d.id, ...d.data() };
+      const previous = uniqueFlags.get(current.key);
+      if (!previous) uniqueFlags.set(current.key, current);
+      else if (current.enabled === false) uniqueFlags.set(current.key, { ...previous, enabled: false });
+    });
+    _allFlags = [...uniqueFlags.values()];
+    syncFlagsToBrowser();
     renderFlags();
   } catch(e) {
     console.error('[flags]', e);
   }
+}
+
+function syncFlagsToBrowser() {
+  const features = {};
+  const rules = {};
+  _allFlags.forEach(f => {
+    if (!f.key) return;
+    features[f.key] = features[f.key] === false ? false : f.enabled !== false;
+    const previous = rules[f.key];
+    rules[f.key] = {
+      enabled: previous?.enabled === false ? false : f.enabled !== false,
+      planos: Array.isArray(f.planos) ? f.planos : []
+    };
+  });
+  window.BUD_FEATURES = features;
+  window.BUD_FEATURE_RULES = rules;
+  try { localStorage.setItem('bud_feature_flags', JSON.stringify(features)); } catch (_) {}
+  try { localStorage.setItem('bud_feature_rules', JSON.stringify(rules)); } catch (_) {}
+  window.dispatchEvent(new CustomEvent('bud:features-updated', { detail: features }));
 }
 
 function renderFlags() {
@@ -1053,10 +1096,50 @@ function renderFlags() {
 
 window.toggleFlag = async function(id, newState) {
   try {
-    await updateDoc(doc(db, 'featureFlags', id), { enabled: newState });
-    _allFlags = _allFlags.map(f => f.id === id ? { ...f, enabled: newState } : f);
+    const selected = _allFlags.find(f => f.id === id);
+    if (!selected) throw new Error('Flag não encontrada.');
+    const sameKey = await getDocs(query(collection(db, 'featureFlags'), where('key', '==', selected.key)));
+    await Promise.all(sameKey.docs.map(flagDoc => updateDoc(flagDoc.ref, {
+      enabled: newState, atualizadoEm: serverTimestamp()
+    })));
+    _allFlags = _allFlags.map(f => f.key === selected.key ? { ...f, enabled: newState } : f);
+    syncFlagsToBrowser();
     renderFlags();
   } catch(e) { budToast('Erro: ' + e.message, 'error'); }
+};
+
+window.limparNotificacoesTeste = function() {
+  const testes = _notifs.filter(n => {
+    const texto = `${n.titulo || ''} ${n.mensagem || ''}`.toLowerCase();
+    return /\bteste+\b|testando|funcionalidade/.test(texto);
+  });
+  if (!testes.length) { budToast('Nenhuma notificação de teste encontrada.', 'info'); return; }
+  confirmAction(`Excluir ${testes.length} notificação(ões) de teste?`, async () => {
+    try {
+      await Promise.all(testes.map(n => deleteDoc(doc(db, 'notificacoes-globais', n.id))));
+      _notifs = _notifs.filter(n => !testes.some(t => t.id === n.id));
+      renderNotifs();
+      budToast('Notificações de teste removidas.');
+    } catch(e) { budToast('Erro ao remover testes: ' + e.message, 'error'); }
+  });
+};
+
+// Os atalhos da aba Sistema usam a mesma fonte das Feature Flags.
+window.saveFeatureToggle = async function(key, enabled) {
+  try {
+    const snap = await getDocs(query(collection(db, 'featureFlags'), where('key', '==', key)));
+    if (snap.empty) throw new Error('Feature flag não encontrada: ' + key);
+    await Promise.all(snap.docs.map(flagDoc => updateDoc(flagDoc.ref, {
+      enabled, atualizadoEm: serverTimestamp()
+    })));
+    _allFlags = _allFlags.map(f => f.key === key ? { ...f, enabled } : f);
+    syncFlagsToBrowser();
+    renderFlags();
+    budToast(enabled ? 'Funcionalidade ativada.' : 'Funcionalidade desativada.');
+  } catch(e) {
+    budToast('Erro ao salvar: ' + e.message, 'error');
+    loadAppSettings();
+  }
 };
 
 window.openFlagModal = function() {
@@ -1223,8 +1306,11 @@ async function loadAppSettings() {
 
     setToggleUI('togManutencao',   !!_appSettings.modoManutencao);
     setToggleUI('togCadastros',    _appSettings.cadastrosAbertos !== false);
-    setToggleUI('togAssistenteIA', !_appSettings.ocultarAssistenteIA);
-    setToggleUI('togAssistenteWA', !_appSettings.ocultarAssistenteWhatsApp);
+    const flagsSnap = await getDocs(collection(db, 'featureFlags'));
+    const flagsByKey = {};
+    flagsSnap.forEach(d => { const f = d.data(); flagsByKey[f.key] = f.enabled !== false; });
+    setToggleUI('togAssistenteIA', flagsByKey.assistente_ia !== false);
+    setToggleUI('togAssistenteWA', flagsByKey.whatsapp !== false);
 
     const v = document.getElementById('inputVersao'); if (v) v.value = _appSettings.versao || '';
     const b = document.getElementById('inputBoasVindas'); if (b) b.value = _appSettings.mensagemBoasVindas || '';

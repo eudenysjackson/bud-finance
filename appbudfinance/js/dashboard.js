@@ -2798,22 +2798,34 @@ onAuthStateChanged(auth, async function (user) {
         try {
           var tipoEmoji = { info: '💡', promo: '🎉', update: '🚀', alert: '⚠️' };
           var plano = (userData && userData.plano) || 'free';
-          var snap = await getDocs(query(
-            collection(db, 'notificacoes-globais'),
-            orderBy('criadoEm', 'desc'),
-            limit(10)
-          ));
+          var criadoEm = user && user.metadata && user.metadata.creationTime
+            ? Timestamp.fromDate(new Date(user.metadata.creationTime))
+            : null;
+          var filtros = [collection(db, 'notificacoes-globais')];
+          // Usuários novos recebem apenas comunicados enviados após o cadastro.
+          if (criadoEm) filtros.push(where('criadoEm', '>=', criadoEm));
+          filtros.push(orderBy('criadoEm', 'desc'), limit(10));
+          var snap = await getDocs(query(...filtros));
+          var globaisValidas = [];
           snap.forEach(function (d) {
             var n = d.data();
             var dest = n.destino || 'all';
             if (dest !== 'all' && dest !== plano) return;
+            // Testes operacionais nunca são comunicados para usuários.
+            var texto = `${n.titulo || ''} ${n.mensagem || ''}`.toLowerCase();
+            if (/\bteste+\b|testando|funcionalidade/.test(texto)) return;
+            globaisValidas.push('global_' + d.id);
             var emoji = tipoEmoji[n.tipo] || '🔔';
             window.BudInAppNotif.addExternal(
               'global_' + d.id,
               emoji,
-              (n.titulo || '') + (n.mensagem ? ': ' + n.mensagem : '')
+              (n.titulo || '') + (n.mensagem ? ': ' + n.mensagem : ''),
+              null,
+              null,
+              n.criadoEm && typeof n.criadoEm.toMillis === 'function' ? n.criadoEm.toMillis() : Date.now()
             );
           });
+          window.BudInAppNotif.reconcileGlobals(globaisValidas);
         } catch (_) {}
       })();
     }

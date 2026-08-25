@@ -1664,6 +1664,10 @@ function _renderConfiabilidadeBadge() {
 }
 
 function abrirModalImportIA(cartaoId, manterArquivo = false) {
+  if (window.budFeatureEnabled && !window.budFeatureEnabled('importacao_ia')) {
+    if (window.budShowToast) window.budShowToast('Importação por IA indisponível.', 'warning');
+    return;
+  }
   if (!cartaoId) return;
   cartaoImportIA = cartaoId;
   const c = cartoesGlobal.find(x => x.id === cartaoId);
@@ -1893,6 +1897,7 @@ async function _extrairMetaPdfClientSide(file) {
 }
 
 async function enviarParaIA() {
+  if (window.budFeatureEnabled && !window.budFeatureEnabled('importacao_ia')) return;
   const input = document.getElementById('inputArquivoIA');
   const file = input?.files?.[0];
   if (!file) { showToast('Selecione um arquivo.', 'erro'); return; }

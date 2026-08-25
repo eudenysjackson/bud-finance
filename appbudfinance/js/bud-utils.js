@@ -7,26 +7,174 @@
   // ─── Feature flags ────────────────────────────────────────────────────
   // Para reativar WhatsApp: trocar whatsapp para true e remover este bloco
   // de CSS abaixo. Backend e demais arquivos seguem intactos.
-  window.BUD_FEATURES = window.BUD_FEATURES || { whatsapp: false };
+  var FEATURE_ROUTES = {
+    compras: ['mercado.html'],
+    assistente_ia: ['assistente-ia.html'], whatsapp: ['assistente-whatsapp.html'],
+    limites_gastos: ['limites.html'], cartoes_credito: ['cartoes.html'], metas: ['metas.html'],
+    relatorios: ['relatorios.html'], recorrencias: ['recorrentes.html'], comparativo: ['comparativo.html'],
+    dividas: ['dividas.html'], investimentos: ['investimentos.html'],
+    balanco: ['balanco-mensal.html'], extrato: ['extrato.html'], insights: ['insights.html'],
+    graficos: ['graficos.html']
+  };
+  var FEATURE_SELECTORS = {
+    grupo_bud_plus: ['[data-feature-group="grupo_bud_plus"]'],
+    dashboard_avancado: ['#secComparativo','#secCarteiraWidget','#secLimitesWidget','#secDividasAtraso','#secMetaProxima','#secInvestimentosWidget','#secEconomiaPotencial','#secSaudeFinanceira','#secDicaDia','#graficoCategorias','#graficoContainer'],
+    importacao_ia: ['[data-import-ia]','#modalImportIA'],
+    limites_gastos: ['#secLimitesWidget'],
+    comparativo: ['#secComparativo'],
+    metas: ['#secMetaProxima'],
+    dividas: ['#secDividasAtraso'],
+    investimentos: ['#secInvestimentosWidget'],
+    insights: ['#secEconomiaPotencial','#secSaudeFinanceira','#secDicaDia'],
+    dark_mode: ['[data-theme-key="hbo"]'],
+    push_notifications: ['#pushSettingsRow','#btnBell']
+  };
+  var cachedFeatures = {};
+  var cachedRules = {};
+  try { cachedFeatures = JSON.parse(localStorage.getItem('bud_feature_flags') || '{}'); } catch (_) {}
+  try { cachedRules = JSON.parse(localStorage.getItem('bud_feature_rules') || '{}'); } catch (_) {}
+  window.BUD_FEATURES = Object.assign({ whatsapp: false }, cachedFeatures, window.BUD_FEATURES || {});
+  window.BUD_FEATURE_RULES = Object.assign({}, cachedRules, window.BUD_FEATURE_RULES || {});
+  window.BUD_USER_PLAN = window.BUD_USER_PLAN || null;
 
-  if (!window.BUD_FEATURES.whatsapp) {
-    var injectHide = function () {
-      var css = ''
-        + 'a.sidebar-link[href="assistente-whatsapp.html"]{display:none !important;}'
-        + '#cardWhatsApp{display:none !important;}';
-      var style = document.createElement('style');
-      style.id = 'bud-feature-hide-whatsapp';
-      style.textContent = css;
-      (document.head || document.documentElement).appendChild(style);
-    };
-    if (document.head) injectHide();
-    else document.addEventListener('DOMContentLoaded', injectHide);
+  window.budFeatureEnabled = function (key) {
+    var rule = window.BUD_FEATURE_RULES[key];
+    if (window.BUD_FEATURES[key] === false || (rule && rule.enabled === false)) return false;
+    return true;
+  };
 
-    // Redirecionar quem cair direto na página dedicada
-    if (/\/assistente-whatsapp\.html(\?|#|$)/i.test(location.pathname + location.search)) {
-      location.replace('dashboard.html');
+  // Consulta separada para paywalls; não interfere na visibilidade da sidebar.
+  window.budFeatureAllowedForPlan = function (key, plan) {
+    if (!window.budFeatureEnabled(key)) return false;
+    var rule = window.BUD_FEATURE_RULES[key];
+    var plans = rule && Array.isArray(rule.planos) ? rule.planos.map(function (p) { return String(p).toLowerCase(); }) : [];
+    return !plans.length || plans.indexOf(String(plan || window.BUD_USER_PLAN || 'free').toLowerCase()) !== -1;
+  };
+
+  function applyFeatureFlags() {
+    document.querySelectorAll('.sidebar-group-label').forEach(function (label) {
+      if (label.textContent.trim().toLowerCase() === 'bud plus') {
+        label.setAttribute('data-feature-group', 'grupo_bud_plus');
+      }
+    });
+    var selectors = [];
+    var keys = new Set(Object.keys(FEATURE_ROUTES).concat(Object.keys(FEATURE_SELECTORS)));
+    keys.forEach(function (key) {
+      if (window.budFeatureEnabled(key)) return;
+      (FEATURE_ROUTES[key] || []).forEach(function (page) {
+        selectors.push('a[href="' + page + '"]', 'a[href$="/' + page + '"]');
+        if (location.pathname.split('/').pop().toLowerCase() === page) {
+          location.replace('dashboard.html?recurso_indisponivel=' + encodeURIComponent(key));
+        }
+      });
+      (FEATURE_SELECTORS[key] || []).forEach(function (selector) { selectors.push(selector); });
+    });
+    var style = document.getElementById('bud-feature-flags-style') || document.createElement('style');
+    style.id = 'bud-feature-flags-style';
+    style.textContent = selectors.length ? selectors.join(',') + '{display:none !important;}' : '';
+    if (!style.parentNode) (document.head || document.documentElement).appendChild(style);
+    if (!window.budFeatureEnabled('dark_mode') && window.budThemeManager && window.budThemeManager.getCurrent() === 'hbo') {
+      window.budThemeManager.apply('padrao');
     }
+    window.dispatchEvent(new CustomEvent('bud:features-updated', { detail: window.BUD_FEATURES }));
   }
+
+  applyFeatureFlags();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyFeatureFlags, { once: true });
+  }
+
+  // Rolagem discreta em popups: trilho invisível e indicador fino, estilo macOS.
+  (function addOverlayModalScrollbars() {
+    var style = document.createElement('style');
+    style.id = 'bud-overlay-modal-scrollbars';
+    style.textContent = ''
+      + '.modal-overlay .modal-card,.modal-overlay .modal-box,.confirm-modal-overlay .modal-card,'
+      + '.modal-scroll-body,[role="dialog"] .modal-card,[role="dialog"] .modal-box{'
+      + 'scrollbar-width:thin;scrollbar-color:rgba(100,116,139,.42) transparent;'
+      + 'overscroll-behavior:contain;}'
+      + '@supports (overflow:overlay){.modal-overlay .modal-card,.modal-overlay .modal-box,'
+      + '.confirm-modal-overlay .modal-card,.modal-scroll-body,[role="dialog"] .modal-card,'
+      + '[role="dialog"] .modal-box{overflow-y:overlay;}}'
+      + '.modal-overlay .modal-card::-webkit-scrollbar,.modal-overlay .modal-box::-webkit-scrollbar,'
+      + '.confirm-modal-overlay .modal-card::-webkit-scrollbar,.modal-scroll-body::-webkit-scrollbar,'
+      + '[role="dialog"] .modal-card::-webkit-scrollbar,[role="dialog"] .modal-box::-webkit-scrollbar{width:7px;height:7px;}'
+      + '.modal-overlay .modal-card::-webkit-scrollbar-track,.modal-overlay .modal-box::-webkit-scrollbar-track,'
+      + '.confirm-modal-overlay .modal-card::-webkit-scrollbar-track,.modal-scroll-body::-webkit-scrollbar-track,'
+      + '[role="dialog"] .modal-card::-webkit-scrollbar-track,[role="dialog"] .modal-box::-webkit-scrollbar-track{background:transparent;}'
+      + '.modal-overlay .modal-card::-webkit-scrollbar-thumb,.modal-overlay .modal-box::-webkit-scrollbar-thumb,'
+      + '.confirm-modal-overlay .modal-card::-webkit-scrollbar-thumb,.modal-scroll-body::-webkit-scrollbar-thumb,'
+      + '[role="dialog"] .modal-card::-webkit-scrollbar-thumb,[role="dialog"] .modal-box::-webkit-scrollbar-thumb{background:rgba(100,116,139,.42);border:2px solid transparent;background-clip:padding-box;border-radius:999px;}'
+      + '.modal-overlay .modal-card::-webkit-scrollbar-thumb:hover,.modal-overlay .modal-box::-webkit-scrollbar-thumb:hover,'
+      + '.confirm-modal-overlay .modal-card::-webkit-scrollbar-thumb:hover,.modal-scroll-body::-webkit-scrollbar-thumb:hover,'
+      + '[role="dialog"] .modal-card::-webkit-scrollbar-thumb:hover,[role="dialog"] .modal-box::-webkit-scrollbar-thumb:hover{background-color:rgba(71,85,105,.66);}';
+    (document.head || document.documentElement).appendChild(style);
+  }());
+
+  // Mantém outras abas do app sincronizadas quando o admin altera uma flag.
+  window.addEventListener('storage', function (event) {
+    if (event.key !== 'bud_feature_flags' || !event.newValue) return;
+    try {
+      window.BUD_FEATURES = Object.assign({}, window.BUD_FEATURES, JSON.parse(event.newValue));
+      try { window.BUD_FEATURE_RULES = JSON.parse(localStorage.getItem('bud_feature_rules') || '{}'); } catch (_) {}
+      applyFeatureFlags();
+    } catch (_) {}
+  });
+
+  window.BUD_FEATURES_READY = new Promise(function (resolve) {
+    function loadRemoteFlags() {
+      if (!window.BUD_FIREBASE_CONFIG) { resolve(window.BUD_FEATURES); return; }
+      Promise.all([
+        import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js'),
+        import('https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js')
+      ]).then(function (mods) {
+        var appMod = mods[0], fs = mods[1], authMod = mods[2];
+        var app = appMod.getApps().length ? appMod.getApps()[0] : appMod.initializeApp(window.BUD_FIREBASE_CONFIG);
+        var auth = authMod.getAuth(app);
+        return new Promise(function (done, fail) {
+          var unsubscribe = authMod.onAuthStateChanged(auth, async function (user) {
+            unsubscribe();
+            if (user) {
+              try {
+                var userSnap = await fs.getDoc(fs.doc(fs.getFirestore(app), 'usuarios', user.uid));
+                window.BUD_USER_PLAN = userSnap.exists() ? String(userSnap.data().plano || 'free').toLowerCase() : 'free';
+              } catch (_) { window.BUD_USER_PLAN = 'free'; }
+            }
+            var firstSnapshot = true;
+            fs.onSnapshot(fs.collection(fs.getFirestore(app), 'featureFlags'), function (snap) {
+              var remote = {};
+              var rules = {};
+              snap.forEach(function (item) {
+                var data = item.data();
+                if (!data || !data.key) return;
+                // Se houver documentos antigos duplicados, "desligado" prevalece.
+                remote[data.key] = remote[data.key] === false ? false : data.enabled !== false;
+                var previous = rules[data.key];
+                rules[data.key] = {
+                  enabled: previous && previous.enabled === false ? false : data.enabled !== false,
+                  planos: Array.isArray(data.planos) ? data.planos : []
+                };
+              });
+              window.BUD_FEATURES = Object.assign({}, window.BUD_FEATURES, remote);
+              window.BUD_FEATURE_RULES = rules;
+              try { localStorage.setItem('bud_feature_flags', JSON.stringify(window.BUD_FEATURES)); } catch (_) {}
+              try { localStorage.setItem('bud_feature_rules', JSON.stringify(rules)); } catch (_) {}
+              applyFeatureFlags();
+              if (firstSnapshot) { firstSnapshot = false; done(null); }
+            }, fail);
+          });
+        });
+      }).then(function () {
+        resolve(window.BUD_FEATURES);
+      }).catch(function (error) {
+        console.warn('[Bud Finance] Não foi possível atualizar feature flags:', error.message);
+        resolve(window.BUD_FEATURES);
+      });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', loadRemoteFlags, { once: true });
+    else loadRemoteFlags();
+  });
 
   // ─── Toast container (created once, reused) ──────────────────────────
   let toastContainer = null;
@@ -432,6 +580,7 @@
      * @param {object} user — Firebase Auth user
      */
     requestIfNeeded: function (user) {
+      if (!window.budFeatureEnabled('push_notifications')) return;
       if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
       if (localStorage.getItem('bud_push_asked') === 'granted') return;
       // Se já negou mais de 7 dias atrás, perguntar de novo

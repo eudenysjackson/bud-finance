@@ -25,8 +25,18 @@
   function _isDismissed(key) { return _load().some(function (n) { return n.key === key && n.dismissed; }); }
 
   function _add(notif) {
-    if (_has(notif.key)) return;
     var h = _load();
+    var existing = h.find(function (n) { return n.key === notif.key; });
+    if (existing) {
+      // Atualiza dados vindos do servidor, preservando leitura e descarte do usuário.
+      existing.emoji = notif.emoji;
+      existing.msg = notif.msg;
+      existing.link = notif.link;
+      existing.linkLabel = notif.linkLabel;
+      existing.ts = notif.ts || existing.ts;
+      _save(h);
+      return;
+    }
     h.unshift(notif);
     _save(h);
   }
@@ -35,6 +45,22 @@
     var h = _load();
     h.forEach(function (n) { if (n.key === key) n.dismissed = true; });
     _save(h);
+  }
+
+  function _reconcileGlobals(validKeys) {
+    var allowed = new Set(validKeys || []);
+    var h = _load().filter(function (n) {
+      return !String(n.key || '').startsWith('global_') || allowed.has(n.key);
+    });
+    _save(h);
+
+    var banner = document.getElementById('bud-banner');
+    if (banner && banner.dataset.key && !allowed.has(banner.dataset.key)) banner.remove();
+    var panel = document.getElementById('budNotifPanel');
+    var overlay = document.getElementById('budNotifOverlay');
+    if (panel) panel.remove();
+    if (overlay) overlay.remove();
+    _updateBadge();
   }
 
   function _markAllRead() {
@@ -88,6 +114,7 @@
 
     var bar = document.createElement('div');
     bar.id = 'bud-banner';
+    bar.dataset.key = key;
     bar.style.cssText =
       'display:flex;align-items:center;gap:0.75rem;' +
       'background:linear-gradient(135deg,#1e40af,#4338ca);color:#fff;' +
@@ -371,12 +398,15 @@
      * @param {string} [link]    — URL de destino
      * @param {string} [lbl]     — rótulo do link
      */
-    addExternal: function (key, emoji, msg, link, lbl) {
+    addExternal: function (key, emoji, msg, link, lbl, timestamp) {
       if (_isDismissed(key)) return;
-      _add({ key: key, emoji: emoji, msg: msg, link: link, linkLabel: lbl, ts: Date.now(), read: false, dismissed: false });
+      _add({ key: key, emoji: emoji, msg: msg, link: link, linkLabel: lbl, ts: timestamp || Date.now(), read: false, dismissed: false });
       _showBanner(key, emoji, msg, link, lbl);
       _updateBadge();
-    }
+    },
+
+    // Remove do cache notificações globais que já não são válidas para o usuário.
+    reconcileGlobals: _reconcileGlobals
   };
 
 }());

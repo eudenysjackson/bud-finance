@@ -802,7 +802,10 @@
       <div class="g-card">
         <div class="panel-header">
           <div><div class="panel-title">📋 Histórico</div><div class="panel-sub">Últimas 20 notificações enviadas</div></div>
-          <button class="btn-ghost btn-sm" onclick="loadNotifications()">↻ Atualizar</button>
+          <div style="display:flex;gap:.5rem;">
+            <button class="btn-danger btn-sm" onclick="limparNotificacoesTeste()">Limpar testes</button>
+            <button class="btn-ghost btn-sm" onclick="loadNotifications()">↻ Atualizar</button>
+          </div>
         </div>
         <div id="notifHistory"><div class="loading-inline">Carregando...</div></div>
       </div>
@@ -863,11 +866,11 @@
           </div>
           <div class="sys-toggle-row">
             <div><div class="sys-toggle-title">🤖 Assistente IA</div><div class="sys-toggle-sub">Exibe botão do assistente nas telas</div></div>
-            <button class="toggle on" id="togAssistenteIA" onclick="this.classList.toggle('on');saveToggle('ocultarAssistenteIA',!this.classList.contains('on'))"></button>
+            <button class="toggle on" id="togAssistenteIA" onclick="this.classList.toggle('on');saveFeatureToggle('assistente_ia',this.classList.contains('on'))"></button>
           </div>
           <div class="sys-toggle-row">
             <div><div class="sys-toggle-title">📱 Assistente WhatsApp</div><div class="sys-toggle-sub">Exibe integração WhatsApp no app</div></div>
-            <button class="toggle on" id="togAssistenteWA" onclick="this.classList.toggle('on');saveToggle('ocultarAssistenteWhatsApp',!this.classList.contains('on'))"></button>
+            <button class="toggle on" id="togAssistenteWA" onclick="this.classList.toggle('on');saveFeatureToggle('whatsapp',this.classList.contains('on'))"></button>
           </div>
           <div class="form-row" style="margin-top:1rem;">
             <label class="god-label">Versão do App</label>

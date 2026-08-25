@@ -216,6 +216,7 @@
 
     /* card */
     var card = document.createElement('div');
+    card.className = 'bud-tut-card';
     card.style.cssText =
       'background:var(--bg-page,#f4f7fb);' +
       'border:1px solid var(--card-border,rgba(255,255,255,0.9));' +
@@ -223,7 +224,44 @@
       'width:100%;max-width:460px;' +
       'box-shadow:0 20px 60px -10px rgba(0,0,0,0.25);' +
       'transform:translateY(18px);transition:transform .3s ease;' +
-      'position:relative;max-height:90vh;overflow-y:auto;';
+      'position:relative;max-height:90vh;overflow-y:auto;scrollbar-width:none;';
+
+    // Scrollbar sobreposta: não reserva largura dentro do popup.
+    if (!document.getElementById('bud-tut-overlay-scroll-style')) {
+      var scrollStyle = document.createElement('style');
+      scrollStyle.id = 'bud-tut-overlay-scroll-style';
+      scrollStyle.textContent = '.bud-tut-card::-webkit-scrollbar{display:none;}'
+        + '.bud-tut-scroll{position:absolute;z-index:2;top:1rem;right:.3rem;bottom:1rem;width:.35rem;pointer-events:none;opacity:0;transition:opacity .2s ease;}'
+        + '.bud-tut-scroll.is-visible{opacity:1;}'
+        + '.bud-tut-scroll-thumb{position:absolute;left:0;width:100%;min-height:1.75rem;border-radius:999px;background:rgba(71,85,105,.48);box-shadow:0 1px 3px rgba(15,23,42,.12);}'
+        + '.bud-tut-card:hover .bud-tut-scroll{opacity:1;}';
+      document.head.appendChild(scrollStyle);
+    }
+
+    var scrollRail = document.createElement('div');
+    scrollRail.className = 'bud-tut-scroll';
+    var scrollThumb = document.createElement('div');
+    scrollThumb.className = 'bud-tut-scroll-thumb';
+    scrollRail.appendChild(scrollThumb);
+    card.appendChild(scrollRail);
+
+    var hideScrollTimer;
+    function updateOverlayScroll() {
+      var overflow = card.scrollHeight > card.clientHeight + 1;
+      scrollRail.style.display = overflow ? '' : 'none';
+      if (!overflow) return;
+      var railHeight = scrollRail.clientHeight;
+      var thumbHeight = Math.max(28, Math.round(railHeight * card.clientHeight / card.scrollHeight));
+      var maxTop = Math.max(0, railHeight - thumbHeight);
+      var maxScroll = Math.max(1, card.scrollHeight - card.clientHeight);
+      scrollThumb.style.height = thumbHeight + 'px';
+      scrollThumb.style.transform = 'translateY(' + Math.round(maxTop * card.scrollTop / maxScroll) + 'px)';
+      scrollRail.classList.add('is-visible');
+      clearTimeout(hideScrollTimer);
+      hideScrollTimer = setTimeout(function () { scrollRail.classList.remove('is-visible'); }, 900);
+    }
+    card.addEventListener('scroll', updateOverlayScroll, { passive: true });
+    window.addEventListener('resize', updateOverlayScroll);
 
     /* botão X */
     var btnX = _btn('×',
@@ -300,6 +338,7 @@
     card.appendChild(btns);
     ov.appendChild(card);
     document.body.appendChild(ov);
+    requestAnimationFrame(updateOverlayScroll);
 
     /* animar entrada */
     requestAnimationFrame(function () {
@@ -313,6 +352,8 @@
     function close(never) {
       if (never) setNever();
       markDone(pageKey);
+      clearTimeout(hideScrollTimer);
+      window.removeEventListener('resize', updateOverlayScroll);
       ov.style.opacity = '0';
       card.style.transform = 'translateY(18px)';
       setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 300);

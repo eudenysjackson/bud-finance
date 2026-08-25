@@ -1365,7 +1365,7 @@ onAuthStateChanged(auth, async function (user) {
   if (btnRevogar) btnRevogar.addEventListener('click', revogarConsentimentoNotificacoes);
 
   // ── Notificações Push ─────────────────────────────────────────────────
-  if (!_pushSetupDone) {
+  if (!_pushSetupDone && (!window.budFeatureEnabled || window.budFeatureEnabled('push_notifications'))) {
   _pushSetupDone = true;
   const btnAtivarPush = document.getElementById('btnAtivarPush');
   const btnTestarPush = document.getElementById('btnTestarPush');

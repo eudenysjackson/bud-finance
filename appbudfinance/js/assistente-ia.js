@@ -22,6 +22,13 @@ import {
   collection, query, where, limit, Timestamp, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
+// Impede que a tela e o serviço sejam usados quando o admin desativar a flag.
+if (window.BUD_FEATURES_READY) await window.BUD_FEATURES_READY;
+if (window.budFeatureEnabled && !window.budFeatureEnabled('assistente_ia')) {
+  location.replace('dashboard.html?recurso_indisponivel=assistente_ia');
+  throw new Error('Assistente IA desativado pelo administrador.');
+}
+
 // ─── Firebase ────────────────────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
@@ -1638,7 +1645,7 @@ onAuthStateChanged(auth, async user => {
     });
 
     // Gate de plano
-    if (!PLANOS_ASSISTENTE.includes(plano)) {
+    if (window.budFeatureAllowedForPlan ? !window.budFeatureAllowedForPlan('assistente_ia', plano) : !PLANOS_ASSISTENTE.includes(plano)) {
       document.getElementById('paywallContainer').style.display = 'flex';
       document.getElementById('chatWrap').style.display = 'none';
       ocultarSplash();
