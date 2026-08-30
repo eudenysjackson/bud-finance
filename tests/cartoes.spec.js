@@ -17,7 +17,7 @@ test.describe('Cartões — Auth Guard', () => {
 test.describe('Cartões — Estrutura HTML', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.route('**/js/cartoes.js', route => route.abort());
+    await page.route('**/js/cartoes.js*', route => route.abort());
     await page.goto('/cartoes.html', { waitUntil: 'domcontentloaded' });
   });
 

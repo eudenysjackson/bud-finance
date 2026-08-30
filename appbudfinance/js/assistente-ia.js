@@ -14,12 +14,13 @@
  */
 
 import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { connectEmulators } from './bud-emulator-connect.js';
 import { getAuth, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
   doc, getDoc, getDocs, addDoc, setDoc,
-  collection, query, where, limit, Timestamp, serverTimestamp
+  collection, query, where, limit, Timestamp, serverTimestamp, writeBatch, increment
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // Impede que a tela e o serviço sejam usados quando o admin desativar a flag.
@@ -33,6 +34,7 @@ if (window.budFeatureEnabled && !window.budFeatureEnabled('assistente_ia')) {
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 // ─── Estado ────────────────────────────────────────────────────────────────────
 let conversaIA    = [];  // [{role:'user'|'assistant', content:string}]
@@ -906,7 +908,14 @@ function renderizarCartaoTransacao(dados, afterEl) {
         }
       }
 
-      await addDoc(collection(db, 'usuarios', uid, 'transacoes'), txData);
+      // Mantém o saldo da carteira alinhado ao lançamento confirmado pela IA.
+      const batch = writeBatch(db);
+      batch.set(doc(collection(db, 'usuarios', uid, 'transacoes')), txData);
+      if (txData.carteiraId) {
+        const delta = txData.tipo === 'receita' ? valor : -valor;
+        batch.update(doc(db, 'usuarios', uid, 'carteira', txData.carteiraId), { saldo: increment(delta) });
+      }
+      await batch.commit();
       document.removeEventListener('click', _closeDrops);
       const destino = txData.cartaoId ? 'cartoes.html' : 'extrato.html';
       const label   = txData.cartaoId ? 'Ver no cartão →' : 'Ver no extrato →';
@@ -1615,7 +1624,10 @@ setupArquivos();
 })();
 
 onAuthStateChanged(auth, async user => {
-  if (!user) { window.location.href = 'index.html'; return; }
+  if (user) {
+    try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
+  }
+  if (!user || !user.emailVerified) { window.location.href = 'index.html'; return; }
 
   try {
     const snap     = await getDoc(doc(db, 'usuarios', user.uid));

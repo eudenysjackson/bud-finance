@@ -24,15 +24,17 @@ import { getAuth, onAuthStateChanged, signOut }
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
   collection, query, where, orderBy,
-  onSnapshot, doc, getDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp
+  onSnapshot, doc, getDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, increment
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js'; // PEND-028
+import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Firebase ──────────────────────────────────────────────────────────────
 const app = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 // ─── Estado ────────────────────────────────────────────────────────────────
 let usuarioAtualId     = null;
@@ -99,6 +101,19 @@ function tsToDate(ts) {
   return null;
 }
 
+function ehMovimentacaoInterna(tx) {
+  return Boolean(tx && tx.transferencia);
+}
+
+async function ajustarSaldoDaConta(tx, multiplicador = 1) {
+  if (!tx || !tx.carteiraId || tx.cartaoId) return;
+  const contaRef = doc(db, 'usuarios', usuarioAtualId, 'carteira', tx.carteiraId);
+  const contaSnap = await getDoc(contaRef);
+  if (!contaSnap.exists() || contaSnap.data().tipo === 'credito') return;
+  const sinal = tx.tipo === 'receita' ? 1 : -1;
+  await updateDoc(contaRef, { saldo: increment(sinal * (Number(tx.valor) || 0) * multiplicador) });
+}
+
 function formatDataLabel(date) {
   if (!date) return '—';
   const d = String(date.getDate()).padStart(2, '0');
@@ -126,10 +141,8 @@ function getEmoji(nome) {
 
 /** BUG 5 — parse robusto do valor BRL */
 function parseBRL(str) {
-  const clean = String(str)
-    .replace(/[^\d,.-]/g, '')   // remove tudo menos dígito, vírgula, ponto, menos
-    .replace(/\./g, '')          // remove pontos (milhar BR)
-    .replace(',', '.');          // vírgula → ponto decimal
+  const raw = String(str).replace(/[^\d,.-]/g, '');
+  const clean = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
   const v = parseFloat(clean);
   return isNaN(v) || v < 0 ? null : v;
 }
@@ -452,7 +465,7 @@ function renderizarExtrato() {
 
   // ─ Resumo (usa transacoesGlobais inteiras do mês, sem filtros de UI)
   let totalReceitas = 0, cntReceitas = 0, totalDespesas = 0, cntDespesas = 0;
-  transacoesGlobais.forEach(t => {
+  transacoesGlobais.filter(t => !ehMovimentacaoInterna(t)).forEach(t => {
     if (t.tipo === 'receita') { totalReceitas += (t.valor || 0); cntReceitas++; }
     else                      { totalDespesas += (t.valor || 0); cntDespesas++; }
   });
@@ -460,7 +473,7 @@ function renderizarExtrato() {
 
   // Totais do mês anterior
   let antRec = 0, antDes = 0;
-  transacoesMesAnterior.forEach(t => {
+  transacoesMesAnterior.filter(t => !ehMovimentacaoInterna(t)).forEach(t => {
     if (t.tipo === 'receita') antRec += (t.valor || 0);
     else antDes += (t.valor || 0);
   });
@@ -796,7 +809,9 @@ window.confirmarExclusao = async function() {
   const btn = document.getElementById('btnConfirmarExclusao');
   if (btn) { btn.disabled = true; btn.textContent = 'Excluindo...'; }
   try {
+    const txExcluir = transacoesGlobais.find(tx => tx.id === _excluirId);
     await deleteDoc(doc(db, 'usuarios', usuarioAtualId, 'transacoes', _excluirId));
+    if (txExcluir && !ehMovimentacaoInterna(txExcluir)) await ajustarSaldoDaConta(txExcluir, -1);
     fecharModalExcluir();
     if (window.budShowToast) window.budShowToast('Transação excluída.', 'success');
   } catch (_e) {
@@ -1012,9 +1027,8 @@ function selecionarDiaModal(dia, isoStr) {
 
 // ─── Formatar input de valor em tempo real (máscara BRL) ──────────────────
 window.formatarInputValor = function(input) {
-  const raw = input.value.replace(/\D/g, '');
-  if (!raw) { input.value = ''; return; }
-  const num = parseInt(raw, 10) / 100;
+  const num = parseBRL(input.value);
+  if (!Number.isFinite(num)) return;
   input.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
@@ -1071,10 +1085,15 @@ window.salvarEdicao = async function() {
       }
     }
 
+    const txAnterior = transacoesGlobais.find(tx => tx.id === id);
     const payload = { descricao, valor, categoria, tipo, data: dataTimestamp, atualizadoEm: serverTimestamp() };
     if (anexoURL !== undefined) payload.anexoURL = anexoURL;
 
     await updateDoc(doc(db, 'usuarios', usuarioAtualId, 'transacoes', id), payload);
+    if (txAnterior && !ehMovimentacaoInterna(txAnterior)) {
+      await ajustarSaldoDaConta(txAnterior, -1);
+      await ajustarSaldoDaConta({ ...txAnterior, tipo, valor }, 1);
+    }
     fecharModalEditar();
     if (window.budShowToast) window.budShowToast('Transação atualizada!', 'success');
   } catch (_e) {
@@ -1371,7 +1390,10 @@ window.addEventListener('beforeunload', function() {
 });
 
 onAuthStateChanged(auth, async function(user) {
-  if (!user) { window.location.href = 'index.html'; return; }
+  if (user) {
+    try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
+  }
+  if (!user || !user.emailVerified) { window.location.href = 'index.html'; return; }
 
   usuarioAtualId = user.uid;
   try {

@@ -15,7 +15,7 @@ test.describe('Ação Auth — acao-auth.html', () => {
     });
 
     test('título da página correto', async ({ page }) => {
-      await expect(page).toHaveTitle('Redefinir Senha - Bud Finance');
+      await expect(page).toHaveTitle('Ações de Conta - Bud Finance');
     });
 
     test('estado de erro é exibido quando não há oobCode', async ({ page }) => {

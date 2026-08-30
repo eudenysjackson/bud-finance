@@ -18,6 +18,7 @@
  */
 
 import { initializeApp, getApps }    from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { connectEmulators } from './bud-emulator-connect.js';
 import { getAuth, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
@@ -31,6 +32,7 @@ import {
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 // ─── Benchmarks (BUG 5 — fonte única de verdade) ──────────────────────────
 const BENCHMARKS = { selic: 14.75, cdi: 14.65, ipca: 5.53, poupanca: 7.49 };
@@ -116,15 +118,15 @@ window.setFiltro = function (tipo) {
 
 // ─── Mask BRL ─────────────────────────────────────────────────────────────
 window._maskBRL = function (el) {
-  let v = el.value.replace(/\D/g, '');
-  if (!v) { el.value = ''; return; }
-  v = (parseInt(v, 10) / 100).toFixed(2);
-  el.value = 'R$ ' + v.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const v = parseBRL(el.value);
+  if (!Number.isFinite(v)) return;
+  el.value = v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
 function parseBRL(s) {
   if (!s) return 0;
-  return parseFloat(String(s).replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
+  const raw = String(s).replace(/R\$|\s/g, '');
+  return Number(raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw) || 0;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -795,14 +797,13 @@ window.toggleSimulador = function() {
 };
 
 window._maskSimBRL = function(input) {
-  let v = input.value.replace(/\D/g, '');
-  if (!v) { input.value = ''; return; }
-  const num = parseInt(v, 10) / 100;
+  const num = parseBRL(input.value);
+  if (!Number.isFinite(num)) return;
   input.value = num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
 window.calcularSimulador = function() {
-  const parseSimBRL = s => parseFloat((s || '').replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+  const parseSimBRL = s => parseBRL(s);
   const pv    = parseSimBRL(document.getElementById('simInicial').value);
   const pmt   = parseSimBRL(document.getElementById('simMensal').value);
   const taxa  = parseFloat(document.getElementById('simTaxa').value) / 100 || 0;
@@ -969,6 +970,9 @@ setupSidebar();
 window.setFiltro('');  // inicializa botão "Todos" ativo
 
 onAuthStateChanged(auth, async user => {
+  if (user) {
+    try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
+  }
   if (!user || !user.emailVerified) {
     window.location.href = 'index.html';
     return;

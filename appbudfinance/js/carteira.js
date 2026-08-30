@@ -10,13 +10,15 @@ import {
   getFirestore, initializeFirestore, persistentLocalCache,
   collection, query, where, orderBy, getDocs, limit,
   getDoc, addDoc, updateDoc, deleteDoc, doc, writeBatch,
-  serverTimestamp, Timestamp
+  serverTimestamp, Timestamp, increment
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+import { connectEmulators } from './bud-emulator-connect.js';
 
 // ── Init Firebase ─────────────────────────────────────────
 const app = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 const BACKEND_URL = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com');
 const PER_PAGE = 25;
@@ -107,7 +109,10 @@ function detectarBanco(nome) {
 
 // ── Auth guard ────────────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
-  if (!user) { window.location.href = 'index.html'; return; }
+  if (user) {
+    try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
+  }
+  if (!user || !user.emailVerified) { window.location.href = 'index.html'; return; }
   currentUser = user;
   try {
     const snap = await getDoc(doc(db, 'usuarios', user.uid));
@@ -575,8 +580,11 @@ function buildContaCard(conta) {
 }
 
 function getSaldoExibido(conta) {
+  // `saldo` é o valor materializado e atualizado por cada lançamento.
+  // ultimaConfirmacao/saldoInicial são apenas fallbacks para contas legadas.
+  if (conta.saldo != null) return conta.saldo;
   if (conta.ultimaConfirmacao?.saldo != null) return conta.ultimaConfirmacao.saldo;
-  return conta.saldoInicial ?? conta.saldo ?? 0;
+  return conta.saldoInicial ?? 0;
 }
 
 // ══ CONFIRMAR SALDO RÁPIDO ════════════════════════════════
@@ -591,7 +599,7 @@ function abrirSaldoRapido(contaId) {
   document.getElementById('saldoRapidoContaNome').textContent = conta.nome || 'Conta';
   const inputSaldo = document.getElementById('inputSaldoRapido');
   inputSaldo.value = fmtBRLInput(getSaldoExibido(conta));
-  inputSaldo.oninput = function() { formatarInputValor(this); };
+  ativarFormatoMonetarioNoBlur(inputSaldo);
 
   document.getElementById('btnConfirmarSaldoRapido').onclick = confirmarSaldoRapido;
   document.getElementById('btnCancelarSaldoRapido').onclick = () => modal.classList.remove('open');
@@ -616,10 +624,14 @@ async function confirmarSaldoRapido() {
     const hojeISO = new Date().toISOString().slice(0, 10);
     await updateDoc(doc(db, 'usuarios', currentUser.uid, 'carteira', contaId), {
       ultimaConfirmacao: { data: hojeISO, saldo, origem: 'manual' },
+      saldo,
     });
     // Atualizar local
     const idx = contasGlobal.findIndex(c => c.id === contaId);
-    if (idx !== -1) contasGlobal[idx].ultimaConfirmacao = { data: hojeISO, saldo, origem: 'manual' };
+    if (idx !== -1) {
+      contasGlobal[idx].ultimaConfirmacao = { data: hojeISO, saldo, origem: 'manual' };
+      contasGlobal[idx].saldo = saldo;
+    }
     document.getElementById('modalSaldoRapido').classList.remove('open');
     budToast('Saldo confirmado! ✓', 'success');
     renderContas();
@@ -680,7 +692,7 @@ function abrirModalTransferencia(contaOrigemId) {
   document.getElementById('inputValorTransf').value = '';
   document.getElementById('inputDescTransf').value = '';
   const valInput = document.getElementById('inputValorTransf');
-  valInput.oninput = function() { formatarInputValor(this); };
+  ativarFormatoMonetarioNoBlur(valInput);
 
   // Listeners dos selects
   btnO.onclick = () => { btnO.classList.toggle('open'); ddO.classList.toggle('open'); };
@@ -737,19 +749,27 @@ async function confirmarTransferencia() {
     const uid = currentUser.uid;
     const dataTS = Timestamp.fromDate(new Date(dataStr + 'T12:00:00'));
     const batch = writeBatch(db);
+    const transferenciaId = `transferencia-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const saidaRef = doc(collection(db, 'usuarios', uid, 'transacoes'));
+    const entradaRef = doc(collection(db, 'usuarios', uid, 'transacoes'));
 
     // Saída na conta de origem
-    batch.set(doc(collection(db, 'usuarios', uid, 'transacoes')), {
+    batch.set(saidaRef, {
       descricao: desc, valor, tipo: 'despesa', categoria: 'Transferência',
       data: dataTS, carteiraId: origemId, transferencia: true,
+      transferenciaId,
       dataCriacao: serverTimestamp(), pago: true, confirmado: true, pagamentoFatura: false,
     });
     // Entrada na conta de destino
-    batch.set(doc(collection(db, 'usuarios', uid, 'transacoes')), {
+    batch.set(entradaRef, {
       descricao: desc, valor, tipo: 'receita', categoria: 'Transferência',
       data: dataTS, carteiraId: destinoId, transferencia: true,
+      transferenciaId,
       dataCriacao: serverTimestamp(), pago: true, confirmado: true, pagamentoFatura: false,
     });
+    // O extrato e o saldo materializado precisam mudar juntos.
+    batch.update(doc(db, 'usuarios', uid, 'carteira', origemId), { saldo: increment(-valor) });
+    batch.update(doc(db, 'usuarios', uid, 'carteira', destinoId), { saldo: increment(valor) });
 
     await batch.commit();
     document.getElementById('modalTransferencia').classList.remove('open');
@@ -816,7 +836,7 @@ function abrirModalConta(id) {
 
   // Saldo format
   const inputSaldo = document.getElementById('contaSaldoInicial');
-  inputSaldo.oninput = function() { formatarInputValor(this); };
+  ativarFormatoMonetarioNoBlur(inputSaldo);
 
   document.getElementById('btnSalvarConta').onclick = salvarConta;
   document.getElementById('btnCancelarConta').onclick = () => modal.classList.remove('open');
@@ -876,8 +896,8 @@ async function salvarConta() {
   const editId = document.getElementById('contaEditId').value;
   const tipo = document.getElementById('contaTipoValue').value;
   const nome = budSanitize(document.getElementById('contaNome').value.trim());
-  const saldoRaw = document.getElementById('contaSaldoInicial').value.replace(/[^\d,.-]/g, '').replace(',', '.');
-  const saldo = parseFloat(saldoRaw) || 0;
+  const saldoInformado = parseValorBR(document.getElementById('contaSaldoInicial').value);
+  const saldo = Number.isFinite(saldoInformado) ? saldoInformado : 0;
 
   let ok = true;
   if (!tipo) { document.getElementById('contaTipoBtn').classList.add('error'); ok = false; }
@@ -897,6 +917,7 @@ async function salvarConta() {
       const updateData = {
         nome, tipo,
         ultimaConfirmacao: { data: hojeISO, saldo, origem: 'manual' },
+        saldo,
         atualizadaEm: serverTimestamp(),
       };
       if (corValue !== undefined) updateData.cor = corValue;
@@ -905,6 +926,7 @@ async function salvarConta() {
       await addDoc(ref, {
         nome, tipo,
         saldoInicial: saldo,
+        saldo,
         cor: corValue,
         criadaEm: serverTimestamp(),
         atualizadaEm: serverTimestamp(),
@@ -1014,6 +1036,7 @@ function abrirModalImport(contaId) {
     // Salvar saldo confirmado no Firestore
     try {
       await updateDoc(doc(db, 'usuarios', btn._pendingUid, 'carteira', btn._pendingId), {
+        saldo: saldoFinal,
         ultimaConfirmacao: {
           data: btn._pendingData,
           saldo: saldoFinal,
@@ -1502,13 +1525,14 @@ function detectarTipo(desc, tipoOrigem) {
 // Nomes devem ser idênticos aos de BUD_CATEGORIAS_PADRAO para seleção correta no <select>
 const REGRAS_CAT = [
   { cat: 'Mercado',                 words: ['mercado','supermercado','hipermercado','atacadao','assai','carrefour','extra','pao de acucar','hortifruti','sacolao','feira'] },
-  { cat: 'Restaurante',             words: ['restaurante','lanchonete','hamburger','pizza','sushi','churrascaria'] },
+  { cat: 'Restaurante',             words: ['restaurante','lanchonete','hamburger','pizza','sushi','churrascaria','mcdonalds','burger king','kfc','subway'] },
   { cat: 'Delivery/Ifood',          words: ['ifood','rappi','delivery','uber eats','deliway'] },
-  { cat: 'Padaria/Café',            words: ['padaria','cafe','cafeteria','starbucks','bobs','mcdonalds','burger king','kfc','subway','panificacao'] },
-  { cat: 'Uber/Táxi',               words: ['uber','taxi','99pop','99 tecnologia','cabify'] },
+  { cat: 'Padaria/Café',            words: ['padaria','cafe','cafeteria','starbucks','panificacao'] },
+  { cat: 'Uber/Táxi',               words: ['uber','taxi','99pop','99 tecnologia','cabify','indrive'] },
   { cat: 'Ônibus/Metrô',            words: ['onibus','metro','trem'] },
   { cat: 'Combustível',             words: ['combustivel','gasolina','etanol','posto','shell','ipiranga'] },
-  { cat: 'Estacionamento',          words: ['estacionamento','pedagio'] },
+  { cat: 'Estacionamento',          words: ['estacionamento'] },
+  { cat: 'Pedágio',                 words: ['pedagio','sem parar','conectcar','veloe'] },
   { cat: 'Farmácia',                words: ['farmacia','drogaria','ultrafarma','droga raia','drogasil','pacheco','medifarma','boa fe'] },
   { cat: 'Plano de Saúde',          words: ['plano de saude','supermed','unimed','amil','bradesco saude'] },
   { cat: 'Consultas/Exames',        words: ['hospital','clinica','medico','consulta','dentista','fisioterapia','laboratorio','exame'] },
@@ -1523,6 +1547,8 @@ const REGRAS_CAT = [
   { cat: 'Shows/Eventos',           words: ['show','ingresso','parque','diversao'] },
   { cat: 'Academia/Esportes',       words: ['academia','ginasio','crossfit','smartfit','bluefit'] },
   { cat: 'Aluguel',                 words: ['aluguel'] },
+  { cat: 'Condomínio',              words: ['condominio'] },
+  { cat: 'Água',                    words: ['conta de agua','sabesp','cedae','copasa','saneamento'] },
   { cat: 'Internet/TV',             words: ['claro','vivo','tim','oi','internet','telefone'] },
   { cat: 'Luz',                     words: ['light servicos','eletricidade','cemig','copel','energisa','cpfl','enel'] },
   { cat: 'Gás',                     words: ['ceg','comgas'] },
@@ -1530,14 +1556,25 @@ const REGRAS_CAT = [
   { cat: 'Eletrônicos',             words: ['shpp','shoptime','americanas','magazine luiza','casas bahia','kabum','terabyte'] },
   { cat: 'Compras Online',          words: ['mercadolivre','amazon','shopee','aliexpress','submarino'] },
   { cat: 'Empréstimos/Dívidas',     words: ['emprestimo','financiamento','prestacao','consignado','resgate de emprestimo'] },
-  { cat: 'Salário',                 words: ['salario','proventos','folha de pagamento','holerite'] },
-  { cat: 'Rendimentos/Dividendos',  words: ['rendimento','dividendo','resgate rdb','resgate cdb'] },
+  { cat: 'Taxas Bancárias',         words: ['tarifa bancaria','taxa bancaria','cesta de servicos','iof operacao'] },
   { cat: 'Outros',                  words: ['transferencia','pix','ted','doc','tev'] },
 ];
 
 function detectarCategoria(desc, tipo) {
   if (!desc) return tipo === 'receita' ? 'Outros' : 'Outros';
   const d = desc.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  if (/pagamento recebido|pagamento de fatura|pagto recebido|pgto fatura/.test(d)) return 'Pagamento de Fatura';
+  if (/pix no credito/.test(d)) return 'Pix no Crédito';
+  if (/^99\s*-?\s*nupay\b/.test(d)) return 'Uber/Táxi';
+
+  if (tipo === 'receita') {
+    if (/salario|proventos|folha de pagamento|holerite/.test(d)) return 'Salário';
+    if (/rendimento|dividendo|resgate rdb|resgate cdb/.test(d)) return 'Rendimentos/Dividendos';
+    if (/cashback/.test(d)) return 'Cashback';
+    if (/aluguel recebido|alugueis recebidos/.test(d)) return 'Aluguéis Recebidos';
+    return 'Outras Receitas';
+  }
 
   for (const regra of REGRAS_CAT) {
     for (const w of regra.words) {
@@ -2120,11 +2157,12 @@ function escapeHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function formatarInputValor(el) {
-  let v = el.value.replace(/\D/g, '');
-  if (!v) { el.value = ''; return; }
-  v = (parseInt(v, 10) / 100).toFixed(2);
-  el.value = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(parseFloat(v));
+function ativarFormatoMonetarioNoBlur(el) {
+  el.oninput = null;
+  el.onblur = function () {
+    const valor = parseValorBR(this.value);
+    if (Number.isFinite(valor)) this.value = fmtBRLInput(valor);
+  };
 }
 
 function budSanitize(s) {

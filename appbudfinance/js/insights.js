@@ -19,6 +19,7 @@
  */
 
 import { initializeApp, getApps }   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { connectEmulators } from './bud-emulator-connect.js';
 import { getAuth, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
@@ -32,6 +33,7 @@ import {
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 // ─── Estado ───────────────────────────────────────────────────────────────
 let currentUser     = null;
@@ -214,7 +216,7 @@ function renderTudo() {
   const doMes = transacoes.filter(t =>
     (normalizarData(t.data) || '').startsWith(pfx) &&
     t.status !== 'pendente' &&
-    t.pago !== false
+    t.pago !== false && !t.transferencia
   );
 
   // Mês anterior
@@ -224,7 +226,7 @@ function renderTudo() {
   const doMesPrev = transacoes.filter(t =>
     (normalizarData(t.data) || '').startsWith(pfxPrev) &&
     t.status !== 'pendente' &&
-    t.pago !== false
+    t.pago !== false && !t.transferencia
   );
 
   renderAlertas(doMes, doMesPrev);
@@ -542,9 +544,9 @@ function renderScoreHistorico() {
     const pfxP = `${dP.getFullYear()}-${String(dP.getMonth()+1).padStart(2,'0')}`;
 
     const doMes     = transacoes.filter(t =>
-      (normalizarData(t.data)||'').startsWith(pfx)  && t.status !== 'pendente' && t.pago !== false);
+      (normalizarData(t.data)||'').startsWith(pfx)  && t.status !== 'pendente' && t.pago !== false && !t.transferencia);
     const doMesPrev = transacoes.filter(t =>
-      (normalizarData(t.data)||'').startsWith(pfxP) && t.status !== 'pendente' && t.pago !== false);
+      (normalizarData(t.data)||'').startsWith(pfxP) && t.status !== 'pendente' && t.pago !== false && !t.transferencia);
 
     labels.push(MESES_ABR[d.getMonth()]);
     scores.push(calcularScore(doMes, doMesPrev, limites));
@@ -704,12 +706,10 @@ function renderSimulador(doMes) {
   // Saldo bruto das contas carteira
   const saldoBruto = carteiraGlobal.reduce((s, c) => s + (Number(c.saldo) || 0), 0);
 
-  // BUG 12 — desconta despesas já pagas no mês
-  const despJaPagas = doMes
-    .filter(t => t.tipo === 'despesa' && t.pago !== false)
-    .reduce((s, t) => s + (Number(t.valor) || 0), 0);
-  const dep = doMes.filter(t => t.tipo === 'despesa').reduce((s, t) => s + (Number(t.valor) || 0), 0);
-  const saldoCarteira = saldoBruto - despJaPagas;
+  // saldo já representa as movimentações confirmadas; descontar despesas de
+  // novo faria o simulador subestimar o dinheiro disponível.
+  const dep = doMes.filter(t => t.tipo === 'despesa' && !t.transferencia).reduce((s, t) => s + (Number(t.valor) || 0), 0);
+  const saldoCarteira = saldoBruto;
 
   const ritmoDia = diaAtual > 0 ? dep / diaAtual : 0;
   const limiteDia = diasRest > 0 ? saldoCarteira / diasRest : saldoCarteira;
@@ -873,7 +873,7 @@ function getCompDados(pfx) {
   const lista = transacoes.filter(t =>
     (normalizarData(t.data) || '').startsWith(pfx) &&
     t.status !== 'pendente' &&
-    t.pago !== false
+    t.pago !== false && !t.transferencia
   );
   const rec = lista.filter(t => t.tipo === 'receita').reduce((s, t) => s + (Number(t.valor) || 0), 0);
   const dep = lista.filter(t => t.tipo === 'despesa').reduce((s, t) => s + (Number(t.valor) || 0), 0);
@@ -1050,7 +1050,10 @@ window.sincronizarDados = async function() {
 
 // ─── Auth ──────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async user => {
-  if (!user) {
+  if (user) {
+    try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
+  }
+  if (!user || !user.emailVerified) {
     hideSplash();
     window.location.href = 'index.html';
     return;

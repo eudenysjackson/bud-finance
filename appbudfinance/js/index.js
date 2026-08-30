@@ -3,7 +3,7 @@
 
 import { initializeApp, getApps }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, sendEmailVerification, onAuthStateChanged }
+import { getAuth, signInWithEmailAndPassword, signInWithCustomToken, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, collection, query, where, getDocs }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -19,10 +19,33 @@ connectEmulators(auth, db);
 // Auto-redirect usuario ja autenticado
 // Se o usuario ja tem sessao ativa, redireciona sem precisar de login
 let _loginInProgress = false;
+let _magicLoginInProgress = false;
 onAuthStateChanged(auth, function (user) {
-  if (_loginInProgress) return;
+  if (_loginInProgress || _magicLoginInProgress) return;
   if (user) window.location.href = 'dashboard.html';
 });
+
+// Acesso direto pelo botão do e-mail. O token é validado no backend e nunca
+// concede acesso sem antes confirmar a posse do e-mail.
+(async function entrarPorLinkMagico() {
+  var magic = new URLSearchParams(window.location.search).get('magic_verification');
+  if (!magic) return;
+  _magicLoginInProgress = true;
+  try {
+    var base = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\/$/, '');
+    var resp = await fetch(base + '/api/verificacao-email/magico', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: magic })
+    });
+    var data = await resp.json().catch(function () { return {}; });
+    if (!resp.ok || !data.customToken) throw new Error(data.error || 'Link inválido.');
+    await signInWithCustomToken(auth, data.customToken);
+    window.location.replace('dashboard.html');
+  } catch (err) {
+    _magicLoginInProgress = false;
+    window.history.replaceState({}, document.title, 'index.html');
+    window.budShowToast('⚠️ ' + (err.message || 'Não foi possível concluir o acesso.'), 'error');
+  }
+})();
 
 // ─── DOM refs ───────────────────────────────────────────────────────
 const formLogin          = document.getElementById('formLogin');
@@ -103,7 +126,14 @@ function showEmailVerificationModal(user) {
     const desc = document.createElement('p');
     desc.style.cssText =
       'font-size:0.8125rem;color:#64748b;margin-bottom:1.25rem;line-height:1.5;';
-    desc.textContent = 'Sua conta exige verificação de e-mail. Clique em "Reenviar" para receber o link.';
+    desc.textContent = 'Enviaremos um código de 6 dígitos para confirmar sua conta.';
+
+    const codeInput = document.createElement('input');
+    codeInput.type = 'text';
+    codeInput.inputMode = 'numeric';
+    codeInput.maxLength = 6;
+    codeInput.placeholder = 'Código de 6 dígitos';
+    codeInput.style.cssText = 'width:100%;box-sizing:border-box;padding:0.7rem;border:1px solid #cbd5e1;border-radius:0.625rem;text-align:center;letter-spacing:0.25em;font-weight:800;font-size:1rem;margin:0 0 0.75rem;';
 
     // Feedback message
     const feedback = document.createElement('p');
@@ -128,7 +158,14 @@ function showEmailVerificationModal(user) {
       'flex:1;padding:0.625rem;border-radius:0.625rem;border:none;' +
       'background:#10b981;color:#fff;font-weight:700;font-size:0.875rem;' +
       'cursor:pointer;font-family:inherit;';
-    btnYes.textContent = 'Reenviar';
+    btnYes.textContent = 'Enviar código';
+
+    const btnConfirm = document.createElement('button');
+    btnConfirm.style.cssText =
+      'width:100%;padding:0.625rem;border-radius:0.625rem;border:none;' +
+      'background:#2563eb;color:#fff;font-weight:700;font-size:0.875rem;' +
+      'cursor:pointer;font-family:inherit;margin:0 0 0.75rem;';
+    btnConfirm.textContent = 'Confirmar código';
 
     btnNo.addEventListener('click', function () {
       overlay.remove();
@@ -140,42 +177,18 @@ function showEmailVerificationModal(user) {
       btnYes.textContent = 'Enviando...';
       feedback.style.display = 'none';
       try {
-        // 1. Pedir ao backend o link real de verificação Firebase (Admin SDK)
-        var verifyUrl = null;
-        try {
-          var idToken    = await user.getIdToken();
-          var backendUrl = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\/$/, '');
-          var resp = await fetch(backendUrl + '/api/boas-vindas', {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
-            body:    JSON.stringify({ email: user.email, nome: user.displayName || user.email, matricula: '' })
-          });
-          var bdata = await resp.json().catch(function () { return {}; });
-          if (resp.ok && bdata.hasRealLink) verifyUrl = bdata.verifyLink;
-        } catch (_be) { /* ignora — usa fallback */ }
-
-        // 2. Enviar e-mail de boas-vindas via EmailJS com o link real
-        var cfg = window.BUD_EMAILJS_CONFIG;
-        if (cfg && cfg.publicKey && !cfg.publicKey.startsWith('__') && window.emailjs && verifyUrl) {
-          await window.emailjs.send(cfg.serviceId, cfg.templates.boasVindas, {
-            to_name:    user.displayName || user.email,
-            to_email:   user.email,
-            matricula:  '',
-            nome:       user.displayName || user.email,
-            email:      user.email,
-            reply_to:   user.email,
-            verify_url: verifyUrl
-          });
-        } else {
-          // Fallback: e-mail padrão do Firebase (sem template bonito)
-          await sendEmailVerification(user);
-        }
+        var idToken = await user.getIdToken();
+        var backendUrl = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\/$/, '');
+        var resp = await fetch(backendUrl + '/api/verificacao-email/enviar', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken }
+        });
+        var bdata = await resp.json().catch(function () { return {}; });
+        if (!resp.ok) throw new Error(bdata.error || 'Falha ao enviar');
 
         feedback.style.color = '#059669';
-        feedback.textContent = '✅ Link enviado! Verifique sua caixa de entrada e o spam.';
+        feedback.textContent = '✅ Código enviado! Verifique sua caixa de entrada e o spam.';
         feedback.style.display = 'block';
         btnYes.textContent = 'Enviado ✓';
-        setTimeout(function () { overlay.remove(); resolve(true); }, 3000);
       } catch (err) {
         var msg = err.code === 'auth/too-many-requests'
           ? 'Muitas tentativas. Aguarde alguns minutos.'
@@ -184,7 +197,25 @@ function showEmailVerificationModal(user) {
         feedback.textContent = '⚠️ ' + msg;
         feedback.style.display = 'block';
         btnYes.disabled = false;
-        btnYes.textContent = 'Reenviar';
+        btnYes.textContent = 'Enviar código';
+      }
+    });
+
+    btnConfirm.addEventListener('click', async function () {
+      var codigo = codeInput.value.replace(/\D/g, '');
+      if (codigo.length !== 6) { feedback.textContent = '⚠️ Informe os 6 dígitos do código.'; feedback.style.color = '#dc2626'; feedback.style.display = 'block'; return; }
+      btnConfirm.disabled = true; btnConfirm.textContent = 'Confirmando...';
+      try {
+        var token = await user.getIdToken();
+        var base = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\/$/, '');
+        var resp = await fetch(base + '/api/verificacao-email/confirmar', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ codigo: codigo }) });
+        var data = await resp.json().catch(function () { return {}; });
+        if (!resp.ok) throw new Error(data.error || 'Código inválido');
+        await user.reload();
+        overlay.remove(); resolve(true);
+      } catch (err) {
+        feedback.textContent = '⚠️ ' + (err.message || 'Não foi possível confirmar o código.'); feedback.style.color = '#dc2626'; feedback.style.display = 'block';
+        btnConfirm.disabled = false; btnConfirm.textContent = 'Confirmar código';
       }
     });
 
@@ -193,6 +224,8 @@ function showEmailVerificationModal(user) {
     card.appendChild(icon);
     card.appendChild(title);
     card.appendChild(desc);
+    card.appendChild(codeInput);
+    card.appendChild(btnConfirm);
     card.appendChild(feedback);
     card.appendChild(row);
     overlay.appendChild(card);
@@ -258,7 +291,7 @@ formLogin.addEventListener('submit', async function (e) {
       return;
     }
 
-    const user = userCredential.user;
+    let user = userCredential.user;
 
     // 5. Fetch user doc from Firestore (tolerante a falha de permissão)
     let userData = {};
@@ -280,10 +313,21 @@ formLogin.addEventListener('submit', async function (e) {
     // 7. Check: email verified (ERR-006 — enforced for ALL users)
     if (!user.emailVerified) {
       // Modal handles sending internally and shows feedback
-      await showEmailVerificationModal(user);
-      await signOut(auth);
-      resetBtn();
-      return;
+      const confirmed = await showEmailVerificationModal(user);
+      if (!confirmed) {
+        await signOut(auth);
+        resetBtn();
+        return;
+      }
+      // A confirmação por código ocorre no backend. Recarregar o usuário
+      // atualiza emailVerified antes de seguir para as telas protegidas.
+      await user.reload();
+      user = auth.currentUser;
+      if (!user || !user.emailVerified) {
+        await signOut(auth);
+        resetBtn();
+        return;
+      }
     }
 
     // 8. Redirect based on first login

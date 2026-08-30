@@ -20,11 +20,13 @@ import {
   onSnapshot, doc, getDoc, addDoc, updateDoc, deleteDoc,
   serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Firebase ──────────────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 // ─── Estado ────────────────────────────────────────────────────────────────
 let currentUser       = null;
@@ -53,17 +55,16 @@ function formatBRL(v) {
 
 function parseBRL(s) {
   if (!s) return null;
-  const n = parseFloat(String(s).replace(/\./g, '').replace(',', '.'));
+  const raw = String(s).replace(/R\$|\s/g, '');
+  const normalizado = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
+  const n = Number(normalizado);
   return isNaN(n) ? null : n;
 }
 
 function formatarInputValor(input) {
-  let raw = input.value.replace(/\D/g, '');
-  if (!raw) { input.value = ''; return; }
-  const num = parseInt(raw, 10);
-  const reais   = Math.floor(num / 100);
-  const centavos = num % 100;
-  input.value = reais.toLocaleString('pt-BR') + ',' + String(centavos).padStart(2, '0');
+  const num = parseBRL(input.value);
+  if (!Number.isFinite(num)) return;
+  input.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatarData(ts) {
@@ -756,6 +757,9 @@ onAuthStateChanged(auth, async (user) => {
   _unsubs.forEach(u => u && u());
   _unsubs = [];
 
+  if (user) {
+    try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
+  }
   if (!user || !user.emailVerified) {
     window.location.href = 'index.html';
     return;
@@ -936,7 +940,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnSalvarRec')?.addEventListener('click', salvarRecorrente);
 
   // Máscara BRL no valor
-  document.getElementById('recValor')?.addEventListener('input', function() {
+  document.getElementById('recValor')?.addEventListener('blur', function() {
     formatarInputValor(this);
   });
 

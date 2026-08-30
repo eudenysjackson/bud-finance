@@ -31,6 +31,7 @@
  */
 
 import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { connectEmulators } from './bud-emulator-connect.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
@@ -43,6 +44,7 @@ import {
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 // ─── Constantes ──────────────────────────────────────────────────
 const QUERY_LIMIT = 100;         // BUG 18: limite único
@@ -58,7 +60,7 @@ const IA_TIMEOUT_MS = 60000;
 const IA_MAX_FILES  = 3;
 const IA_MAX_SIZE_MB = 8;
 const IA_LIMITES_PLANO = { free: 5, starter: 30, plus: 9999, pro: 9999, trial: 30 };
-const CATEGORIAS_IA = ['Mercado','Padaria/Café','Bares/Baladas','Farmácia','Pets','Material Escolar','Outros'];
+const CATEGORIAS_IA = ['Mercado','Padaria/Café','Bares/Baladas','Farmácia','Pet','Material Escolar','Outros'];
 
 // ─── Estado global ───────────────────────────────────────────────
 let currentUser  = null;
@@ -111,16 +113,14 @@ function formatBRL(v) {
 function parseBRL(s) {
   if (typeof s === 'number') return s;
   if (!s) return 0;
-  const n = parseFloat(String(s).replace(/\./g,'').replace(',','.'));
+  const raw = String(s).replace(/R\$|\s/g, '');
+  const n = Number(raw.includes(',') ? raw.replace(/\./g,'').replace(',','.') : raw);
   return isNaN(n) ? 0 : n;
 }
 function aplicarMascaraValor(input) {
-  let raw = input.value.replace(/\D/g, '');
-  if (!raw) { input.value = ''; return; }
-  const num = parseInt(raw, 10);
-  const reais    = Math.floor(num / 100);
-  const centavos = num % 100;
-  input.value = reais.toLocaleString('pt-BR') + ',' + String(centavos).padStart(2,'0');
+  const num = parseBRL(input.value);
+  if (!Number.isFinite(num)) return;
+  input.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function aplicarMascaraData(input) {
   let v = input.value.replace(/\D/g,'');
@@ -163,7 +163,7 @@ const KEYWORDS_CAT = [
   { re: /shampoo|sab[oõ]nete|creme|escova|pasta|absorvente|fralda|higiene|perfume|desodorante/i, cat: 'Farmácia' },
   { re: /rem[eé]dio|comprimido|paracetamol|dipirona|antialerg/i, cat: 'Farmácia' },
   { re: /caderno|caneta|l[aá]pis|papel|borracha|estojo|mochila/i, cat: 'Material Escolar' },
-  { re: /ra[çc][aã]o|petisco|areia.*gato|coleira/i, cat: 'Pets' },
+  { re: /ra[çc][aã]o|petisco|areia.*gato|coleira/i, cat: 'Pet' },
   { re: /bebida|cerveja|vinho|whisky|vodka|destilado/i, cat: 'Bares/Baladas' },
   { re: /p[aã]o|caf[eé]|leite|biscoito|bolacha|bolo/i, cat: 'Padaria/Café' },
 ];
@@ -520,6 +520,12 @@ async function salvarCompra() {
     const descBase = mercado + (itensNorm.length > 1 ? ` (${itensNorm.length} itens)` : '');
 
     const batch = writeBatch(db);
+    const ajustesCarteira = new Map();
+    const ajustarCarteira = (idCarteira, delta) => {
+      if (!idCarteira || !delta) return;
+      ajustesCarteira.set(idCarteira, (ajustesCarteira.get(idCarteira) || 0) + delta);
+    };
+    const ehDebito = forma !== 'Crédito' && !!cartaoId;
 
     let compraRefId;
     if (id) {
@@ -537,7 +543,14 @@ async function salvarCompra() {
         collection(db, 'usuarios', currentUser.uid, 'transacoes'),
         where('compraId', '==', id)
       ));
-      oldSnap.forEach(d => batch.delete(d.ref));
+      oldSnap.forEach(d => {
+        const txAntiga = d.data();
+        // Estorna apenas parcelas já pagas antes de recriá-las.
+        if (txAntiga.pago !== false && txAntiga.conta !== 'Crédito') {
+          ajustarCarteira(txAntiga.carteiraId || txAntiga.cartaoId, Number(txAntiga.valor) || 0);
+        }
+        batch.delete(d.ref);
+      });
     } else {
       const compraRef = doc(collection(db, 'usuarios', currentUser.uid, 'compras'));
       compraRefId = compraRef.id;
@@ -571,9 +584,11 @@ async function salvarCompra() {
           dataCriacao: serverTimestamp(),
           pago: p === 0,
           cartaoId: cartaoId || '',
+          carteiraId: ehDebito ? cartaoId : null,
           origem: 'compras',
           compraId: compraRefId,                // BUG 5
         });
+        if (ehDebito && p === 0) ajustarCarteira(cartaoId, -valorParc);
       }
     } else {
       const transRef = doc(collection(db, 'usuarios', currentUser.uid, 'transacoes'));
@@ -587,10 +602,16 @@ async function salvarCompra() {
         dataCriacao: serverTimestamp(),
         pago: true,
         cartaoId: cartaoId || '',
+        carteiraId: ehDebito ? cartaoId : null,
         origem: 'compras',
         compraId: compraRefId,
       });
+      if (ehDebito) ajustarCarteira(cartaoId, -total);
     }
+
+    ajustesCarteira.forEach((delta, idCarteira) => {
+      batch.update(doc(db, 'usuarios', currentUser.uid, 'carteira', idCarteira), { saldo: increment(delta) });
+    });
 
     await batch.commit();
     showToast(id ? 'Compra atualizada' : 'Compra registrada', 'success');
@@ -638,7 +659,18 @@ async function confirmarExcluirCompra(compra) {
         collection(db, 'usuarios', currentUser.uid, 'transacoes'),
         where('compraId', '==', compra.id)
       ));
-      transSnap.forEach(d => batch.delete(d.ref));
+      const estornos = new Map();
+      transSnap.forEach(d => {
+        const tx = d.data();
+        if (tx.pago !== false && tx.conta !== 'Crédito') {
+          const contaId = tx.carteiraId || tx.cartaoId;
+          if (contaId) estornos.set(contaId, (estornos.get(contaId) || 0) + (Number(tx.valor) || 0));
+        }
+        batch.delete(d.ref);
+      });
+      estornos.forEach((valor, contaId) => {
+        batch.update(doc(db, 'usuarios', currentUser.uid, 'carteira', contaId), { saldo: increment(valor) });
+      });
       await batch.commit();
       showToast('Compra excluída', 'success');
     } catch (e) {
@@ -1650,7 +1682,7 @@ function wireUp() {
   // Add item compra (BUG 12: input inline, sem prompt)
   document.getElementById('btnAddItem').addEventListener('click', adicionarItemCompra);
   document.getElementById('novoItemNome').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); adicionarItemCompra(); } });
-  document.getElementById('novoItemValor').addEventListener('input', (e) => aplicarMascaraValor(e.target));
+  document.getElementById('novoItemValor').addEventListener('blur', (e) => aplicarMascaraValor(e.target));
   document.getElementById('novoItemValor').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); adicionarItemCompra(); } });
 
   // Lista
@@ -2361,7 +2393,7 @@ function setupImportIA() {
     renderReviewItens();
     inN.focus();
   });
-  document.getElementById('reviewNovoValor').addEventListener('input', (e) => aplicarMascaraValor(e.target));
+  document.getElementById('reviewNovoValor').addEventListener('blur', (e) => aplicarMascaraValor(e.target));
 }
 
 // ─── Inicialização ───────────────────────────────────────────────
@@ -2389,7 +2421,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
   onAuthStateChanged(auth, async (user) => {
     resetState();                                  // BUG 10
-    if (!user) {
+    if (user) {
+      try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
+    }
+    if (!user || !user.emailVerified) {
       window.location.href = 'index.html';
       return;
     }

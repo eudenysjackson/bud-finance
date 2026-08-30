@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>{{email_title}}</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:Inter,Arial,Helvetica,sans-serif;color:#1e293b;">
+  <span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">{{email_preheader}}</span>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f0f4f8;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.06);">
+          <tr>
+            <td align="center" style="background:#2563eb;padding:30px 24px 26px;">
+              <img src="https://raw.githubusercontent.com/eudenysjackson/bud-finance/master/appbudfinance/logobranca.png" alt="App Bud Finance" width="56" height="56" style="display:block;width:56px;height:56px;border:0;margin:0 auto 12px;">
+              <p style="margin:0;color:#ffffff;font-size:22px;font-weight:800;line-height:1.25;">{{email_title}}</p>
+              <p style="margin:8px 0 0;color:#dbeafe;font-size:14px;line-height:1.45;">{{email_preheader}}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:30px 28px 10px;">
+              <p style="margin:0 0 18px;font-size:15px;font-weight:600;color:#1e293b;line-height:1.6;">Olá, {{to_name}}! 👋</p>
+              <p style="margin:0;font-size:15px;color:#475569;line-height:1.75;white-space:pre-line;">{{email_body}}</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:28px 28px 18px;">
+              <a href="{{action_url}}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#059669;color:#ffffff;font-size:16px;font-weight:800;font-family:Inter,Arial,Helvetica,sans-serif;text-decoration:none;padding:14px 28px;border-radius:12px;line-height:1.25;box-shadow:0 4px 12px rgba(5,150,105,.28);">{{action_label}}</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:4px 28px 28px;">
+              <p style="margin:0;text-align:center;font-size:12px;color:#94a3b8;line-height:1.6;">Se o botão não funcionar, copie este endereço no navegador:<br><a href="{{action_url}}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;word-break:break-all;">{{action_url}}</a></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 28px 28px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td style="border-top:1px solid #e2e8f0;padding-top:20px;">
+                    <p style="margin:0;text-align:center;font-size:12px;color:#94a3b8;line-height:1.55;">Este e-mail foi enviado automaticamente pelo <strong style="color:#64748b;">App Bud Finance</strong>.<br>Se você não reconhece esta solicitação, pode ignorar este e-mail.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

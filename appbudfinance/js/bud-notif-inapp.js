@@ -47,6 +47,35 @@
     _save(h);
   }
 
+  // Remove avisos vinculados a contas locais antigas. No emulator o UID pode
+  // mudar ao recriar o usuário, mas o localStorage do navegador permanece.
+  function _pruneAccountNotifications(uid) {
+    var accountPrefixes = ['welcome_v2_', 'trial_', 'expire_1d_'];
+    var h = _load().filter(function (n) {
+      var key = String(n.key || '');
+      var scoped = accountPrefixes.some(function (prefix) { return key.startsWith(prefix); });
+      return !scoped || key.endsWith('_' + uid);
+    });
+    h.forEach(function (n) {
+      if (n.key === 'welcome_v2_' + uid) {
+        n.link = '#tutorial-dashboard';
+        n.linkLabel = 'Ver tutorial';
+      }
+    });
+    _save(h);
+  }
+
+  function _handleInternalLink(event, link) {
+    if (link !== '#tutorial-dashboard') return false;
+    event.preventDefault();
+    var panel = document.getElementById('budNotifPanel');
+    var overlay = document.getElementById('budNotifOverlay');
+    if (panel) panel.remove();
+    if (overlay) overlay.remove();
+    if (window.BudTutorial) window.BudTutorial.show('dashboard');
+    return true;
+  }
+
   function _reconcileGlobals(validKeys) {
     var allowed = new Set(validKeys || []);
     var h = _load().filter(function (n) {
@@ -138,6 +167,7 @@
       var a = document.createElement('a');
       a.href = link;
       a.textContent = linkLabel;
+      a.onclick = function (event) { _handleInternalLink(event, link); };
       a.style.cssText =
         'background:rgba(255,255,255,0.2);color:#fff;padding:0.3rem 0.75rem;' +
         'border-radius:0.5rem;font-size:0.75rem;font-weight:700;' +
@@ -284,6 +314,7 @@
           var aEl = document.createElement('a');
           aEl.href = n.link;
           aEl.textContent = n.linkLabel + ' →';
+          aEl.onclick = function (event) { _handleInternalLink(event, n.link); };
           aEl.style.cssText =
             'display:inline-block;margin-top:0.5rem;font-size:0.75rem;' +
             'font-weight:700;color:#2563eb;text-decoration:none;';
@@ -292,6 +323,20 @@
 
         card.appendChild(eico);
         card.appendChild(info);
+
+        var dismissBtn = document.createElement('button');
+        dismissBtn.type = 'button';
+        dismissBtn.textContent = '✕';
+        dismissBtn.setAttribute('aria-label', 'Descartar notificação');
+        dismissBtn.style.cssText =
+          'background:none;border:none;color:var(--card-text-sec,#64748b);' +
+          'cursor:pointer;font-size:0.9rem;padding:0.1rem 0.25rem;flex-shrink:0;';
+        dismissBtn.onclick = function () {
+          _dismiss(n.key);
+          card.remove();
+          _updateBadge();
+        };
+        card.appendChild(dismissBtn);
         body.appendChild(card);
       });
     }
@@ -314,11 +359,11 @@
         var wMsg = 'Bem-vindo(a) ao Bud Finance' + (nome ? ', ' + nome : '') + '! Explore o tutorial para começar 🎉';
         _add({
           key: kWelcome, emoji: '👋', msg: wMsg,
-          link: 'onboarding.html', linkLabel: 'Ver tutorial',
+          link: '#tutorial-dashboard', linkLabel: 'Ver tutorial',
           ts: Date.now(), read: false, dismissed: false
         });
         if (!_isDismissed(kWelcome)) {
-          _showBanner(kWelcome, '👋', wMsg, 'onboarding.html', 'Ver tutorial');
+          _showBanner(kWelcome, '👋', wMsg, '#tutorial-dashboard', 'Ver tutorial');
           _updateBadge();
           return; // uma notificação por vez
         }
@@ -383,6 +428,7 @@
      * @param {object} userData — Firestore /usuarios/{uid} data
      */
     init: function (user, userData) {
+      _pruneAccountNotifications(user.uid);
       _updateBadge();
       _check(user, userData);
     },

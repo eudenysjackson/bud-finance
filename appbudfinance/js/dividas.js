@@ -3,17 +3,19 @@
 //  Todos os 25 bugs do cérebro/dividas.md corrigidos desde o início.
 // ─────────────────────────────────────────────────────────────────
 import { initializeApp, getApps }          from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { connectEmulators } from './bud-emulator-connect.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
   collection, query, orderBy, limit,
-  onSnapshot, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, writeBatch,
+  onSnapshot, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, writeBatch, increment,
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // ─── Firebase init ───────────────────────────────────────────────
 const app = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 // ─── Estado global ───────────────────────────────────────────────
 let currentUser        = null;
@@ -63,17 +65,16 @@ function fmtIA(v) {
 
 function parseMoeda(s) {
   if (!s) return 0;
-  const n = parseFloat(String(s).replace(/\./g, '').replace(',', '.'));
+  const raw = String(s).replace(/R\$|\s/g, '');
+  const normalizado = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
+  const n = Number(normalizado);
   return isNaN(n) ? 0 : n;
 }
 
 function aplicarMascaraMoeda(input) {
-  let raw = input.value.replace(/\D/g, '');
-  if (!raw) { input.value = ''; return; }
-  const num = parseInt(raw, 10);
-  const reais    = Math.floor(num / 100);
-  const centavos = num % 100;
-  input.value = reais.toLocaleString('pt-BR') + ',' + String(centavos).padStart(2, '0');
+  const num = parseMoeda(input.value);
+  if (!Number.isFinite(num)) return;
+  input.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 // DEC-018: campo de data como texto DD/MM/AAAA
@@ -1266,6 +1267,13 @@ window.marcarParcelaPaga = async function(id, indice) {
   const d = dividas.find(x => x.id === id);
   if (!d) return;
 
+  // A confirmação precisa identificar a conta paga. Para dívidas antigas sem
+  // vínculo, o lembrete da Dashboard pede essa escolha antes de lançar.
+  if (!d.contaId) {
+    window.budShowToast?.('Confirme esta parcela pelo lembrete da Dashboard e escolha a conta usada.', 'warning');
+    return;
+  }
+
   // Verificar se é fora de ordem
   if (indice !== (d.parcelasPagas || 0)) {
     const ok = await confirmarAcao(
@@ -1315,6 +1323,8 @@ window.marcarParcelaPaga = async function(id, indice) {
         categoria: d.categoria || 'Dívidas',
         origem: 'divida_parcela',
         dividaId: id,
+        carteiraId: d.contaId,
+        contaId: d.contaId,
         parcelaIndice: i,
         status: 'ativa',
         dataCriacao: serverTimestamp(),
@@ -1335,6 +1345,9 @@ window.marcarParcelaPaga = async function(id, indice) {
       atualizadoEm:  serverTimestamp(),
       transacoesParcelas: novosIds,
       parcelasDatas: novasDatas,
+    });
+    batch.update(doc(db, 'usuarios', currentUser.uid, 'carteira', d.contaId), {
+      saldo: increment(-parseFloat((pmt * (novasParcelasPagas - (d.parcelasPagas || 0))).toFixed(2))),
     });
     await batch.commit();
     // Bug #24: reabrir na aba parcelas
@@ -1388,6 +1401,9 @@ window.desmarcarParcela = async function(id, indice) {
     if (txId) {
       batch.delete(doc(db, 'usuarios', currentUser.uid, 'transacoes', txId));
       delete novosIds[String(indice)];
+    }
+    if (d.contaId) {
+      batch.update(doc(db, 'usuarios', currentUser.uid, 'carteira', d.contaId), { saldo: increment(pmt) });
     }
 
     // PEND-037: remover data de pagamento da parcela desmarcada
@@ -2038,6 +2054,9 @@ onAuthStateChanged(auth, async (user) => {
   _unsubs.forEach(u => u && u());
   _unsubs = [];
 
+  if (user) {
+    try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
+  }
   if (!user || !user.emailVerified) {
     window.location.href = 'index.html';
     return;
@@ -2158,7 +2177,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Máscaras monetárias
   ['dividaValorTotal','dividaValorPago','dividaValorParcela','simValorExtra','dividaIOF','dividaSeguro'].forEach(id => {
-    document.getElementById(id)?.addEventListener('input', function() { aplicarMascaraMoeda(this); });
+    document.getElementById(id)?.addEventListener('blur', function() { aplicarMascaraMoeda(this); });
   });
 
   // Máscara de data DD/MM/AAAA (DEC-018)

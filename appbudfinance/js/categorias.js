@@ -15,6 +15,7 @@
  */
 
 import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { connectEmulators } from './bud-emulator-connect.js';
 import {
   getAuth, onAuthStateChanged, signOut
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
@@ -35,6 +36,7 @@ import {
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 /* ─────────────────────────────────────────────────────────────────
    Categorias padrão (fonte única de verdade via categorias-padrao.js)
@@ -814,7 +816,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 onAuthStateChanged(auth, async (user) => {
-  if (!user) {
+  if (user) {
+    try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
+  }
+  if (!user || !user.emailVerified) {
     window.location.href = 'index.html';
     return;
   }

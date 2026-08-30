@@ -17,6 +17,7 @@
  */
 
 import { initializeApp, getApps }   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { connectEmulators } from './bud-emulator-connect.js';
 import { getAuth, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
@@ -28,6 +29,7 @@ import {
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 // ─── Estado ───────────────────────────────────────────────────────────────
 let currentUser    = null;
@@ -90,7 +92,7 @@ function getCatInfo(nome) {
 function getDados(prefixo) {
   const doMes = transacoes.filter(t => {
     const dr = normalizarData(t.dataReferencia);     // BUG 11
-    return dr && dr.startsWith(prefixo) && t.status !== 'pendente'; // BUG 3
+    return dr && dr.startsWith(prefixo) && t.status !== 'pendente' && !t.transferencia; // BUG 3
   });
 
   let rec = 0, desp = 0;
@@ -658,6 +660,9 @@ function esconderPaywall() {
 setupSidebar();
 
 onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
+  }
   if (!user) { window.location.href = 'index.html'; return; }
   if (!user.emailVerified) { window.location.href = 'index.html'; return; }
 

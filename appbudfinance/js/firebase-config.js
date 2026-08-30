@@ -40,24 +40,23 @@
   //   localStorage.removeItem('bud_use_emulator')         → volta para produção
   var _emulatorOverride = null;
   try { _emulatorOverride = localStorage.getItem('bud_use_emulator'); } catch (_) {}
+  var _emulatorParam = _isLocal ? new URLSearchParams(window.location.search).get('emulator') : null;
+  if (_emulatorParam === '1') {
+    _emulatorOverride = 'true';
+    try { localStorage.setItem('bud_use_emulator', 'true'); } catch (_) {}
+  } else if (_emulatorParam === '0') {
+    _emulatorOverride = null;
+    try { localStorage.removeItem('bud_use_emulator'); } catch (_) {}
+  }
   window.BUD_USE_EMULATOR = _emulatorOverride === 'true';
+  if (window.BUD_USE_EMULATOR && _isLocal) {
+    config.projectId = 'bud-finance-local';
+  }
 
   // ─── Cloud Functions URL ──────────────────────────────────────────────
   window.BUD_FUNCTIONS_URL = (window.BUD_USE_EMULATOR && _isLocal)
-    ? 'http://127.0.0.1:5001/bud-finance/us-central1'
+    ? 'http://127.0.0.1:3000'
     : 'https://bud-finance-backend.onrender.com';
-
-  // ─── EmailJS protected config ─────────────────────────────────────────
-  // In production, move email sending to a Cloud Function (server-side).
-  // These are kept here as placeholders for the client-side fallback.
-  window.BUD_EMAILJS_CONFIG = Object.freeze({
-    publicKey:  "H6fMBL3s0Npuw8O0e",
-    serviceId:  "service_tg3mlvh",
-    templates: Object.freeze({
-      boasVindas:     "template_pdch2ip",
-      recuperarSenha: "template_2mp7qgq"
-    })
-  });
 
   // ─── reCAPTCHA v3 site key ────────────────────────────────────────────
   window.BUD_RECAPTCHA_SITE_KEY = "__RECAPTCHA_SITE_KEY__";

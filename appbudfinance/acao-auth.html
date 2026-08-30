@@ -255,6 +255,32 @@
   <!-- Scripts -->
   <script src="js/firebase-config.js"></script>
   <script src="js/bud-utils.js"></script>
+  <script>
+    // Exibe erros básicos sem depender do carregamento do SDK remoto. Isso
+    // evita que o usuário fique preso em "Validando link..." quando não há
+    // código na URL ou quando o Firebase está indisponível no ambiente local.
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var code = params.get('oobCode');
+      var validating = document.getElementById('stateValidating');
+      var error = document.getElementById('stateError');
+      var message = document.getElementById('errorMessage');
+      function showError(text) {
+        if (message) message.textContent = text;
+        if (validating) validating.classList.add('section-hidden');
+        if (error) error.classList.remove('section-hidden');
+      }
+      if (!code) {
+        showError('Link inválido. Nenhum código de ação encontrado na URL.');
+      } else if (window.BUD_IS_LOCAL) {
+        window.setTimeout(function () {
+          if (validating && !validating.classList.contains('section-hidden')) {
+            showError('Não foi possível validar o link no ambiente local. Solicite um novo link.');
+          }
+        }, 2000);
+      }
+    })();
+  </script>
   <script type="module" src="js/acao-auth.js"></script>
 </body>
 </html>

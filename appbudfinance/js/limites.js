@@ -20,6 +20,7 @@
  */
 
 import { initializeApp, getApps }    from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { connectEmulators } from './bud-emulator-connect.js';
 import { getAuth, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
@@ -33,6 +34,7 @@ import {
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 // ─── Estado ────────────────────────────────────────────────────────────────
 let currentUser     = null;
@@ -493,14 +495,14 @@ document.addEventListener('click', e => {
 
 // ─── Máscara BRL ───────────────────────────────────────────────────────────
 window._maskBRL = function(el) {
-  let v = el.value.replace(/\D/g, '');
-  if (!v) { el.value = ''; return; }
-  v = (parseInt(v, 10) / 100).toFixed(2);
-  el.value = 'R$ ' + parseFloat(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const v = parseBRL(el.value);
+  if (!Number.isFinite(v)) return;
+  el.value = 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 function parseBRL(s) {
-  return parseFloat((s || '').replace(/[^0-9,]/g, '').replace(',', '.')) || 0;
+  const raw = String(s || '').replace(/R\$|\s/g, '');
+  return Number(raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw) || 0;
 }
 
 // ─── Salvar Limite ─────────────────────────────────────────────────────────

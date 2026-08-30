@@ -6,10 +6,14 @@
     "build": "sh inject-env.sh",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
-    "test:report": "playwright show-report"
+    "test:report": "playwright show-report",
+    "emulators": "firebase emulators:start --project bud-finance-local --only auth,firestore",
+    "emulators:local": "powershell -ExecutionPolicy Bypass -File scripts/start-emulators.ps1",
+    "backend:local": "node --env-file=backend/.env.local backend/server.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.44.0",
+    "firebase-tools": "^15.28.1",
     "http-server": "^14.1.1"
   }
 }

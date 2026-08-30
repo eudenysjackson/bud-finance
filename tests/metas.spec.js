@@ -17,7 +17,7 @@ test.describe('Metas — Auth Guard', () => {
 test.describe('Metas — Estrutura HTML', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.route('**/js/metas.js', route => route.abort());
+    await page.route('**/js/metas.js*', route => route.abort());
     await page.goto('/metas.html', { waitUntil: 'domcontentloaded' });
   });
 

@@ -9,7 +9,8 @@ module.exports = defineConfig({
   workers: 1,
   reporter: [['html', { open: 'never' }], ['list']],
   use: {
-    baseURL: 'http://localhost:3001',
+    // A suíte serve a pasta pública diretamente, como o Firebase Hosting.
+    baseURL: 'http://localhost:3002',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     actionTimeout: 10_000,
@@ -22,9 +23,9 @@ module.exports = defineConfig({
     },
   ],
   webServer: {
-    command: 'npx http-server . -p 3001 --cors -c-1 --silent',
-    port: 3001,
-    reuseExistingServer: true,
+    command: 'npx http-server ./appbudfinance -p 3002 --cors -c-1 --silent',
+    port: 3002,
+    reuseExistingServer: !process.env.CI,
     timeout: 15_000,
   },
 });

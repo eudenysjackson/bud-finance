@@ -8,11 +8,13 @@ import { getAuth, onAuthStateChanged, signOut, updateProfile, sendPasswordResetE
 import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, getDocs, updateDoc, deleteDoc, deleteField, setDoc, collection, query, orderBy, writeBatch }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 import { registerPushToken, listenForeground, revokePushToken } from './push.js?v=7';
+import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 // ─── Estado ─────────────────────────────────────────────────────────────
 let uid = null;
@@ -1272,7 +1274,10 @@ setupSidebar();
 setupTabs();
 
 onAuthStateChanged(auth, async function (user) {
-  if (!user) {
+  if (user) {
+    try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
+  }
+  if (!user || !user.emailVerified) {
     window.location.href = 'index.html';
     return;
   }

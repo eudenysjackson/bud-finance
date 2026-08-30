@@ -26,6 +26,7 @@ import {
   doc, getDoc, updateDoc, setDoc, addDoc, getDocs,
   collection, serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Preview mode (sem login) ──────────────────────────────────────────────
 const _previewMode = new URLSearchParams(window.location.search).get('preview') === '1';
@@ -44,6 +45,7 @@ if (_previewMode) {
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 // ─── Estado ────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -147,17 +149,15 @@ function mostrarPasso(n) {
 
 // ─── Máscara BRL ───────────────────────────────────────────────────────────
 function formatarInputValor(input) {
-  let raw = input.value.replace(/\D/g, '');
-  if (!raw) { input.value = ''; return; }
-  const num      = parseInt(raw, 10);
-  const reais    = Math.floor(num / 100);
-  const centavos = num % 100;
-  input.value = 'R$ ' + reais.toLocaleString('pt-BR') + ',' + String(centavos).padStart(2, '0');
+  const num = parseBRL(input.value);
+  if (!Number.isFinite(num)) return;
+  input.value = num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function parseBRL(s) {
   if (!s) return 0;
-  const n = parseFloat(String(s).replace(/[R$\s.]/g, '').replace(',', '.'));
+  const raw = String(s).replace(/R\$|\s/g, '');
+  const n = Number(raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw);
   return isNaN(n) ? 0 : n;
 }
 
@@ -363,6 +363,7 @@ async function concluirOnboarding() {
     const carteiraSnap = await getDocs(carteiraRef);
     const jaTem = carteiraSnap.docs.some(d => d.data().padrao === true);
 
+    let contaPrincipalId = null;
     if (!jaTem) {
       if (!dados.contaPulada && dados.contaNome) {
         // Conta personalizada do step 3
@@ -371,7 +372,7 @@ async function concluirOnboarding() {
           dinheiro: { icon: '💵', color: '#16a34a' },
         };
         const info = TIPO_INFO[dados.contaTipo] || TIPO_INFO.debito;
-        await addDoc(carteiraRef, {
+        const contaCriada = await addDoc(carteiraRef, {
           nome:         san(dados.contaNome).substring(0, 60),
           tipo:         dados.contaTipo,
           icone:        info.icon,
@@ -382,9 +383,10 @@ async function concluirOnboarding() {
           criadoEm:     serverTimestamp(),
           atualizadoEm: serverTimestamp(),
         });
+        contaPrincipalId = contaCriada.id;
       } else {
         // Conta padrão: Dinheiro / Espécie
-        await addDoc(carteiraRef, {
+        const contaCriada = await addDoc(carteiraRef, {
           nome:         'Dinheiro / Espécie',
           tipo:         'dinheiro',
           icone:        '💵',
@@ -395,7 +397,10 @@ async function concluirOnboarding() {
           criadoEm:     serverTimestamp(),
           atualizadoEm: serverTimestamp(),
         });
+        contaPrincipalId = contaCriada.id;
       }
+    } else {
+      contaPrincipalId = carteiraSnap.docs.find(d => d.data().padrao === true)?.id || null;
     }
 
     // ── 4. Criar renda (se preenchida) ────────────────────────────
@@ -411,6 +416,8 @@ async function concluirOnboarding() {
         categoria:   'Salário',
         data:        Timestamp.fromDate(dataRenda),
         tipo:        'receita',
+        carteiraId:  contaPrincipalId,
+        contaId:     contaPrincipalId,
         dataCriacao: serverTimestamp(),
       });
 
@@ -423,6 +430,9 @@ async function concluirOnboarding() {
         formaPagamento: 'Outro',
         cartaoId:       null,
         cartaoNome:     null,
+        contaId:        contaPrincipalId,
+        contaNome:      dados.contaNome || 'Conta principal',
+        contaTipo:      dados.contaTipo || 'debito',
         periodicidade:  'mensal',
         diaVencimento:  dados.rendaDia,
         proximaData:    Timestamp.fromDate(proxRenda),
@@ -448,6 +458,8 @@ async function concluirOnboarding() {
         categoria:   'Moradia',
         data:        Timestamp.fromDate(dataDespesa),
         tipo:        'despesa',
+        carteiraId:  contaPrincipalId,
+        contaId:     contaPrincipalId,
         dataCriacao: serverTimestamp(),
       });
 
@@ -460,6 +472,9 @@ async function concluirOnboarding() {
         formaPagamento: 'Outro',
         cartaoId:       null,
         cartaoNome:     null,
+        contaId:        contaPrincipalId,
+        contaNome:      dados.contaNome || 'Conta principal',
+        contaTipo:      dados.contaTipo || 'debito',
         periodicidade:  'mensal',
         diaVencimento:  dados.despesaDia,
         proximaData:    Timestamp.fromDate(proxDespesa),
@@ -525,7 +540,7 @@ function initDespesaTipoGrid() {
 function initMasks() {
   ['inputContaSaldo', 'inputRendaValor', 'inputDespesaValor'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('input', () => formatarInputValor(el));
+    if (el) el.addEventListener('blur', () => formatarInputValor(el));
   });
 
   ['inputRendaDia', 'inputDespesaDia'].forEach(id => {

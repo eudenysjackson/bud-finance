@@ -17,7 +17,7 @@ test.describe('Configurações — Auth Guard', () => {
 test.describe('Configurações — Estrutura HTML', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.route('**/js/configuracoes.js', route => route.abort());
+    await page.route('**/js/configuracoes.js*', route => route.abort());
     await page.goto('/configuracoes.html', { waitUntil: 'domcontentloaded' });
   });
 
@@ -48,8 +48,8 @@ test.describe('Configurações — Estrutura HTML', () => {
     await expect(page.locator('#dashMain')).toHaveCount(1);
   });
 
-  test('3 abas existem (Perfil, Personalização, Segurança)', async ({ page }) => {
-    await expect(page.locator('.cfg-tab-btn')).toHaveCount(3);
+  test('4 abas existem (Perfil, Personalização, Segurança e Dados)', async ({ page }) => {
+    await expect(page.locator('.cfg-tab-btn')).toHaveCount(4);
   });
 
   test('aba Perfil está ativa por padrão', async ({ page }) => {

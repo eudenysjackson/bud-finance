@@ -4,6 +4,7 @@
  */
 
 import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { connectEmulators } from './bud-emulator-connect.js';
 import {
   getAuth, onAuthStateChanged, signOut
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
@@ -23,6 +24,7 @@ import {
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 /* ─────────────────────────────────────────────────────────────────
    Estado global
@@ -92,13 +94,13 @@ function formatBRL(val) {
 
 function parseBRL(str) {
   if (!str) return 0;
-  return parseFloat(str.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+  const raw = String(str).replace(/R\$|\s/g, '');
+  return Number(raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw) || 0;
 }
 
 function maskBRL(input) {
-  let v = input.value.replace(/\D/g, '');
-  if (!v) { input.value = ''; return; }
-  let num = parseInt(v, 10) / 100;
+  const num = parseBRL(input.value);
+  if (!Number.isFinite(num)) return;
   input.value = num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
@@ -148,6 +150,9 @@ function cleanupListeners() {
    Auth guard
 ───────────────────────────────────────────────────────────────── */
 onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
+  }
   if (!user || !user.emailVerified) {
     window.location.href = 'index.html';
     return;
@@ -705,8 +710,8 @@ function setupModalMeta() {
   modal.addEventListener('click', (e) => { if (e.target === modal) fecharModalMeta(); });
 
   // Máscara BRL nos campos de valor
-  document.getElementById('metaValorAlvo').addEventListener('input', function() { maskBRL(this); });
-  document.getElementById('metaValorAtual').addEventListener('input', function() { maskBRL(this); });
+  document.getElementById('metaValorAlvo').addEventListener('blur', function() { maskBRL(this); });
+  document.getElementById('metaValorAtual').addEventListener('blur', function() { maskBRL(this); });
 
   form.addEventListener('submit', handleSubmitMeta);
 
@@ -853,7 +858,7 @@ function setupModalAporte() {
   btnCancel.addEventListener('click', () => fecharModalAporte());
   modal.addEventListener('click', (e) => { if (e.target === modal) fecharModalAporte(); });
 
-  document.getElementById('aporteValor').addEventListener('input', function() { maskBRL(this); });
+  document.getElementById('aporteValor').addEventListener('blur', function() { maskBRL(this); });
 
   form.addEventListener('submit', handleSubmitAporte);
 
@@ -1015,14 +1020,11 @@ async function handleSubmitAporte(e) {
       dataCriacao: serverTimestamp(),
     });
 
-    // 3. Decrementar ultimaConfirmacao.saldo da carteira (se snapshot existir)
-    const carteira = carteirasGlobal.find(c => c.id === carteiraId);
-    if (carteira?.ultimaConfirmacao?.saldo != null) {
-      const carteiraRef = doc(db, 'usuarios', uid, 'carteira', carteiraId);
-      batch.update(carteiraRef, {
-        'ultimaConfirmacao.saldo': carteira.ultimaConfirmacao.saldo - valor,
-      });
-    }
+    // 3. O aporte sai efetivamente da conta de origem. Increment evita perder
+    // atualizações concorrentes feitas por outro lançamento.
+    batch.update(doc(db, 'usuarios', uid, 'carteira', carteiraId), {
+      saldo: increment(-valor),
+    });
 
     await batch.commit();
 
@@ -1170,7 +1172,18 @@ async function excluirMeta(metaId) {
       where('metaId', '==', metaId)
     )
   );
-  txSnap.docs.forEach(d => batch.delete(d.ref));
+  // Devolver os aportes às contas de origem antes de apagar os lançamentos.
+  const estornosPorConta = new Map();
+  txSnap.docs.forEach(d => {
+    const tx = d.data();
+    if (tx.carteiraId && Number(tx.valor)) {
+      estornosPorConta.set(tx.carteiraId, (estornosPorConta.get(tx.carteiraId) || 0) + Number(tx.valor));
+    }
+    batch.delete(d.ref);
+  });
+  estornosPorConta.forEach((valor, carteiraId) => {
+    batch.update(doc(db, 'usuarios', uid, 'carteira', carteiraId), { saldo: increment(valor) });
+  });
 
   // 3. Excluir o doc da meta
   batch.delete(doc(db, 'usuarios', uid, 'metas', metaId));

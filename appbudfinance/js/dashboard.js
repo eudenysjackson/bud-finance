@@ -6,7 +6,7 @@ import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/fi
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
   doc, getDoc, getDocs, collection, query, where, orderBy, limit, onSnapshot,
-  addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp
+  addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, increment
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 import { getMessaging, getToken, onMessage, deleteToken } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
 import { registerPushToken, listenForeground } from './push.js';
@@ -76,6 +76,24 @@ function formatarValor(valor) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+// Mantém o saldo materializado da conta coerente com os lançamentos. Cartões
+// de crédito não têm saldo movimentado aqui: a baixa ocorre no pagamento da fatura.
+async function ajustarSaldoDaConta(carteiraId, tipo, valor, multiplicador) {
+  if (!carteiraId || !usuarioAtualId) return;
+  var conta = carteiraGlobal.find(function (c) { return c.id === carteiraId; });
+  if (!conta || conta.tipo === 'credito') return;
+  var sinal = tipo === 'receita' ? 1 : -1;
+  var variacao = sinal * (Number(valor) || 0) * (multiplicador || 1);
+  // Contas antigas podem ainda não ter o saldo materializado. A primeira
+  // movimentação parte do saldo confirmado/inicial, sem ignorar esse valor.
+  if (conta.saldo == null) {
+    var base = Number(conta.ultimaConfirmacao?.saldo ?? conta.saldoInicial ?? 0);
+    await updateDoc(doc(db, 'usuarios', usuarioAtualId, 'carteira', carteiraId), { saldo: base + variacao });
+  } else {
+    await updateDoc(doc(db, 'usuarios', usuarioAtualId, 'carteira', carteiraId), { saldo: increment(variacao) });
+  }
+}
+
 function getIniciais(nome) {
   if (!nome) return '?';
   var partes = nome.trim().split(/\s+/);
@@ -132,10 +150,13 @@ function renderizarDashboard() {
     return d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
   });
 
+  // Transferências entre contas são exibidas no histórico, mas não são renda
+  // nem gasto. Portanto não podem contaminar os indicadores financeiros.
+  var transacoesFinanceiras = transacoesDoMes.filter(function (t) { return !t.transferencia; });
   var entradas = 0;
   var saidas = 0;
 
-  transacoesDoMes.forEach(function (t) {
+  transacoesFinanceiras.forEach(function (t) {
     var valor = t.valor || 0;
     if (t.tipo === 'receita' && t.confirmado !== false) {
       entradas += valor;
@@ -162,8 +183,8 @@ function renderizarDashboard() {
   var cardSaidasSub = document.getElementById('cardSaidasSub');
   if (cardSaldoSub) cardSaldoSub.textContent = getMesAnoLabel();
   // M4 fix: pluralização correta (era "1 transações").
-  var nReceitas = transacoesDoMes.filter(function (t) { return t.tipo === 'receita'; }).length;
-  var nDespesas = transacoesDoMes.filter(function (t) { return t.tipo === 'despesa'; }).length;
+  var nReceitas = transacoesFinanceiras.filter(function (t) { return t.tipo === 'receita'; }).length;
+  var nDespesas = transacoesFinanceiras.filter(function (t) { return t.tipo === 'despesa'; }).length;
   if (cardEntradasSub) cardEntradasSub.textContent = nReceitas === 1 ? '1 transação' : nReceitas + ' transações';
   if (cardSaidasSub)   cardSaidasSub.textContent   = nDespesas === 1 ? '1 transação' : nDespesas + ' transações';
 
@@ -175,7 +196,7 @@ function renderizarDashboard() {
     var transPrev = transacoesGlobais.filter(function (t) {
       if (!t.data) return false;
       var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
-      return d.getMonth() === mesPrev && d.getFullYear() === anoPrev;
+      return d.getMonth() === mesPrev && d.getFullYear() === anoPrev && !t.transferencia;
     });
     var entPrev = 0, despPrev = 0;
     transPrev.forEach(function (t) {
@@ -230,13 +251,13 @@ function renderizarDashboard() {
   renderizarAtividades(transacoesDoMes);
 
   // Gráfico de despesas por categoria
-  renderizarGraficos(transacoesDoMes);
+  renderizarGraficos(transacoesFinanceiras);
 
   // Widget dívidas em atraso
   atualizarDividasAtraso();
 
   // Widget limites do mês
-  atualizarLimitesWidget(transacoesDoMes, saidas);
+  atualizarLimitesWidget(transacoesFinanceiras, saidas);
 
   // Mini widget carteira
   atualizarWidgetCarteira();
@@ -254,16 +275,16 @@ function renderizarDashboard() {
   atualizarWidgetInvestimentos();
 
   // Economia potencial
-  atualizarEconomiaPotencial(transacoesDoMes);
+  atualizarEconomiaPotencial(transacoesFinanceiras);
 
   // Saúde do mês (compromissos totais)
   atualizarSaudeMes();
 
   // Saúde financeira
-  atualizarSaudeFinanceira(transacoesDoMes, entradas, saidas);
+  atualizarSaudeFinanceira(transacoesFinanceiras, entradas, saidas);
 
   // Dica contextual
-  atualizarDicaFinanceira(transacoesDoMes, entradas, saidas);
+  atualizarDicaFinanceira(transacoesFinanceiras, entradas, saidas);
 
   // Tudo em dia (após dividas + lembretes)
   atualizarTudoEmDia();
@@ -486,7 +507,7 @@ function atualizarSaudeMes() {
   var transacoesDoMes = transacoesGlobais.filter(function (t) {
     if (!t.data) return false;
     var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
-    return d.getMonth() === mesVisualizado && d.getFullYear() === anoVisualizado;
+    return d.getMonth() === mesVisualizado && d.getFullYear() === anoVisualizado && !t.transferencia;
   });
 
   var tot = calcularTotaisSaudeMes(transacoesDoMes);
@@ -919,21 +940,23 @@ function atualizarWidgetCarteira() {
   }
 
   sec.style.display = '';
-  var totalSaldo = contas.reduce(function (s, c) { return s + (parseFloat(c.saldo) || 0); }, 0);
+  var saldoDaConta = function (c) { return parseFloat(c.saldo ?? c.ultimaConfirmacao?.saldo ?? c.saldoInicial) || 0; };
+  var totalSaldo = contas.reduce(function (s, c) { return s + saldoDaConta(c); }, 0);
   if (total) total.textContent = valoresOcultos ? '•••' : formatarValor(totalSaldo);
 
   lista.innerHTML = '';
   contas.slice(0, 3).forEach(function (c) {
     var el = document.createElement('div');
     el.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0.75rem;background:var(--sidebar-link-hover-bg);border-radius:0.75rem;margin-bottom:0.375rem;';
-    var cor = (parseFloat(c.saldo) || 0) >= 0 ? '#16a34a' : '#dc2626';
+    var saldoConta = saldoDaConta(c);
+    var cor = saldoConta >= 0 ? '#16a34a' : '#dc2626';
     var nomeEsc = (c.nome || 'Conta').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     var icone = c.icone || (c.tipo === 'poupanca' ? '🏦' : c.tipo === 'investimento' ? '📈' : '💳');
     el.innerHTML = '<div style="display:flex;align-items:center;gap:0.5rem;">'
       + '<span style="font-size:1rem;">' + icone + '</span>'
       + '<span style="font-size:0.8125rem;font-weight:600;color:var(--card-text);">' + nomeEsc + '</span>'
       + '</div>'
-      + '<span style="font-size:0.875rem;font-weight:700;color:' + cor + ';">' + (valoresOcultos ? '•••' : formatarValor(parseFloat(c.saldo) || 0)) + '</span>';
+      + '<span style="font-size:0.875rem;font-weight:700;color:' + cor + ';">' + (valoresOcultos ? '•••' : formatarValor(saldoConta)) + '</span>';
     lista.appendChild(el);
   });
 
@@ -1176,16 +1199,23 @@ function marcarLembretePago(lembrete) {
       };
       if (lembrete.recorrenteId) tx.recorrenteId = lembrete.recorrenteId;
       if (lembrete.dividaId)     tx.dividaId     = lembrete.dividaId;
-      if (contaId)   tx.contaId   = contaId;
+      if (contaId) {
+        tx.contaId = contaId;
+        tx.carteiraId = contaId;
+      }
       if (contaNome) tx.contaNome = contaNome;
 
       await addDoc(collection(db, 'usuarios', usuarioAtualId, 'transacoes'), tx);
+      await ajustarSaldoDaConta(contaId, tx.tipo, valorNum, 1);
 
       // Se dívida: incrementar parcelasPagas no documento da dívida
       if (lembrete.dividaId) {
         var divObj = dividasGlobaisDash.find(function (d) { return d.id === lembrete.dividaId; });
         var pagas = (divObj ? (divObj.parcelasPagas || 0) : 0) + 1;
-        await updateDoc(doc(db, 'usuarios', usuarioAtualId, 'dividas', lembrete.dividaId), { parcelasPagas: pagas });
+        await updateDoc(doc(db, 'usuarios', usuarioAtualId, 'dividas', lembrete.dividaId), {
+          parcelasPagas: pagas,
+          ...(contaId ? { contaId: contaId } : {})
+        });
       }
 
       overlay.remove();
@@ -1376,12 +1406,12 @@ function atualizarComparativoMesAnterior() {
   var transAtual = transacoesGlobais.filter(function (t) {
     if (!t.data) return false;
     var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
-    return d.getMonth() === mesVisualizado && d.getFullYear() === anoVisualizado;
+    return d.getMonth() === mesVisualizado && d.getFullYear() === anoVisualizado && !t.transferencia;
   });
   var transAnterior = transacoesGlobais.filter(function (t) {
     if (!t.data) return false;
     var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
-    return d.getMonth() === mesPrev && d.getFullYear() === anoPrev;
+    return d.getMonth() === mesPrev && d.getFullYear() === anoPrev && !t.transferencia;
   });
 
   var recAtual = 0, despAtual = 0, recAnterior = 0, despAnterior = 0;
@@ -2161,10 +2191,20 @@ document.addEventListener('click', function (e) {
   if (!document.getElementById('contaWrapper')?.contains(e.target)) _fecharContaDropdown();
 });
 
+function lerValorMonetario(input) {
+  var raw = String(input || '').replace(/R\$|\s/g, '');
+  if (!raw) return NaN;
+  // Com vírgula, trata como formato brasileiro (ex.: 1.250,50).
+  // Sem vírgula, o número digitado representa reais inteiros (ex.: 1250).
+  var normalizado = raw.includes(',')
+    ? raw.replace(/\./g, '').replace(',', '.')
+    : raw;
+  return Number(normalizado);
+}
+
 function aplicarMascaraValor(input) {
-  var raw = input.value.replace(/\D/g, '');
-  if (!raw) { input.value = ''; return; }
-  var num = parseInt(raw, 10) / 100;
+  var num = lerValorMonetario(input.value);
+  if (!Number.isFinite(num)) return;
   input.value = num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
@@ -2328,8 +2368,7 @@ async function handleSubmitLancamento(e) {
   var descricaoRaw = inputDescricao.value.trim();
   if (!descricaoRaw) { inputDescricao.classList.add('error'); erros = true; }
 
-  var valorStr = inputValor.value.replace(/[R$\s.]/g, '').replace(',', '.');
-  var valor = parseFloat(valorStr);
+  var valor = lerValorMonetario(inputValor.value);
   if (!valor || valor <= 0) { inputValor.classList.add('error'); erros = true; }
 
   var categoria = inputCategoria.value;
@@ -2472,7 +2511,11 @@ async function confirmarExclusao() {
   var btnConfirm = document.getElementById('btnConfirmExcluir');
   if (btnConfirm) { btnConfirm.disabled = true; btnConfirm.textContent = 'Excluindo...'; }
   try {
+    var txExcluir = transacoesGlobais.find(function (tx) { return tx.id === transacaoEditandoId; });
     await deleteDoc(doc(db, 'usuarios', usuarioAtualId, 'transacoes', transacaoEditandoId));
+    if (txExcluir && !txExcluir.transferencia) {
+      await ajustarSaldoDaConta(txExcluir.carteiraId, txExcluir.tipo, txExcluir.valor, -1);
+    }
     fecharConfirmExcluir();
     fecharModal();
     if (window.budShowToast) window.budShowToast('Transação excluída.', 'success');
@@ -2727,8 +2770,13 @@ function cleanupListeners() {
 
 // ═══ AUTH GUARD ══════════════════════════════════════════════════════════
 onAuthStateChanged(auth, async function (user) {
-  if (!user) {
-    // Não logado → redireciona para login
+  // Atualiza o estado do Auth antes de validar: a confirmação de e-mail pode
+  // ter ocorrido em outra aba ou acabado de ser concluída pelo código.
+  if (user) {
+    try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
+  }
+  if (!user || !user.emailVerified) {
+    // Sessão ausente ou e-mail ainda não confirmado → login.
     window.location.href = 'index.html';
     return;
   }
@@ -2861,8 +2909,8 @@ onAuthStateChanged(auth, async function (user) {
     cleanupListeners();
     setupListeners(user.uid);
 
-    // Auto-processar recorrentes de hoje (silencioso, 1x por dia via localStorage)
-    _autoProcessarRecorrentesHoje();
+    // Recorrentes só são lançados após a confirmação explícita do usuário no
+    // lembrete. Isso evita registrar como pago algo que ainda não aconteceu.
 
   } catch (err) {
     // Erro de permissão → sessão pode estar inválida
@@ -3063,7 +3111,7 @@ if (tipoBtnDespesa) tipoBtnDespesa.addEventListener('click', function () { atual
 // ─── Modal: máscara de valor ─────────────────────────────────────────────
 var inputValorEl = document.getElementById('inputValor');
 if (inputValorEl) {
-  inputValorEl.addEventListener('input', function () { aplicarMascaraValor(this); });
+  inputValorEl.addEventListener('blur', function () { aplicarMascaraValor(this); });
 }
 
 // ─── Modal: submit ───────────────────────────────────────────────────────

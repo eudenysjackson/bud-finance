@@ -32,19 +32,6 @@
   // Variável de ambiente: BACKEND_URL (ex: https://bud-finance-backend.onrender.com)
   window.BUD_FUNCTIONS_URL = "__BACKEND_URL__";
 
-  // ─── EmailJS ───────────────────────────────────────────────────────────
-  // Usado no cadastro (email de boas-vindas). Reset de senha é server-side.
-  // Variáveis: EMAILJS_PUBLIC_KEY, EMAILJS_SERVICE_ID,
-  //            EMAILJS_TEMPLATE_BOAS_VINDAS, EMAILJS_TEMPLATE_RECUPERAR_SENHA
-  window.BUD_EMAILJS_CONFIG = Object.freeze({
-    publicKey:  "__EMAILJS_PUBLIC_KEY__",
-    serviceId:  "__EMAILJS_SERVICE_ID__",
-    templates: Object.freeze({
-      boasVindas:     "__EMAILJS_TEMPLATE_BOAS_VINDAS__",
-      recuperarSenha: "__EMAILJS_TEMPLATE_RECUPERAR_SENHA__"
-    })
-  });
-
   // ─── reCAPTCHA v3 ─────────────────────────────────────────────────────
   // Variável de ambiente: RECAPTCHA_SITE_KEY
   window.BUD_RECAPTCHA_SITE_KEY = "__RECAPTCHA_SITE_KEY__";

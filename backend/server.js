@@ -9,6 +9,7 @@ const cors    = require('cors');
 const admin   = require('firebase-admin');
 const multer  = require('multer');
 const pdfParse = require('pdf-parse');
+const crypto  = require('crypto');
 
 // â”€â”€â”€ Firebase Admin init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Service account credentials injected via environment variable.
@@ -18,8 +19,16 @@ const pdfParse = require('pdf-parse');
 // nÃ£o usa Firebase e funciona normalmente.
 let auth, db;
 try {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
-  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+  const usarEmulador = process.env.BUD_USE_EMULATOR === 'true';
+  if (usarEmulador) {
+    // O Admin SDK reconhece FIRESTORE_EMULATOR_HOST e
+    // FIREBASE_AUTH_EMULATOR_HOST definidos no .env.local.
+    admin.initializeApp({ projectId: process.env.GOOGLE_CLOUD_PROJECT || 'bud-finance-local' });
+    console.log('[Firebase Admin] Conectado aos emuladores locais.');
+  } else {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+  }
   auth = admin.auth();
   db   = admin.firestore();
 } catch (e) {
@@ -28,11 +37,19 @@ try {
 
 // â”€â”€â”€ EmailJS config (env vars â€” set on Render) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const EMAILJS_PUBLIC_KEY  = process.env.EMAILJS_PUBLIC_KEY  || '';
+const EMAILJS_PRIVATE_KEY = process.env.EMAILJS_PRIVATE_KEY || '';
 const EMAILJS_SERVICE_ID  = process.env.EMAILJS_SERVICE_ID  || '';
 const EMAILJS_TEMPLATE_ID           = process.env.EMAILJS_TEMPLATE_RECUPERAR_SENHA || '';
-const EMAILJS_TEMPLATE_CHAMADO      = process.env.EMAILJS_TEMPLATE_CHAMADO || '';
 const EMAILJS_TEMPLATE_BOAS_VINDAS  = process.env.EMAILJS_TEMPLATE_BOAS_VINDAS || '';
+// Um único template flexível cobre recuperação, alertas, chamados e avisos
+// de assinatura. A variável nova é opcional para manter compatibilidade.
+const EMAILJS_TEMPLATE_COMUNICACAO = process.env.EMAILJS_TEMPLATE_COMUNICACAO || EMAILJS_TEMPLATE_ID;
+const SUPPORT_EMAIL                 = process.env.SUPPORT_EMAIL || '';
 const FRONTEND_URL                  = process.env.FRONTEND_URL || 'https://budsolucoes.com.br/appbudfinance';
+// Obrigatório em produção: impede que o código salvo no Firestore possa ser
+// usado caso alguém tenha acesso indevido ao banco.
+const EMAIL_VERIFICATION_SECRET = process.env.EMAIL_VERIFICATION_SECRET ||
+  (process.env.NODE_ENV === 'production' ? '' : 'bud-finance-local-verification-only');
 
 // â”€â”€â”€ WhatsApp config (env vars â€” set on Render) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const WA_PHONE_NUMBER_ID  = process.env.WA_PHONE_NUMBER_ID  || '';
@@ -151,25 +168,134 @@ function sanitizeStr(str) {
 async function sendEmailViaEmailJS(templateParams, templateId) {
   var tid = templateId || EMAILJS_TEMPLATE_ID;
   if (!EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID || !tid) {
-    // EmailJS not configured â€” skip silently
-    return;
+    throw new Error('EmailJS não configurado');
   }
 
-  var response = await fetch('https://api.emailjs.com/api/v1.6/email/send', {
+  var response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+    body: JSON.stringify(Object.assign({
       service_id:  EMAILJS_SERVICE_ID,
       template_id: tid,
       user_id:     EMAILJS_PUBLIC_KEY,
       template_params: templateParams
-    })
+    }, EMAILJS_PRIVATE_KEY ? { accessToken: EMAILJS_PRIVATE_KEY } : {}))
   });
 
   if (!response.ok) {
     throw new Error('EmailJS HTTP ' + response.status);
   }
 }
+
+function sendCommunicationEmail(params) {
+  return sendEmailViaEmailJS(Object.assign({
+    app_name: 'App Bud Finance',
+    app_url: FRONTEND_URL,
+    action_label: 'Abrir App Bud Finance',
+    action_url: FRONTEND_URL + '/dashboard.html'
+  }, params), EMAILJS_TEMPLATE_COMUNICACAO);
+}
+
+function hashVerificationCode(uid, code) {
+  return crypto.createHmac('sha256', EMAIL_VERIFICATION_SECRET)
+    .update(String(uid) + ':' + String(code))
+    .digest('hex');
+}
+
+async function getBearerUser(req, res) {
+  if (!auth || !db) { res.status(503).json({ ok: false, error: 'Serviço indisponível.' }); return null; }
+  var header = req.headers.authorization || '';
+  var token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  if (!token) { res.status(401).json({ ok: false, error: 'Token ausente.' }); return null; }
+  try { return await auth.verifyIdToken(token); }
+  catch (_) { res.status(401).json({ ok: false, error: 'Token inválido.' }); return null; }
+}
+
+// ─── Código de verificação de e-mail (6 dígitos, 15 min, uso único) ───────
+app.post('/api/verificacao-email/enviar', async function (req, res) {
+  var decoded = await getBearerUser(req, res);
+  if (!decoded) return;
+  if (!EMAIL_VERIFICATION_SECRET) return res.status(503).json({ ok: false, error: 'Verificação não configurada.' });
+  if (decoded.email_verified) return res.json({ ok: true, alreadyVerified: true });
+
+  var ref = db.collection('usuarios').doc(decoded.uid).collection('_seguranca').doc('verificacao-email');
+  var agora = Date.now();
+  var anterior = await ref.get();
+  if (anterior.exists && anterior.data().enviadoEm && agora - anterior.data().enviadoEm.toMillis() < 60 * 1000) {
+    return res.status(429).json({ ok: false, error: 'Aguarde um minuto para reenviar.' });
+  }
+
+  var codigo = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+  var magicToken = crypto.randomBytes(32).toString('base64url');
+  await ref.set({
+    hash: hashVerificationCode(decoded.uid, codigo),
+    magicHash: hashVerificationCode(decoded.uid, magicToken),
+    expiraEm: admin.firestore.Timestamp.fromMillis(agora + 15 * 60 * 1000),
+    enviadoEm: admin.firestore.Timestamp.fromMillis(agora),
+    tentativas: 0
+  });
+  try {
+    await sendEmailViaEmailJS({
+      to_email: decoded.email,
+      to_name: sanitizeStr(decoded.name || decoded.email),
+      email: decoded.email,
+      verification_code: codigo,
+      magic_link: FRONTEND_URL + '/index.html?magic_verification=' + encodeURIComponent(decoded.uid + '.' + magicToken)
+    }, EMAILJS_TEMPLATE_BOAS_VINDAS);
+    return res.json({ ok: true, expiresInMinutes: 15 });
+  } catch (e) {
+    await ref.delete().catch(function () {});
+    return res.status(503).json({ ok: false, error: 'Não foi possível enviar o e-mail.' });
+  }
+});
+
+// Link mágico: confirma o e-mail e devolve um Firebase Custom Token de uso
+// imediato. O token é aleatório, expira junto do código e é invalidado ao usar.
+app.post('/api/verificacao-email/magico', async function (req, res) {
+  if (!auth || !db || !EMAIL_VERIFICATION_SECRET) return res.status(503).json({ ok: false, error: 'Verificação não configurada.' });
+  var bruto = String((req.body && req.body.token) || '');
+  var ponto = bruto.indexOf('.');
+  if (ponto < 1) return res.status(400).json({ ok: false, error: 'Link inválido.' });
+  var uid = bruto.slice(0, ponto);
+  var token = bruto.slice(ponto + 1);
+  var ref = db.collection('usuarios').doc(uid).collection('_seguranca').doc('verificacao-email');
+  var snap = await ref.get();
+  var dados = snap.exists ? snap.data() : null;
+  if (!dados || !dados.magicHash || !dados.expiraEm || dados.expiraEm.toMillis() < Date.now()) {
+    return res.status(400).json({ ok: false, error: 'Link expirado ou já utilizado.' });
+  }
+  if (!crypto.timingSafeEqual(Buffer.from(dados.magicHash), Buffer.from(hashVerificationCode(uid, token)))) {
+    return res.status(400).json({ ok: false, error: 'Link inválido.' });
+  }
+  await auth.updateUser(uid, { emailVerified: true });
+  await ref.delete();
+  var customToken = await auth.createCustomToken(uid);
+  return res.json({ ok: true, customToken: customToken });
+});
+
+app.post('/api/verificacao-email/confirmar', async function (req, res) {
+  var decoded = await getBearerUser(req, res);
+  if (!decoded) return;
+  if (!EMAIL_VERIFICATION_SECRET) return res.status(503).json({ ok: false, error: 'Verificação não configurada.' });
+  if (decoded.email_verified) return res.json({ ok: true, alreadyVerified: true });
+  var codigo = String((req.body && req.body.codigo) || '').replace(/\D/g, '');
+  if (!/^\d{6}$/.test(codigo)) return res.status(400).json({ ok: false, error: 'Informe os 6 dígitos do código.' });
+
+  var ref = db.collection('usuarios').doc(decoded.uid).collection('_seguranca').doc('verificacao-email');
+  var snap = await ref.get();
+  var dados = snap.exists ? snap.data() : null;
+  if (!dados || !dados.expiraEm || dados.expiraEm.toMillis() < Date.now()) {
+    return res.status(400).json({ ok: false, error: 'Código expirado. Solicite outro.' });
+  }
+  if ((dados.tentativas || 0) >= 5) return res.status(429).json({ ok: false, error: 'Muitas tentativas. Solicite outro código.' });
+  if (!crypto.timingSafeEqual(Buffer.from(dados.hash), Buffer.from(hashVerificationCode(decoded.uid, codigo)))) {
+    await ref.update({ tentativas: admin.firestore.FieldValue.increment(1) });
+    return res.status(400).json({ ok: false, error: 'Código inválido.' });
+  }
+  await auth.updateUser(decoded.uid, { emailVerified: true });
+  await ref.delete();
+  return res.json({ ok: true });
+});
 
 // â”€â”€â”€ POST /api/boas-vindas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Gera o link de verificaÃ§Ã£o de e-mail (Firebase Admin) e envia o
@@ -179,12 +305,24 @@ app.post('/api/boas-vindas', async function (req, res) {
   try {
     if (!auth) return res.status(503).json({ success: false, message: 'Servico indisponivel.' });
 
+    // O link de verificação é sensível: somente o próprio usuário autenticado
+    // pode solicitá-lo e exclusivamente para o e-mail presente no token.
+    var authHeader = req.headers.authorization || '';
+    var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!idToken) return res.status(401).json({ success: false, message: 'Token ausente.' });
+    var decoded;
+    try { decoded = await auth.verifyIdToken(idToken); }
+    catch (_authErr) { return res.status(401).json({ success: false, message: 'Token inválido.' }); }
+
     var email     = (req.body.email    || '').trim().toLowerCase();
     var nome      = (req.body.nome     || 'Usuario').substring(0, 100);
     var matricula = (req.body.matricula || '').substring(0, 20);
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ success: false });
+    }
+    if (!decoded.email || decoded.email.toLowerCase() !== email) {
+      return res.status(403).json({ success: false, message: 'E-mail não autorizado.' });
     }
 
     // Gera o link de verificacao via Admin SDK.
@@ -338,10 +476,15 @@ app.post('/reset-senha', async function (req, res) {
 
     // Send email via EmailJS REST API (oobCode stays on the server)
     try {
-      await sendEmailViaEmailJS({
+      await sendCommunicationEmail({
         to_email: email,
         to_name:  userName,
-        reset_url: resetUrl
+        email_subject: '[App Bud Finance] Redefina sua senha',
+        email_title: 'Redefina sua senha',
+        email_preheader: 'Recebemos uma solicitação para redefinir sua senha.',
+        email_body: 'Para criar uma nova senha, use o botão abaixo. Se não foi você, ignore este e-mail.',
+        action_label: 'Redefinir minha senha',
+        action_url: resetUrl
       });
     } catch (_emailErr) {
       // Email failed â€” but don't leak info to the client
@@ -691,7 +834,6 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
 // â”€â”€â”€ Cache em memÃ³ria de extraÃ§Ã£o de cupom (24h) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Chave: SHA-256 do buffer de cada arquivo combinado.
 // Reduz custo Gemini quando o usuÃ¡rio re-envia o mesmo print.
-var crypto = require('crypto');
 var cupomCache = new Map();
 var CUPOM_CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
 var CUPOM_CACHE_MAX = 200;
@@ -717,6 +859,15 @@ function hashBuffers(buffers) {
   var h = crypto.createHash('sha256');
   for (var i = 0; i < buffers.length; i++) h.update(buffers[i]);
   return h.digest('hex');
+}
+
+var CUPOM_CATEGORIAS = ['Mercado', 'Padaria/Caf\u00e9', 'Bares/Baladas', 'Farm\u00e1cia', 'Pet', 'Material Escolar', 'Outros'];
+function normalizeCupomCategory(value) {
+  var cat = String(value || 'Mercado').trim();
+  if (cat === 'Pets') cat = 'Pet';
+  if (cat === 'Padaria/CafÃ©') cat = 'Padaria/Caf\u00e9';
+  if (cat === 'FarmÃ¡cia') cat = 'Farm\u00e1cia';
+  return CUPOM_CATEGORIAS.includes(cat) ? cat : 'Outros';
 }
 
 /**
@@ -746,7 +897,7 @@ async function extractCupomWithGroq(buffers, mimeTypes) {
     'IGNORE: subtotais, total a pagar, formas de pagamento, troco, descontos.',
     'Se houver MÃšLTIPLAS imagens, CONSOLIDE num Ãºnico array.',
     '',
-    'Categorias: "Mercado" (alimentos, hortifrÃºti, carnes, laticÃ­nios), "Padaria/CafÃ©" (pÃ£es, bolos, cafÃ©), "Bares/Baladas" (bebidas alcoÃ³licas, refrigerantes), "FarmÃ¡cia" (higiene, medicamentos, limpeza), "Pets" (raÃ§Ã£o, areia), "Material Escolar", "Outros" (sacolas, embalagens, demais).',
+    'Categorias: "Mercado" (alimentos, hortifrÃºti, carnes, laticÃ­nios), "Padaria/CafÃ©" (pÃ£es, bolos, cafÃ©), "Bares/Baladas" (bebidas alcoÃ³licas, refrigerantes), "FarmÃ¡cia" (higiene, medicamentos, limpeza), "Pet" (raÃ§Ã£o, areia), "Material Escolar", "Outros" (sacolas, embalagens, demais).',
     '',
     'Exemplo NFC-e (2 itens):',
     '  005 7896982103388 OVGS MANT GDE C/20 UN â†’ { "nome":"OVGS MANT GDE C/20", "qtd":1, "valor":14.99, "cat":"Mercado" }',
@@ -813,7 +964,7 @@ async function extractCupomWithGroq(buffers, mimeTypes) {
         var nome = String(i.nome || i.name || i.descricao || '').trim().slice(0, 60);
         var valor = parseFloat(String(i.valor || i.value || i.total || 0).toString().replace(',', '.')) || 0;
         var qtd = parseFloat(String(i.qtd || i.quantidade || i.quantity || 1).toString().replace(',', '.')) || 1;
-        var cat = String(i.cat || i.categoria || 'Mercado').trim();
+        var cat = normalizeCupomCategory(i.cat || i.categoria || 'Mercado');
         return { nome: nome, qtd: qtd, valor: Math.abs(valor), cat: cat };
       })
       .filter(function (i) { return i.nome && i.valor > 0; });
@@ -843,7 +994,7 @@ async function extractCupomFromText(texto) {
     'Extraia TODOS os itens e cobranÃ§as do texto abaixo: produtos, taxa de entrega, embalagem, serviÃ§o â€” qualquer linha com valor cobrado.',
     'IGNORE APENAS: subtotais, total a pagar, formas de pagamento, troco e descontos.',
     'Identifique tambÃ©m: nome do mercado, CNPJ (14 dÃ­gitos, apenas nÃºmeros), data (YYYY-MM-DD).',
-    'Categorias: "Mercado", "Padaria/CafÃ©", "Bares/Baladas", "FarmÃ¡cia", "Pets", "Material Escolar", "Outros".',
+    'Categorias: "Mercado", "Padaria/CafÃ©", "Bares/Baladas", "FarmÃ¡cia", "Pet", "Material Escolar", "Outros".',
     '"valor" = valor total do item (float positivo). "qtd" = quantidade (1 se desconhecido). "nome" atÃ© 50 chars.',
     'Formato obrigatÃ³rio: {"mercado":"...","cnpj":"...","data":"...","itens":[{"nome":"...","qtd":1,"valor":0.00,"cat":"Mercado"}]}',
     '',
@@ -901,7 +1052,7 @@ async function extractCupomFromText(texto) {
           nome: String(i.nome || i.name || i.descricao || '').trim().slice(0, 60),
           qtd: parseFloat(String(i.qtd || i.quantidade || 1).toString().replace(',', '.')) || 1,
           valor: Math.abs(parseFloat(String(i.valor || i.value || 0).toString().replace(',', '.')) || 0),
-          cat: String(i.cat || i.categoria || 'Mercado').trim(),
+          cat: normalizeCupomCategory(i.cat || i.categoria || 'Mercado'),
         };
       })
       .filter(function (i) { return i.nome && i.valor > 0; });
@@ -1321,13 +1472,32 @@ app.post('/api/processar-recorrentes', async function (req, res) {
     }
 
     // Criar transaÃ§Ãµes em batch (chunks de 400)
-    var CHUNK = 400;
+    // Uma recorrência pode manter referência a uma conta já removida. Validamos
+    // antes para não cancelar todo o processamento nesse caso.
+    var contasAtivas = new Set();
+    var contaIds = Array.from(new Set(novas
+      .filter(function (rec) { return rec.contaId && rec.contaTipo !== 'credito'; })
+      .map(function (rec) { return rec.contaId; })));
+    if (contaIds.length) {
+      var contasSnap = await Promise.all(contaIds.map(function (contaId) {
+        return db.collection('usuarios').doc(uid).collection('carteira').doc(contaId).get();
+      }));
+      contasSnap.forEach(function (conta) {
+        if (conta.exists) contasAtivas.add(conta.id);
+      });
+    }
+
+    // Cada recorrência gera uma transação e, quando vinculada, uma atualização
+    // de saldo. 200 mantém cada batch abaixo do limite de 500 operações.
+    var CHUNK = 200;
     var colTx = db.collection('usuarios').doc(uid).collection('transacoes');
     var dataHoje = hojeAno + '-' + String(hojeMes).padStart(2,'0') + '-' + String(hojeDia).padStart(2,'0');
+    var timestampHoje = admin.firestore.Timestamp.fromDate(agora);
 
     for (var ci = 0; ci < novas.length; ci += CHUNK) {
       var chunk = novas.slice(ci, ci + CHUNK);
       var batch = db.batch();
+      var deltasPorConta = {};
       chunk.forEach(function (rec) {
         var txRef = colTx.doc();
         batch.set(txRef, {
@@ -1335,8 +1505,13 @@ app.post('/api/processar-recorrentes', async function (req, res) {
           descricao:      sanitizeStr(rec.descricao || '').substring(0, 100),
           valor:          Number(rec.valor) || 0,
           categoria:      sanitizeStr(rec.categoria || 'Outros'),
+          // Dashboard, Extrato e relatórios consultam o campo `data`.
+          data:           timestampHoje,
           dataReferencia: dataHoje,
           mesReferencia:  mesRef,
+          carteiraId:     rec.contaTipo !== 'credito' ? (rec.contaId || null) : null,
+          contaId:        rec.contaId || null,
+          contaNome:      sanitizeStr(rec.contaNome || ''),
           formaPagamento: rec.cartaoId ? 'CrÃ©dito' : 'DÃ©bito',
           cartaoId:       rec.cartaoId || null,
           recorrenteId:   rec.id,
@@ -1344,6 +1519,21 @@ app.post('/api/processar-recorrentes', async function (req, res) {
           observacao:     sanitizeStr(rec.observacao || ''),
           dataCriacao:    admin.firestore.FieldValue.serverTimestamp(),
         });
+
+        // Segue a mesma regra dos lançamentos manuais: débito reduz e receita
+        // aumenta o saldo da conta. Cartão só afeta o saldo ao pagar a fatura.
+        if (rec.contaTipo !== 'credito' && rec.contaId && contasAtivas.has(rec.contaId)) {
+          var delta = (rec.tipo || 'despesa') === 'receita'
+            ? (Number(rec.valor) || 0)
+            : -(Number(rec.valor) || 0);
+          deltasPorConta[rec.contaId] = (deltasPorConta[rec.contaId] || 0) + delta;
+        }
+      });
+      Object.keys(deltasPorConta).forEach(function (contaId) {
+        batch.update(
+          db.collection('usuarios').doc(uid).collection('carteira').doc(contaId),
+          { saldo: admin.firestore.FieldValue.increment(deltasPorConta[contaId]) }
+        );
       });
       await batch.commit();
     }
@@ -1691,13 +1881,16 @@ app.post('/api/chamado', async function (req, res) {
     });
 
     // Email de notificaÃ§Ã£o ao suporte (fire-and-forget, sem bloquear resposta)
-    sendEmailViaEmailJS({
-      to_email:  'suporte@budfinance.com.br',
-      to_name:   nomeUsuario,
-      tipo:      tipo === 'bug' ? 'ðŸ› Bug' : 'ðŸ’¡ SugestÃ£o',
-      message:   descricao,
-      admin_url: FRONTEND_URL + '/admin.html',
-    }, EMAILJS_TEMPLATE_CHAMADO).catch(function () { /* ignora falha de email */ });
+    if (SUPPORT_EMAIL && EMAILJS_TEMPLATE_COMUNICACAO) sendCommunicationEmail({
+      to_email:  SUPPORT_EMAIL,
+      to_name:   'Equipe App Bud Finance',
+      email_subject: '[App Bud Finance] ' + (tipo === 'bug' ? 'Novo bug reportado' : 'Nova sugestão recebida'),
+      email_title: tipo === 'bug' ? 'Novo bug reportado' : 'Nova sugestão recebida',
+      email_preheader: 'Mensagem enviada pelo aplicativo Bud Finance.',
+      email_body: 'Enviado por ' + nomeUsuario + ' (' + (decoded.email || 'e-mail não informado') + ').\n\n' + descricao,
+      action_label: 'Abrir painel administrativo',
+      action_url: FRONTEND_URL + '/admin.html'
+    }).catch(function () { /* ignora falha de email */ });
 
     return res.json({ success: true });
 
@@ -1883,11 +2076,15 @@ app.post('/api/alerta-financeiro', async function (req, res) {
       return icone + ' ' + a.texto;
     }).join('\n');
 
-    sendEmailViaEmailJS({
+    if (EMAILJS_TEMPLATE_COMUNICACAO) sendCommunicationEmail({
       to_email:      emailUser,
       to_name:       nomeUsuario,
-      assunto:       'Alerta financeiro detectado no Bud Finance',
-      corpo:         'O Bud detectou os seguintes pontos de atenÃ§Ã£o nas suas finanÃ§as:\n\n' + alertasTexto + '\n\nAcesse o app para ver detalhes e tomar aÃ§Ã£o.',
+      email_subject: '[App Bud Finance] Alerta financeiro',
+      email_title: 'Alerta financeiro',
+      email_preheader: 'Encontramos pontos de atenção nas suas finanças.',
+      email_body: 'O Bud identificou estes pontos de atenção:\n\n' + alertasTexto + '\n\nAbra o app para ver os detalhes.',
+      action_label: 'Ver meus alertas',
+      action_url: FRONTEND_URL + '/assistente-ia.html'
     }).catch(function () { /* ignora falha */ });
   }
 
@@ -2763,6 +2960,107 @@ app.post('/api/push/admin-broadcast', async function (req, res) {
   }
 });
 
+function _toDate(value) {
+  if (!value) return null;
+  if (typeof value.toDate === 'function') return value.toDate();
+  var parsed = new Date(value);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function _dateKeyBR(date) {
+  var parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(date);
+  var map = {};
+  parts.forEach(function (p) { map[p.type] = p.value; });
+  return map.year + '-' + map.month + '-' + map.day;
+}
+
+function _formatDateBR(date) {
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'long', year: 'numeric'
+  }).format(date);
+}
+
+async function enviarLembretesDeAssinatura(hoje) {
+  if (!EMAILJS_TEMPLATE_COMUNICACAO || !EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID) {
+    return { sent: 0, skipped: 'email_not_configured' };
+  }
+
+  var usersSnap;
+  try {
+    usersSnap = await db.collection('usuarios')
+      .where('plano', 'in', ['starter', 'pro', 'plus', 'trial'])
+      .limit(500).get();
+  } catch (err) {
+    console.error('[assinaturas] Não foi possível buscar usuários:', err.message);
+    return { sent: 0, error: 'query_failed' };
+  }
+
+  var hojeKey = _dateKeyBR(hoje);
+  var hojeUtc = new Date(hojeKey + 'T00:00:00Z');
+  var sent = 0;
+
+  for (var i = 0; i < usersSnap.docs.length; i++) {
+    var userDoc = usersSnap.docs[i];
+    var user = userDoc.data();
+    var email = String(user.email || '').trim().toLowerCase();
+    if (!email) continue;
+
+    var plano = String(user.plano || 'free').toLowerCase();
+    var isTrial = plano === 'trial';
+    var expira = _toDate(isTrial ? user.trialFim : user.planoExpira);
+    var pendente = Boolean(user.pagamentoPendente);
+    var tipoAviso = null;
+    var titulo = '';
+    var mensagem = '';
+
+    if (pendente) {
+      tipoAviso = 'pagamento_pendente';
+      titulo = 'Não foi possível renovar sua assinatura';
+      mensagem = 'Identificamos um problema na cobrança do seu plano. Atualize a forma de pagamento para continuar aproveitando os recursos do App Bud Finance.';
+    } else if (expira) {
+      var expiraKey = _dateKeyBR(expira);
+      var dias = Math.round((new Date(expiraKey + 'T00:00:00Z') - hojeUtc) / 86400000);
+      if ([7, 3, 1].includes(dias)) {
+        tipoAviso = (isTrial ? 'trial_' : 'renovacao_') + dias;
+        titulo = isTrial ? 'Seu período de teste está terminando' : 'Sua assinatura será renovada em breve';
+        mensagem = isTrial
+          ? 'Seu período de teste termina em ' + _formatDateBR(expira) + '. Escolha um plano para continuar usando os recursos premium.'
+          : 'Seu plano ' + plano.toUpperCase() + ' será renovado em ' + _formatDateBR(expira) + '. Confira seus dados de pagamento para não perder o acesso.';
+      } else if (dias <= 0 && dias >= -1) {
+        tipoAviso = isTrial ? 'trial_encerrado' : 'assinatura_vencida';
+        titulo = isTrial ? 'Seu período de teste terminou' : 'Sua assinatura venceu';
+        mensagem = isTrial
+          ? 'Escolha um plano para continuar usando os recursos premium do App Bud Finance.'
+          : 'Renove sua assinatura para recuperar o acesso aos recursos do seu plano.';
+      }
+    }
+
+    if (!tipoAviso) continue;
+    var avisos = user.emailAssinaturaAvisos || {};
+    if (avisos[tipoAviso] === hojeKey) continue;
+
+    try {
+      await sendCommunicationEmail({
+        to_email: email,
+        to_name: sanitizeStr(user.nome || user.displayName || 'Cliente'),
+        email_subject: '[App Bud Finance] ' + titulo,
+        email_title: titulo,
+        email_preheader: 'Aviso sobre sua assinatura do App Bud Finance.',
+        email_body: mensagem,
+        action_label: 'Ver planos',
+        action_url: FRONTEND_URL + '/configuracoes.html'
+      });
+      await userDoc.ref.update({ ['emailAssinaturaAvisos.' + tipoAviso]: hojeKey });
+      sent++;
+    } catch (err) {
+      console.error('[assinaturas] Falha ao enviar e-mail para ' + userDoc.id + ':', err.message);
+    }
+  }
+  return { sent: sent, total: usersSnap.size };
+}
+
 // â”€â”€â”€ GET /api/notifications/daily â€” cron de notificaÃ§Ãµes personalizadas â”€â”€
 // Auth: x-cron-secret header (env CRON_SECRET)
 // Trigger sugerido: Upstash QStash, diariamente Ã s 11:00 UTC (08:00 BrasÃ­lia)
@@ -2791,6 +3089,9 @@ app.get('/api/notifications/daily', async function (req, res) {
     return res.json({ ok: true, skipped: 'quiet_hours', hora: horaAtual });
   }
 
+  // E-mails de assinatura independem de push ativado e são deduplicados por dia.
+  var subscriptionEmails = await enviarLembretesDeAssinatura(agora);
+
   var groqKey = process.env.GROQ_API_KEY || '';
 
   // Buscar usuÃ¡rios com push ativado (max 500 por execuÃ§Ã£o)
@@ -2801,7 +3102,7 @@ app.get('/api/notifications/daily', async function (req, res) {
     return res.status(500).json({ error: 'Erro ao buscar usuÃ¡rios: ' + e.message });
   }
 
-  if (usersSnap.empty) return res.json({ ok: true, sent: 0, total: 0 });
+  if (usersSnap.empty) return res.json({ ok: true, sent: 0, total: 0, subscriptionEmails: subscriptionEmails });
 
   var sent = 0, errors = 0;
 

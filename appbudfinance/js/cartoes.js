@@ -12,6 +12,7 @@ import {
   collection, query, orderBy, limit, onSnapshot,
   addDoc, updateDoc, deleteDoc, getDocs, getDoc, where, doc, writeBatch, serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -79,8 +80,12 @@ let unsubs = [];
     const app = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
     auth = getAuth(app);
     db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+    connectEmulators(auth, db);
 
     onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
+      }
       if (!user || !user.emailVerified) {
         window.location.href = 'index.html';
         return;
@@ -774,7 +779,7 @@ function setupFormCartao() {
   document.getElementById('formCartao')?.addEventListener('submit', handleSubmitCartao);
 
   // Máscara BRL no limite
-  document.getElementById('inputLimite')?.addEventListener('input', (e) => {
+  document.getElementById('inputLimite')?.addEventListener('blur', (e) => {
     e.target.value = maskBRL(e.target.value);
   });
 
@@ -968,7 +973,7 @@ function fecharModalGasto() {
 function setupFormGasto() {
   document.getElementById('formGasto')?.addEventListener('submit', handleSubmitGasto);
 
-  document.getElementById('inputValorGasto')?.addEventListener('input', (e) => {
+  document.getElementById('inputValorGasto')?.addEventListener('blur', (e) => {
     e.target.value = maskBRL(e.target.value);
   });
 
@@ -1758,6 +1763,7 @@ function parseOFXLocal(text) {
     const trntype  = getTag(body, 'TRNTYPE').toUpperCase();
     const dtposted = getTag(body, 'DTPOSTED') || getTag(body, 'DTUSER') || '';
     const trnamt   = getTag(body, 'TRNAMT');
+    const fitid    = getTag(body, 'FITID');
     const memo     = getTag(body, 'MEMO') || getTag(body, 'NAME') || '';
 
     if (!trnamt || !memo) continue;
@@ -1777,20 +1783,36 @@ function parseOFXLocal(text) {
       data,
       // CREDIT/DEP = crédito/pagamento (marcar como estornado)
       _tipoOFX: trntype,
+      _fitIdOFX: fitid,
     });
   }
-  return results;
+  const balMatch = text.match(/<BALAMT>([^\n<]+)/i);
+  const ledgerBalance = balMatch ? parseFloat(balMatch[1].trim().replace(',', '.')) : null;
+  return {
+    transactions: results,
+    ledgerBalance: Number.isFinite(ledgerBalance) ? Math.abs(ledgerBalance) : null,
+  };
 }
 
 async function processarOFXLocal(file) {
   // OFX brasileiro pode usar Windows-1252 — detectar e decodificar corretamente
   const buf = await file.arrayBuffer();
   let text = new TextDecoder('utf-8').decode(buf);
-  if (/CHARSET\s*[=:]\s*(1252|iso-?8859)/i.test(text.substring(0, 600))) {
+  // Alguns bancos declaram Windows-1252 no cabeçalho, mas entregam o arquivo
+  // em UTF-8. Só aplica o fallback quando a decodificação UTF-8 for inválida.
+  if (text.includes('\uFFFD') && /CHARSET\s*[=:]\s*(1252|iso-?8859)/i.test(text.substring(0, 600))) {
     try { text = new TextDecoder('windows-1252').decode(buf); } catch (_e) { /* mantém utf-8 */ }
   }
-  const raw = parseOFXLocal(text);
+  const parsedOFX = parseOFXLocal(text);
+  const raw = parsedOFX.transactions;
   if (raw.length === 0) throw new Error('Nenhuma transação encontrada no arquivo OFX.');
+
+  // O BALAMT do cartão representa o valor líquido oficial da fatura.
+  _importMetaIA = {
+    fonte: 'ofx',
+    totalAPagar: parsedOFX.ledgerBalance,
+    totalCompras: null,
+  };
 
   // Pós-processar: OFX CREDIT/DEP = crédito → forçar status estornado
   const itens = processarItensIA(raw.map(r => {
@@ -2037,6 +2059,18 @@ function _addMesesData(dateStr, n) {
 }
 
 function processarItensIA(itens) {
+  // No OFX do Nubank, compra e estorno compartilham o mesmo FITID. Quando há
+  // esse par, ambos devem sair da fatura; somente desmarcar o crédito mantém
+  // a compra original e infla o total.
+  const fitIdsEstornadosOFX = new Set(
+    itens
+      .filter(item => ['CREDIT','DEP'].includes(String(item._tipoOFX || '').toUpperCase()))
+      .filter(item => !/PAGAMENTO RECEBIDO|PAGTO RECEBIDO|PAYMENT RECEIVED|PAGAMENTO DE FATURA|PGTO FATURA/.test(
+        String(item.desc || item.descricao || '').toUpperCase()
+      ))
+      .map(item => item._fitIdOFX)
+      .filter(Boolean)
+  );
   // Valores de estorno extraídos do PDF (determinístico — independente da IA).
   // Dois-passes: primeiro mapeia qual ÍNDICE de item (na lista da IA) será o estorno,
   // escolhendo o ÚLTIMO item com aquele valor — a IA segue a ordem do PDF, onde
@@ -2077,6 +2111,9 @@ function processarItensIA(itens) {
     }
     // Valor negativo = crédito/estorno
     if (valorOriginal < 0) {
+      status = 'estornado';
+    }
+    if (item._fitIdOFX && fitIdsEstornadosOFX.has(item._fitIdOFX)) {
       status = 'estornado';
     }
     // Palavras de estorno — incluindo "Estorno de X" (prefixo Nubank para estornos)
@@ -2184,19 +2221,25 @@ function processarItensIA(itens) {
 function detectarCategoriaIA(desc) {
   const d = desc.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
+  if (/pagamento recebido|pagamento de fatura|pagto recebido|pgto fatura/.test(d)) return 'Pagamento de Fatura';
+  if (/pix no credito/.test(d)) return 'Pix no Crédito';
+  if (/^99\s*-?\s*nupay\b/.test(d)) return 'Uber/Táxi';
+
   const regras = [
     // Transporte / Uber
-    { cat: 'Uber/Táxi',         words: ['uber', '99pop', '99 pop', 'cabify', 'indrive', 'in drive', 'taxi', 'táxi', 'transfer'] },
+    { cat: 'Uber/Táxi',         words: ['uber', '99pop', '99 pop', '99 tecnologia', 'cabify', 'indrive', 'in drive', 'taxi', 'táxi'] },
     // Delivery
-    { cat: 'Delivery',          words: ['ifood', 'ifd*', 'rappi', 'ze delivery', 'zé delivery', 'loggi', 'delivery', 'entrega'] },
+    { cat: 'Delivery/Ifood',    words: ['ifood', 'ifd*', 'rappi', 'ze delivery', 'zé delivery', 'delivery'] },
     // Streaming / Assinaturas
-    { cat: 'Assinaturas',       words: ['netflix', 'spotify', 'amazon prime', 'amazon music', 'youtube premium', 'youtube music', 'globoplay', 'disney', 'hbo', 'paramount', 'apple tv', 'apple one', 'chatgpt', 'openai', 'github', 'notion', 'figma', 'canva', 'adobe', 'microsoft', 'office 365', 'google one', 'dropbox', 'icloud', 'nubank assinatura', 'plano anual', 'plano mensal'] },
+    { cat: 'Assinaturas/Streaming', words: ['netflix', 'spotify', 'amazon prime', 'amazon music', 'youtube premium', 'youtube music', 'globoplay', 'disney', 'hbo', 'paramount', 'apple tv', 'apple one', 'chatgpt', 'openai', 'github', 'notion', 'figma', 'canva', 'adobe', 'office 365', 'google one', 'dropbox', 'icloud', 'deezer', 'assinatura mensal', 'assinatura anual'] },
     // Mercado / Supermercado
-    { cat: 'Mercado',           words: ['carrefour', 'assai', 'assaí', 'pao de acucar', 'pão de açúcar', 'extra', 'cia', 'atacadao', 'atacadão', 'aldi', 'lidl', 'walmart', 'sam\'s', 'costco', 'makro', 'supermercado', 'supermarket', 'hortifruti', 'prezunic', 'guanabara', 'mundial'] },
+    { cat: 'Mercado',           words: ['carrefour', 'assai', 'assaí', 'pao de acucar', 'pão de açúcar', 'extra mercado', 'atacadao', 'atacadão', 'aldi', 'lidl', 'walmart', 'sam\'s club', 'costco', 'makro', 'supermercado', 'supermarket', 'hortifruti', 'prezunic', 'guanabara', 'mundial'] },
     // Farmácia / Saúde
     { cat: 'Farmácia',          words: ['drogaria', 'drogasil', 'drogasmil', 'pacheco', 'pague menos', 'ultrafarma', 'farmacia', 'farmácia', 'droga', 'pharma', 'lifemed', 'sempre viva'] },
-    // Saúde
-    { cat: 'Saúde',             words: ['hospital', 'clinica', 'clínica', 'laboratorio', 'laboratório', 'exame', 'consulta', 'dentista', 'odonto', 'unimed', 'bradesco saude', 'amil', 'sulamerica', 'hapvida', 'notredame', 'plano de saude', 'academia', 'smart fit', 'bluefit', 'wellness', 'biomedicina'] },
+    { cat: 'Plano de Saúde',    words: ['unimed', 'bradesco saude', 'amil', 'sulamerica saude', 'hapvida', 'notredame', 'plano de saude'] },
+    { cat: 'Dentista',          words: ['dentista', 'odontologia', 'odonto'] },
+    { cat: 'Academia/Esportes', words: ['academia', 'smart fit', 'smartfit', 'bluefit', 'crossfit', 'wellhub', 'gympass'] },
+    { cat: 'Consultas/Exames',  words: ['hospital', 'clinica', 'clínica', 'laboratorio', 'laboratório', 'exame', 'consulta', 'fisioterapia', 'biomedicina'] },
     // Restaurante / Lanchonete
     { cat: 'Restaurante',       words: ['restaurante', 'pizzaria', 'hamburgueria', 'churrascaria', 'mcdonalds', 'mcdonald', 'burger king', 'bk', 'subway', 'kfc', 'dominos', 'domino\'s', 'giraffas', 'habib', 'outback', 'ciao', 'sushi', 'temakeria', 'cantina', 'bistro', 'bistrô', 'bar e', 'choperia', 'taberna', 'trattoria'] },
     // Padaria / Café
@@ -2204,23 +2247,29 @@ function detectarCategoriaIA(desc) {
     // Combustível
     { cat: 'Combustível',       words: ['shell', 'ipiranga', 'petrobras', 'br posto', 'posto', 'combustivel', 'combustível', 'gasolina', 'etanol', 'diesel', 'gnv', 'rede ipiranga', 'vibra'] },
     // Roupas / Moda
-    { cat: 'Roupas',            words: ['renner', 'riachuelo', 'marisa', 'cea', 'c&a', 'zara', 'h&m', 'hm', 'farm', 'arezzo', 'schutz', 'shein', 'shopee', 'dafiti', 'privalia', 'netshoes', 'nike', 'adidas', 'puma', 'track field', 'lupo', 'hering', 'dudalina', 'loja de roupa', 'boutique'] },
+    { cat: 'Roupas/Sapatos',    words: ['renner', 'riachuelo', 'marisa', 'cea modas', 'c&a', 'zara', 'h&m', 'arezzo', 'schutz', 'shein', 'dafiti', 'privalia', 'netshoes', 'nike', 'adidas', 'puma', 'track field', 'lupo', 'hering', 'dudalina', 'loja de roupa', 'boutique'] },
     // Eletrônicos / Tecnologia
     { cat: 'Eletrônicos',       words: ['amazon', 'magalu', 'magazine luiza', 'americanas', 'casas bahia', 'kabum', 'pichau', 'terabyte', 'fast shop', 'apple store', 'samsung', 'lg', 'lenovo', 'dell', 'hp', 'eletronico', 'eletrônico', 'informatica', 'informática', 'celular', 'smartphone', 'notebook', 'tablet', 'iphone', 'ipad'] },
-    // Educação
-    { cat: 'Educação',          words: ['faculdade', 'universidade', 'escola', 'colegio', 'colégio', 'cursinho', 'curso', 'alura', 'udemy', 'coursera', 'duolingo', 'rocketseat', 'dio', 'origamid', 'estacio', 'kroton', 'anhanguera', 'unip', 'livro', 'livraria', 'saraiva', 'cultura', 'fnac'] },
+    { cat: 'Faculdade/Escola',  words: ['faculdade', 'universidade', 'escola', 'colegio', 'colégio', 'estacio', 'anhanguera', 'unip'] },
+    { cat: 'Material Escolar',  words: ['material escolar', 'papelaria', 'caderno', 'livraria', 'saraiva', 'livro didatico'] },
+    { cat: 'Cursos',            words: ['cursinho', 'curso online', 'alura', 'udemy', 'coursera', 'duolingo', 'rocketseat', 'origamid'] },
     // Pet
     { cat: 'Pet',               words: ['petz', 'cobasi', 'petlove', 'petshop', 'pet shop', 'veterinario', 'veterinário', 'veterinaria', 'clinica vet', 'racao', 'ração', 'bichinho'] },
     // Viagem / Hospedagem
-    { cat: 'Viagem',            words: ['airbnb', 'booking', 'hotel', 'pousada', 'hostel', 'hoteis', 'hotéis', 'decolar', 'azul', 'latam', 'gol linhas', 'tam', 'passagem', 'aeroporto', 'voo', 'mala', 'luggage', 'turismo', 'trip', 'trivago'] },
+    { cat: 'Viagens',           words: ['airbnb', 'booking', 'hotel', 'pousada', 'hostel', 'hoteis', 'hotéis', 'decolar', 'azul linhas', 'latam', 'gol linhas', 'passagem aerea', 'aeroporto', 'voo', 'turismo', 'trivago'] },
     // Beleza
-    { cat: 'Beleza',            words: ['salao', 'salão', 'barbearia', 'barber', 'beauty', 'estetica', 'estética', 'manicure', 'pedicure', 'spa', 'waxing', 'depilacao', 'depilação', 'botox', 'clinica estetica'] },
-    // Moradia / Serviços domésticos
-    { cat: 'Moradia',           words: ['aluguel', 'condominio', 'condomínio', 'iptu', 'energia', 'enel', 'cemig', 'copel', 'celpe', 'coelba', 'eletropaulo', 'agua', 'água', 'sabesp', 'cedae', 'copasa', 'saneamento', 'gas', 'gás', 'comgas', 'copagaz', 'ultragaz', 'supergasbras', 'internet', 'vivo fibra', 'claro', 'oi fibra', 'tim live', 'net combo'] },
-    // Serviços / Outros recorrentes
-    { cat: 'Serviços',          words: ['correios', 'cartorio', 'cartório', 'seguro', 'detran', 'ipva', 'multa', 'notario', 'tabeliao'] },
-    // Pagamento de fatura (especial)
-    { cat: 'Cartão de Crédito', words: ['pagamento fatura', 'pagamento do cartao', 'pagto fatura', 'pgto fatura'] },
+    { cat: 'Salão/Barbearia',   words: ['salao', 'salão', 'barbearia', 'barber', 'cabeleireiro'] },
+    { cat: 'Cosméticos',        words: ['cosmetico', 'cosmético', 'perfumaria', 'sephora', 'manicure', 'pedicure', 'depilacao', 'depilação', 'clinica estetica'] },
+    { cat: 'Aluguel',           words: ['aluguel'] },
+    { cat: 'Condomínio',        words: ['condominio', 'condomínio'] },
+    { cat: 'Luz',               words: ['conta de luz', 'energia eletrica', 'enel', 'cemig', 'copel', 'celpe', 'coelba', 'eletropaulo', 'light servicos'] },
+    { cat: 'Água',              words: ['conta de agua', 'sabesp', 'cedae', 'copasa', 'saneamento'] },
+    { cat: 'Gás',               words: ['comgas', 'copagaz', 'ultragaz', 'supergasbras', 'conta de gas'] },
+    { cat: 'Internet/TV',       words: ['internet', 'vivo fibra', 'claro net', 'oi fibra', 'tim live', 'net combo'] },
+    { cat: 'IPVA/Seguro',       words: ['ipva', 'seguro auto', 'seguro veiculo', 'detran', 'multa de transito'] },
+    { cat: 'Taxas Bancárias',   words: ['tarifa bancaria', 'taxa bancaria', 'anuidade cartao', 'juros rotativo', 'encargo financeiro', 'iof operacao'] },
+    { cat: 'Impostos/IRPF',     words: ['imposto de renda', 'irpf', 'darf', 'iptu'] },
+    { cat: 'Pagamento de Fatura', words: ['pagamento fatura', 'pagamento do cartao', 'pagto fatura', 'pgto fatura'] },
   ];
 
   for (const regra of regras) {
@@ -2648,17 +2697,16 @@ function renderCalendarioGasto() {
 // ─── Utilitários ──────────────────────────────────────────────────────────────
 
 function maskBRL(val) {
-  const num = val.replace(/\D/g, '');
-  if (!num) return '';
-  const cents = parseInt(num, 10);
-  const reais = cents / 100;
+  const reais = parseBRL(val);
+  if (!Number.isFinite(reais)) return '';
   return reais.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
 }
 
 function parseBRL(str) {
   if (!str) return 0;
-  const clean = str.replace(/[^\d,]/g, '').replace(',', '.');
-  return parseFloat(clean) || 0;
+  const raw = String(str).replace(/R\$|\s/g, '');
+  const clean = raw.includes(',') ? raw.replace(/\./g, '').replace(',', '.') : raw;
+  return Number(clean) || 0;
 }
 
 function formatBRL(val) {

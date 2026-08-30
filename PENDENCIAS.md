@@ -50,6 +50,12 @@
 
 ## Pendências por Tela
 
+### 📧 Infraestrutura de e-mail
+
+| ID | Item | Tipo | Dependências | Notas |
+|---|---|---|---|---|
+| PEND-EMAIL-001 | Configurar as variáveis do EmailJS no Render e validar um envio no ambiente público | 🔴 Alta | Reativação do backend Render | Ao voltar: copiar `EMAILJS_PUBLIC_KEY`, `EMAILJS_PRIVATE_KEY`, `EMAILJS_SERVICE_ID`, `EMAILJS_TEMPLATE_BOAS_VINDAS=template_pdch2ip`, `EMAILJS_TEMPLATE_RECUPERAR_SENHA=template_2mp7qgq`, `SUPPORT_EMAIL=budsolucoes@gmail.com` e `EMAIL_VERIFICATION_SECRET`. O e-mail local foi validado em 29/08/2026. |
+
 ### ⚙️ Configurações
 
 > MVP atual: 3 abas (Perfil / Personalização / Segurança) — funcionando.

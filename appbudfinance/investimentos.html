@@ -444,11 +444,11 @@
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:0.75rem;margin-top:1rem;">
             <div>
               <label style="font-size:0.75rem;font-weight:700;color:var(--text-sec);display:block;margin-bottom:0.375rem;">Valor Inicial</label>
-              <input id="simInicial" type="text" placeholder="R$ 0,00" oninput="window._maskSimBRL(this)" style="width:100%;padding:0.625rem 0.875rem;border-radius:0.75rem;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--card-text);font-size:0.9375rem;font-weight:600;font-family:inherit;outline:none;box-sizing:border-box;">
+              <input id="simInicial" type="text" placeholder="R$ 0,00" onblur="window._maskSimBRL(this)" style="width:100%;padding:0.625rem 0.875rem;border-radius:0.75rem;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--card-text);font-size:0.9375rem;font-weight:600;font-family:inherit;outline:none;box-sizing:border-box;">
             </div>
             <div>
               <label style="font-size:0.75rem;font-weight:700;color:var(--text-sec);display:block;margin-bottom:0.375rem;">Aporte Mensal</label>
-              <input id="simMensal" type="text" placeholder="R$ 0,00" oninput="window._maskSimBRL(this)" style="width:100%;padding:0.625rem 0.875rem;border-radius:0.75rem;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--card-text);font-size:0.9375rem;font-weight:600;font-family:inherit;outline:none;box-sizing:border-box;">
+              <input id="simMensal" type="text" placeholder="R$ 0,00" onblur="window._maskSimBRL(this)" style="width:100%;padding:0.625rem 0.875rem;border-radius:0.75rem;border:1.5px solid var(--input-border);background:var(--input-bg);color:var(--card-text);font-size:0.9375rem;font-weight:600;font-family:inherit;outline:none;box-sizing:border-box;">
             </div>
             <div>
               <label style="font-size:0.75rem;font-weight:700;color:var(--text-sec);display:block;margin-bottom:0.375rem;">Taxa a.m. (%)</label>
@@ -508,11 +508,11 @@
       <div class="modal-row-2">
         <div class="modal-field">
           <label class="modal-label">Valor Aportado (R$)</label>
-          <input type="text" class="modal-input" id="investValor" placeholder="R$ 0,00" oninput="window._maskBRL(this);window._atualizarRendCalc();">
+          <input type="text" class="modal-input" id="investValor" placeholder="R$ 0,00" oninput="window._atualizarRendCalc();" onblur="window._maskBRL(this);window._atualizarRendCalc();">
         </div>
         <div class="modal-field">
           <label class="modal-label">Valor Atual (R$)</label>
-          <input type="text" class="modal-input" id="investValorAtual" placeholder="R$ 0,00" oninput="window._maskBRL(this);window._atualizarRendCalc();">
+          <input type="text" class="modal-input" id="investValorAtual" placeholder="R$ 0,00" oninput="window._atualizarRendCalc();" onblur="window._maskBRL(this);window._atualizarRendCalc();">
         </div>
       </div>
 

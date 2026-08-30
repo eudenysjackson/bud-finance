@@ -16,6 +16,7 @@
  */
 
 import { initializeApp, getApps }   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
+import { connectEmulators } from './bud-emulator-connect.js';
 import { getAuth, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
@@ -27,6 +28,7 @@ import {
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
 const db   = (() => { try { return initializeFirestore(app, { localCache: persistentLocalCache() }); } catch(e) { return getFirestore(app); } })();
+connectEmulators(auth, db);
 
 // ─── Estado ───────────────────────────────────────────────────────────────────
 let currentUser    = null;
@@ -287,7 +289,8 @@ function renderizar() {
   const doMes = transacoes.filter(t =>
     t.dataReferencia &&
     t.dataReferencia.startsWith(prefixo) &&
-    t.status !== 'pendente'
+    t.status !== 'pendente' &&
+    !t.transferencia
   );
 
   let receitas = 0, despesas = 0;
@@ -318,7 +321,7 @@ function renderizar() {
   const dAnt     = new Date(dataFiltro.getFullYear(), dataFiltro.getMonth() - 1, 1);
   const prefAnt  = dAnt.getFullYear() + '-' + String(dAnt.getMonth() + 1).padStart(2, '0');
   const doMesAnt = transacoes.filter(t =>
-    t.dataReferencia && t.dataReferencia.startsWith(prefAnt) && t.status !== 'pendente'
+    t.dataReferencia && t.dataReferencia.startsWith(prefAnt) && t.status !== 'pendente' && !t.transferencia
   );
   let recAnt = 0, depAnt = 0;
   doMesAnt.forEach(t => {
@@ -699,7 +702,7 @@ function renderTendencia() {
     labels6.push(MESES_ABR[d.getMonth()] + '/' + String(d.getFullYear()).slice(2));
     let r = 0, dep = 0;
     transacoes
-      .filter(t => t.dataReferencia && t.dataReferencia.startsWith(p) && t.status !== 'pendente')
+      .filter(t => t.dataReferencia && t.dataReferencia.startsWith(p) && t.status !== 'pendente' && !t.transferencia)
       .forEach(t => {
         const val = Number(t.valor) || 0;
         if (t.tipo === 'receita') r += val; else dep += val;
@@ -812,7 +815,10 @@ function setupSidebar(user, userData) {
 
 // ─── Auth & Init ──────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
-  if (!user) { window.location.href = 'index.html'; return; }
+  if (user) {
+    try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
+  }
+  if (!user || !user.emailVerified) { window.location.href = 'index.html'; return; }
   currentUser = user;
 
   try {

@@ -6,7 +6,7 @@ const { test, expect } = require('@playwright/test');
 test.describe('Dashboard — Auth Guard', () => {
 
   test('sem auth, redireciona para index.html', async ({ page }) => {
-    await page.goto('/appbudfinance/dashboard.html');
+    await page.goto('/dashboard.html');
     await page.waitForURL('**/index.html', { timeout: 15_000 });
     expect(page.url()).toContain('index.html');
   });
@@ -18,8 +18,8 @@ test.describe('Dashboard — Estrutura HTML', () => {
 
   // Bloqueia dashboard.js para evitar auth guard redirect
   test.beforeEach(async ({ page }) => {
-    await page.route('**/js/dashboard.js', route => route.abort());
-    await page.goto('/appbudfinance/dashboard.html', { waitUntil: 'domcontentloaded' });
+    await page.route('**/js/dashboard.js*', route => route.abort());
+    await page.goto('/dashboard.html', { waitUntil: 'domcontentloaded' });
   });
 
   test('título da página correto', async ({ page }) => {
@@ -124,13 +124,13 @@ test.describe('Dashboard — Estrutura HTML', () => {
   });
 
   test('dashboard.js declarado como module', async ({ page }) => {
-    const script = page.locator('script[type="module"][src="js/dashboard.js"]');
+    const script = page.locator('script[type="module"][src^="js/dashboard.js"]');
     await expect(script).toHaveCount(1);
   });
 
   test('sidebar tem links de navegação', async ({ page }) => {
     const navLinks = page.locator('.sidebar-nav .sidebar-link');
-    await expect(navLinks).toHaveCount(8); // Dashboard, Extrato, Metas, Cartões, Categorias, Recorrentes, Dívidas, Configurações
+    await expect(navLinks).toHaveCount(12);
   });
 
   test('overlay sidebar existe para mobile', async ({ page }) => {
