@@ -70,6 +70,8 @@ const WA_EVOLUTION_INSTANCE = process.env.WA_EVOLUTION_INSTANCE || 'bud';
 // â”€â”€â”€ Mercado Pago config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const MP_ACCESS_TOKEN   = process.env.MP_ACCESS_TOKEN   || '';
 const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET || '';
+const MP_WEBHOOK_URL    = process.env.MP_WEBHOOK_URL ||
+  'https://bud-finance-backend.onrender.com/webhook/mercadopago';
 // planKey â†’ tÃ­tulo e preÃ§o mensal (BRL)
 const MP_PLANS = {
   starter: { title: 'Bud Finance Starter', amount: 9.99  },
@@ -2574,11 +2576,9 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
     }
   } catch (_e) { /* nÃ£o bloqueia o fluxo */ }
 
-  // 5. Criar preapproval no Mercado Pago
-  // Link expira em 2 horas â€” impede que o link seja usado por terceiros apÃ³s esse perÃ­odo
-  var linkExpira = new Date();
-  linkExpira.setHours(linkExpira.getHours() + 2);
-
+  // 5. Criar assinatura pendente sem plano associado. O Mercado Pago retorna
+  // o init_point para o assinante informar o meio de pagamento no checkout.
+  // Não definimos end_date: ela encerraria a recorrência, e não apenas o link.
   var mpBody = {
     reason:               plan.title,
     external_reference:   externalRef,
@@ -2587,19 +2587,13 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
     ...(lastName  ? { payer_last_name:  lastName  }  : {}),
     ...(payerPhone ? { payer_phone: payerPhone }      : {}),
     statement_descriptor: 'BUD FINANCE',
-    notification_url:     'https://bud-finance-backend.onrender.com/webhook/mercadopago',
-    date_of_expiry:       linkExpira.toISOString(),
+    notification_url:     MP_WEBHOOK_URL,
     auto_recurring: {
       frequency:          1,
       frequency_type:     'months',
       transaction_amount: amount,
       currency_id:        'BRL'
     },
-    payment_methods_allowed: [
-      { payment_type: 'credit_card'    },
-      { payment_type: 'debit_card'     },
-      { payment_type: 'account_money' }
-    ],
     back_url: FRONTEND_URL + '/dashboard.html',
     status:   'pending'
   };

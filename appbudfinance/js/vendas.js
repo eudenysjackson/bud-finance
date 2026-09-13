@@ -95,12 +95,14 @@ window.assinar = async function(planKey) {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || 'Erro ao criar assinatura');
+      throw new Error(err.error || err.message || 'Erro ao criar assinatura');
     }
 
     const data = await res.json();
     if (data.init_point) {
-      _showCheckoutTipModal(data.init_point);
+      // O checkout é hospedado pelo Mercado Pago; ir direto para ele evita
+      // uma etapa intermediária e mantém o pagamento no ambiente oficial.
+      window.location.href = data.init_point;
     } else {
       throw new Error('Link de pagamento não recebido');
     }
@@ -109,50 +111,6 @@ window.assinar = async function(planKey) {
     btns.forEach(b => { b.disabled = false; });
   }
 };
-
-// ── Modal de dica antes do checkout MP ─────────────────────
-function _showCheckoutTipModal(url) {
-  var overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
-
-  var modal = document.createElement('div');
-  modal.style.cssText = 'background:#fff;border-radius:16px;padding:32px 28px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25);text-align:center;font-family:inherit';
-
-  var countdown = 5;
-
-  modal.innerHTML =
-    '<div style="font-size:48px;margin-bottom:12px">💡</div>' +
-    '<h3 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#1e293b">Dica para aprovação rápida</h3>' +
-    '<p style="margin:0 0 20px;font-size:15px;color:#475569;line-height:1.5">' +
-      'Na próxima tela, prefira pagar com <strong>saldo Mercado Pago</strong> ou <strong>Pix</strong> — ' +
-      'a aprovação é instantânea e sem risco de recusa pelo banco.' +
-    '</p>' +
-    '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 16px;margin-bottom:24px;font-size:13px;color:#166534">' +
-      '✅ Cartão de crédito também é aceito, mas pode sofrer recusa em alguns bancos.' +
-    '</div>' +
-    '<button id="_tipBtn" style="width:100%;padding:14px;background:#009ee3;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;transition:background .2s">' +
-      'Ir para pagamento (<span id="_tipCount">' + countdown + '</span>s)' +
-    '</button>';
-
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-
-  var btn = modal.querySelector('#_tipBtn');
-  var countEl = modal.querySelector('#_tipCount');
-
-  function go() {
-    document.body.removeChild(overlay);
-    window.location.href = url;
-  }
-
-  btn.addEventListener('click', go);
-
-  var timer = setInterval(function() {
-    countdown--;
-    if (countEl) countEl.textContent = countdown;
-    if (countdown <= 0) { clearInterval(timer); go(); }
-  }, 1000);
-}
 
 // ── Fade-up ao rolar ──────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {

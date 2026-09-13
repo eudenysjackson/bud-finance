@@ -347,18 +347,12 @@ formLogin.addEventListener('submit', async function (e) {
         return;
       }
       try {
-        var _idToken = await user.getIdToken();
-        var _body    = { planKey: _checkoutPlano };
-        if (_checkoutRef) _body.ref = _checkoutRef;
-        var _mpResp  = await fetch(
-          (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com') + '/mercadopago/create-subscription',
-          { method: 'POST', headers: { 'Authorization': 'Bearer ' + _idToken, 'Content-Type': 'application/json' }, body: JSON.stringify(_body) }
-        );
-        if (_mpResp.ok) {
-          var _mpData = await _mpResp.json();
-          if (_mpData.init_point) { window.location.href = _mpData.init_point; return; }
-        }
-      } catch (_e) { /* fallback: vai pro dashboard normalmente */ }
+        await iniciarCheckoutMercadoPago(user, _checkoutPlano, _checkoutRef);
+        return;
+      } catch (_e) {
+        mostrarFalhaCheckout(_checkoutPlano, _checkoutRef, _e.message);
+        return;
+      }
     }
 
     window.location.href = 'dashboard.html';
@@ -398,4 +392,47 @@ function abrirCheckoutTesteLocal(user, planKey) {
       } catch (_) { window.budShowToast('Não foi possível registrar o teste local.', 'error'); overlay.querySelectorAll('button').forEach(function (item) { item.disabled = false; }); }
     };
   });
+}
+
+async function iniciarCheckoutMercadoPago(user, planKey, refCode) {
+  if (!user) throw new Error('Sua sessão expirou. Entre novamente para continuar.');
+  var idToken = await user.getIdToken();
+  var body = { planKey: planKey };
+  if (refCode) body.ref = refCode;
+  var response = await fetch(
+    (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com') + '/mercadopago/create-subscription',
+    { method: 'POST', headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+  );
+  var data = await response.json().catch(function () { return {}; });
+  if (!response.ok) throw new Error(data.error || 'Não foi possível iniciar o checkout.');
+  if (!data.init_point) throw new Error('O Mercado Pago não retornou um link de pagamento.');
+  window.location.href = data.init_point;
+}
+
+function mostrarFalhaCheckout(planKey, refCode, message) {
+  var overlay = document.createElement('div');
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:20px;background:rgba(15,23,42,.55);';
+  var safeMessage = String(message || 'Tente novamente em alguns instantes.')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  overlay.innerHTML = '<section style="width:min(100%,420px);background:#fff;border-radius:20px;padding:24px;font-family:inherit;color:#17233a;box-shadow:0 24px 70px rgba(0,0,0,.25)">' +
+    '<div style="font-size:34px;margin-bottom:10px">⚠️</div><h2 style="margin:0 0 10px;font-size:22px">Não foi possível iniciar o pagamento</h2>' +
+    '<p data-checkout-message style="margin:0 0 20px;color:#64748b;line-height:1.55">' + safeMessage + '</p>' +
+    '<div style="display:grid;gap:10px"><button data-retry style="border:0;border-radius:10px;padding:12px;background:#2563eb;color:#fff;font-weight:800;cursor:pointer">Tentar novamente</button>' +
+    '<button data-dashboard style="border:0;border-radius:10px;padding:12px;background:#eef2f7;color:#334155;font-weight:800;cursor:pointer">Ir para o painel</button></div></section>';
+  document.body.appendChild(overlay);
+  overlay.querySelector('[data-retry]').onclick = async function () {
+    var retry = overlay.querySelector('[data-retry]');
+    retry.disabled = true;
+    retry.textContent = 'Preparando pagamento...';
+    try {
+      await iniciarCheckoutMercadoPago(auth.currentUser, planKey, refCode);
+    } catch (error) {
+      overlay.querySelector('[data-checkout-message]').textContent = error.message || 'Tente novamente em alguns instantes.';
+      retry.disabled = false;
+      retry.textContent = 'Tentar novamente';
+    }
+  };
+  overlay.querySelector('[data-dashboard]').onclick = function () { window.location.href = 'dashboard.html'; };
 }
