@@ -69,7 +69,10 @@ function formatarInputValor(input) {
 
 function formatarData(ts) {
   if (!ts) return '—';
-  const d = ts instanceof Date ? ts : ts.toDate();
+  // Exportações LGPD serializam Timestamps como ISO. A tela também precisa
+  // continuar funcional enquanto um backup é restaurado para o Firestore.
+  const d = ts instanceof Date ? ts : (typeof ts.toDate === 'function' ? ts.toDate() : new Date(ts));
+  if (Number.isNaN(d.getTime())) return '—';
   return d.getDate() + ' ' + MESES_CURTO[d.getMonth()];
 }
 
@@ -539,7 +542,6 @@ function excluirRec(id) {
       overlay.remove();
     }
   };
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
 // ─── Renderizar ────────────────────────────────────────────────────────────
@@ -874,7 +876,7 @@ async function processarHoje() {
   const btn = document.getElementById('btnProcessarHoje');
   const status = document.getElementById('processingStatus');
 
-  if (btn) { btn.disabled = true; btn.querySelector('span:last-child').textContent = 'Processando…'; }
+  if (btn) { btn.disabled = true; btn.querySelector('span:last-child').textContent = 'Verificando…'; }
   if (status) { status.style.display = 'none'; }
 
   try {
@@ -900,7 +902,7 @@ async function processarHoje() {
       status.style.cssText = `display:block;background:${bg};border:1px solid ${bd};color:${cor};padding:0.625rem 1rem;border-radius:0.75rem;font-size:0.8125rem;font-weight:600;margin-bottom:1.25rem;`;
       status.textContent = data.processadas > 0
         ? '✓ ' + data.mensagem
-        : 'ℹ️ ' + data.mensagem;
+        : '✓ Nenhuma recorrência pendente para confirmar hoje.';
     }
 
     if (data.processadas > 0 && window.budSuccess) {
@@ -914,7 +916,7 @@ async function processarHoje() {
     }
     (window.budError || console.error)('processarHoje:', err);
   } finally {
-    if (btn) { btn.disabled = false; btn.querySelector('span:last-child').textContent = 'Processar Hoje'; }
+    if (btn) { btn.disabled = false; btn.querySelector('span:last-child').textContent = 'Verificar Hoje'; }
   }
 }
 
@@ -925,15 +927,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Botão Nova Recorrente
   document.getElementById('btnNovaRec')?.addEventListener('click', () => abrirModal(null));
 
-  // Botão Processar Hoje
+  // Botão Verificar Hoje
   document.getElementById('btnProcessarHoje')?.addEventListener('click', processarHoje);
 
   // Fechar modal
   document.getElementById('btnFecharModalRec')?.addEventListener('click', fecharModal);
   document.getElementById('btnCancelarRec')?.addEventListener('click', fecharModal);
-  document.getElementById('modalRec')?.addEventListener('click', e => {
-    if (e.target.id === 'modalRec') fecharModal();
-  });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharModal(); });
 
   // Salvar

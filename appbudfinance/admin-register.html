@@ -263,18 +263,10 @@
 
   <script type="module">
     import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
-    import { getAuth, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
-    import {
-      getFirestore, initializeFirestore, persistentLocalCache,
-      doc, getDoc, setDoc, serverTimestamp
-    } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+    import { getAuth, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 
     const app = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
     const auth = getAuth(app);
-    const db = (() => {
-      try { return initializeFirestore(app, { localCache: persistentLocalCache() }); }
-      catch(e) { return getFirestore(app); }
-    })();
 
     const btn = document.getElementById('regBtn');
     const errEl = document.getElementById('regError');
@@ -306,37 +298,18 @@
       btn.disabled = true;
       btn.textContent = '⏳ Criando conta...';
 
-      let cred = null;
       try {
-        // 1. Criar usuário no Firebase Auth (agora ficamos autenticados para ler Firestore)
-        cred = await createUserWithEmailAndPassword(auth, email, senha);
-
-        btn.textContent = '⏳ Verificando código...';
-
-        // 2. Já autenticados, ler o código de convite do Firestore
-        const cfgSnap = await getDoc(doc(db, 'admin', 'config'));
-        const inviteCode = (cfgSnap.exists() ? cfgSnap.data().adminInviteCode : null) || 'bud2026';
-
-        if (codigo !== inviteCode) {
-          // Código errado: excluir o usuário recém-criado e abortar
-          await cred.user.delete();
-          showError('Código de convite inválido. Verifique com o administrador responsável.');
-          btn.disabled = false;
-          btn.textContent = 'Registrar Administrador';
-          return;
-        }
-
-        btn.textContent = '⏳ Salvando perfil...';
-
-        // 3. Salvar perfil na coleção admins (separada dos usuários normais)
-        await setDoc(doc(db, 'admins', cred.user.uid), {
-          nome,
-          email,
-          role: 'admin',
-          plano: 'pro',
-          dataCadastro: serverTimestamp(),
-          criadoEm: serverTimestamp(),
+        btn.textContent = '⏳ Validando convite...';
+        const response = await fetch(`${window.BUD_FUNCTIONS_URL}/api/admin/registrar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome, email, senha, codigo })
         });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw Object.assign(new Error(result.error || 'Não foi possível criar o administrador.'), { code: result.code });
+
+        btn.textContent = '⏳ Entrando...';
+        await signInWithEmailAndPassword(auth, email, senha);
 
         showSuccess('✅ Administrador registrado com sucesso! Redirecionando para o painel...');
         btn.textContent = '✅ Registrado!';
@@ -344,8 +317,6 @@
 
       } catch (err) {
         console.error('[admin-register]', err);
-        // Se o usuário foi criado mas algo depois falhou, limpar
-        if (cred) { try { await cred.user.delete(); } catch(_) {} }
         const msgs = {
           'auth/email-already-in-use': 'Este e-mail já está cadastrado no sistema.',
           'auth/invalid-email': 'E-mail inválido.',

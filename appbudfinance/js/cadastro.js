@@ -4,7 +4,7 @@
 
 import { initializeApp, getApps }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut }
+import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
@@ -32,6 +32,32 @@ const codigoInput = document.getElementById('codigoIndicacao');
 const lgpdCheckbox = document.getElementById('lgpdConsent');
 const btn = document.getElementById('btnCadastro');
 const showMatriculaEl = document.getElementById('showMatricula');
+
+// Quem escolheu um plano, mas já possui conta, deve ir ao login carregando
+// o mesmo plano para seguir direto ao checkout, sem precisar escolhê-lo de novo.
+const loginExistente = document.getElementById('loginExistente');
+if (loginExistente) {
+  const cadastroParams = new URLSearchParams(window.location.search);
+  const planoEscolhido = (cadastroParams.get('plano') || '').toLowerCase();
+  const refEscolhida = cadastroParams.get('ref') || '';
+  if (['starter', 'pro', 'plus'].includes(planoEscolhido)) {
+    let loginHref = 'index.html?checkout=' + encodeURIComponent(planoEscolhido);
+    if (refEscolhida) loginHref += '&ref=' + encodeURIComponent(refEscolhida);
+    loginExistente.href = loginHref;
+  }
+}
+
+// Evita que um usuário autenticado, vindo da escolha de plano, seja levado a
+// criar outra conta. A sessão existente segue para o checkout selecionado.
+onAuthStateChanged(auth, function (user) {
+  const params = new URLSearchParams(window.location.search);
+  const plano = (params.get('plano') || '').toLowerCase();
+  if (!user || !['starter', 'pro', 'plus'].includes(plano)) return;
+  let destino = 'index.html?checkout=' + encodeURIComponent(plano);
+  const ref = params.get('ref') || '';
+  if (ref) destino += '&ref=' + encodeURIComponent(ref);
+  window.location.replace(destino);
+});
 
 // ─── SENHAS_COMUNS and calcStrength are in bud-utils.js ────────────
 // window.BUD_SENHAS_COMUNS and window.budCalcStrength

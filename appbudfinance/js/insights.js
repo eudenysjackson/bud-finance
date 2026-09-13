@@ -1024,14 +1024,17 @@ window.trocarAbaInsight = function(aba) {
   document.getElementById('painelAnalises').style.display    = aba === 'analises'    ? '' : 'none';
   document.getElementById('painelComparativo').style.display = aba === 'comparativo' ? '' : 'none';
   document.getElementById('abaAnalises').classList.toggle('ativo',    aba === 'analises');
-  document.getElementById('abaComparativo').classList.toggle('ativo', aba === 'comparativo');
+  document.getElementById('abaComparativo')?.classList.toggle('ativo', aba === 'comparativo');
 };
 
 // ─── Toggle ocultar valores ────────────────────────────────────────────────
 window.toggleOcultarValores = function() {
   valoresOcultos = !valoresOcultos;
   const btn = document.getElementById('btnOcultarValores');
-  if (btn) btn.textContent = valoresOcultos ? '🙈 Valores' : '👁 Valores';
+  if (btn) {
+    btn.querySelector('.values-icon').textContent = valoresOcultos ? '🙈' : '👁';
+    btn.setAttribute('aria-label', valoresOcultos ? 'Exibir valores' : 'Ocultar valores');
+  }
   renderTudo();
 };
 
@@ -1066,10 +1069,9 @@ onAuthStateChanged(auth, async user => {
     userData = snapUser.exists() ? snapUser.data() : {};
 
     // BUG 7 — shouldDowngrade persiste via updateDoc + serverTimestamp
-    if (window.NexoPlanos && typeof window.NexoPlanos.shouldDowngrade === 'function') {
-      const should = window.NexoPlanos.shouldDowngrade(userData);
+    if (window.BudPlanos && typeof window.BudPlanos.shouldDowngrade === 'function') {
+      const should = window.BudPlanos.shouldDowngrade(userData);
       if (should) {
-        await updateDoc(doc(db, 'usuarios', user.uid), { plano: 'free', planoDowngradedAt: serverTimestamp() });
         userData.plano = 'free';
       }
     }
@@ -1081,8 +1083,7 @@ onAuthStateChanged(auth, async user => {
   renderSidebarUser(user, userData);
 
   // BUG 6 — paywall usa #paywallContainer; hideSplash sempre chamado
-  const temAcesso = !window.NexoPlanos ||
-    window.NexoPlanos.canUseFeature(userData, 'dailySpendAverage');
+  const temAcesso = window.BudPlanos.canUseFeature(userData, 'dailySpendAverage');
 
   if (!temAcesso) {
     document.getElementById('paywallContainer').style.display = 'block';

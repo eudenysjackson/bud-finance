@@ -45,6 +45,12 @@ let _contextoCache = null; // cache do contexto para evitar re-fetch dentro da m
 const BACKEND_URL = window.BUD_FUNCTIONS_URL || '';
 const PLANOS_ASSISTENTE = ['plus', 'trial'];
 
+async function authHeaders() {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Faça login para processar arquivos.');
+  return { Authorization: 'Bearer ' + await user.getIdToken() };
+}
+
 // ─── marked.js config ─────────────────────────────────────────────────────────
 if (window.marked) {
   window.marked.use({ breaks: true, gfm: true });
@@ -1212,7 +1218,7 @@ async function processarArquivoChat(file) {
     } else if (ext === 'pdf') {
       const fd = new FormData();
       fd.append('arquivo', file);
-      const r = await fetch(`${BACKEND_URL}/api/extrair-fatura`, { method: 'POST', body: fd });
+      const r = await fetch(`${BACKEND_URL}/api/extrair-fatura`, { method: 'POST', headers: await authHeaders(), body: fd });
       if (!r.ok) {
         const e = await r.json().catch(() => ({}));
         throw new Error(e.error || 'Erro ao processar PDF');
@@ -1224,7 +1230,7 @@ async function processarArquivoChat(file) {
       // Imagem: tenta extrato/fatura → fallback cupom fiscal
       const fd1 = new FormData();
       fd1.append('arquivo', file);
-      const r1 = await fetch(`${BACKEND_URL}/api/extrair-fatura`, { method: 'POST', body: fd1 });
+      const r1 = await fetch(`${BACKEND_URL}/api/extrair-fatura`, { method: 'POST', headers: await authHeaders(), body: fd1 });
       if (r1.ok) {
         const tx = await r1.json();
         rows = tx.map(t => ({ data: t.data, descricao: t.desc, valor: t.valor, tipo: t.tipo || 'despesa' }));
@@ -1232,7 +1238,7 @@ async function processarArquivoChat(file) {
       if (rows.length === 0) {
         const fd2 = new FormData();
         fd2.append('arquivos', file);
-        const r2 = await fetch(`${BACKEND_URL}/api/extrair-cupom`, { method: 'POST', body: fd2 });
+        const r2 = await fetch(`${BACKEND_URL}/api/extrair-cupom`, { method: 'POST', headers: await authHeaders(), body: fd2 });
         if (!r2.ok) {
           const e = await r2.json().catch(() => ({}));
           throw new Error(e.error || 'Não foi possível extrair dados da imagem');

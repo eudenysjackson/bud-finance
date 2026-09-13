@@ -40,6 +40,7 @@ connectEmulators(auth, db);
 let currentUser    = null;
 let transacoes     = [];           // cache dos últimos 6 meses
 let dividas        = [];           // cache das dívidas ativas
+let cartoesCredito = [];           // usados no comparativo de faturas
 let dataFiltro     = (() => { const d = new Date(); d.setDate(1); return d; })();
 let anoSeletor     = dataFiltro.getFullYear();
 let valoresOcultos = false;
@@ -49,7 +50,7 @@ let _filtroDiaDia  = 'tudo';
 let _filtroTend    = 'ambos';
 let _filtroDetalhamento = 'despesas';
 let _expandedCats  = new Set();
-let charts         = { cat: null, rd: null, tend: null, dia: null };
+let charts         = { cat: null, rd: null, tend: null, dia: null, fat: null };
 let splashHidden   = false;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -162,7 +163,10 @@ window.mudarMes = function(dir) {
 window.toggleOcultarValores = function() {
   valoresOcultos = !valoresOcultos;
   const btn = document.getElementById('btnOcultarValores');
-  if (btn) btn.textContent = valoresOcultos ? '🙈 Valores' : '👁 Valores';
+  if (btn) {
+    btn.querySelector('.values-icon').textContent = valoresOcultos ? '🙈' : '👁';
+    btn.setAttribute('aria-label', valoresOcultos ? 'Exibir valores' : 'Ocultar valores');
+  }
   _dadosDirty = true;
   renderTudo();
 };
@@ -334,12 +338,14 @@ async function buscarERenderi() {
       orderBy('dataReferencia', 'asc'),
     );
     const qDiv = query(collection(db, 'usuarios', currentUser.uid, 'dividas'));
-    const [snap, snapDiv] = await Promise.all([getDocs(q), getDocs(qDiv)]);
+    const qCartoes = query(collection(db, 'usuarios', currentUser.uid, 'cartoes'));
+    const [snap, snapDiv, snapCartoes] = await Promise.all([getDocs(q), getDocs(qDiv), getDocs(qCartoes)]);
     transacoes = snap.docs.map(d => {
       const data = d.data();
       return { ...data, id: d.id, dataReferencia: normalizarData(data.dataReferencia) };
     });
     dividas = snapDiv.docs.map(d => ({ id: d.id, ...d.data() }));
+    cartoesCredito = snapCartoes.docs.map(d => ({ id: d.id, ...d.data() }));
     _dadosDirty = true;
     renderTudo();
   } catch (e) {
@@ -772,6 +778,68 @@ function renderGraficos() {
       },
     });
   }
+
+  // Recurso preservado da antiga tela Gráficos.
+  renderFaturas();
+}
+
+// ── Evolução das faturas por cartão (últimos 6 meses) ────────────────────
+function renderFaturas() {
+  destroyChart('fat');
+  const wrap = document.getElementById('wrapFaturas');
+  if (!wrap) return;
+
+  if (cartoesCredito.length === 0) {
+    wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;font-size:0.875rem;font-weight:600;color:var(--card-text-sec);">Nenhum cartão de crédito cadastrado</div>';
+    return;
+  }
+
+  const labels = [];
+  const series = cartoesCredito.map(() => []);
+  const cores = ['#8b5cf6','#3b82f6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4','#f97316'];
+
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(dataFiltro.getFullYear(), dataFiltro.getMonth() - i, 1);
+    const prefixo = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    labels.push(`${MESES_ABR[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`);
+    cartoesCredito.forEach((cartao, indice) => {
+      const total = transacoes
+        .filter(t => t.cartaoId === cartao.id && t.dataReferencia?.startsWith(prefixo) && t.status !== 'pendente' && !t.pagamentoFatura)
+        .reduce((soma, t) => soma + (Number(t.valor) || 0), 0);
+      series[indice].push(valoresOcultos ? null : total);
+    });
+  }
+
+  const datasets = cartoesCredito
+    .map((cartao, indice) => ({ cartao, dados: series[indice], cor: cores[indice % cores.length] }))
+    .filter(item => item.dados.some(valor => valor > 0))
+    .map(({ cartao, dados, cor }) => ({
+      label: cartao.nome || 'Cartão', data: dados,
+      borderColor: cor, backgroundColor: cor + '18', fill: true,
+      tension: 0.35, borderWidth: 2.5, pointRadius: dados.map((_, i) => i === 5 ? 7 : 4),
+      pointHoverRadius: 8, pointBackgroundColor: dados.map((_, i) => i === 5 ? cor : cor + 'aa'), spanGaps: true,
+    }));
+
+  if (datasets.length === 0) {
+    wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;font-size:0.875rem;font-weight:600;color:var(--card-text-sec);">Sem lançamentos nos últimos 6 meses</div>';
+    return;
+  }
+
+  const canvas = ensureCanvas('wrapFaturas', 'chartFaturas');
+  charts.fat = new Chart(canvas, {
+    type: 'line', data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { font: { size: 11, weight: '700', family: "'Inter',sans-serif" }, padding: 12, boxWidth: 14, color: cssVar('--text-main') || '#1e293b' } },
+        tooltip: { callbacks: tooltipCallbacks },
+      },
+      scales: {
+        y: { ticks: { callback: fmtTick, font: { size: 11 }, color: cssVar('--text-sec') || '#64748b' }, grid: { color: 'rgba(148,163,184,0.1)' }, beginAtZero: true },
+        x: { ticks: { font: { size: 11 }, color: cssVar('--text-main') || '#1e293b' }, grid: { display: false } },
+      },
+    },
+  });
 }
 
 // ── Insight automático ────────────────────────────────────────────────────
@@ -1053,18 +1121,13 @@ onAuthStateChanged(auth, async (user) => {
     const userData = snap.exists() ? snap.data() : {};
 
     // BUG 6 — persiste downgrade no Firestore
-    if (typeof window.NexoPlanos?.resolvePlan === 'function') {
+    if (typeof window.BudPlanos?.resolvePlan === 'function') {
       try {
-        const resolved = window.NexoPlanos.resolvePlan(userData);
+        const resolved = window.BudPlanos.resolvePlan(userData);
         if (resolved?.shouldDowngrade) {
           userData.plano = 'free';
-          updateDoc(doc(db, 'usuarios', user.uid), {
-            plano: 'free',
-            atualizadoEm: serverTimestamp(),
-          }).catch(e => console.warn('[Relatórios] Erro ao persistir downgrade:', e));
         }
-        if (typeof window.NexoPlanos.canUseFeature === 'function' &&
-            !window.NexoPlanos.canUseFeature(userData, 'advancedDashboard')) {
+        if (!window.BudPlanos.canUseFeature(userData, 'advancedDashboard')) {
           if (!splashHidden) { hideSplash(); splashHidden = true; }
           setupSidebar(user, userData);
           mostrarPaywall();

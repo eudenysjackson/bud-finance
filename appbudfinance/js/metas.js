@@ -707,7 +707,6 @@ function setupModalMeta() {
   btnNova.addEventListener('click', () => abrirModalNova());
   btnFechar.addEventListener('click', () => fecharModalMeta());
   btnCancel.addEventListener('click', () => fecharModalMeta());
-  modal.addEventListener('click', (e) => { if (e.target === modal) fecharModalMeta(); });
 
   // Máscara BRL nos campos de valor
   document.getElementById('metaValorAlvo').addEventListener('blur', function() { maskBRL(this); });
@@ -856,7 +855,6 @@ function setupModalAporte() {
 
   btnFechar.addEventListener('click', () => fecharModalAporte());
   btnCancel.addEventListener('click', () => fecharModalAporte());
-  modal.addEventListener('click', (e) => { if (e.target === modal) fecharModalAporte(); });
 
   document.getElementById('aporteValor').addEventListener('blur', function() { maskBRL(this); });
 
@@ -1053,7 +1051,6 @@ function setupModalHistorico() {
   const modal     = document.getElementById('modalHistorico');
   const btnFechar = document.getElementById('btnFecharHistorico');
   btnFechar.addEventListener('click', () => fecharHistorico());
-  modal.addEventListener('click', (e) => { if (e.target === modal) fecharHistorico(); });
 }
 
 async function abrirHistorico(metaId, metaNome) {

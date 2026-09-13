@@ -94,6 +94,24 @@ async function ajustarSaldoDaConta(carteiraId, tipo, valor, multiplicador) {
   }
 }
 
+function saldoContaAtual(carteiraId) {
+  var conta = carteiraGlobal.find(function (c) { return c.id === carteiraId; });
+  if (!conta || conta.tipo === 'credito') return null;
+  return Number(conta.saldo ?? conta.ultimaConfirmacao?.saldo ?? conta.saldoInicial ?? 0) || 0;
+}
+
+function pagamentoPodeSerConfirmado(carteiraId, tipo, valor) {
+  if (tipo !== 'despesa' || !carteiraId) return true;
+  var saldo = saldoContaAtual(carteiraId);
+  if (saldo == null) return true;
+  var falta = (Number(valor) || 0) - saldo;
+  if (falta > 0.005) {
+    if (window.budShowToast) window.budShowToast('Saldo insuficiente: faltam ' + formatarValor(falta) + '. O pagamento ficou pendente.', 'warning');
+    return false;
+  }
+  return true;
+}
+
 function getIniciais(nome) {
   if (!nome) return '?';
   var partes = nome.trim().split(/\s+/);
@@ -183,7 +201,7 @@ function renderizarDashboard() {
   var cardSaidasSub = document.getElementById('cardSaidasSub');
   if (cardSaldoSub) cardSaldoSub.textContent = getMesAnoLabel();
   // M4 fix: pluralização correta (era "1 transações").
-  var nReceitas = transacoesFinanceiras.filter(function (t) { return t.tipo === 'receita'; }).length;
+  var nReceitas = transacoesFinanceiras.filter(function (t) { return t.tipo === 'receita' && t.confirmado !== false; }).length;
   var nDespesas = transacoesFinanceiras.filter(function (t) { return t.tipo === 'despesa'; }).length;
   if (cardEntradasSub) cardEntradasSub.textContent = nReceitas === 1 ? '1 transação' : nReceitas + ' transações';
   if (cardSaidasSub)   cardSaidasSub.textContent   = nDespesas === 1 ? '1 transação' : nDespesas + ' transações';
@@ -221,19 +239,20 @@ function renderizarDashboard() {
     varBadgeCard(saldo,    saldoPrev,'cardSaldoVariacao',    false);
   })();
 
-  // Banner de receitas pendentes de confirmação
+  // Banner de recorrências pendentes de confirmação. Pendências nunca entram
+  // nos cards nem no saldo até o usuário informar os dados reais.
   (function () {
     var banner = document.getElementById('bannerConfirmarReceitas');
     var texto  = document.getElementById('bannerConfirmarReceitasTexto');
     var btnB   = document.getElementById('btnBannerConfirmarReceitas');
     if (!banner) return;
     var pendentes = transacoesDoMes.filter(function (t) {
-      return t.tipo === 'receita' && t.confirmado === false;
+      return t.pendenteConfirmacao === true && t.confirmado === false;
     });
     if (pendentes.length === 0) { banner.style.display = 'none'; return; }
     banner.style.display = '';
-    var totalPend = pendentes.reduce(function (s, t) { return s + (t.valor || 0); }, 0);
-    if (texto) texto.textContent = pendentes.length + ' receita' + (pendentes.length > 1 ? 's' : '') + ' a confirmar' + (!valoresOcultos ? ' · ' + formatarValor(totalPend) : '');
+    var totalPend = pendentes.reduce(function (s, t) { return s + (t.valorPrevisto || t.valor || 0); }, 0);
+    if (texto) texto.textContent = pendentes.length + ' recorrência' + (pendentes.length > 1 ? 's' : '') + ' a confirmar' + (!valoresOcultos ? ' · previsto ' + formatarValor(totalPend) : '');
     if (btnB && !btnB._bannerBound) {
       btnB._bannerBound = true;
       btnB.addEventListener('click', function () {
@@ -852,6 +871,7 @@ function atualizarDividasAtraso() {
   if (!sec || !lista) return;
 
   var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  var inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
 
   // Calcular parcelas em atraso por dívida
   var comAtraso = dividasGlobaisDash
@@ -968,11 +988,15 @@ function atualizarWidgetCarteira() {
   }
 }
 
-// ─── Lembretes 7 dias ─────────────────────────────────────────────────────
+// ─── Lembretes dos próximos 3 dias ─────────────────────────────────────────
 function atualizarLembretes7Dias() {
   var sec   = document.getElementById('secLembretes7Dias');
   var lista = document.getElementById('listaLembretes7Dias');
   if (!sec || !lista) return;
+
+  // A prioridade de hoje deve continuar visível mesmo quando o usuário estiver
+  // consultando outro mês no seletor da dashboard.
+  atualizarPrioridadesHoje();
 
   // PEND-064: só exibir lembretes quando o mês visualizado é o mês atual
   var hojeCheck = new Date();
@@ -983,42 +1007,47 @@ function atualizarLembretes7Dias() {
   }
 
   var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  var em7  = new Date(hoje); em7.setDate(em7.getDate() + 7);
+  var inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  var em7  = new Date(hoje); em7.setDate(em7.getDate() + 3);
 
   var lembretes = [];
 
-  // Recorrentes com diaVencimento nos próximos 7 dias
+  // Recorrentes com vencimento hoje ou nos próximos 3 dias.
   recorrentesGlobaisDash.forEach(function (r) {
-    if (r.ativo === false) return;
+    if (r.ativa === false || r.ativo === false) return;
     var dia = parseInt(r.diaVencimento, 10);
     if (!dia) return;
 
     for (var offset = 0; offset <= 1; offset++) {
       var d = new Date(hoje.getFullYear(), hoje.getMonth() + offset, dia);
-      if (d < hoje || d > em7) continue;
+      // Mantém ocorrências já vencidas no mês até o usuário confirmá-las.
+      if (d < inicioMes || d > em7) continue;
       // Verificar se já tem transação para este recorrente neste mês
       var mesVenc = d.getMonth();
       var anoVenc = d.getFullYear();
       var jaLancado = transacoesGlobais.some(function (t) {
         if (!t.recorrenteId || t.recorrenteId !== r.id) return false;
+        var competencia = anoVenc + '-' + String(mesVenc + 1).padStart(2, '0');
+        if (t.mesRecorrencia === competencia) return true;
         var dt = t.data && t.data.toDate ? t.data.toDate() : new Date(t.data || 0);
         return dt.getMonth() === mesVenc && dt.getFullYear() === anoVenc;
       });
       if (!jaLancado) {
         lembretes.push({
           tipo: 'recorrente', nome: r.nome || r.descricao || 'Recorrente',
-          valor: r.valor, dataVenc: d,
+          valor: r.valorPrevisto != null ? r.valorPrevisto : r.valor, dataVenc: d,
           diffDias: Math.round((d - hoje) / 86400000),
           tipoTrans: r.tipo || 'despesa',
           recorrenteId: r.id,
           categoria: r.categoria || 'Outros',
-          formaPagamento: r.formaPagamento || 'Débito'
+          formaPagamento: r.formaPagamento || 'Débito',
+          contaId: r.contaId || null
         });
       }
     }
   });
 
-  // Dívidas com próxima parcela nos próximos 7 dias
+  // Dívidas com próxima parcela hoje ou nos próximos 3 dias
   dividasGlobaisDash.forEach(function (d) {
     if (!d.vencimento || !d.parcelas) return;
     var pagas = d.parcelasPagas || 0;
@@ -1058,13 +1087,13 @@ function atualizarLembretes7Dias() {
     var brdCol = urgente ? '1.5px solid rgba(245,158,11,0.4)' : '1px solid var(--card-border)';
     var textCor = urgente ? '#d97706' : 'var(--card-text)';
     el.style.cssText = 'background:' + bgCol + ';border:' + brdCol + ';border-radius:0.875rem;padding:0.625rem 0.875rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;';
-    var dataFmt = l.diffDias === 0 ? 'Hoje' : l.diffDias === 1 ? 'Amanhã' : 'Em ' + l.diffDias + 'd';
     var icone = l.tipo === 'divida' ? '💸' : (l.tipoTrans === 'receita' ? '📥' : '📅');
     var nomeEsc = l.nome.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     var valorFmt = l.valor ? formatarValor(l.valor) : '';
     // Pill de urgência: vermelho hoje, laranja amanhã, âmbar 2-3 dias, cinza resto
     var pillBg  = l.diffDias === 0 ? '#dc2626' : l.diffDias === 1 ? '#d97706' : l.diffDias <= 3 ? '#f59e0b' : '#64748b';
-    var pillTxt = l.diffDias === 0 ? 'Hoje' : l.diffDias === 1 ? 'Amanhã' : 'Em ' + l.diffDias + 'd';
+    var pillTxt = l.diffDias < 0 ? 'Vencido há ' + Math.abs(l.diffDias) + 'd' : (l.diffDias === 0 ? 'Hoje' : l.diffDias === 1 ? 'Amanhã' : 'Em ' + l.diffDias + 'd');
+    var confirmarTxt = l.tipoTrans === 'receita' ? 'Recebi ✓' : 'Paguei ✓';
     el.innerHTML = '<div style="display:flex;align-items:center;gap:0.625rem;min-width:0;flex:1;">'
       + '<span style="font-size:1.125rem;flex-shrink:0;">' + icone + '</span>'
       + '<div style="min-width:0;">'
@@ -1075,7 +1104,7 @@ function atualizarLembretes7Dias() {
       + (valorFmt ? '<div style="font-size:0.8125rem;font-weight:700;color:' + (l.tipoTrans === 'receita' ? '#16a34a' : '#dc2626') + ';">' + (valoresOcultos ? '•••' : (l.tipoTrans === 'receita' ? '+' : '-') + formatarValor(l.valor)) + '</div>' : '')
       + '<div style="display:flex;align-items:center;gap:0.375rem;">'
       + '<span style="font-size:0.6875rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:9999px;background:' + pillBg + ';color:#fff;">' + pillTxt + '</span>'
-      + '<button class="pmg-btn" data-idx="' + (lista.children.length) + '" style="font-size:0.6875rem;font-weight:800;padding:0.15rem 0.5rem;border-radius:9999px;background:#16a34a;color:#fff;border:none;cursor:pointer;font-family:inherit;white-space:nowrap;">Pago ✓</button>'
+      + '<button class="pmg-btn" data-idx="' + (lista.children.length) + '" style="font-size:0.6875rem;font-weight:800;padding:0.15rem 0.5rem;border-radius:9999px;background:#16a34a;color:#fff;border:none;cursor:pointer;font-family:inherit;white-space:nowrap;">' + confirmarTxt + '</button>'
       + '</div>'
       + '</div>';
     // Guardar referência do lembrete no elemento para o click
@@ -1103,14 +1132,17 @@ function atualizarLembretes7Dias() {
   }
 
   // Delegar click nos botões Pago ✓
-  lista.addEventListener('click', function (e) {
-    var btn = e.target.closest('.pmg-btn');
-    if (!btn) return;
-    var item = btn.parentElement;
-    while (item && !item._lembrete) item = item.parentElement;
-    if (!item || !item._lembrete) return;
-    marcarLembretePago(item._lembrete);
-  });
+  if (!lista._lembretesBound) {
+    lista.addEventListener('click', function (e) {
+      var btn = e.target.closest('.pmg-btn');
+      if (!btn) return;
+      var item = btn.parentElement;
+      while (item && !item._lembrete) item = item.parentElement;
+      if (!item || !item._lembrete) return;
+      marcarLembretePago(item._lembrete);
+    });
+    lista._lembretesBound = true;
+  }
 
   atualizarTudoEmDia();
 }
@@ -1132,23 +1164,25 @@ function marcarLembretePago(lembrete) {
   var icone = lembrete.tipo === 'divida' ? '💸' : (lembrete.tipoTrans === 'receita' ? '📥' : '✅');
   var nomeEsc = lembrete.nome.replace(/</g, '&lt;').replace(/>/g, '&gt;');
   var valorNum = parseFloat(lembrete.valor) || 0;
-  var valorFmtOv = valoresOcultos ? '•••••' : formatarValor(valorNum);
-  var corValor = lembrete.tipoTrans === 'receita' ? '#16a34a' : '#dc2626';
-  var prefixo = lembrete.tipoTrans === 'receita' ? '+' : '-';
   var subtituloTipo = lembrete.tipo === 'divida' ? 'Parcela de dívida' : (lembrete.tipoTrans === 'receita' ? 'Receita recorrente' : 'Despesa recorrente');
+  var dataPadraoObj = lembrete.dataVenc instanceof Date ? lembrete.dataVenc : new Date();
+  var dataPadrao = dataPadraoObj.getFullYear() + '-' + String(dataPadraoObj.getMonth() + 1).padStart(2, '0') + '-' + String(dataPadraoObj.getDate()).padStart(2, '0');
 
   var optionsHtml = '<option value="">Nenhuma (sem conta vinculada)</option>';
   contas.forEach(function (c) {
     var nomeC = (c.nome || c.banco || 'Conta').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    optionsHtml += '<option value="' + c.id + '">' + nomeC + '</option>';
+    optionsHtml += '<option value="' + c.id + '"' + (c.id === lembrete.contaId ? ' selected' : '') + '>' + nomeC + '</option>';
   });
 
   card.innerHTML = ''
     + '<div style="font-size:1rem;font-weight:800;color:var(--card-text);margin-bottom:0.2rem;">' + icone + ' ' + nomeEsc + '</div>'
     + '<div style="font-size:0.75rem;font-weight:600;color:#94a3b8;margin-bottom:0.625rem;">' + subtituloTipo + '</div>'
-    + '<div style="font-size:1.375rem;font-weight:800;color:' + corValor + ';margin-bottom:1.25rem;">' + prefixo + valorFmtOv + '</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.625rem;margin-bottom:0.875rem;">'
+    + '<label style="font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.05em;">Valor real<input id="pmgValorReal" type="number" min="0.01" step="0.01" value="' + valorNum.toFixed(2) + '" style="display:block;width:100%;margin-top:0.375rem;padding:0.5rem 0.625rem;border:1.5px solid var(--input-border);border-radius:0.75rem;background:var(--input-bg);color:var(--card-text);font:600 0.875rem inherit;box-sizing:border-box;"></label>'
+    + '<label style="font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.05em;">Data real<input id="pmgDataReal" type="date" value="' + dataPadrao + '" style="display:block;width:100%;margin-top:0.375rem;padding:0.5rem 0.625rem;border:1.5px solid var(--input-border);border-radius:0.75rem;background:var(--input-bg);color:var(--card-text);font:600 0.875rem inherit;box-sizing:border-box;"></label>'
+    + '</div>'
     + '<div style="margin-bottom:1.125rem;">'
-    + '<div style="font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.375rem;">Conta debitada</div>'
+    + '<div style="font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.375rem;">' + (lembrete.tipoTrans === 'receita' ? 'Conta creditada' : 'Conta debitada') + '</div>'
     + '<select id="pmgContaSel" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid var(--input-border);border-radius:0.75rem;background:var(--input-bg);font-size:0.875rem;font-weight:600;color:var(--card-text);font-family:inherit;">' + optionsHtml + '</select>'
     + '</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.625rem;">'
@@ -1160,7 +1194,6 @@ function marcarLembretePago(lembrete) {
   document.body.appendChild(overlay);
 
   document.getElementById('pmgBtnCancelar').addEventListener('click', function () { overlay.remove(); });
-  overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
   setTimeout(function () { var c = document.getElementById('pmgBtnCancelar'); if (c) c.focus(); }, 60);
 
   document.getElementById('pmgBtnConfirmar').addEventListener('click', async function () {
@@ -1168,6 +1201,14 @@ function marcarLembretePago(lembrete) {
     btn.disabled = true;
     btn.textContent = 'Salvando…';
 
+    var valorReal = parseFloat(document.getElementById('pmgValorReal').value);
+    var dataReal  = document.getElementById('pmgDataReal').value;
+    if (!Number.isFinite(valorReal) || valorReal <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(dataReal)) {
+      btn.disabled = false;
+      btn.textContent = 'Confirmar ✓';
+      if (window.budShowToast) window.budShowToast('Informe um valor e uma data válidos.', 'error');
+      return;
+    }
     var contaId   = document.getElementById('pmgContaSel').value || null;
     var contaNome = null;
     if (contaId) {
@@ -1175,26 +1216,38 @@ function marcarLembretePago(lembrete) {
       if (contaObj) contaNome = contaObj.nome || contaObj.banco || null;
     }
 
+    if (!pagamentoPodeSerConfirmado(contaId, lembrete.tipoTrans || 'despesa', valorReal)) {
+      btn.disabled = false;
+      btn.textContent = 'Confirmar ✓';
+      return;
+    }
+
     try {
-      var hoje2 = new Date();
-      hoje2.setHours(12, 0, 0, 0);
+      var hoje2 = new Date(dataReal + 'T12:00:00');
       var mes2    = hoje2.getMonth() + 1;
       var mesRef2 = hoje2.getFullYear() + '-' + String(mes2).padStart(2, '0');
       var dataRef2 = mesRef2 + '-' + String(hoje2.getDate()).padStart(2, '0');
+      var venc = lembrete.dataVenc instanceof Date ? lembrete.dataVenc : hoje2;
+      var mesRecorrencia = venc.getFullYear() + '-' + String(venc.getMonth() + 1).padStart(2, '0');
 
       var nomeDesc = window.budSanitize ? window.budSanitize(lembrete.nome) : lembrete.nome;
 
       var tx = {
         tipo:           lembrete.tipoTrans || 'despesa',
         descricao:      nomeDesc,
-        valor:          valorNum,
+        valor:          valorReal,
+        valorPrevisto:  valorNum,
+        diferencaPrevisto: valorReal - valorNum,
         categoria:      lembrete.categoria || (lembrete.tipo === 'divida' ? 'Dívidas' : 'Outros'),
         data:           Timestamp.fromDate(hoje2),
         dataReferencia: dataRef2,
         mesReferencia:  mesRef2,
+        mesRecorrencia: mesRecorrencia,
         formaPagamento: lembrete.formaPagamento || 'Débito',
         origem:         'recorrente',
         recorrente:     true,
+        confirmado:     true,
+        pago:           true,
         dataCriacao:    serverTimestamp()
       };
       if (lembrete.recorrenteId) tx.recorrenteId = lembrete.recorrenteId;
@@ -1206,7 +1259,7 @@ function marcarLembretePago(lembrete) {
       if (contaNome) tx.contaNome = contaNome;
 
       await addDoc(collection(db, 'usuarios', usuarioAtualId, 'transacoes'), tx);
-      await ajustarSaldoDaConta(contaId, tx.tipo, valorNum, 1);
+      await ajustarSaldoDaConta(contaId, tx.tipo, valorReal, 1);
 
       // Se dívida: incrementar parcelasPagas no documento da dívida
       if (lembrete.dividaId) {
@@ -1216,10 +1269,20 @@ function marcarLembretePago(lembrete) {
           parcelasPagas: pagas,
           ...(contaId ? { contaId: contaId } : {})
         });
+        // Parcelamento de fatura mantém o saldo financiado reservado no
+        // cartão. Cada parcela confirmada libera exatamente o valor pago.
+        if (divObj?.tipo === 'parcelamento_fatura' && divObj.cartaoId) {
+          var cartaoRef = doc(db, 'usuarios', usuarioAtualId, 'carteira', divObj.cartaoId);
+          var cartaoSnap = await getDoc(cartaoRef);
+          if (cartaoSnap.exists()) {
+            var reservado = Math.max(0, (Number(cartaoSnap.data().limiteReservado) || 0) - valorReal);
+            await updateDoc(cartaoRef, { limiteReservado: reservado });
+          }
+        }
       }
 
       overlay.remove();
-      if (window.budShowToast) window.budShowToast('Pagamento registrado!', 'success');
+      if (window.budShowToast) window.budShowToast(tx.tipo === 'receita' ? 'Recebimento confirmado!' : 'Pagamento confirmado!', 'success');
     } catch (_err) {
       btn.disabled = false;
       btn.textContent = 'Confirmar ✓';
@@ -1228,7 +1291,7 @@ function marcarLembretePago(lembrete) {
   });
 }
 
-// ─── Modal: Confirmar Receitas Pendentes ─────────────────────────────────
+// ─── Modal: Confirmar recorrências pendentes ─────────────────────────────
 function abrirModalConfirmarPendentes(pendentes) {
   var modal   = document.getElementById('modalConfirmarPendentes');
   var lista   = document.getElementById('confirmarPendentesLista');
@@ -1238,24 +1301,6 @@ function abrirModalConfirmarPendentes(pendentes) {
   // Repopula a lista a cada abertura
   lista.innerHTML = '';
 
-  function confirmarUma(txId, btnEl, itemEl) {
-    btnEl.disabled = true;
-    btnEl.textContent = 'Salvando…';
-    updateDoc(doc(db, 'usuarios', usuarioAtualId, 'transacoes', txId), { confirmado: true })
-      .then(function () {
-        itemEl.style.opacity = '0.4';
-        itemEl.style.pointerEvents = 'none';
-        btnEl.textContent = 'Confirmado ✓';
-        btnEl.style.background = '#15803d';
-        if (window.budShowToast) window.budShowToast('Receita confirmada! ✓', 'success');
-      })
-      .catch(function () {
-        btnEl.disabled = false;
-        btnEl.textContent = 'Confirmar ✓';
-        if (window.budShowToast) window.budShowToast('Erro ao confirmar. Tente novamente.', 'error');
-      });
-  }
-
   pendentes.forEach(function (t) {
     var descEsc = (t.descricao || 'Receita').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     var dataStr = '';
@@ -1263,19 +1308,20 @@ function abrirModalConfirmarPendentes(pendentes) {
       var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
       dataStr = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
     }
-    var valorFmt = valoresOcultos ? '•••' : formatarValor(t.valor || 0);
+    var previsto = t.valorPrevisto != null ? t.valorPrevisto : t.valor;
+    var valorFmt = valoresOcultos ? '•••' : formatarValor(previsto || 0);
     var item = document.createElement('div');
     item.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.75rem;background:var(--sidebar-user-bg);border:1px solid var(--card-border);border-radius:0.875rem;';
     item.innerHTML = ''
       + '<div style="flex:1;min-width:0;">'
       + '<div style="font-size:0.875rem;font-weight:700;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + descEsc + '</div>'
-      + '<div style="font-size:0.75rem;color:var(--card-text-sec);">' + dataStr + ' · <span style="color:#16a34a;font-weight:700;">' + valorFmt + '</span></div>'
+      + '<div style="font-size:0.75rem;color:var(--card-text-sec);">' + (t.tipo === 'receita' ? 'Recebimento' : 'Pagamento') + ' · ' + dataStr + ' · <span style="color:' + (t.tipo === 'receita' ? '#16a34a' : '#dc2626') + ';font-weight:700;">previsto ' + valorFmt + '</span></div>'
       + '</div>'
-      + '<button class="cpr-btn" style="flex-shrink:0;padding:0.375rem 0.75rem;border:none;border-radius:0.625rem;background:#16a34a;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Confirmar ✓</button>';
+      + '<button class="cpr-btn" style="flex-shrink:0;padding:0.375rem 0.75rem;border:none;border-radius:0.625rem;background:' + (t.tipo === 'receita' ? '#16a34a' : '#dc2626') + ';color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Conferir</button>';
     var btn = item.querySelector('.cpr-btn');
-    (function (txId, btnEl, itemEl) {
-      btnEl.addEventListener('click', function () { confirmarUma(txId, btnEl, itemEl); });
-    })(t.id, btn, item);
+    (function (tx, modalEl) {
+      btn.addEventListener('click', function () { modalEl.classList.remove('open'); abrirConfirmacaoPendente(tx); });
+    })(t, modal);
     lista.appendChild(item);
   });
 
@@ -1284,18 +1330,12 @@ function abrirModalConfirmarPendentes(pendentes) {
   if (btnFechar && !btnFechar._cpBound) {
     btnFechar._cpBound = true;
     btnFechar.addEventListener('click', function () { modal.classList.remove('open'); });
-    modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.remove('open'); });
   }
 
-  // Confirmar todas (bind único; handler lê o DOM vivo na hora do clique)
+  // Não confirmamos em massa: cada recorrência requer valor real informado.
   if (btnTodas && !btnTodas._cpBound) {
     btnTodas._cpBound = true;
-    btnTodas.addEventListener('click', function () {
-      var qtd = lista.querySelectorAll('.cpr-btn:not([disabled])').length;
-      lista.querySelectorAll('.cpr-btn:not([disabled])').forEach(function (b) { b.click(); });
-      if (qtd > 0 && window.budShowToast) window.budShowToast('Todas as receitas confirmadas!', 'success');
-      setTimeout(function () { modal.classList.remove('open'); }, 800);
-    });
+    btnTodas.addEventListener('click', function () { modal.classList.remove('open'); });
   }
 
   modal.classList.add('open');
@@ -1303,6 +1343,158 @@ function abrirModalConfirmarPendentes(pendentes) {
     var bf = document.getElementById('btnFecharConfirmarPendentes');
     if (bf) bf.focus();
   }, 60);
+}
+
+// ─── Prioridades de hoje ──────────────────────────────────────────────────
+// Mantém vencimentos no topo até que o usuário confirme o valor/data reais.
+function atualizarPrioridadesHoje() {
+  var sec = document.getElementById('secPrioridadesHoje');
+  var lista = document.getElementById('listaPrioridadesHoje');
+  if (!sec || !lista) return;
+
+  var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  var prioridades = [];
+
+  recorrentesGlobaisDash.forEach(function (r) {
+    if (r.ativa === false || r.ativo === false) return;
+    var dia = parseInt(r.diaVencimento, 10);
+    if (!dia) return;
+
+    var vencimento = new Date(hoje.getFullYear(), hoje.getMonth(), dia);
+    vencimento.setHours(0, 0, 0, 0);
+    if (vencimento > hoje) return;
+
+    var competencia = vencimento.getFullYear() + '-' + String(vencimento.getMonth() + 1).padStart(2, '0');
+    var jaLancado = transacoesGlobais.some(function (t) {
+      if (!t.recorrenteId || t.recorrenteId !== r.id) return false;
+      if (t.mesRecorrencia === competencia) return true;
+      var dt = t.data && t.data.toDate ? t.data.toDate() : new Date(t.data || 0);
+      return dt.getMonth() === vencimento.getMonth() && dt.getFullYear() === vencimento.getFullYear();
+    });
+    if (jaLancado) return;
+
+    prioridades.push({
+      tipo: 'recorrente', nome: r.nome || r.descricao || 'Recorrente',
+      valor: r.valorPrevisto != null ? r.valorPrevisto : r.valor,
+      dataVenc: vencimento, diffDias: Math.round((vencimento - hoje) / 86400000),
+      tipoTrans: r.tipo || 'despesa', recorrenteId: r.id,
+      categoria: r.categoria || 'Outros', formaPagamento: r.formaPagamento || 'Débito',
+      contaId: r.contaId || null
+    });
+  });
+
+  prioridades.sort(function (a, b) { return a.dataVenc - b.dataVenc; });
+  if (!prioridades.length) {
+    sec.style.display = 'none';
+    lista.innerHTML = '';
+    return;
+  }
+
+  sec.style.display = '';
+  lista.innerHTML = '';
+  prioridades.slice(0, 3).forEach(function (l) {
+    var atrasada = l.diffDias < 0;
+    var nome = l.nome.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    var ehReceita = l.tipoTrans === 'receita';
+    var el = document.createElement('div');
+    el.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:0.625rem;padding:0.7rem 0.75rem;margin-bottom:0.45rem;border-radius:0.75rem;background:var(--card-bg);border:1px solid ' + (atrasada ? 'rgba(220,38,38,0.3)' : 'rgba(245,158,11,0.35)') + ';';
+    el.innerHTML = '<div style="min-width:0;flex:1;"><div style="font-size:0.8125rem;font-weight:800;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (ehReceita ? '📥 ' : '📅 ') + nome + '</div><div style="font-size:0.7rem;font-weight:650;color:' + (atrasada ? '#b91c1c' : '#b45309') + ';margin-top:0.14rem;">' + (atrasada ? 'Vencido há ' + Math.abs(l.diffDias) + ' dia(s)' : 'Vence hoje') + ' · ' + (ehReceita ? 'Receita recorrente' : 'Despesa recorrente') + '</div></div>'
+      + '<div style="text-align:right;flex-shrink:0;"><div style="font-size:0.8125rem;font-weight:800;color:' + (ehReceita ? '#16a34a' : '#dc2626') + ';">' + (valoresOcultos ? '•••' : (ehReceita ? '+' : '-') + formatarValor(l.valor)) + '</div><button class="prioridade-confirmar-btn" style="margin-top:0.3rem;padding:0.28rem 0.55rem;border:0;border-radius:0.5rem;background:#16a34a;color:#fff;font:800 0.7rem inherit;cursor:pointer;">' + (ehReceita ? 'Recebi ✓' : 'Paguei ✓') + '</button></div>';
+    el._lembrete = l;
+    lista.appendChild(el);
+  });
+
+  if (!lista._prioridadesBound) {
+    lista.addEventListener('click', function (e) {
+      var btn = e.target.closest('.prioridade-confirmar-btn');
+      if (!btn) return;
+      var item = btn.parentElement;
+      while (item && !item._lembrete) item = item.parentElement;
+      if (item && item._lembrete) marcarLembretePago(item._lembrete);
+    });
+    lista._prioridadesBound = true;
+  }
+}
+
+// Confirma uma pendência já criada pelo processamento da recorrência. Ao
+// contrário de uma transação manual, ela só altera o saldo neste momento.
+function abrirConfirmacaoPendente(tx) {
+  var existente = document.getElementById('overlayConfirmarPendente');
+  if (existente) existente.remove();
+  var contas = carteiraGlobal.filter(function (c) { return c.tipo !== 'credito'; });
+  var dOriginal = tx.data && tx.data.toDate ? tx.data.toDate() : new Date(tx.data || Date.now());
+  var dataPadrao = dOriginal.getFullYear() + '-' + String(dOriginal.getMonth() + 1).padStart(2, '0') + '-' + String(dOriginal.getDate()).padStart(2, '0');
+  var previsto = Number(tx.valorPrevisto != null ? tx.valorPrevisto : tx.valor) || 0;
+  var descricao = String(tx.descricao || 'Recorrência').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  var opcoes = '<option value="">Nenhuma (sem conta vinculada)</option>';
+  contas.forEach(function (c) {
+    var nome = String(c.nome || c.banco || 'Conta').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    opcoes += '<option value="' + c.id + '"' + (c.id === (tx.carteiraId || tx.contaId) ? ' selected' : '') + '>' + nome + '</option>';
+  });
+  var overlay = document.createElement('div');
+  overlay.id = 'overlayConfirmarPendente';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);z-index:80;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  var cor = tx.tipo === 'receita' ? '#16a34a' : '#dc2626';
+  var acao = tx.tipo === 'receita' ? 'Recebi' : 'Paguei';
+  var card = document.createElement('div');
+  card.style.cssText = 'background:var(--card-bg);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.5rem;max-width:360px;width:100%;box-shadow:0 20px 60px -10px rgba(0,0,0,.25);';
+  card.innerHTML = '<div style="font-size:1rem;font-weight:800;color:var(--card-text);">' + (tx.tipo === 'receita' ? '📥 Recebimento' : '✅ Pagamento') + '</div>'
+    + '<div style="font-size:.875rem;font-weight:700;color:var(--card-text);margin:.35rem 0 .25rem;">' + descricao + '</div>'
+    + '<div style="font-size:.75rem;color:var(--card-text-sec);margin-bottom:.875rem;">Previsto: ' + formatarValor(previsto) + '. Informe o valor real.</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.625rem;margin-bottom:.875rem;">'
+    + '<label style="font-size:.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:.05em;">Valor real<input id="pcValor" type="number" min=".01" step=".01" value="' + previsto.toFixed(2) + '" style="display:block;width:100%;margin-top:.375rem;padding:.5rem .625rem;border:1.5px solid var(--input-border);border-radius:.75rem;background:var(--input-bg);color:var(--card-text);font:600 .875rem inherit;box-sizing:border-box;"></label>'
+    + '<div style="position:relative;font-size:.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:.05em;">Data real<button id="pcDataBtn" type="button" style="display:flex;width:100%;align-items:center;justify-content:space-between;margin-top:.375rem;padding:.5rem .625rem;border:1.5px solid var(--input-border);border-radius:.75rem;background:var(--input-bg);color:var(--card-text);font:600 .875rem inherit;cursor:pointer;"><span>' + dataPadrao.split('-').reverse().join('/') + '</span><span>▣</span></button><div id="pcCalendario" style="display:none;position:absolute;right:0;top:calc(100% + .35rem);z-index:90;width:260px;padding:.75rem;border:1px solid var(--card-border);border-radius:1rem;background:var(--card-bg);box-shadow:0 16px 35px rgba(15,23,42,.2);text-transform:none;letter-spacing:normal;"></div></div></div>'
+    + '<div style="position:relative;font-size:.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:.05em;margin-bottom:1.125rem;">' + (tx.tipo === 'receita' ? 'Conta creditada' : 'Conta debitada') + '<button id="pcContaBtn" type="button" style="display:flex;width:100%;align-items:center;justify-content:space-between;margin-top:.375rem;padding:.5rem .625rem;border:1.5px solid var(--input-border);border-radius:.75rem;background:var(--input-bg);color:var(--card-text);font:600 .875rem inherit;cursor:pointer;text-align:left;"><span></span><span>⌄</span></button><div id="pcContas" style="display:none;position:absolute;z-index:90;left:0;right:0;top:calc(100% + .35rem);max-height:180px;overflow:auto;border:1px solid var(--card-border);border-radius:.875rem;background:var(--card-bg);box-shadow:0 16px 35px rgba(15,23,42,.2);text-transform:none;letter-spacing:normal;"></div></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.625rem;"><button id="pcCancelar" style="padding:.625rem;border:1.5px solid var(--input-border);border-radius:.75rem;background:var(--input-bg);color:var(--card-text-sec);font:700 .875rem inherit;cursor:pointer;">Ainda não</button><button id="pcConfirmar" style="padding:.625rem;border:0;border-radius:.75rem;background:' + cor + ';color:#fff;font:800 .875rem inherit;cursor:pointer;">' + acao + ' ✓</button></div>';
+  overlay.appendChild(card); document.body.appendChild(overlay);
+  var dataSelecionada = dataPadrao;
+  var contaSelecionada = tx.carteiraId || tx.contaId || '';
+  var meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var view = new Date(dOriginal.getFullYear(), dOriginal.getMonth(), 1);
+  var dataBtn = document.getElementById('pcDataBtn');
+  var calendario = document.getElementById('pcCalendario');
+  var contaBtn = document.getElementById('pcContaBtn');
+  var contasEl = document.getElementById('pcContas');
+  function nomeContaSelecionada() { var c = contas.find(function (x) { return x.id === contaSelecionada; }); return c ? (c.nome || c.banco || 'Conta') : 'Nenhuma (sem conta vinculada)'; }
+  function renderContas() {
+    contaBtn.querySelector('span').textContent = nomeContaSelecionada();
+    contasEl.innerHTML = '<button type="button" data-conta="" style="width:100%;padding:.625rem .75rem;border:0;background:transparent;color:var(--card-text);font:600 .8125rem inherit;text-align:left;cursor:pointer;">Nenhuma (sem conta vinculada)</button>' + contas.map(function (c) { return '<button type="button" data-conta="' + c.id + '" style="width:100%;padding:.625rem .75rem;border:0;background:' + (c.id === contaSelecionada ? 'var(--sidebar-link-hover-bg)' : 'transparent') + ';color:var(--card-text);font:600 .8125rem inherit;text-align:left;cursor:pointer;">' + String(c.nome || c.banco || 'Conta').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</button>'; }).join('');
+  }
+  function renderCalendario() {
+    var ano = view.getFullYear(), mes = view.getMonth(), primeiro = new Date(ano, mes, 1).getDay(), dias = new Date(ano, mes + 1, 0).getDate();
+    var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.55rem;"><button type="button" data-cal="prev" style="border:0;background:transparent;color:var(--card-text);font-size:1.25rem;cursor:pointer;">‹</button><strong style="font-size:.8125rem;color:var(--card-text);">' + meses[mes] + ' ' + ano + '</strong><button type="button" data-cal="next" style="border:0;background:transparent;color:var(--card-text);font-size:1.25rem;cursor:pointer;">›</button></div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;font-size:.65rem;color:var(--card-text-sec);margin-bottom:.25rem;"><span>D</span><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span></div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">';
+    for (var i = 0; i < primeiro; i++) html += '<span></span>';
+    for (var dia = 1; dia <= dias; dia++) { var iso = ano + '-' + String(mes + 1).padStart(2,'0') + '-' + String(dia).padStart(2,'0'); var ativo = iso === dataSelecionada; html += '<button type="button" data-data="' + iso + '" style="height:29px;border:0;border-radius:.5rem;background:' + (ativo ? '#2563eb' : 'transparent') + ';color:' + (ativo ? '#fff' : 'var(--card-text)') + ';font:600 .75rem inherit;cursor:pointer;">' + dia + '</button>'; }
+    calendario.innerHTML = html + '</div>';
+  }
+  renderContas(); renderCalendario();
+  dataBtn.onclick = function () { contasEl.style.display = 'none'; calendario.style.display = calendario.style.display === 'block' ? 'none' : 'block'; };
+  contaBtn.onclick = function () { calendario.style.display = 'none'; contasEl.style.display = contasEl.style.display === 'block' ? 'none' : 'block'; };
+  calendario.onclick = function (e) { var b = e.target.closest('button'); if (!b) return; if (b.dataset.cal) { view.setMonth(view.getMonth() + (b.dataset.cal === 'next' ? 1 : -1)); renderCalendario(); return; } if (b.dataset.data) { dataSelecionada = b.dataset.data; dataBtn.querySelector('span').textContent = dataSelecionada.split('-').reverse().join('/'); calendario.style.display = 'none'; renderCalendario(); } };
+  contasEl.onclick = function (e) { var b = e.target.closest('[data-conta]'); if (!b) return; contaSelecionada = b.dataset.conta; contasEl.style.display = 'none'; renderContas(); };
+  document.getElementById('pcCancelar').onclick = function () { overlay.remove(); };
+  document.getElementById('pcConfirmar').onclick = async function () {
+    var btn = this;
+    var valor = Number(document.getElementById('pcValor').value);
+    var data = dataSelecionada;
+    var contaId = contaSelecionada || null;
+    if (!(valor > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(data)) { if (window.budShowToast) window.budShowToast('Informe um valor e uma data válidos.', 'error'); return; }
+    if (!pagamentoPodeSerConfirmado(contaId, tx.tipo, valor)) return;
+    btn.disabled = true; btn.textContent = 'Salvando…';
+    try {
+      var conta = carteiraGlobal.find(function (c) { return c.id === contaId; });
+      var dataObj = new Date(data + 'T12:00:00');
+      await updateDoc(doc(db, 'usuarios', usuarioAtualId, 'transacoes', tx.id), {
+        valor: valor, valorPrevisto: previsto, diferencaPrevisto: valor - previsto,
+        data: Timestamp.fromDate(dataObj), dataReferencia: data, mesReferencia: data.slice(0, 7),
+        carteiraId: contaId, contaId: contaId, contaNome: conta ? (conta.nome || conta.banco || '') : '',
+        confirmado: true, pago: true, pendenteConfirmacao: false, confirmadoEm: serverTimestamp()
+      });
+      await ajustarSaldoDaConta(contaId, tx.tipo, valor, 1);
+      overlay.remove();
+      if (window.budShowToast) window.budShowToast(tx.tipo === 'receita' ? 'Recebimento confirmado!' : 'Pagamento confirmado!', 'success');
+    } catch (_e) { btn.disabled = false; btn.textContent = 'Tentar novamente'; if (window.budShowToast) window.budShowToast('Não foi possível confirmar. Tente novamente.', 'error'); }
+  };
 }
 
 // ─── Notificações browser: recorrentes urgentes (≤3 dias) ─────────────────────
@@ -1386,11 +1578,13 @@ async function _autoProcessarRecorrentesHoje() {
 function atualizarTudoEmDia() {
   var secAtraso = document.getElementById('secDividasAtraso');
   var secLemb   = document.getElementById('secLembretes7Dias');
+  var secPrior  = document.getElementById('secPrioridadesHoje');
   var secTudo   = document.getElementById('secTudoEmDia');
   if (!secTudo) return;
   var temAtraso = secAtraso && secAtraso.style.display !== 'none';
   var temLemb   = secLemb  && secLemb.style.display  !== 'none';
-  secTudo.style.display = (!temAtraso && !temLemb) ? '' : 'none';
+  var temPrior  = secPrior && secPrior.style.display !== 'none';
+  secTudo.style.display = (!temAtraso && !temLemb && !temPrior) ? '' : 'none';
 }
 
 // ─── Comparativo vs Mês Anterior ─────────────────────────────────────────
@@ -1440,7 +1634,7 @@ function atualizarComparativoMesAnterior() {
     var pos = v >= 0;
     var cor = pos ? '#16a34a' : '#dc2626';
     var bg  = pos ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)';
-    return '<span style="font-size:0.6875rem;font-weight:700;padding:0.1rem 0.375rem;border-radius:9999px;background:' + bg + ';color:' + cor + ';">' + (pos ? '▲' : '▼') + ' ' + Math.abs(v).toFixed(1) + '%</span>';
+    return '<span class="comp-variation" style="font-size:0.6875rem;font-weight:700;padding:0.1rem 0.375rem;border-radius:9999px;background:' + bg + ';color:' + cor + ';">' + (pos ? '▲' : '▼') + ' ' + Math.abs(v).toFixed(1) + '%</span>';
   }
 
   var saldoAtual    = recAtual - despAtual;
@@ -1454,9 +1648,9 @@ function atualizarComparativoMesAnterior() {
 
   body.innerHTML = items.map(function (item) {
     return '<div class="comp-item">' +
-      '<div style="font-size:0.6875rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.375rem;">' + item.label + '</div>' +
-      '<div style="font-size:0.9375rem;font-weight:800;color:' + item.corAtual + ';margin-bottom:0.2rem;">' + (valoresOcultos ? '•••' : formatarValor(item.atual)) + '</div>' +
-      '<div style="font-size:0.6875rem;color:#94a3b8;margin-bottom:0.25rem;">' + (valoresOcultos ? '•••' : formatarValor(item.anterior)) + ' ' + mesAnteriorLabel + '</div>' +
+      '<div class="comp-label" style="font-size:0.6875rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.375rem;">' + item.label + '</div>' +
+      '<div class="comp-current" style="font-size:0.9375rem;font-weight:800;color:' + item.corAtual + ';margin-bottom:0.2rem;">' + (valoresOcultos ? '•••' : formatarValor(item.atual)) + '</div>' +
+      '<div class="comp-previous" style="font-size:0.6875rem;color:#94a3b8;margin-bottom:0.25rem;">' + (valoresOcultos ? '•••' : formatarValor(item.anterior)) + ' ' + mesAnteriorLabel + '</div>' +
       (valoresOcultos ? '' : varBadge(item.atual, item.anterior)) +
       '</div>';
   }).join('');
@@ -3134,22 +3328,10 @@ var btnConfirmExcluir = document.getElementById('btnConfirmExcluir');
 var btnCancelarExcluir = document.getElementById('btnCancelarExcluir');
 if (btnConfirmExcluir) btnConfirmExcluir.addEventListener('click', confirmarExclusao);
 if (btnCancelarExcluir) btnCancelarExcluir.addEventListener('click', fecharConfirmExcluir);
-var modalConfirmOverlay = document.getElementById('modalConfirmExcluir');
-if (modalConfirmOverlay) {
-  modalConfirmOverlay.addEventListener('click', function (e) {
-    if (e.target === modalConfirmOverlay) fecharConfirmExcluir();
-  });
-}
 
 // ─── Histórico modal ────────────────────────────────────────────────────
 var btnFecharHistorico = document.getElementById('btnFecharHistorico');
 if (btnFecharHistorico) btnFecharHistorico.addEventListener('click', fecharHistorico);
-var modalHistoricoOverlay = document.getElementById('modalHistorico');
-if (modalHistoricoOverlay) {
-  modalHistoricoOverlay.addEventListener('click', function (e) {
-    if (e.target === modalHistoricoOverlay) fecharHistorico();
-  });
-}
 
 // ─── Navegação de mês ──────────────────────────────────────────────────
 var btnMesAnterior = document.getElementById('btnMesAnterior');

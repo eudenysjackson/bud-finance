@@ -77,6 +77,18 @@ function aplicarMascaraMoeda(input) {
   input.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Trata os dígitos como centavos durante a digitação: 91675 → 916,75.
+// Também aceita colagem em formatos como "916,75" e "916.75".
+function aplicarMascaraMoedaDuranteDigitacao(input) {
+  const digitos = String(input.value || '').replace(/\D/g, '');
+  if (!digitos) {
+    input.value = '';
+    return;
+  }
+  const valor = Number(digitos) / 100;
+  input.value = valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 // DEC-018: campo de data como texto DD/MM/AAAA
 function aplicarMascaraData(input) {
   let v = input.value.replace(/\D/g, '');
@@ -183,7 +195,6 @@ function confirmarAcao(titulo, mensagem, textoBotao = 'Confirmar', corBotao = '#
       const btn = e.target.closest('[data-res]');
       if (btn) cleanup(btn.dataset.res === '1');
     });
-    overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(false); });
   });
 }
 
@@ -1349,6 +1360,13 @@ window.marcarParcelaPaga = async function(id, indice) {
     batch.update(doc(db, 'usuarios', currentUser.uid, 'carteira', d.contaId), {
       saldo: increment(-parseFloat((pmt * (novasParcelasPagas - (d.parcelasPagas || 0))).toFixed(2))),
     });
+    // Parcelamento de fatura mantém o limite comprometido. A cada parcela
+    // confirmada, a mesma fração volta a ficar disponível no cartão.
+    if (d.tipo === 'parcelamento_fatura' && d.cartaoId) {
+      batch.update(doc(db, 'usuarios', currentUser.uid, 'carteira', d.cartaoId), {
+        limiteReservado: increment(-parseFloat((pmt * (novasParcelasPagas - (d.parcelasPagas || 0))).toFixed(2))),
+      });
+    }
     await batch.commit();
     // Bug #24: reabrir na aba parcelas
     setTimeout(() => window.abrirDetalhes(id, 'parcelas'), 300);
@@ -1404,6 +1422,10 @@ window.desmarcarParcela = async function(id, indice) {
     }
     if (d.contaId) {
       batch.update(doc(db, 'usuarios', currentUser.uid, 'carteira', d.contaId), { saldo: increment(pmt) });
+    }
+    // Ao desfazer a confirmação, o limite comprometido volta ao estado anterior.
+    if (d.tipo === 'parcelamento_fatura' && d.cartaoId) {
+      batch.update(doc(db, 'usuarios', currentUser.uid, 'carteira', d.cartaoId), { limiteReservado: increment(pmt) });
     }
 
     // PEND-037: remover data de pagamento da parcela desmarcada
@@ -1650,7 +1672,7 @@ function renderizar() {
       const parcelaLabel = `Parcela${plural} ${(d.parcelasPagas || 0) + 1}${atrasadas > 1 ? '–' + ((d.parcelasPagas || 0) + atrasadas) : ''}`;
 
       const el = document.createElement('div');
-      el.style.cssText = 'background:var(--card-bg);border:1.5px solid rgba(220,38,38,0.35);border-left:4px solid #dc2626;border-radius:0.875rem;padding:0.875rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;';
+      el.style.cssText = 'background:var(--card-bg);border:1.5px solid rgba(220,38,38,0.35);border-radius:0.875rem;padding:0.875rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;';
       el.innerHTML = `
         <div style="display:flex;align-items:center;gap:0.625rem;min-width:0;">
           <span style="font-size:1.25rem;flex-shrink:0;">🔴</span>
@@ -1666,7 +1688,7 @@ function renderizar() {
     // Alertas de juros abusivos
     dividasJurosAbusivos.forEach(d => {
       const el = document.createElement('div');
-      el.style.cssText = 'background:var(--card-bg);border:1.5px solid rgba(217,119,6,0.35);border-left:4px solid #ea580c;border-radius:0.875rem;padding:0.875rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;';
+      el.style.cssText = 'background:var(--card-bg);border:1.5px solid rgba(217,119,6,0.35);border-radius:0.875rem;padding:0.875rem;margin-bottom:0.5rem;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;';
       el.innerHTML = `
         <div style="display:flex;align-items:center;gap:0.625rem;min-width:0;">
           <span style="font-size:1.25rem;flex-shrink:0;">🔥</span>
@@ -1796,33 +1818,32 @@ function renderizar() {
       : '';
 
     const card = document.createElement('div');
+    card.className = 'divida-list-card';
     card.style.cssText = `background:var(--card-bg);border:1.5px solid ${atrasadas > 0 ? 'rgba(252,165,165,0.5)' : ehPrioridade ? 'rgba(245,158,11,0.4)' : 'var(--card-border)'};border-radius:1.125rem;padding:1rem 1.125rem;margin-bottom:0.625rem;cursor:pointer;transition:transform .15s,box-shadow .15s;animation:fadeInUp .3s ease both;animation-delay:${idx * 0.04}s;`;
 
     card.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.625rem;">
-        <div style="display:flex;align-items:center;gap:0.625rem;min-width:0;flex:1;">
-          <span style="font-size:1.5rem;flex-shrink:0;">${d.tipoIcone || '📄'}</span>
-          <div style="min-width:0;">
-            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.25rem;">
-              <span style="font-size:0.9375rem;font-weight:700;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(d.nome || '—')}</span>
-              ${statusBadge}${prioridadeBadge}${jurosBadge}
-            </div>
-            <div style="font-size:0.75rem;font-weight:500;color:var(--card-text-sec);">${escapeHTML(d.instituicao || d.tipo || '—')}</div>
+      <div class="divida-card-head" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.625rem;">
+        <div class="divida-card-main" style="display:flex;align-items:center;gap:0.625rem;min-width:0;flex:1;">
+          <span class="divida-card-icon" style="font-size:1.5rem;flex-shrink:0;">${d.tipoIcone || '📄'}</span>
+          <div class="divida-card-info" style="min-width:0;">
+            <div class="divida-card-name" style="font-size:0.9375rem;font-weight:700;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHTML(d.nome || '—')}</div>
+            <div class="divida-card-badges" style="display:flex;align-items:center;flex-wrap:wrap;gap:0.25rem;margin-top:0.2rem;">${statusBadge}${prioridadeBadge}${jurosBadge}</div>
+            <div class="divida-card-institution" style="font-size:0.75rem;font-weight:500;color:var(--card-text-sec);margin-top:0.2rem;">${escapeHTML(d.instituicao || d.tipo || '—')}</div>
           </div>
         </div>
-        <div style="text-align:right;flex-shrink:0;margin-left:0.5rem;">
+        <div class="divida-card-amount" style="text-align:right;flex-shrink:0;margin-left:0.5rem;">
           <div style="font-size:1rem;font-weight:800;color:${atrasadas > 0 ? '#dc2626' : quitada ? '#16a34a' : 'var(--card-text)'};">${formatMoeda(saldo)}</div>
           <div style="font-size:0.6875rem;font-weight:600;color:var(--card-text-sec);">${quitada ? 'quitada' : 'a pagar'}</div>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.375rem;">
+      <div class="divida-card-progress" style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.375rem;">
         <div style="flex:1;height:5px;background:var(--input-border);border-radius:999px;overflow:hidden;">
           <div style="height:100%;border-radius:999px;background:${barColor};width:${pct}%;transition:width .4s ease;"></div>
         </div>
         <span style="font-size:0.6875rem;font-weight:800;color:var(--card-text-sec);min-width:2.25rem;text-align:right;">${pct}%</span>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <div style="font-size:0.6875rem;font-weight:500;color:var(--card-text-sec);">
+      <div class="divida-card-footer" style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="divida-card-meta" style="font-size:0.6875rem;font-weight:500;color:var(--card-text-sec);">
           ${d.parcelasPagas || 0}/${d.parcelas || 0} pagas
           ${(function() {
             if (!quitada && d.vencimento && d.parcelas) {
@@ -2162,12 +2183,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Botão Nova Dívida
   document.getElementById('btnNovaDivida')?.addEventListener('click', window.iniciarNovaDivida);
 
-  // Fechar modais (overlay click)
-  MODAL_IDS.forEach(id => {
-    document.getElementById(id)?.addEventListener('click', e => {
-      if (e.target.id === id) fecharModal(id);
-    });
-  });
+  // Modais fecham apenas por comandos explícitos, preservando formulários.
 
   // ESC fecha todos
   document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharTodosModais(); });
@@ -2177,7 +2193,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Máscaras monetárias
   ['dividaValorTotal','dividaValorPago','dividaValorParcela','simValorExtra','dividaIOF','dividaSeguro'].forEach(id => {
-    document.getElementById(id)?.addEventListener('blur', function() { aplicarMascaraMoeda(this); });
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.addEventListener('focus', function() {
+      if (parseMoeda(this.value) === 0) this.value = '';
+    });
+    input.addEventListener('input', function() { aplicarMascaraMoedaDuranteDigitacao(this); });
+    input.addEventListener('blur', function() { if (this.value) aplicarMascaraMoeda(this); });
   });
 
   // Máscara de data DD/MM/AAAA (DEC-018)

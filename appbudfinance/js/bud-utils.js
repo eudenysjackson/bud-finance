@@ -37,6 +37,39 @@
   window.BUD_FEATURE_RULES = Object.assign({}, cachedRules, window.BUD_FEATURE_RULES || {});
   window.BUD_USER_PLAN = window.BUD_USER_PLAN || null;
 
+  // Fonte única dos limites de planos no navegador. A aplicação de cotas
+  // acontece também no backend, portanto o cliente não é fonte de autoridade.
+  var PLAN_LIMITS = {
+    free: { cards: 1, accounts: 1, transactions: 30, imports: 0 },
+    starter: { cards: 2, accounts: 3, transactions: 100, imports: 3 },
+    pro: { cards: 5, accounts: 5, transactions: 200, imports: 10 },
+    plus: { cards: Infinity, accounts: Infinity, transactions: Infinity, imports: Infinity },
+    trial: { cards: 5, accounts: 5, transactions: 200, imports: 10 }
+  };
+  var PAID_FEATURES = {
+    advancedDashboard: true, monthlyComparative: true,
+    dailySpendAverage: true, evolutionChart: true,
+    recurringTransactions: true, customCategories: true
+  };
+  function resolveBudPlan(userData) {
+    var data = userData || {};
+    var plan = String(data.plano || window.BUD_USER_PLAN || 'free').toLowerCase();
+    if (!PLAN_LIMITS[plan]) plan = 'free';
+    var rawExpiry = data.planoExpira || data.planoExpiracao || data.trialFim;
+    var expiry = rawExpiry && typeof rawExpiry.toDate === 'function' ? rawExpiry.toDate().getTime() : new Date(rawExpiry || 0).getTime();
+    var expired = Number.isFinite(expiry) && expiry > 0 && expiry < Date.now();
+    return { effectivePlan: expired ? 'free' : plan, shouldDowngrade: expired && plan !== 'free' };
+  }
+  window.BudPlanos = {
+    resolvePlan: resolveBudPlan,
+    shouldDowngrade: function (userData) { return resolveBudPlan(userData).shouldDowngrade; },
+    canUseFeature: function (userData, feature) { return !PAID_FEATURES[feature] || resolveBudPlan(userData).effectivePlan !== 'free'; },
+    getCardsLimit: function (userData) { return PLAN_LIMITS[resolveBudPlan(userData).effectivePlan].cards; },
+    getAccountsLimit: function (userData) { return PLAN_LIMITS[resolveBudPlan(userData).effectivePlan].accounts; },
+    getMonthlyTransactionLimit: function (userData) { return PLAN_LIMITS[resolveBudPlan(userData).effectivePlan].transactions; },
+    getMonthlyImportLimit: function (userData) { return PLAN_LIMITS[resolveBudPlan(userData).effectivePlan].imports; }
+  };
+
   window.budFeatureEnabled = function (key) {
     var rule = window.BUD_FEATURE_RULES[key];
     if (window.BUD_FEATURES[key] === false || (rule && rule.enabled === false)) return false;

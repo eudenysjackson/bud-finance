@@ -59,11 +59,18 @@ const BUD_BACKEND_URL = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backen
 const IA_TIMEOUT_MS = 60000;
 const IA_MAX_FILES  = 3;
 const IA_MAX_SIZE_MB = 8;
-const IA_LIMITES_PLANO = { free: 5, starter: 30, plus: 9999, pro: 9999, trial: 30 };
+// Limites mensais de processamento inteligente: Free apresenta o recurso,
+// mas exige upgrade; os planos pagos evoluem de forma clara.
+const IA_LIMITES_PLANO = { free: 0, starter: 3, pro: 10, plus: 9999, trial: 10 };
 const CATEGORIAS_IA = ['Mercado','Padaria/Café','Bares/Baladas','Farmácia','Pet','Material Escolar','Outros'];
 
 // ─── Estado global ───────────────────────────────────────────────
 let currentUser  = null;
+async function headersApi(extra) {
+  if (!currentUser) throw new Error('Sua sessão expirou. Entre novamente para continuar.');
+  const token = await currentUser.getIdToken();
+  return Object.assign({ Authorization: `Bearer ${token}` }, extra || {});
+}
 let comprasCache = [];
 let listasCache  = [];
 let cartoesCache = [];
@@ -1699,13 +1706,7 @@ function wireUp() {
   document.getElementById('btnAddItemModo').addEventListener('click', adicionarItemModo);
   document.getElementById('modoNovoItemNome').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); adicionarItemModo(); } });
 
-  // Click fora dos modais para fechar (apenas Compra/Lista; Modo Compras NÃO fecha por fora pra evitar perda de progresso)
-  document.getElementById('modalCompra').addEventListener('click', (e) => {
-    if (e.target.id === 'modalCompra') fecharModalCompra();
-  });
-  document.getElementById('modalLista').addEventListener('click', (e) => {
-    if (e.target.id === 'modalLista') fecharModalLista();
-  });
+  // Os formulários fecham somente por ações explícitas, sem perder itens digitados.
 
   // Detalhe da compra
   const fecharDetalhe = () => document.getElementById('modalDetalheCompra').classList.remove('open');
@@ -1713,9 +1714,6 @@ function wireUp() {
   document.getElementById('btnFecharDetalheCompra2').addEventListener('click', fecharDetalhe);
   document.getElementById('btnCriarListaDaCompra').addEventListener('click', () => {
     if (_detalheCompraAtual) criarListaDaCompra(_detalheCompraAtual);
-  });
-  document.getElementById('modalDetalheCompra').addEventListener('click', (e) => {
-    if (e.target.id === 'modalDetalheCompra') fecharDetalhe();
   });
 
   // Ordenar itens da lista por categoria
@@ -2041,7 +2039,7 @@ async function pdfParaImagens(file) {
 // ─── Envio para backend ──────────────────────────────────────────
 async function enviarParaIA() {
   if (restanteIA() === 0) {
-    showToast(`Limite de ${limiteIA()} extrações/mês atingido. Faça upgrade para Plus.`, 'warning');
+    showToast(`Seu plano atingiu o limite de processamentos inteligentes. Faça upgrade para continuar.`, 'warning');
     return;
   }
 
@@ -2067,7 +2065,7 @@ async function enviarParaIA() {
       progBar.style.width = '40%';
       resp = await fetch(`${BUD_BACKEND_URL}/api/extrair-cupom`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await headersApi({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ texto }),
         signal: ctrl.signal,
       });
@@ -2089,7 +2087,7 @@ async function enviarParaIA() {
       progText.textContent = arquivosParaEnviar.length > 1 ? `Analisando ${arquivosParaEnviar.length} imagens…` : 'Analisando imagem…';
       progBar.style.width = '40%';
       resp = await fetch(`${BUD_BACKEND_URL}/api/extrair-cupom`, {
-        method: 'POST', body: fd, signal: ctrl.signal,
+        method: 'POST', headers: await headersApi(), body: fd, signal: ctrl.signal,
       });
     }
     clearTimeout(tid);
@@ -2109,9 +2107,9 @@ async function enviarParaIA() {
     // Pós-processamento client-side: aprendizado + mercado conhecido
     _iaResultado = posProcessarIA(data);
 
-    // Conta uso (apenas se não foi cache)
+    // O backend é a única autoridade da cota. Recarrega o indicador local.
     if (!data.cached) {
-      await incrementarUsoIA();
+      await carregarUsoIA();
     } else {
       showToast('Nota importada do cache (já analisada anteriormente)', 'info');
     }
@@ -2175,7 +2173,7 @@ async function _tentarOcrFallback(file, prog, progBar, progText, btn) {
     const tid2 = setTimeout(() => ctrl2.abort(), IA_TIMEOUT_MS);
     const resp = await fetch(`${BUD_BACKEND_URL}/api/extrair-cupom`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await headersApi({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ texto: textoOCR }),
       signal: ctrl2.signal,
     });
@@ -2370,9 +2368,6 @@ function setupImportIA() {
   });
 
   // Click fora pra fechar
-  document.getElementById('modalImportIA').addEventListener('click', (e) => {
-    if (e.target.id === 'modalImportIA') fecharModalImportIA();
-  });
 
   // Review
   document.getElementById('btnFecharReviewIA').addEventListener('click', fecharModalReviewIA);

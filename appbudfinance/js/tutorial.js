@@ -17,6 +17,8 @@
       features: [
         { emoji: '💰', titulo: 'Resumo do mês',       desc: 'Saldo, receitas e despesas em tempo real' },
         { emoji: '⚡', titulo: 'Lançamento rápido',    desc: 'Registre receitas e despesas em segundos' },
+        { emoji: '🔔', titulo: 'Prioridades e lembretes', desc: 'Confira recebimentos e pagamentos antes de confirmar' },
+        { emoji: '🛡️', titulo: 'Saldo protegido',      desc: 'Pagamentos sem saldo suficiente permanecem pendentes' },
         { emoji: '📅', titulo: 'Navegar por mês',      desc: 'Explore meses anteriores e futuros' },
         { emoji: '📋', titulo: 'Últimas transações',   desc: 'Suas movimentações mais recentes' },
       ],
@@ -37,6 +39,7 @@
         { emoji: '➕', titulo: 'Adicionar contas',     desc: 'Cadastre bancos, carteiras digitais e mais' },
         { emoji: '💵', titulo: 'Saldo por conta',      desc: 'Visualize o saldo atualizado de cada conta' },
         { emoji: '🔄', titulo: 'Transferências',       desc: 'Registre movimentações entre suas contas' },
+        { emoji: '📥', titulo: 'Extrato histórico',   desc: 'Importe por competência sem alterar o saldo atual' },
       ],
     },
     cartoes: {
@@ -86,12 +89,12 @@
       ],
     },
     graficos: {
-      emoji: '📊', titulo: 'Análises',
-      descricao: 'Visualize sua vida financeira em gráficos interativos.',
+      emoji: '📑', titulo: 'Relatórios',
+      descricao: 'Consulte resumos, visualizações e detalhamentos financeiros em um só lugar.',
       features: [
         { emoji: '🥧', titulo: 'Por categoria',        desc: 'Veja como seus gastos se distribuem' },
         { emoji: '📈', titulo: 'Evolução mensal',      desc: 'Acompanhe receitas e despesas no tempo' },
-        { emoji: '⚖️', titulo: 'Balanço',             desc: 'Compare o que entra e sai mês a mês' },
+        { emoji: '⚖️', titulo: 'Resumo financeiro',   desc: 'Compare o que entra e sai mês a mês' },
       ],
     },
     insights: {
@@ -143,7 +146,8 @@
       emoji: '🔄', titulo: 'Recorrentes',
       descricao: 'Gerencie receitas e despesas fixas que se repetem todo mês.',
       features: [
-        { emoji: '📅', titulo: 'Lançamento automático',desc: 'Transações geradas no vencimento automaticamente' },
+        { emoji: '✅', titulo: 'Confirmação manual',  desc: 'Confirme o valor real recebido ou pago' },
+        { emoji: '🔔', titulo: 'Lembretes',            desc: 'Veja vencimentos de hoje e dos próximos 3 dias' },
         { emoji: '✏️', titulo: 'Editar recorrentes',   desc: 'Altere valor, dia ou categoria quando quiser' },
         { emoji: '⏸️', titulo: 'Pausar/Retomar',      desc: 'Ative ou desative sem perder o histórico' },
       ],
@@ -426,6 +430,26 @@
       var self = this;
 
       function setup() {
+        // Garante a hierarquia visual no DOM (e não apenas via CSS/order),
+        // evitando que cards altos empurrem cabeçalho e abas para baixo.
+        var main = document.getElementById('dashMain');
+        var subnav = main && main.querySelector('.page-subnav');
+        var header = main && main.querySelector('.dash-header');
+        if (main && header && subnav) {
+          main.insertBefore(header, main.firstElementChild);
+          main.insertBefore(subnav, header.nextElementSibling);
+        }
+        if (!window._budSidebarOutsideBound) {
+          window._budSidebarOutsideBound = true;
+          document.addEventListener('click', function (e) {
+            var sb = document.getElementById('sidebar');
+            var hb = document.getElementById('btnHamburger');
+            if (!sb || !sb.classList.contains('open') || sb.contains(e.target) || (hb && hb.contains(e.target))) return;
+            sb.classList.remove('open');
+            var ov = document.getElementById('sidebarOverlay');
+            if (ov) { ov.classList.remove('open'); ov.style.display = 'none'; }
+          });
+        }
         if (!document.getElementById('bud-tut-fab')) createFAB(pageKey);
         if (!isNever() && !isDone(pageKey)) {
           setTimeout(function () {

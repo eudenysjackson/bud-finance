@@ -547,21 +547,15 @@ onAuthStateChanged(auth, async (user) => {
     const userData = snap.exists() ? snap.data() : {};
     if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(userData.photoURL || null, userData.nome || user.displayName || '');
     // BUG 7 — persiste downgrade no Firestore
-    if (typeof window.NexoPlanos?.resolvePlan === 'function') {
-      const resolved = window.NexoPlanos.resolvePlan(userData);
+    if (typeof window.BudPlanos?.resolvePlan === 'function') {
+      const resolved = window.BudPlanos.resolvePlan(userData);
       if (resolved?.shouldDowngrade) {
         userData.plano = 'free';
-        updateDoc(doc(db, 'usuarios', user.uid), {
-          plano: 'free',
-          atualizadoEm: serverTimestamp(),
-        }).catch(e => console.warn('[Balanço] Erro ao persistir downgrade:', e));
       }
     }
 
     // Verifica feature gate 'advancedDashboard'
-    const temAcesso = typeof window.NexoPlanos?.canUseFeature === 'function'
-      ? window.NexoPlanos.canUseFeature(userData, 'advancedDashboard')
-      : true; // fallback permissivo se NexoPlanos não carregar
+    const temAcesso = window.BudPlanos.canUseFeature(userData, 'advancedDashboard');
 
     hideSplash();
 

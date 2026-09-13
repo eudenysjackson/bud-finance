@@ -50,6 +50,10 @@ const FRONTEND_URL                  = process.env.FRONTEND_URL || 'https://budso
 // usado caso alguém tenha acesso indevido ao banco.
 const EMAIL_VERIFICATION_SECRET = process.env.EMAIL_VERIFICATION_SECRET ||
   (process.env.NODE_ENV === 'production' ? '' : 'bud-finance-local-verification-only');
+// Nunca armazene este código no Firestore ou no frontend. Configure-o no
+// ambiente do backend (Render) antes de disponibilizar /admin-register.html.
+const ADMIN_INVITE_CODE = process.env.ADMIN_INVITE_CODE ||
+  (process.env.NODE_ENV === 'production' ? '' : 'bud-finance-local-admin-invite');
 
 // â”€â”€â”€ WhatsApp config (env vars â€” set on Render) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const WA_PHONE_NUMBER_ID  = process.env.WA_PHONE_NUMBER_ID  || '';
@@ -114,9 +118,20 @@ const ALLOWED_ORIGINS = IS_PROD
   ? ALLOWED_ORIGINS_PROD
   : ALLOWED_ORIGINS_PROD.concat(ALLOWED_ORIGINS_DEV);
 
+function isPrivateNetworkOrigin(origin) {
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== 'http:') return false;
+    const host = url.hostname;
+    return /^(?:10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[0-1])\.)/.test(host);
+  } catch (_) {
+    return false;
+  }
+}
+
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+    if (!origin || ALLOWED_ORIGINS.includes(origin) || (!IS_PROD && isPrivateNetworkOrigin(origin))) {
       callback(null, true);
     } else {
       callback(new Error('CORS not allowed'));
@@ -210,6 +225,57 @@ async function getBearerUser(req, res) {
   try { return await auth.verifyIdToken(token); }
   catch (_) { res.status(401).json({ ok: false, error: 'Token inválido.' }); return null; }
 }
+
+function safeSecretEquals(value, expected) {
+  var received = Buffer.from(String(value || ''), 'utf8');
+  var configured = Buffer.from(String(expected || ''), 'utf8');
+  return received.length === configured.length && received.length > 0 &&
+    crypto.timingSafeEqual(received, configured);
+}
+
+// Criação de administradores: a validação acontece somente no servidor. Isso
+// impede que alguém se promova escrevendo diretamente no Firestore.
+app.post('/api/admin/registrar', async function (req, res) {
+  if (!auth || !db) return res.status(503).json({ ok: false, error: 'Serviço indisponível.' });
+  if (!ADMIN_INVITE_CODE) return res.status(503).json({ ok: false, error: 'Cadastro administrativo não configurado.' });
+
+  var nome = String(req.body && req.body.nome || '').trim().slice(0, 120);
+  var email = String(req.body && req.body.email || '').trim().toLowerCase();
+  var senha = String(req.body && req.body.senha || '');
+  var codigo = String(req.body && req.body.codigo || '');
+
+  if (!nome || !/^\S+@\S+\.\S+$/.test(email) || senha.length < 8 || !codigo) {
+    return res.status(400).json({ ok: false, error: 'Dados de cadastro inválidos.' });
+  }
+  if (isRateLimited('admin-register:' + email)) {
+    return res.status(429).json({ ok: false, error: 'Muitas tentativas. Aguarde um minuto e tente novamente.' });
+  }
+  if (!safeSecretEquals(codigo, ADMIN_INVITE_CODE)) {
+    return res.status(403).json({ ok: false, error: 'Código de convite inválido.' });
+  }
+
+  var createdUser = null;
+  try {
+    createdUser = await auth.createUser({ email: email, password: senha, displayName: nome });
+    await db.collection('admins').doc(createdUser.uid).set({
+      nome: nome,
+      email: email,
+      role: 'admin',
+      dataCadastro: admin.firestore.FieldValue.serverTimestamp(),
+      criadoEm: admin.firestore.FieldValue.serverTimestamp()
+    });
+    return res.status(201).json({ ok: true, message: 'Administrador criado com sucesso.' });
+  } catch (err) {
+    if (createdUser) {
+      try { await auth.deleteUser(createdUser.uid); } catch (_) {}
+    }
+    if (err && err.code === 'auth/email-already-exists') {
+      return res.status(409).json({ ok: false, error: 'Este e-mail já está cadastrado.' });
+    }
+    console.error('[admin-register]', err);
+    return res.status(500).json({ ok: false, error: 'Não foi possível criar o administrador.' });
+  }
+});
 
 // ─── Código de verificação de e-mail (6 dígitos, 15 min, uso único) ───────
 app.post('/api/verificacao-email/enviar', async function (req, res) {
@@ -541,16 +607,15 @@ async function extractWithAIFromText(text, tipo) {
   ].join(' ') : [
     'VocÃª Ã© um extrator preciso de faturas de cartÃ£o de crÃ©dito brasileiras.',
     'OBJETIVO: extrair cada LINHA DE COMPRA/COBRANÃ‡A individual present no detalhamento de transaÃ§Ãµes da fatura.',
-    'INCLUA: compras Ã  vista, parcelas de compras antigas (ex: "3/10 LOJA X"), IOF embutido em compras internacionais, juros de financiamento de compra especÃ­fica, anuidade, ajustes a dÃ©bito.',
+    'INCLUA: compras Ã  vista, parcelas de compras antigas (ex: "3/10 LOJA X"), IOF, juros, multa, mora, anuidade e qualquer cobranÃ§a com data e valor no detalhamento. NÃ£o omita tarifas detalhadas.',
     'INCLUA ESTORNOS com valor NEGATIVO (ex: "Estorno de Uber" â†’ valor: -11.93). Eles compensam compras e fazem parte da soma final.',
     'IGNORE ESTRITAMENTE (nunca inclua como transaÃ§Ã£o):',
     '- Linhas de pagamento: "Pagamento recebido", "Pagamento em DD MMM", "Pagamento de fatura"',
     '- Subtotais de seÃ§Ã£o: "Outros lanÃ§amentos R$ X", "Total de compras R$ X", "Pagamentos e Financiamentos R$ X", "Fatura anterior R$ X"',
     '- Subtotais por portador: linha com nome de pessoa + valor (ex: "JoÃ£o Silva   R$ 1.756,22") que aparece antes das transaÃ§Ãµes do portador',
     '- Linhas de saldo: "Saldo restante da fatura anterior", "Saldo em aberto", "Pagamento mÃ­nimo"',
-    '- Tarifas e encargos bancÃ¡rios standalone: linhas como "CUSTO TRANS. EXTERIOR-IOF", "IOF OPERACAO", "ENCARGO FINANCEIRO", "TARIFA BANCARIA", "MULTA", "MORA", "JUROS ROTATIVO" que aparecem como cobranÃ§as avulsas sem uma compra associada',
     '- CabeÃ§alhos de seÃ§Ã£o e rodapÃ©s (nÃºmero de pÃ¡gina, CNPJ, endereÃ§o)',
-    'A soma dos valores extraÃ­dos (positivos + negativos dos estornos) deve bater com "Pagamento total da fatura" / "Total a pagar" do documento.',
+    'A soma dos valores extraÃ­dos deve bater com "Total geral dos lanÃ§amentos" ou "Despesas do mÃªs". O "Total a pagar" pode incluir saldo anterior e deve ser apenas capturado em meta.',
     'TAREFA EXTRA: capture em "meta" DOIS totais: "totalCompras" ("Total de compras", sÃ³ novas compras) E "totalAPagar" ("Pagamento total da fatura" ou "Total a pagar", valor cobrado).',
     'Retorne SOMENTE JSON vÃ¡lido: {"transacoes":[{"desc":"Loja","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47,"totalAPagar":1242.36}}'
   ].join(' ');
@@ -559,13 +624,16 @@ async function extractWithAIFromText(text, tipo) {
   var textoLimitado = text.length > 30000 ? text.substring(0, 30000) : text;
 
   var body = JSON.stringify({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    model: 'qwen/qwen3.6-27b',
+    reasoning_effort: 'none',
     messages: [
       { role: 'system', content: promptInstrucoes },
       { role: 'user', content: 'Texto do extrato:\n\n' + textoLimitado }
     ],
     temperature: 0.0,
-    max_tokens: 8192,
+    // A chave local está no tier com limite de 1k tokens de saída por minuto.
+    // Pedir mais que isso é recusado pela Groq antes mesmo de ler o PDF.
+    max_tokens: 900,
     response_format: { type: 'json_object' }
   });
 
@@ -683,7 +751,8 @@ async function extractWithAI(buffer, mimeType, tipo) {
   ];
 
   var body = JSON.stringify({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    model: 'qwen/qwen3.6-27b',
+    reasoning_effort: 'none',
     messages: messages,
     temperature: 0.0,
     max_tokens: 8192,
@@ -741,8 +810,19 @@ async function extractWithAI(buffer, mimeType, tipo) {
 // â”€â”€â”€ POST /api/extrair-fatura â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Recebe: multipart/form-data { arquivo: File (PDF|JPEG|PNG|WEBP) }
 // Retorna: [{desc, valor, data}] â€” transaÃ§Ãµes extraÃ­das
-app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, res) {
+async function requireAuthenticatedUser(req, res, next) {
+  var decoded = await getBearerUser(req, res);
+  if (!decoded) return;
+  req.budUser = decoded;
+  next();
+}
+app.post('/api/extrair-fatura', requireAuthenticatedUser, upload.single('arquivo'), async function (req, res) {
   try {
+    try {
+      await verificarQuotaIA(req.budUser.uid);
+    } catch (quotaErr) {
+      return res.status(quotaErr.status || 500).json({ error: quotaErr.message || 'Não foi possível verificar sua cota.' });
+    }
     if (!req.file) {
       return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
     }
@@ -753,6 +833,7 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
     var transacoes = [];
     var aiMeta = null;
     var textMeta = null;
+    var aiFailureMessage = '';
 
     if (mimeType === 'application/pdf') {
       // â”€â”€ 1) Extrair texto do PDF com pdf-parse â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -782,11 +863,24 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
           (transacoes.length < 2) ||
           (parserScore !== null && parserScore < 0.90);
 
+        if (tipo === 'fatura' && !process.env.GROQ_API_KEY) {
+          return res.status(503).json({
+            error: 'A leitura de fatura por IA não está configurada no backend local. Adicione GROQ_API_KEY ao arquivo backend/.env.local e reinicie o backend.'
+          });
+        }
+
         if (precisaIA && process.env.GROQ_API_KEY && pdfData.text) {
           try {
             var aiTextResult = await extractWithAIFromText(pdfData.text, tipo);
             if (!aiMeta && aiTextResult.meta) aiMeta = aiTextResult.meta;
+            // O texto do PDF é a fonte autoritativa quando encontrou o total
+            // explícito da fatura; a IA pode confundir ofertas de parcelamento
+            // próximas do campo "Total a pagar" com o valor cobrado.
             var bestMeta = aiMeta || textMeta;
+            if (textMeta && textMeta.totalAPagar > 0) {
+              bestMeta = Object.assign({}, bestMeta || {}, { totalAPagar: textMeta.totalAPagar });
+              aiMeta = Object.assign({}, aiMeta || {}, { totalAPagar: textMeta.totalAPagar });
+            }
             var aiScore     = captureScore(aiTextResult.transacoes, bestMeta);
             var parserScore2 = captureScore(transacoes, bestMeta);
             // Adota IA se capturou mais transaÃ§Ãµes ou se score Ã© maior
@@ -795,6 +889,7 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
               transacoes = aiTextResult.transacoes;
             }
           } catch (_aiErr) {
+            aiFailureMessage = String(_aiErr && _aiErr.message || 'Falha desconhecida na IA');
             console.warn('[AI text-mode falhou]', _aiErr.message);
           }
         }
@@ -816,12 +911,19 @@ app.post('/api/extrair-fatura', upload.single('arquivo'), async function (req, r
     }
 
     if (!transacoes || transacoes.length === 0) {
+      if (aiFailureMessage) {
+        return res.status(502).json({
+          error: 'O serviço de IA não conseguiu analisar o arquivo.',
+          detail: aiFailureMessage.replace(/Bearer\s+\S+/gi, 'Bearer ***').slice(0, 500)
+        });
+      }
       return res.status(422).json({
         error: 'Nenhuma transaÃ§Ã£o encontrada. Verifique se o arquivo Ã© um extrato vÃ¡lido e tente novamente.'
       });
     }
 
     var meta = aiMeta || textMeta || null;
+    await incrementarQuotaIA(req.budUser.uid);
     return res.json({ transacoes: transacoes, meta: meta });
 
   } catch (err) {
@@ -871,7 +973,7 @@ function normalizeCupomCategory(value) {
 }
 
 /**
- * Extrai itens de cupom fiscal / print de app de mercado usando Groq (llama-4-scout vision).
+ * Extrai itens de cupom fiscal / print de app de mercado usando Groq Vision.
  * Aceita 1 a 3 arquivos (multi-foto para cupom longo).
  * Retorna: { mercado, cnpj, data, itens: [{nome, qtd, valor, cat}] }
  */
@@ -915,7 +1017,8 @@ async function extractCupomWithGroq(buffers, mimeTypes) {
   imgContent.push({ type: 'text', text: prompt });
 
   var body = JSON.stringify({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    model: 'qwen/qwen3.6-27b',
+    reasoning_effort: 'none',
     messages: [{ role: 'user', content: imgContent }],
     temperature: 0.0,
     max_tokens: 8192,
@@ -1005,7 +1108,8 @@ async function extractCupomFromText(texto) {
   ].join('\n');
 
   var body = JSON.stringify({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    model: 'qwen/qwen3.6-27b',
+    reasoning_effort: 'none',
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt }
@@ -1082,8 +1186,8 @@ var uploadCupom = multer({
 //   - multipart/form-data { arquivos: 1-3 files (image|pdf) }
 //   - application/json     { texto: "..." } para colar texto direto
 // Retorna: { mercado, cnpj, data, itens:[{nome,qtd,valor,cat}], cached?: true }
-// PEND-MER-07: quotas server-side (free=5, starter=30, trial=30, pro/plus=âˆž)
-var IA_LIMITES_CUPOM = { free: 5, starter: 30, trial: 30, pro: 9999, plus: 9999 };
+// Cota única mensal para todo processamento inteligente (cupom e fatura).
+var IA_LIMITES_CUPOM = { free: 0, starter: 3, trial: 10, pro: 10, plus: 9999 };
 
 async function verificarQuotaIA(uid) {
   if (!db) return; // Firebase nÃ£o iniciado â€” permite (degrada gracefully)
@@ -1093,12 +1197,16 @@ async function verificarQuotaIA(uid) {
   var userDoc = await db.collection('usuarios').doc(uid).get();
   var plano = (userDoc.exists && userDoc.data() && userDoc.data().plano)
     ? userDoc.data().plano.toLowerCase() : 'free';
-  var limite = IA_LIMITES_CUPOM[plano] || 5;
+  var limite = Object.prototype.hasOwnProperty.call(IA_LIMITES_CUPOM, plano)
+    ? IA_LIMITES_CUPOM[plano]
+    : IA_LIMITES_CUPOM.free;
   if (limite >= 9999) return; // ilimitado
   var usoSnap = await db.collection('usuarios').doc(uid).collection('uso-ia').doc(anoMes).get();
-  var uso = (usoSnap.exists && usoSnap.data() && usoSnap.data().mercado) ? usoSnap.data().mercado : 0;
+  var usoData = usoSnap.exists ? (usoSnap.data() || {}) : {};
+  // "mercado" é mantido durante a migração para não quebrar o indicador atual.
+  var uso = Number(usoData.processamentos || usoData.mercado || 0);
   if (uso >= limite) {
-    var err = new Error('Limite mensal de ' + limite + ' extraÃ§Ãµes atingido. FaÃ§a upgrade para continuar.');
+    var err = new Error('Limite mensal de processamentos inteligentes atingido. FaÃ§a upgrade para continuar.');
     err.status = 429;
     throw err;
   }
@@ -1112,7 +1220,7 @@ async function incrementarQuotaIA(uid) {
   try {
     var FieldValue = require('firebase-admin').firestore.FieldValue;
     await db.collection('usuarios').doc(uid).collection('uso-ia').doc(anoMes).set(
-      { mercado: FieldValue.increment(1) }, { merge: true }
+      { processamentos: FieldValue.increment(1), mercado: FieldValue.increment(1) }, { merge: true }
     );
   } catch (_e) { /* silencioso */ }
 }
@@ -1130,16 +1238,14 @@ app.post('/api/extrair-cupom', function (req, res) {
     var cupomUid = null;
     var authHeaderCupom = req.headers.authorization || '';
     var idTokenCupom = authHeaderCupom.startsWith('Bearer ') ? authHeaderCupom.slice(7) : null;
-    if (idTokenCupom && auth) {
-      try {
-        var decodedCupom = await auth.verifyIdToken(idTokenCupom);
-        cupomUid = decodedCupom.uid;
-        await verificarQuotaIA(cupomUid);
-      } catch (authErr) {
-        if (authErr.status === 429) return res.status(429).json({ error: authErr.message });
-        // token invÃ¡lido â†’ continua sem quota (nÃ£o bloqueia usuÃ¡rio)
-        cupomUid = null;
-      }
+    if (!idTokenCupom || !auth) return res.status(401).json({ error: 'Autenticação necessária.' });
+    try {
+      var decodedCupom = await auth.verifyIdToken(idTokenCupom);
+      cupomUid = decodedCupom.uid;
+      await verificarQuotaIA(cupomUid);
+    } catch (authErr) {
+      if (authErr.status === 429) return res.status(429).json({ error: authErr.message });
+      return res.status(401).json({ error: 'Token inválido.' });
     }
 
     // Modo TEXTO (sem arquivos)
@@ -1291,7 +1397,7 @@ app.post('/api/analisar-documento', upload.single('arquivo'), async function (re
     }
 
     var modelName = imageB64
-      ? 'meta-llama/llama-4-scout-17b-16e-instruct'
+      ? 'qwen/qwen3.6-27b'
       : 'llama3-8b-8192';
 
     var aiResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -1441,55 +1547,66 @@ app.post('/api/processar-recorrentes', async function (req, res) {
         if (!rec.proximaData) return false;
         var proxDate = rec.proximaData.toDate ? rec.proximaData.toDate() : new Date(rec.proximaData);
         var diffDias = Math.round((agora - proxDate) / (1000 * 60 * 60 * 24));
-        return diffDias >= 0 && diffDias % 7 === 0;
+        // Se o app/servidor ficou indisponível no dia exato, cria a pendência
+        // na primeira execução posterior; a checagem anti-duplicidade abaixo
+        // garante apenas uma pendência por competência.
+        return diffDias >= 0;
       }
       // mensal: clamp ao Ãºltimo dia do mÃªs
       var maxDia = new Date(hojeAno, hojeMes, 0).getDate();
-      return Math.min(dia, maxDia) === hojeDia;
+      // Não perder a confirmação se o usuário abrir o app após o vencimento.
+      return Math.min(dia, maxDia) <= hojeDia;
     });
 
     if (paraProcessar.length === 0) {
       return res.json({ success: true, processadas: 0, mensagem: 'Nenhuma recorrente vence hoje.' });
     }
 
-    // Anti-duplicidade: buscar transaÃ§Ãµes jÃ¡ lanÃ§adas neste mÃªs por recorrenteId
+    // Recorrências são previsões, não comprovantes de pagamento/recebimento.
+    // No vencimento criamos uma pendência. O saldo só muda quando o usuário
+    // confirma o valor, a data e a conta reais na Dashboard.
+    // Anti-duplicidade: uma pendência ou lançamento confirmado já existente
+    // para a mesma recorrência/competência impede uma nova criação.
     var snapTx = await db
       .collection('usuarios').doc(uid).collection('transacoes')
       .where('mesReferencia', '==', mesRef)
       .where('origem', '==', 'recorrente')
       .get();
 
+    // Registros de versões antigas podem não ter mesReferencia/origem. Busca
+    // também pelo campo data da competência para não repetir esses lançamentos.
+    var inicioMes = admin.firestore.Timestamp.fromDate(new Date(hojeAno, hojeMes - 1, 1));
+    var inicioProximoMes = admin.firestore.Timestamp.fromDate(new Date(hojeAno, hojeMes, 1));
+    var snapLegado = await db
+      .collection('usuarios').doc(uid).collection('transacoes')
+      .where('data', '>=', inicioMes)
+      .where('data', '<', inicioProximoMes)
+      .get();
+    var docsTx = new Map();
+    snapTx.docs.concat(snapLegado.docs).forEach(function (d) { docsTx.set(d.id, d); });
+
     var jaProcessados = new Set(
-      snapTx.docs.map(function (d) { return d.data().recorrenteId; }).filter(Boolean)
+      Array.from(docsTx.values()).map(function (d) { return d.data().recorrenteId; }).filter(Boolean)
     );
+    // Compatibilidade com lançamentos criados por versões antigas, que não
+    // gravavam recorrenteId. Um lançamento confirmado com mesma descrição,
+    // tipo e competência já representa aquela recorrência no mês.
+    var jaLancadosPorAssinatura = new Set(Array.from(docsTx.values()).map(function (d) {
+      var tx = d.data();
+      return String(tx.tipo || '') + '|' + String(tx.descricao || '').trim().toLowerCase();
+    }));
 
     var novas = paraProcessar.filter(function (rec) {
-      return !jaProcessados.has(rec.id);
+      var assinatura = String(rec.tipo || 'despesa') + '|' + String(rec.descricao || '').trim().toLowerCase();
+      return !jaProcessados.has(rec.id) && !jaLancadosPorAssinatura.has(assinatura);
     });
 
     if (novas.length === 0) {
-      return res.json({ success: true, processadas: 0, mensagem: 'Todas as recorrentes de hoje jÃ¡ foram lanÃ§adas.' });
+      return res.json({ success: true, processadas: 0, mensagem: 'As recorrências de hoje já estão aguardando sua confirmação.' });
     }
 
-    // Criar transaÃ§Ãµes em batch (chunks de 400)
-    // Uma recorrência pode manter referência a uma conta já removida. Validamos
-    // antes para não cancelar todo o processamento nesse caso.
-    var contasAtivas = new Set();
-    var contaIds = Array.from(new Set(novas
-      .filter(function (rec) { return rec.contaId && rec.contaTipo !== 'credito'; })
-      .map(function (rec) { return rec.contaId; })));
-    if (contaIds.length) {
-      var contasSnap = await Promise.all(contaIds.map(function (contaId) {
-        return db.collection('usuarios').doc(uid).collection('carteira').doc(contaId).get();
-      }));
-      contasSnap.forEach(function (conta) {
-        if (conta.exists) contasAtivas.add(conta.id);
-      });
-    }
-
-    // Cada recorrência gera uma transação e, quando vinculada, uma atualização
-    // de saldo. 200 mantém cada batch abaixo do limite de 500 operações.
-    var CHUNK = 200;
+    // Cada pendência exige só uma operação; 400 mantém o lote abaixo do limite.
+    var CHUNK = 400;
     var colTx = db.collection('usuarios').doc(uid).collection('transacoes');
     var dataHoje = hojeAno + '-' + String(hojeMes).padStart(2,'0') + '-' + String(hojeDia).padStart(2,'0');
     var timestampHoje = admin.firestore.Timestamp.fromDate(agora);
@@ -1497,13 +1614,13 @@ app.post('/api/processar-recorrentes', async function (req, res) {
     for (var ci = 0; ci < novas.length; ci += CHUNK) {
       var chunk = novas.slice(ci, ci + CHUNK);
       var batch = db.batch();
-      var deltasPorConta = {};
       chunk.forEach(function (rec) {
         var txRef = colTx.doc();
         batch.set(txRef, {
           tipo:           rec.tipo || 'despesa',
           descricao:      sanitizeStr(rec.descricao || '').substring(0, 100),
-          valor:          Number(rec.valor) || 0,
+          valor:          Number(rec.valorPrevisto || rec.valor) || 0,
+          valorPrevisto:  Number(rec.valorPrevisto || rec.valor) || 0,
           categoria:      sanitizeStr(rec.categoria || 'Outros'),
           // Dashboard, Extrato e relatórios consultam o campo `data`.
           data:           timestampHoje,
@@ -1516,24 +1633,13 @@ app.post('/api/processar-recorrentes', async function (req, res) {
           cartaoId:       rec.cartaoId || null,
           recorrenteId:   rec.id,
           origem:         'recorrente',
+          recorrente:     true,
+          confirmado:     false,
+          pago:           false,
+          pendenteConfirmacao: true,
           observacao:     sanitizeStr(rec.observacao || ''),
           dataCriacao:    admin.firestore.FieldValue.serverTimestamp(),
         });
-
-        // Segue a mesma regra dos lançamentos manuais: débito reduz e receita
-        // aumenta o saldo da conta. Cartão só afeta o saldo ao pagar a fatura.
-        if (rec.contaTipo !== 'credito' && rec.contaId && contasAtivas.has(rec.contaId)) {
-          var delta = (rec.tipo || 'despesa') === 'receita'
-            ? (Number(rec.valor) || 0)
-            : -(Number(rec.valor) || 0);
-          deltasPorConta[rec.contaId] = (deltasPorConta[rec.contaId] || 0) + delta;
-        }
-      });
-      Object.keys(deltasPorConta).forEach(function (contaId) {
-        batch.update(
-          db.collection('usuarios').doc(uid).collection('carteira').doc(contaId),
-          { saldo: admin.firestore.FieldValue.increment(deltasPorConta[contaId]) }
-        );
       });
       await batch.commit();
     }
@@ -1546,7 +1652,7 @@ app.post('/api/processar-recorrentes', async function (req, res) {
     return res.json({
       success: true,
       processadas: novas.length,
-      mensagem: novas.length + ' recorrente' + (novas.length !== 1 ? 's lanÃ§adas' : ' lanÃ§ada') + ' no Extrato.',
+      mensagem: novas.length + ' recorrente' + (novas.length !== 1 ? 's aguardam' : ' aguarda') + ' confirmação na Dashboard.',
       itens: novas.map(function (r) { return { id: r.id, descricao: r.descricao, valor: r.valor }; }),
     });
 
@@ -1557,7 +1663,7 @@ app.post('/api/processar-recorrentes', async function (req, res) {
 });
 
 // â”€â”€â”€ POST /api/chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Chat com IA financeiro pessoal via Groq (llama-4-scout).
+// Chat com IA financeiro pessoal via Groq.
 // Auth: Bearer Firebase ID Token. Gate: plano plus/trial.
 // Rate limit: 30 msg/min por uid (in-memory).
 app.post('/api/chat', async function (req, res) {
@@ -1663,7 +1769,7 @@ app.post('/api/chat', async function (req, res) {
     'Use Markdown para formatar suas respostas: **negrito**, listas, tabelas quando fizer sentido.',
     '',
     '=== SOBRE O BUD FINANCE ===',
-    'Site/landing: https://budsolucoes.com.br',
+    'Site/landing: https://budsolucoes.com.br/budfinance/',
     'App (login): https://budsolucoes.com.br/appbudfinance/',
     'Desenvolvido por: Bud SoluÃ§Ãµes',
     '',
@@ -1673,13 +1779,13 @@ app.post('/api/chat', async function (req, res) {
     'â€¢ Pro â€” R$ 29,90/mÃªs: tudo do Starter + Recorrentes automÃ¡ticas, DÃ­vidas com Tabela Price, GrÃ¡ficos avanÃ§ados, ImportaÃ§Ã£o de extratos (PDF/OFX/CSV/imagem), Insights de saÃºde financeira, BalanÃ§o mensal.',
     'â€¢ Plus â€” R$ 49,90/mÃªs: tudo do Pro + Assistente de IA (vocÃª, o Buddy), Assistente WhatsApp (em breve), Parcelamento inteligente de cartÃ£o via IA.',
     'â€¢ Trial: 3 dias grÃ¡tis com funcionalidades Pro ao criar conta.',
-    'Para assinar: acessar https://budsolucoes.com.br (seÃ§Ã£o Planos) ou dentro do app em qualquer banner de upgrade.',
+    'Para assinar: acessar https://budsolucoes.com.br/budfinance/ (seÃ§Ã£o Planos) ou dentro do app em qualquer banner de upgrade.',
     '',
     '=== CONTATO E SUPORTE ===',
     'E-mail: budsolucoes@gmail.com',
     'WhatsApp: (21) 98355-4954 â€” https://wa.me/5521983554954',
     'Instagram: @appbudfinance â€” https://www.instagram.com/appbudfinance',
-    'Site: https://budsolucoes.com.br',
+    'Site: https://budsolucoes.com.br/budfinance/',
     'Se o usuÃ¡rio tiver dÃºvidas que vocÃª nÃ£o consegue resolver, oriente-o a entrar em contato pelo WhatsApp ou e-mail acima.',
     'Para reportar bugs ou sugestÃµes: dentro do app, botÃ£o "?" no Assistente de IA â†’ opÃ§Ã£o "Reportar problema" ou "Enviar sugestÃ£o".',
     '',
@@ -1761,7 +1867,8 @@ app.post('/api/chat', async function (req, res) {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
       body:    JSON.stringify({
-        model:       'meta-llama/llama-4-scout-17b-16e-instruct',
+        model:       'qwen/qwen3.6-27b',
+        reasoning_effort: 'none',
         messages:    groqMessages,
         temperature: 0.7,
         max_tokens:  1500,
@@ -2712,6 +2819,39 @@ app.post('/mercadopago/sandbox-activate', async function (req, res) {
 
 // â”€â”€â”€ POST /mercadopago/cancelar-assinatura â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Cancela a assinatura ativa do usuÃ¡rio no Mercado Pago e rebaixa para free.
+// Checkout interno para a interface local. Nunca processa cartao e so existe
+// quando o backend esta conectado aos emuladores do Firebase.
+app.post('/mercadopago/local-test-payment', express.json(), async function (req, res) {
+  if (process.env.BUD_USE_EMULATOR !== 'true')
+    return res.status(404).json({ error: 'Indisponivel fora do ambiente local.' });
+  if (!auth || !db) return res.status(503).json({ error: 'Firebase nao inicializado.' });
+
+  var authHeader = req.headers.authorization || '';
+  if (!authHeader.startsWith('Bearer ')) return res.status(401).json({ error: 'Autenticacao necessaria.' });
+  var decoded;
+  try { decoded = await auth.verifyIdToken(authHeader.slice(7)); }
+  catch (_) { return res.status(401).json({ error: 'Sessao invalida.' }); }
+
+  var planKey = String((req.body || {}).planKey || '').toLowerCase();
+  var status = String((req.body || {}).status || '').toLowerCase();
+  if (!MP_PLANS[planKey]) return res.status(400).json({ error: 'Plano invalido.' });
+  if (!['approved', 'pending', 'rejected'].includes(status)) return res.status(400).json({ error: 'Status invalido.' });
+
+  var userRef = db.collection('usuarios').doc(decoded.uid);
+  if (status === 'approved') {
+    var expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + 1);
+    await userRef.set({ plano: planKey, planoExpira: admin.firestore.Timestamp.fromDate(expiresAt),
+      mpSubscriptionId: 'LOCAL_TEST_' + Date.now(), pagamentoPendente: false,
+      erroAssinatura: admin.firestore.FieldValue.delete(), planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+  } else {
+    await userRef.set({ pagamentoPendente: true,
+      erroAssinatura: status === 'rejected' ? 'Pagamento de teste recusado.' : 'Pagamento de teste pendente.',
+      planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+  }
+  return res.json({ ok: true, status: status, planKey: planKey });
+});
+
 app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req, res) {
   if (!auth || !db) return res.status(503).json({ error: 'Firebase nÃ£o inicializado.' });
 
@@ -3435,7 +3575,8 @@ app.get('/api/notifications/daily', async function (req, res) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + groqKey },
             body: JSON.stringify({
-              model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+              model: 'qwen/qwen3.6-27b',
+              reasoning_effort: 'none',
               messages: [{ role: 'user', content: budPrompt }],
               temperature: 0.8,
               max_tokens: 150

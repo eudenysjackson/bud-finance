@@ -352,9 +352,16 @@ function extractMetaFromText(text) {
       /total\s+d[eo]?\s*compras?(?:\s+de\s+todos\s+os\s+cart[\u00f5o]es)?/i, 300
     );
 
-    meta.totalAPagar =
-      maiorAposAncora(/pagamento\s+total\s+d[ao]\s+fatura/i, 200) ||
-      maiorAposAncora(/total\s+a\s+pagar/i, 400);
+    // Alguns emissores exibem "Total a pagar" dentro de simulações de
+    // parcelamento. O valor autoritativo é o total explícito da fatura.
+    var totalExplicito = text.match(/total\s*(?:da\s*(?:(?:sua|a)\s*)?|desta\s*)fatura[\s\S]{0,80}?(\d[\d\.]*,\d{2})/i);
+    if (totalExplicito) {
+      meta.totalAPagar = parseVal(totalExplicito[1]);
+    } else {
+      meta.totalAPagar =
+        maiorAposAncora(/pagamento\s+total\s+d[ao]\s+fatura/i, 200) ||
+        maiorAposAncora(/total\s+a\s+pagar/i, 400);
+    }
   }
 
   if (meta.totalEntradas === null && meta.totalSaidas === null && meta.saldoFinal === null &&

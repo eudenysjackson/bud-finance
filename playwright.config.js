@@ -15,6 +15,7 @@ module.exports = defineConfig({
     video: 'retain-on-failure',
     actionTimeout: 10_000,
     navigationTimeout: 30_000,
+    storageState: './tests/emulator-storage-state.json',
   },
   projects: [
     {
@@ -22,10 +23,18 @@ module.exports = defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
-    command: 'npx http-server ./appbudfinance -p 3002 --cors -c-1 --silent',
-    port: 3002,
-    reuseExistingServer: !process.env.CI,
-    timeout: 15_000,
-  },
+  webServer: [
+    {
+      command: 'npm run emulators:local',
+      port: 9099,
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+    },
+    {
+      command: 'npx http-server ./appbudfinance -p 3002 --cors -c-1 --silent',
+      port: 3002,
+      reuseExistingServer: !process.env.CI,
+      timeout: 15_000,
+    }
+  ],
 });

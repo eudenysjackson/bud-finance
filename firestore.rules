@@ -1,0 +1,49 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    function admin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    function billingFields() {
+      return ['plano', 'planoExpira', 'planoAtivadoEm', 'planoAtualizadoEm',
+        'mpSubscriptionId', 'assinaturaStatus', 'trialFim', 'trialIniciado',
+        'role', 'bloqueado', 'status'];
+    }
+
+    match /usuarios/{uid} {
+      allow read: if owner(uid) || admin();
+      // Cadastro cria somente o perfil básico; plano/trial são atribuídos no backend.
+      allow create: if owner(uid) && !request.resource.data.keys().hasAny(billingFields());
+      allow update: if admin() || (owner(uid) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(billingFields()));
+      allow delete: if admin();
+
+      // A cota de IA só é escrita pelo Admin SDK no backend.
+      match /uso-ia/{periodo} {
+        allow read: if owner(uid) || admin();
+        allow write: if false;
+      }
+      // Dados financeiros pertencem somente ao titular; o admin pode operar suporte.
+      match /{subcolecao}/{documento} {
+        allow read, write: if (owner(uid) || admin()) && subcolecao != 'uso-ia';
+      }
+    }
+
+    // A lista pode ser lida por usuários autenticados para aplicar recursos;
+    // apenas administradores já existentes podem alterá-la.
+    match /featureFlags/{id} {
+      allow read: if signedIn();
+      allow write: if admin();
+    }
+    match /notificacoes-globais/{id} { allow read: if signedIn(); allow write: if admin(); }
+    match /promocoes/{id} { allow read: if signedIn(); allow write: if admin(); }
+    match /admin/{id} { allow read, write: if admin(); }
+    // Nenhum usuário pode se promover a admin pelo navegador.
+    match /admins/{uid} {
+      allow read: if owner(uid) || admin();
+      allow write: if false;
+    }
+  }
+}

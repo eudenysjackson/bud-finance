@@ -119,26 +119,33 @@
            style="width:3rem;height:3rem;object-fit:contain;margin:0 auto 0.75rem;display:block;">
     </div>
     <h1>Política de Privacidade</h1>
-    <p class="subtitle">Última atualização: 20 de maio de 2026 — Versão 1.2</p>
+    <p class="subtitle">Última atualização: 12 de setembro de 2026 — Versão 1.3</p>
 
     <!-- ─── 1. Introdução ────────────────────────────────────────── -->
     <h2>1. Introdução</h2>
     <p>
-      O <strong>Bud Finance</strong> é uma plataforma de <strong>controle financeiro pessoal</strong>,
-      desenvolvida para ajudar você a organizar suas receitas, despesas e metas.
+      O <strong>Bud Finance</strong> é exclusivamente um aplicativo de <strong>registro,
+      organização e suporte à visualização financeira pessoal</strong>. Ele ajuda você a
+      registrar receitas, despesas, contas, cartões, metas e outros dados informados por você.
       Esta Política de Privacidade descreve como coletamos, utilizamos, armazenamos
       e protegemos seus dados pessoais, em conformidade com a
       <strong>Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD)</strong>.
     </p>
     <p>
-      Ao criar uma conta ou utilizar nossos serviços, você declara ter lido e
-      concordado com os termos abaixo.
+      Ao marcar a caixa de aceite no cadastro e concluir a criação da conta, você declara
+      que leu, compreendeu e <strong>concorda com esta Política de Privacidade e com os
+      termos de uso do aplicativo</strong>, inclusive com a coleta, o armazenamento e o
+      compartilhamento dos dados de cadastro descritos nesta política. Sem esse aceite,
+      não é possível criar a conta. O consentimento pode ser revogado, observadas as
+      consequências necessárias para encerrar a prestação do serviço.
     </p>
 
     <!-- ─── 2. Isenção de Responsabilidade Financeira ────────────── -->
     <h2>2. Isenção de Responsabilidade Financeira</h2>
     <p>
-      O Bud Finance é <strong>exclusivamente uma ferramenta de controle e organização financeira</strong>.
+      O Bud Finance é <strong>exclusivamente uma ferramenta de registro, organização e suporte
+      financeiro</strong>. Não somos banco, instituição de pagamento, corretora, consultoria,
+      assessoria ou instituição financeira.
       Nós <strong>não</strong>:
     </p>
     <ul>
@@ -148,16 +155,20 @@
       <li>Oferecemos garantias sobre resultados financeiros, rendimentos ou economia.</li>
     </ul>
     <p>
-      <strong>Toda e qualquer decisão financeira é de responsabilidade exclusiva do usuário.</strong>
-      O Bud Finance se limita a fornecer ferramentas para que você registre e visualize
-      suas próprias informações financeiras.
+      <strong>O usuário é integralmente responsável pelos dados que insere, pela conferência
+      das informações, pelas decisões tomadas e por qualquer pagamento, contratação,
+      investimento, dívida ou operação realizada fora do aplicativo.</strong> O Bud Finance
+      não se responsabiliza por perdas, juros, multas, atrasos, decisões financeiras,
+      indisponibilidade de serviços de terceiros ou erros decorrentes de dados incorretos,
+      incompletos ou não conferidos pelo usuário, sem prejuízo das responsabilidades que
+      não possam ser afastadas pela legislação aplicável.
     </p>
 
     <!-- ─── 3. Dados Coletados ───────────────────────────────────── -->
     <h2>3. Dados Coletados</h2>
     <p>Coletamos os seguintes dados pessoais:</p>
     <ul>
-      <li><strong>Dados de cadastro:</strong> nome completo, e-mail, telefone (WhatsApp);</li>
+      <li><strong>Dados de cadastro compartilhados conosco:</strong> nome completo, e-mail, telefone (WhatsApp) e matrícula gerada para identificação da conta;</li>
       <li><strong>Dados de autenticação:</strong> senha (armazenada com criptografia pelo Firebase Authentication — nunca temos acesso à senha em texto plano);</li>
       <li><strong>Dados de uso:</strong> registros financeiros que você inserir voluntariamente (receitas, despesas, categorias, metas, dívidas, investimentos, cartões, recorrentes, limites, lista de compras);</li>
       <li><strong>Dados técnicos:</strong> endereço IP, tipo de navegador, data e hora de acesso (para segurança e prevenção de fraude);</li>
@@ -178,7 +189,7 @@
       <li>Gerenciar planos e assinaturas (gratuitos e pagos);</li>
       <li>Processar automaticamente transações recorrentes via servidor (recurso disponível nos planos Pro, Plus e Trial);</li>
       <li>Extrair transações de arquivos de fatura (PDF/OFX/CSV/imagem) via inteligência artificial, a pedido do usuário;</li>
-      <li>Fornecer o Assistente de IA financeiro (plano Plus) — conversas são processadas em tempo real e não armazenadas permanentemente;
+      <li>Fornecer recursos de suporte financeiro, quando disponíveis — conteúdos enviados para processamento podem ser tratados por prestadores descritos nesta política;</li>
       <li>Processar pagamentos de assinaturas via Mercado Pago;</li>
       <li>Cumprir obrigações legais e regulatórias;</li>
       <li>Garantir a segurança da plataforma.</li>
@@ -196,13 +207,16 @@
 
     <!-- ─── 6. Compartilhamento de Dados ─────────────────────────── -->
     <h2>6. Compartilhamento de Dados</h2>
-    <p>Seus dados podem ser compartilhados com:</p>
+    <p>
+      Para operar o aplicativo, seus dados podem ser tratados por fornecedores que
+      prestam serviços essenciais ao Bud Finance. Compartilhamos somente o necessário
+      para cada finalidade e exigimos medidas adequadas de proteção.
+    </p>
     <ul>
-      <li><strong>Firebase (Google):</strong> autenticação e armazenamento em nuvem (Firestore), com servidores conforme padrões internacionais de segurança;</li>
-      <li><strong>Backend próprio (Render.com):</strong> servidor intermediário utilizado para processamento de recuperação de senha, importação de faturas via IA, Assistente de IA e processamento de transações recorrentes. Toda requisição é autenticada via token de identidade Firebase — o servidor verifica sua identidade antes de qualquer operação. Os dados processados não são retidos após a resposta;</li>
-      <li><strong>Groq (Llama-4 Scout):</strong> ao importar uma fatura bancária (PDF/imagem) ou utilizar o Assistente de IA, o conteúdo é enviado à API da Groq (modelo llama-4-scout) exclusivamente para processamento em tempo real. O dado é processado em trânsito e não é retido para treinamento de modelos;</li>
-      <li><strong>Mercado Pago:</strong> processamento de pagamentos de assinaturas. Dados de cartão são tratados diretamente pelo Mercado Pago (certificação PCI-DSS) — não temos acesso a eles;</li>
-      <li><strong>EmailJS:</strong> envio de e-mails transacionais (boas-vindas, verificação);</li>
+      <li><strong>Serviços de autenticação e armazenamento:</strong> para criar sua conta, proteger o acesso e guardar os dados do aplicativo;</li>
+      <li><strong>Serviços de processamento:</strong> para executar funcionalidades solicitadas pelo usuário, como importação e leitura de documentos e recursos de suporte;</li>
+      <li><strong>Mercado Pago:</strong> para processar assinaturas. Os dados de cartão são informados diretamente ao Mercado Pago e não ficam acessíveis ao Bud Finance;</li>
+      <li><strong>Serviços de comunicação:</strong> para enviar mensagens essenciais, como verificação de e-mail e recuperação de acesso;</li>
       <li><strong>Autoridades competentes:</strong> quando exigido por decisão judicial ou lei aplicável.</li>
     </ul>
     <p>
@@ -320,7 +334,7 @@
       <li><strong>E-mail:</strong> <a href="mailto:budsolucoes@gmail.com">budsolucoes@gmail.com</a></li>
       <li><strong>WhatsApp:</strong> <a href="https://wa.me/5521983554954" target="_blank" rel="noopener">(21) 98355-4954</a></li>
       <li><strong>Instagram:</strong> <a href="https://www.instagram.com/appbudfinance" target="_blank" rel="noopener">@appbudfinance</a></li>
-      <li><strong>Site:</strong> <a href="https://budsolucoes.com.br" target="_blank" rel="noopener">budsolucoes.com.br</a></li>
+      <li><strong>Bud Finance:</strong> <a href="https://budsolucoes.com.br/budfinance/" target="_blank" rel="noopener">budsolucoes.com.br/budfinance</a></li>
       <li><strong>Responsável pelo tratamento:</strong> Bud Soluções</li>
     </ul>
 

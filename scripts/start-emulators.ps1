@@ -6,4 +6,6 @@ if (-not $java) {
 }
 
 $env:Path = (Split-Path -Parent $java.FullName) + ';' + $env:Path
-& (Join-Path $projectRoot 'node_modules\.bin\firebase.cmd') emulators:start --project bud-finance-local --only auth,firestore
+$dataDir = Join-Path $projectRoot '.firebase\emulator-data-current'
+New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
+& (Join-Path $projectRoot 'node_modules\.bin\firebase.cmd') emulators:start --project bud-finance-local --only auth,firestore --import $dataDir --export-on-exit $dataDir

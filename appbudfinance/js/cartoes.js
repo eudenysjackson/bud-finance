@@ -62,6 +62,7 @@ let gastoParaExcluir  = null;
 let gastoParaStatus   = null;  // { id, desc } ao abrir modal status
 let cartaoParaPagar   = null;
 let contaParaPagarId  = null;  // conta selecionada no modal Pagar Fatura (null = só marcar)
+let faturaParaParcelar = null;
 let cartaoImportIA    = null;  // id ao abrir modal import IA
 let itensIAExtraidos  = [];    // transações extraídas pela IA
 let _importMetaIA     = null;  // meta do PDF (totalCompras) para barra de confiabilidade
@@ -275,6 +276,8 @@ function cleanupListeners() {
 
 // DEC-034: Fatura calculada dinamicamente — sem campos denormalizados
 function calcularFatura(cartaoId, mesKey) {
+  const cartao = cartoesGlobal.find(c => c.id === cartaoId);
+  if (cartao?.faturasPagas?.[mesKey]?.parcelada) return 0;
   return transacoesGlobal
     .filter(t =>
       t.cartaoId === cartaoId &&
@@ -288,6 +291,9 @@ function calcularFatura(cartaoId, mesKey) {
 }
 
 function calcularStatusFatura(cartao, mesKey, temGastos) {
+  if (cartao.faturasPagas?.[mesKey]?.parcelada) {
+    return { label: 'Parcelada', cor: '#7c3aed', bg: 'rgba(124,58,237,0.12)' };
+  }
   if (cartao.faturasPagas?.[mesKey]) {
     return { label: 'Paga', cor: '#10b981', bg: 'rgba(16,185,129,0.12)' };
   }
@@ -357,7 +363,8 @@ function renderizarCartoes() {
     const temGastos = fatura > 0;
     const status  = calcularStatusFatura(c, mesKey, temGastos);
     const limite  = c.limite || 0;
-    const dispPct = limite > 0 ? Math.max(0, Math.min(100, ((limite - fatura) / limite) * 100)) : 100;
+    const reservado = Number(c.limiteReservado) || 0;
+    const dispPct = limite > 0 ? Math.max(0, Math.min(100, ((limite - fatura - reservado) / limite) * 100)) : 100;
     const gastos  = transacoesGlobal.filter(t =>
       t.cartaoId === c.id &&
       typeof t.dataReferencia === 'string' &&
@@ -368,7 +375,7 @@ function renderizarCartoes() {
       const db_ = b.dataReferencia || '';
       return db_ > da ? 1 : db_ < da ? -1 : 0;
     });
-    return { cartao: c, fatura, temGastos, status, limite, dispPct, gastos };
+    return { cartao: c, fatura, temGastos, status, limite, reservado, dispPct, gastos };
   });
 
   atualizarBanner(dadosCartoes);
@@ -377,8 +384,8 @@ function renderizarCartoes() {
   const exibidos = _filtroCartaoId
     ? dadosCartoes.filter(d => d.cartao.id === _filtroCartaoId)
     : dadosCartoes;
-  exibidos.forEach(({ cartao, fatura, status, limite, dispPct, gastos }, idx) => {
-    grid.appendChild(buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey, idx));
+  exibidos.forEach(({ cartao, fatura, status, limite, reservado, dispPct, gastos }, idx) => {
+    grid.appendChild(buildCartaoEl(cartao, fatura, status, limite, reservado, dispPct, gastos, mesKey, idx));
   });
 
   // Badge de mês histórico (G)
@@ -392,8 +399,9 @@ function renderizarCartoes() {
 
 function atualizarBanner(dadosCartoes) {
   const totalFat = dadosCartoes.reduce((s, d) => s + d.fatura, 0);
+  const totalReservado = dadosCartoes.reduce((s, d) => s + (d.reservado || 0), 0);
   const totalLim = cartoesGlobal.reduce((s, c) => s + (c.limite || 0), 0);
-  const dispTotal = totalLim - totalFat;
+  const dispTotal = totalLim - totalFat - totalReservado;
   const mesKey = getMesKey();
   const pagas = cartoesGlobal.filter(c => c.faturasPagas?.[mesKey]).length;
   const comGastos = dadosCartoes.filter(d => d.temGastos).length;
@@ -401,7 +409,7 @@ function atualizarBanner(dadosCartoes) {
   document.getElementById('totalFaturas').textContent         = formatBRL(totalFat);
   document.getElementById('totalFaturasSub').textContent      = `${comGastos} ${comGastos !== 1 ? 'cartões' : 'cartão'} com gastos`;
   document.getElementById('limiteDisponivel').textContent     = formatBRL(Math.max(0, dispTotal));
-  document.getElementById('limiteDisponivelSub').textContent  = `de ${formatBRL(totalLim)} total`;
+  document.getElementById('limiteDisponivelSub').textContent  = totalReservado > 0 ? `de ${formatBRL(totalLim)} total · ${formatBRL(totalReservado)} reservado` : `de ${formatBRL(totalLim)} total`;
   document.getElementById('faturasPagasCount').textContent    = `${pagas} / ${cartoesGlobal.length}`;
   document.getElementById('faturasPagasSub').textContent      = 'neste mês';
 }
@@ -435,7 +443,7 @@ function _renderizarChipsFiltro() {
   });
 }
 
-function buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey, idx = 0) {
+function buildCartaoEl(cartao, fatura, status, limite, reservado, dispPct, gastos, mesKey, idx = 0) {
   const wrapper = document.createElement('div');
   wrapper.className = 'cartao-wrapper';
   wrapper.dataset.id = cartao.id;
@@ -445,9 +453,10 @@ function buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey, 
   const band = BANDEIRA_LABELS[cartao.bandeira] || '••••';
   const lastFour = cartao.id.slice(-4).toUpperCase();
   const nome = (cartao.nome || 'Cartão').toUpperCase();
-  const limiteDisp = Math.max(0, limite - fatura);
+  const limiteDisp = Math.max(0, limite - fatura - reservado);
   const barCor = dispPct < 20 ? '#ef4444' : dispPct < 50 ? '#f59e0b' : '#10b981';
   const isPago = cartao.faturasPagas?.[mesKey];
+  const isParcelada = Boolean(isPago && typeof isPago === 'object' && isPago.parcelada);
   const ultimoDia = new Date(anoVisualizando, mesVisualizando + 1, 0).getDate();
   const extURL = `extrato.html?inicio=${mesKey}-01&fim=${mesKey}-${String(ultimoDia).padStart(2,'0')}`;
   const faturaValorCor = status?.label === 'Paga' ? '#10b981' : status?.cor === '#ef4444' ? '#ef4444' : 'var(--card-text)';
@@ -530,7 +539,7 @@ function buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey, 
           <div class="limite-bar-fill" style="width:${(100 - dispPct).toFixed(1)}%;background:${barCor};"></div>
         </div>
         <div class="limite-labels">
-          <span class="limite-label">${formatBRL(fatura)} usado de ${formatBRL(limite)}</span>
+          <span class="limite-label">${formatBRL(fatura + reservado)} usado de ${formatBRL(limite)}${reservado > 0 ? ' · ' + formatBRL(reservado) + ' parcelado' : ''}</span>
           <span class="limite-label" style="color:${barCor};font-weight:700;">${(100 - dispPct).toFixed(0)}%</span>
         </div>
       </div>
@@ -539,9 +548,10 @@ function buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey, 
       <div class="cartao-actions">
         <button class="cartao-btn" data-add-gasto="${cartao.id}">+ Gasto</button>
         <button class="cartao-btn" data-import-ia="${cartao.id}" title="Importar fatura com IA">📥 Fatura IA</button>
-        <button class="cartao-btn cartao-btn-cta" data-pagar="${cartao.id}" style="${isPago ? 'border-color:#10b981;color:#10b981;' : ''}">
-          ${isPago ? '✓ Paga' : 'Pagar Fatura'}
+        <button class="cartao-btn cartao-btn-cta" data-pagar="${cartao.id}" style="${isParcelada ? 'border-color:#7c3aed;color:#7c3aed;' : (isPago ? 'border-color:#10b981;color:#10b981;' : '')}">
+          ${isParcelada ? '↪ Parcelada' : (isPago ? '✓ Paga' : 'Pagar Fatura')}
         </button>
+        ${fatura > 0 && !isPago ? `<button class="cartao-btn" data-parcelar="${cartao.id}" title="Parcelar esta fatura">↪ Parcelar</button>` : ''}
         <a class="cartao-btn cartao-btn-icon" href="${extURL}" title="Ver no Extrato" style="text-decoration:none;display:flex;align-items:center;justify-content:center;">📊</a>
         <button class="cartao-btn cartao-btn-icon cartao-btn-danger" data-del-cartao="${cartao.id}" title="Excluir cartão">🗑</button>
       </div>
@@ -572,6 +582,7 @@ function buildCartaoEl(cartao, fatura, status, limite, dispPct, gastos, mesKey, 
   wrapper.querySelector(`[data-pagar="${cartao.id}"]`)?.addEventListener('click', () => {
     abrirModalPagarFatura(cartao.id, fatura);
   });
+  wrapper.querySelector(`[data-parcelar="${cartao.id}"]`)?.addEventListener('click', () => abrirModalParcelarFatura(cartao.id, fatura));
   wrapper.querySelector(`[data-del-cartao="${cartao.id}"]`)?.addEventListener('click', () => {
     abrirModalExcluirCartao(cartao.id, cartao.nome);
   });
@@ -632,6 +643,9 @@ function setupModais() {
   // Modal Pagar Fatura
   document.getElementById('btnCancelarPagarFatura')?.addEventListener('click', fecharModalPagarFatura);
   document.getElementById('btnConfirmarPagarFatura')?.addEventListener('click', confirmarPagarFatura);
+  document.getElementById('btnCancelarParcelarFatura')?.addEventListener('click', fecharModalParcelarFatura);
+  document.getElementById('btnConfirmarParcelarFatura')?.addEventListener('click', confirmarParcelarFatura);
+  ['inputEntradaParcelamento', 'inputNParcelasFatura', 'inputJurosParcelamento'].forEach(id => document.getElementById(id)?.addEventListener('input', atualizarResumoParcelamento));
 
   // Modal Excluir Cartão
   document.getElementById('btnCancelarExcluirCartao')?.addEventListener('click', fecharModalExcluirCartao);
@@ -855,9 +869,9 @@ async function handleSubmitCartao(e) {
     if (!vencimento || vencimento < 1 || vencimento > 31) { showToast('Dia de vencimento inválido (1–31).', 'erro'); return; }
 
     // Verificar limite de plano
-    if (!cartaoEditandoId && window.NexoPlanos) {
+    if (!cartaoEditandoId && window.BudPlanos) {
       const perfilPlano = window._cartoesUserPlano || null;
-      const limiteCartoes = window.NexoPlanos.getCardsLimit?.(perfilPlano);
+      const limiteCartoes = window.BudPlanos.getCardsLimit?.(perfilPlano);
       if (Number.isFinite(limiteCartoes) && cartoesGlobal.length >= limiteCartoes) {
         showToast(`Limite de ${limiteCartoes} cartão(ões) atingido no plano atual.`, 'erro');
         return;
@@ -1075,6 +1089,133 @@ async function handleSubmitGasto(e) {
   }
 }
 
+function atualizarResumoParcelamento() {
+  if (!faturaParaParcelar) return;
+  const entrada = Math.max(0, Number(document.getElementById('inputEntradaParcelamento').value) || 0);
+  const n = Math.max(2, Math.floor(Number(document.getElementById('inputNParcelasFatura').value) || 2));
+  const juros = Math.max(0, Number(document.getElementById('inputJurosParcelamento').value) || 0) / 100;
+  const principal = Math.max(0, faturaParaParcelar.fatura - entrada);
+  const parcela = juros > 0 ? principal * juros * Math.pow(1 + juros, n) / (Math.pow(1 + juros, n) - 1) : principal / n;
+  const total = parcela * n;
+  document.getElementById('resumoParcelamento').innerHTML = `Financiado: <strong>${formatBRL(principal)}</strong> · ${n}x de <strong>${formatBRL(parcela)}</strong><br><span style="font-size:.75rem;">Total com juros: ${formatBRL(total)}. Este valor ficará reservado no limite.</span>`;
+}
+
+async function abrirModalParcelarFatura(cartaoId, fatura) {
+  faturaParaParcelar = { cartaoId, fatura };
+  const cartao = cartoesGlobal.find(c => c.id === cartaoId);
+  const hoje = new Date();
+  const venc = new Date(hoje.getFullYear(), hoje.getMonth() + 1, Number(cartao?.vencimento) || 10);
+  document.getElementById('infoParcelarFatura').textContent = `Fatura de ${MESES_PT[mesVisualizando]}: ${formatBRL(fatura)}`;
+  document.getElementById('inputEntradaParcelamento').value = '0';
+  document.getElementById('inputNParcelasFatura').value = '6';
+  document.getElementById('inputJurosParcelamento').value = '0';
+  document.getElementById('inputVencimentoParcelamento').value = venc.toISOString().slice(0, 10);
+  const opcoesConta = [{ id: '', nome: 'Registrar entrada sem descontar conta' }];
+  try {
+    const contas = await getDocs(query(collection(db, 'usuarios', uid, 'carteira'), where('tipo', '!=', 'credito'), limit(50)));
+    contas.docs.forEach(d => {
+      const c = d.data();
+      opcoesConta.push({ id: d.id, nome: c.nome || c.tipo || 'Conta' });
+    });
+  } catch (_) {}
+  configurarContaEntradaParcelamento(opcoesConta);
+  atualizarResumoParcelamento();
+  document.getElementById('modalParcelarFatura').classList.add('open');
+}
+
+function configurarContaEntradaParcelamento(opcoes) {
+  const input = document.getElementById('inputContaEntrada');
+  const trigger = document.getElementById('triggerContaEntradaParcelamento');
+  const label = document.getElementById('labelContaEntradaParcelamento');
+  const dropdown = document.getElementById('dropdownContaEntradaParcelamento');
+  if (!input || !trigger || !label || !dropdown) return;
+
+  input.value = '';
+  label.textContent = opcoes[0].nome;
+  dropdown.innerHTML = opcoes.map((conta, index) =>
+    `<div class="custom-select-option${index === 0 ? ' selected' : ''}" role="option" data-value="${escHtml(conta.id)}">${escHtml(conta.nome)}</div>`
+  ).join('');
+
+  const fechar = () => {
+    dropdown.classList.remove('open');
+    trigger.classList.remove('open');
+    trigger.setAttribute('aria-expanded', 'false');
+  };
+  trigger.onclick = (event) => {
+    event.stopPropagation();
+    const abrir = !dropdown.classList.contains('open');
+    document.querySelectorAll('.custom-select-dropdown.open').forEach(el => el.classList.remove('open'));
+    document.querySelectorAll('.custom-select-trigger.open').forEach(el => el.classList.remove('open'));
+    if (abrir) {
+      dropdown.classList.add('open');
+      trigger.classList.add('open');
+      trigger.setAttribute('aria-expanded', 'true');
+    } else fechar();
+  };
+  dropdown.onclick = (event) => {
+    const option = event.target.closest('.custom-select-option');
+    if (!option) return;
+    input.value = option.dataset.value || '';
+    label.textContent = option.textContent;
+    dropdown.querySelectorAll('.custom-select-option').forEach(el => el.classList.toggle('selected', el === option));
+    fechar();
+  };
+  if (!window._contaEntradaParcelamentoOutsideClick) {
+    window._contaEntradaParcelamentoOutsideClick = true;
+    document.addEventListener('click', event => {
+      if (!event.target.closest('#wrapContaEntradaParcelamento')) fechar();
+    });
+  }
+}
+
+function fecharModalParcelarFatura() { document.getElementById('modalParcelarFatura').classList.remove('open'); faturaParaParcelar = null; }
+
+async function confirmarParcelarFatura() {
+  if (!faturaParaParcelar) return;
+  const { cartaoId, fatura } = faturaParaParcelar;
+  const cartao = cartoesGlobal.find(c => c.id === cartaoId);
+  const entrada = Math.max(0, Number(document.getElementById('inputEntradaParcelamento').value) || 0);
+  const n = Math.floor(Number(document.getElementById('inputNParcelasFatura').value) || 0);
+  const taxa = Math.max(0, Number(document.getElementById('inputJurosParcelamento').value) || 0) / 100;
+  const vencimento = document.getElementById('inputVencimentoParcelamento').value;
+  const contaId = document.getElementById('inputContaEntrada').value || null;
+  if (entrada > fatura || n < 2 || !vencimento) return showToast('Revise a entrada, parcelas e vencimento.', 'erro');
+  const principal = fatura - entrada;
+  const valorParcela = taxa > 0 ? principal * taxa * Math.pow(1 + taxa, n) / (Math.pow(1 + taxa, n) - 1) : principal / n;
+  const total = Math.round(valorParcela * n * 100) / 100;
+  const btn = document.getElementById('btnConfirmarParcelarFatura'); btn.disabled = true;
+  try {
+    const batch = writeBatch(db);
+    const cartaoRef = doc(db, 'usuarios', uid, 'carteira', cartaoId);
+    const dividaRef = doc(collection(db, 'usuarios', uid, 'dividas'));
+    const mesKey = getMesKey();
+    const faturasPagas = { ...(cartao.faturasPagas || {}), [mesKey]: { parcelada: true, valorOriginal: fatura, entrada, totalFinanciado: total, dividaId: dividaRef.id } };
+    // O parcelamento é uma dívida, não uma recorrência: o principal e a taxa
+    // ficam separados para que a tela de Dívidas calcule corretamente cada
+    // parcela e acompanhe a quitação. O cartão guarda o valor reservado.
+    batch.set(dividaRef, {
+      nome: `Parcelamento fatura ${cartao.nome || 'Cartão'}`,
+      tipo: 'parcelamento_fatura', origem: 'cartao_credito', cartaoId,
+      valorTotal: Math.round(principal * 100) / 100,
+      valorFinanciado: Math.round(principal * 100) / 100,
+      valorTotalComJuros: total,
+      valorParcela: Math.round(valorParcela * 100) / 100,
+      parcelas: n, parcelasPagas: 0, valorPago: 0,
+      vencimento, juros: taxa * 100, taxaMensal: taxa * 100,
+      ativo: true, status: 'ativa', categoria: 'Cartão de Crédito',
+      criadoEm: serverTimestamp()
+    });
+    batch.update(cartaoRef, { faturasPagas, limiteReservado: (Number(cartao.limiteReservado) || 0) + total });
+    if (entrada > 0 && contaId) {
+      const txRef = doc(collection(db, 'usuarios', uid, 'transacoes'));
+      const hoje = new Date(); const dataRef = hoje.toISOString().slice(0, 10);
+      batch.set(txRef, { tipo:'despesa', descricao:`Entrada parcelamento fatura ${cartao.nome || 'Cartão'}`, categoria:'Cartão de Crédito', valor:entrada, dataReferencia:dataRef, data:Timestamp.fromDate(hoje), carteiraId:contaId, pagamentoFatura:true, origem:'entrada_parcelamento_fatura', status:'ativa', dataCriacao:serverTimestamp() });
+      const contaSnap = await getDoc(doc(db, 'usuarios', uid, 'carteira', contaId)); if (contaSnap.exists()) batch.update(contaSnap.ref, { saldo:(Number(contaSnap.data().saldo) || 0) - entrada });
+    }
+    await batch.commit(); fecharModalParcelarFatura(); showToast('Parcelamento criado em Dívidas. O limite ficou reservado.', 'ok');
+  } catch (_) { showToast('Não foi possível criar o parcelamento.', 'erro'); } finally { btn.disabled = false; }
+}
+
 // ─── Modal Pagar Fatura ──────────────────────────────────────────────────────
 
 function abrirModalPagarFatura(cartaoId, fatura) {
@@ -1089,6 +1230,19 @@ function abrirModalPagarFatura(cartaoId, fatura) {
   const info  = document.getElementById('infoPagarFatura');
   const btn   = document.getElementById('btnConfirmarPagarFatura');
   const wrapConta = document.getElementById('wrapContaFatura');
+
+  if (isPago && typeof isPago === 'object' && isPago.parcelada) {
+    cartaoParaPagar.parceladaInfo = true;
+    title.textContent = 'Fatura parcelada';
+    sub.textContent = 'As parcelas aparecem nos lembretes da Dashboard e liberam o limite do cartão à medida que forem pagas.';
+    info.textContent = `Saldo financiado: ${formatBRL(isPago.totalFinanciado || 0)}`;
+    info.style.color = '#6d28d9'; info.style.background = 'rgba(124,58,237,.08)'; info.style.borderColor = 'rgba(124,58,237,.2)';
+    btn.textContent = 'Entendi'; btn.style.background = '#7c3aed';
+    btn.onclick = fecharModalPagarFatura;
+    if (wrapConta) wrapConta.style.display = 'none';
+    document.getElementById('modalPagarFatura').classList.add('open');
+    return;
+  }
 
   if (isPago) {
     title.textContent = 'Desfazer pagamento?';
@@ -1112,6 +1266,7 @@ function abrirModalPagarFatura(cartaoId, fatura) {
   info.style.borderColor = 'rgba(16,185,129,0.2)';
   btn.textContent   = '✓ Confirmar Pagamento';
   btn.style.background = '#10b981';
+  btn.onclick = confirmarPagarFatura;
 
   document.getElementById('modalPagarFatura').classList.add('open');
 
@@ -1186,6 +1341,7 @@ function fecharModalPagarFatura() {
 
 async function confirmarPagarFatura() {
   if (!cartaoParaPagar) return;
+  if (cartaoParaPagar.parceladaInfo) { fecharModalPagarFatura(); return; }
   const { cartaoId, fatura } = cartaoParaPagar;
   const mesKey = getMesKey();
   const c = cartoesGlobal.find(x => x.id === cartaoId);
@@ -1697,13 +1853,12 @@ function abrirModalImportIA(cartaoId, manterArquivo = false) {
     _importMetaIA = null;
   }
 
-  // Preencher mês/ano com o PRÓXIMO mês (mês de pagamento da fatura)
-  // A fatura que você importa hoje vence no mês seguinte, não no atual
+  // A fatura deve ser salva na competência que o usuário está visualizando.
+  // Sugerir o mês seguinte fazia uma fatura de setembro parecer zerada ao
+  // voltar para setembro, apesar de as compras terem sido importadas em outubro.
   const anoEl = document.getElementById('iaAno');
-  const proxMes = mesVisualizando === 11 ? 0 : mesVisualizando + 1;
-  const proxAno = mesVisualizando === 11 ? anoVisualizando + 1 : anoVisualizando;
-  _setIaMes(String(proxMes + 1).padStart(2, '0'));
-  if (anoEl) anoEl.value = String(proxAno);
+  _setIaMes(String(mesVisualizando + 1).padStart(2, '0'));
+  if (anoEl) anoEl.value = String(anoVisualizando);
 
   document.getElementById('modalImportIA').classList.add('open');
 }
@@ -1865,12 +2020,13 @@ async function _extrairMetaPdfClientSide(file) {
       return Math.max(...candidatos);
     }
 
-    // "Total a pagar" — tentar primeiro a frase mais específica do Nubank
-    // ("Pagamento total da fatura"), que aparece no card de opções de pagamento
-    // e está sempre próxima do valor correto. Fallback: "total a pagar".
-    meta.totalAPagar =
-      maiorValorAposAncora(/pagamento\s+total\s+d[ao]\s+fatura/i, 200) ||
-      maiorValorAposAncora(/total\s+a\s+pagar/i, 400);
+    // Prioriza o total explicitamente atribuído à fatura. "Total a pagar"
+    // também aparece em simulações de financiamento e pode ter outro valor.
+    const totalExplicito = texto.match(/total\s*(?:da\s*(?:(?:sua|a)\s*)?|desta\s*)fatura[\s\S]{0,80}?(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+    meta.totalAPagar = totalExplicito
+      ? parseVal(totalExplicito[1])
+      : (maiorValorAposAncora(/pagamento\s+total\s+d[ao]\s+fatura/i, 200) ||
+         maiorValorAposAncora(/total\s+a\s+pagar/i, 400));
 
     // "Total de compras (de todos os cartões)" — pega o maior na janela
     meta.totalCompras = maiorValorAposAncora(
@@ -1974,9 +2130,11 @@ async function enviarParaIA() {
     formData.append('arquivo', file);
     formData.append('tipo', 'fatura'); // informa backend que é fatura de cartão, não extrato
 
+    const idToken = await auth.currentUser.getIdToken();
     const resp = await fetch(`${BUD_BACKEND_URL}/api/extrair-fatura`, {
       method: 'POST',
       body: formData,
+      headers: { Authorization: `Bearer ${idToken}` },
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
@@ -2010,7 +2168,8 @@ async function enviarParaIA() {
       const metaCliente = await _extrairMetaPdfClientSide(file);
       if (metaCliente) {
         _importMetaIA = _importMetaIA || {};
-        if (!_importMetaIA.totalAPagar && metaCliente.totalAPagar) {
+        // O total explícito encontrado no próprio PDF vence o retorno da IA.
+        if (metaCliente.totalAPagar) {
           _importMetaIA.totalAPagar = metaCliente.totalAPagar;
         }
         if (!_importMetaIA.totalCompras && metaCliente.totalCompras) {
@@ -2035,9 +2194,12 @@ async function enviarParaIA() {
 
   } catch (err) {
     clearTimeout(timeoutId);
+    const falhaRede = err instanceof TypeError && /failed to fetch|networkerror|load failed/i.test(err.message || '');
     const msg = err.name === 'AbortError'
       ? 'Tempo limite excedido (45s). Tente um arquivo menor ou use OFX.'
-      : (err.message || 'Falha ao processar arquivo.');
+      : falhaRede
+        ? 'O servidor de leitura por IA está indisponível. Tente novamente mais tarde ou importe um arquivo OFX.'
+        : (err.message || 'Falha ao processar arquivo.');
     showToast(msg, 'erro');
     if (uploadArea) uploadArea.style.display = '';
     if (progress) progress.style.display = 'none';
@@ -2180,9 +2342,12 @@ function processarItensIA(itens) {
       parcelado,
       parcelaAtual,
       totalParcelas,
-      // Se parcelado E ainda há parcelas futuras, ativa "expandir" por padrão
-      expandirParcelas: parcelado && totalParcelas > parcelaAtual,
-      selecionado: status === 'ativa',  // estornados/cancelados vêm desmarcados
+      // A fatura importada representa apenas o mês selecionado. Parcelas futuras
+      // só podem ser criadas quando a pessoa optar por isso na revisão.
+      expandirParcelas: false,
+      // Em faturas, juros/multas/IOF detalhados também compõem o total devido.
+      // Mantemos o selo de encargo para transparência, mas já os incluímos.
+      selecionado: status === 'ativa' || (_importMetaIA?.fonte === 'pdf' && status === 'encargo'),
     };
   }).filter(item => item.valor > 0 || item.status !== 'ativa'); // remove itens com valor 0 que não são especiais
 
@@ -2213,6 +2378,32 @@ function processarItensIA(itens) {
     }
   }
 
+  // O total a pagar de uma fatura pode incluir saldo líquido da fatura anterior
+  // (saldo anterior, pagamentos e créditos), que não aparece no detalhamento de
+  // compras. Registramos essa diferença separadamente para a fatura do mês fechar
+  // no mesmo valor do banco, sem transformar esse saldo em compra ou parcela futura.
+  if (_fonte === 'pdf' && totalAPagarRef > 0) {
+    const totalSelecionado = itensProcessados
+      .filter(i => i.selecionado && i.status !== 'estornado' && i.status !== 'cancelado')
+      .reduce((s, i) => s + i.valor, 0);
+    const ajuste = Math.round((totalAPagarRef - totalSelecionado) * 100) / 100;
+    if (ajuste > 0.01) {
+      itensProcessados.push({
+        desc: 'Saldo anterior e ajustes da fatura',
+        valor: ajuste,
+        dataRaw: '',
+        status: 'ativa',
+        categoria: 'Outros',
+        parcelado: false,
+        parcelaAtual: null,
+        totalParcelas: null,
+        expandirParcelas: false,
+        ajusteFatura: true,
+        selecionado: true,
+      });
+    }
+  }
+
   return itensProcessados;
 }
 
@@ -2231,7 +2422,7 @@ function detectarCategoriaIA(desc) {
     // Delivery
     { cat: 'Delivery/Ifood',    words: ['ifood', 'ifd*', 'rappi', 'ze delivery', 'zé delivery', 'delivery'] },
     // Streaming / Assinaturas
-    { cat: 'Assinaturas/Streaming', words: ['netflix', 'spotify', 'amazon prime', 'amazon music', 'youtube premium', 'youtube music', 'globoplay', 'disney', 'hbo', 'paramount', 'apple tv', 'apple one', 'chatgpt', 'openai', 'github', 'notion', 'figma', 'canva', 'adobe', 'office 365', 'google one', 'dropbox', 'icloud', 'deezer', 'assinatura mensal', 'assinatura anual'] },
+    { cat: 'Assinaturas/Streaming', words: ['netflix', 'spotify', 'amazon prime', 'amazon music', 'youtube premium', 'youtube music', 'globoplay', 'disney', 'hbo', 'paramount', 'apple.com/bill', 'apple com bill', 'apple bill', 'itunes', 'apple tv', 'apple one', 'chatgpt', 'openai', 'github', 'notion', 'figma', 'canva', 'adobe', 'office 365', 'google one', 'dropbox', 'icloud', 'deezer', 'assinatura mensal', 'assinatura anual'] },
     // Mercado / Supermercado
     { cat: 'Mercado',           words: ['carrefour', 'assai', 'assaí', 'pao de acucar', 'pão de açúcar', 'extra mercado', 'atacadao', 'atacadão', 'aldi', 'lidl', 'walmart', 'sam\'s club', 'costco', 'makro', 'supermercado', 'supermarket', 'hortifruti', 'prezunic', 'guanabara', 'mundial'] },
     // Farmácia / Saúde
@@ -2241,7 +2432,7 @@ function detectarCategoriaIA(desc) {
     { cat: 'Academia/Esportes', words: ['academia', 'smart fit', 'smartfit', 'bluefit', 'crossfit', 'wellhub', 'gympass'] },
     { cat: 'Consultas/Exames',  words: ['hospital', 'clinica', 'clínica', 'laboratorio', 'laboratório', 'exame', 'consulta', 'fisioterapia', 'biomedicina'] },
     // Restaurante / Lanchonete
-    { cat: 'Restaurante',       words: ['restaurante', 'pizzaria', 'hamburgueria', 'churrascaria', 'mcdonalds', 'mcdonald', 'burger king', 'bk', 'subway', 'kfc', 'dominos', 'domino\'s', 'giraffas', 'habib', 'outback', 'ciao', 'sushi', 'temakeria', 'cantina', 'bistro', 'bistrô', 'bar e', 'choperia', 'taberna', 'trattoria'] },
+    { cat: 'Restaurante',       words: ['restaurante', 'espetto carioca', 'espeto carioca', 'espetto', 'pizzaria', 'hamburgueria', 'churrascaria', 'mcdonalds', 'mcdonald', 'burger king', 'bk', 'subway', 'kfc', 'dominos', 'domino\'s', 'giraffas', 'habib', 'outback', 'ciao', 'sushi', 'temakeria', 'cantina', 'bistro', 'bistrô', 'bar e', 'choperia', 'taberna', 'trattoria'] },
     // Padaria / Café
     { cat: 'Padaria/Café',      words: ['starbucks', 'padaria', 'panificadora', 'confeitaria', 'cafe', 'café', 'bakery', 'pao', 'pão', 'nespresso', 'tres coracoes', '3 corações'] },
     // Combustível
@@ -2275,6 +2466,21 @@ function detectarCategoriaIA(desc) {
   for (const regra of regras) {
     if (regra.words.some(w => d.includes(w))) return regra.cat;
   }
+
+  // Em faturas, transferências Pix no crédito podem vir somente com o nome do
+  // favorecido. As regras de estabelecimentos acima têm prioridade para evitar
+  // que nomes comerciais conhecidos sejam confundidos com transferências.
+  const semDocumento = d
+    .replace(/^\s*(?:cpf|cnpj)?\s*\d{2,3}[.\s]?\d{3}[.\s]?\d{3}(?:[\/.-]\d{2,4})?(?:-\d{2})?\s*/i, '')
+    .trim();
+  const temDocumentoNoInicio = semDocumento !== d.trim();
+  const tokensNome = semDocumento.split(/\s+/).filter(Boolean);
+  const conectoresNome = new Set(['da', 'das', 'de', 'do', 'dos', 'e']);
+  const pareceNomeCompleto = tokensNome.length >= 3 && tokensNome.length <= 7 &&
+    tokensNome.every(token => conectoresNome.has(token) || /^[a-z]{2,}$/i.test(token));
+  const pareceRazaoSocial = /\b(ltda|eireli|mei|me|sa|s\/a|comercio|servicos|solucoes|empreendimentos)\b/i.test(semDocumento);
+
+  if (temDocumentoNoInicio || pareceNomeCompleto || pareceRazaoSocial) return 'Pix no Crédito';
 
   return 'Outros';
 }
@@ -2561,6 +2767,8 @@ async function salvarTransacoesIA() {
           status: item.status || 'ativa',
           dataCriacao: serverTimestamp(),
         };
+
+        if (item.ajusteFatura) docData.ajusteFatura = true;
 
         if (item.parcelado && item.parcelaAtual && item.totalParcelas) {
           docData.parcelado = true;

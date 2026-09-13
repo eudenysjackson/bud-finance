@@ -404,10 +404,7 @@ window.fecharModal = function () {
   _fecharOutrosDropdowns('');
 };
 
-// Fecha ao clicar no overlay
-document.getElementById('modalInvestimento').addEventListener('click', e => {
-  if (e.target === document.getElementById('modalInvestimento')) window.fecharModal();
-});
+// O formulário fecha apenas pelos controles próprios, preservando o preenchimento.
 
 // ─── Preview rendimento no modal ──────────────────────────────────────────
 window._atualizarRendCalc = function () {
@@ -601,7 +598,7 @@ function renderizarAlertaDiversificacao() {
 
   if (pct > 60) {
     al.style.display  = 'block';
-    al.style.cssText  = 'display:block;border-radius:1rem;padding:0.875rem 1rem;font-size:0.875rem;font-weight:600;margin-bottom:1rem;background:var(--card-bg);border:1.5px solid rgba(217,119,6,0.5);border-left:4px solid #d97706;color:#d97706;';
+    al.style.cssText  = 'display:block;border-radius:1rem;padding:0.875rem 1rem;font-size:0.875rem;font-weight:600;margin-bottom:1rem;background:var(--card-bg);border:1.5px solid rgba(217,119,6,0.5);color:#d97706;';
     al.innerHTML      = `⚠️ <strong>${escapeHTML(tipoMax[0])}</strong> representa ${pct.toFixed(0)}% da sua carteira. Considere diversificar para reduzir riscos.`;
   } else {
     al.style.display = 'none';

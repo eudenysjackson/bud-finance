@@ -12,8 +12,7 @@
  * Ao concluir salva em usuarios/{uid} (flat doc, NÃO perfil/config):
  *   onboardingConcluido: true, comoConheceu, nome
  * + cria carteira em usuarios/{uid}/carteira
- * + cria transação + recorrente para renda (se informado)
- * + cria transação + recorrente para despesa (se informado)
+ * + cria previsões recorrentes para renda e despesa (sem movimentar saldo)
  *
  * Firebase SDK Modular v10.8.1 | ES Module
  */
@@ -182,15 +181,6 @@ function calcPrimeiraData(diaVencimento) {
     candidata.setHours(0, 0, 0, 0);
   }
   return candidata;
-}
-
-/** Cria um Date no mês atual com o dia fornecido (hora 12:00 para evitar timezone shift). */
-function dataAtualDia(dia) {
-  const hoje  = new Date();
-  const ano   = hoje.getFullYear();
-  const mes   = hoje.getMonth();
-  const maxDia = new Date(ano, mes + 1, 0).getDate();
-  return new Date(ano, mes, Math.min(Math.max(1, dia), maxDia), 12, 0, 0);
 }
 
 // ─── Validar passo ─────────────────────────────────────────────────────────
@@ -406,26 +396,14 @@ async function concluirOnboarding() {
     // ── 4. Criar renda (se preenchida) ────────────────────────────
     if (!dados.rendaPulada && dados.rendaValor > 0 && dados.rendaDia > 0) {
       const descRenda = san(dados.rendaDesc).substring(0, 80) || 'Salário Principal';
-      const dataRenda = dataAtualDia(dados.rendaDia);
       const proxRenda = calcPrimeiraData(dados.rendaDia);
 
-      // Transação do mês atual
-      await addDoc(collection(db, 'usuarios', uid, 'transacoes'), {
-        descricao:   descRenda,
-        valor:       dados.rendaValor,
-        categoria:   'Salário',
-        data:        Timestamp.fromDate(dataRenda),
-        tipo:        'receita',
-        carteiraId:  contaPrincipalId,
-        contaId:     contaPrincipalId,
-        dataCriacao: serverTimestamp(),
-      });
-
-      // Recorrente mensal
+      // Previsão mensal: só vira transação depois da confirmação do usuário.
       await addDoc(collection(db, 'usuarios', uid, 'recorrentes'), {
         descricao:      descRenda,
         tipo:           'receita',
         valor:          dados.rendaValor,
+        valorPrevisto:  dados.rendaValor,
         categoria:      'Salário',
         formaPagamento: 'Outro',
         cartaoId:       null,
@@ -436,6 +414,7 @@ async function concluirOnboarding() {
         periodicidade:  'mensal',
         diaVencimento:  dados.rendaDia,
         proximaData:    Timestamp.fromDate(proxRenda),
+        exigeConfirmacao: true,
         ativa:          true,
         criadoEm:       serverTimestamp(),
         atualizadoEm:   serverTimestamp(),
@@ -448,27 +427,23 @@ async function concluirOnboarding() {
       if (dados.despesaTipo === 'Outra' && dados.despesaNome) {
         descDespesa = san(dados.despesaNome).substring(0, 80);
       }
-      const dataDespesa = dataAtualDia(dados.despesaDia);
       const proxDespesa = calcPrimeiraData(dados.despesaDia);
 
-      // Transação do mês atual
-      await addDoc(collection(db, 'usuarios', uid, 'transacoes'), {
-        descricao:   descDespesa,
-        valor:       dados.despesaValor,
-        categoria:   'Moradia',
-        data:        Timestamp.fromDate(dataDespesa),
-        tipo:        'despesa',
-        carteiraId:  contaPrincipalId,
-        contaId:     contaPrincipalId,
-        dataCriacao: serverTimestamp(),
-      });
+      const categoriaDespesa = ({
+        'Aluguel': 'Aluguel',
+        'Condomínio': 'Condomínio',
+        'Energia': 'Luz',
+        'Água': 'Água',
+        'Internet': 'Internet/TV',
+      })[dados.despesaTipo] || 'Outros';
 
-      // Recorrente mensal
+      // Previsão mensal: valor/data reais serão confirmados na dashboard.
       await addDoc(collection(db, 'usuarios', uid, 'recorrentes'), {
         descricao:      descDespesa,
         tipo:           'despesa',
         valor:          dados.despesaValor,
-        categoria:      'Moradia',
+        valorPrevisto:  dados.despesaValor,
+        categoria:      categoriaDespesa,
         formaPagamento: 'Outro',
         cartaoId:       null,
         cartaoNome:     null,
@@ -478,6 +453,7 @@ async function concluirOnboarding() {
         periodicidade:  'mensal',
         diaVencimento:  dados.despesaDia,
         proximaData:    Timestamp.fromDate(proxDespesa),
+        exigeConfirmacao: true,
         ativa:          true,
         criadoEm:       serverTimestamp(),
         atualizadoEm:   serverTimestamp(),

@@ -1,0 +1,277 @@
+/* Bud Finance — base responsiva compartilhada das telas autenticadas */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.42) transparent;
+  scrollbar-gutter: auto;
+}
+*::-webkit-scrollbar { width: 4px; height: 4px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.42);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.62); }
+
+@media (max-width: 768px) {
+  html, body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .dash-layout { width: 100%; min-width: 0; }
+  .dash-main {
+    width: 100%;
+    min-width: 0;
+    margin-left: 0 !important;
+    padding: 0.875rem !important;
+  }
+
+  .dash-header,
+  .relatorio-header,
+  .comparativo-header,
+  .insights-header {
+    width: 100%;
+    min-width: 0;
+    gap: 0.5rem !important;
+    margin-bottom: 0.875rem !important;
+  }
+
+  .dash-welcome,
+  .dash-header > div,
+  .relatorio-header > div:first-child,
+  .comparativo-header > div:first-child,
+  .insights-header > div:first-child { min-width: 0; }
+
+  .relatorio-header > div:first-child > div,
+  .comparativo-header > div:first-child > div,
+  .insights-header > div:first-child > div { min-width: 0; flex: 1; }
+
+  .dash-header h1,
+  .relatorio-header h1,
+  .comparativo-header h1,
+  .insights-header h1 {
+    font-size: 1.125rem !important;
+    line-height: 1.2 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dash-header p,
+  .relatorio-header p,
+  .comparativo-header p,
+  .insights-header p {
+    font-size: 0.6875rem !important;
+    line-height: 1.35 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hamburger-btn { width: 2.35rem !important; height: 2.35rem !important; flex: 0 0 2.35rem; }
+
+  .page-subnav,
+  .pill-bar,
+  .cfg-tabs,
+  .tabs-wrap {
+    width: 100%;
+    gap: 0.25rem !important;
+    margin-bottom: 0.875rem !important;
+    padding: 0.4rem 0.5rem !important;
+    border-radius: 0.875rem !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap !important;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+  .page-subnav::-webkit-scrollbar,
+  .pill-bar::-webkit-scrollbar,
+  .cfg-tabs::-webkit-scrollbar,
+  .tabs-wrap::-webkit-scrollbar { height: 3px; }
+  .page-subnav a,
+  .pill-btn { font-size: 0.75rem !important; padding: 0.4rem 0.7rem !important; }
+  .cfg-tab-btn,
+  .tabs-wrap .tab-btn { flex: 0 0 auto !important; white-space: nowrap; }
+
+  .cards-grid,
+  .summary-grid,
+  .comp-cards-grid,
+  .charts-grid-2 {
+    gap: 0.75rem !important;
+    margin-bottom: 0.875rem !important;
+  }
+
+  .summary-card,
+  .section-card,
+  .dash-section,
+  .conta-card,
+  .meta-card {
+    border-radius: 1rem !important;
+    padding: 1rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .quick-actions { gap: 0.625rem !important; margin-bottom: 0.875rem !important; }
+  .quick-btn { min-width: 0; padding: 0.75rem !important; }
+
+  /* Cartões: o título mantém prioridade; a ação vira um botão de ícone. */
+  .cartoes-header { align-items: flex-start !important; }
+  .cartoes-header .dash-welcome { padding-top: 0.125rem; }
+  .cartoes-new-action {
+    flex: 0 0 2.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    min-height: 2.5rem;
+    justify-content: center;
+    padding: 0 !important;
+    border-radius: 0.75rem !important;
+    font-size: 1.25rem !important;
+  }
+  .cartoes-new-action-label { display: none; }
+  .mes-nav { padding: 0.625rem 0.75rem !important; margin-bottom: 0.875rem !important; border-radius: 1rem !important; }
+  .banner-resumo {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.875rem !important;
+    padding: 1.125rem !important;
+    margin-bottom: 0.875rem !important;
+    border-radius: 1.125rem !important;
+  }
+  .banner-resumo .banner-stat,
+  .banner-resumo .banner-stat[style] { text-align: left !important; }
+  .banner-stat-value { font-size: 1.25rem !important; }
+  .cartoes-grid { grid-template-columns: minmax(0, 1fr) !important; gap: 0.875rem !important; }
+  .cartao-wrapper { min-width: 0; padding: 1rem !important; gap: 0.875rem !important; border-radius: 1.125rem !important; }
+  .credit-card { padding: 1rem !important; border-radius: 0.875rem !important; }
+  .cartao-fatura-valor { font-size: 1.25rem !important; }
+  .cartao-actions { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.35fr) 2.25rem; gap: 0.375rem !important; }
+  .cartao-btn { min-width: 0; padding: 0.55rem 0.35rem !important; overflow: hidden; text-overflow: ellipsis; }
+  .cartao-btn-icon { width: 2.25rem !important; padding: 0 !important; }
+
+  /* Recorrentes: duas ações não devem roubar a largura do título. */
+  .recorrentes-header { align-items: flex-start !important; }
+  .recorrentes-actions { flex: 0 0 auto !important; flex-wrap: nowrap !important; }
+  .recorrentes-actions button {
+    width: 2.5rem;
+    height: 2.5rem;
+    min-height: 2.5rem;
+    justify-content: center;
+    padding: 0 !important;
+    border-radius: 0.75rem !important;
+    font-size: 1rem !important;
+  }
+  .recorrentes-action-label { display: none; }
+
+  /* Cabeçalhos com ações: padrão único de ícones no mobile. */
+  .limites-header,
+  .dividas-header,
+  .investimentos-header,
+  .categorias-header { align-items: flex-start !important; flex-wrap: nowrap !important; }
+  .limites-actions,
+  .dividas-actions,
+  .investimentos-actions { flex: 0 0 auto !important; flex-wrap: nowrap !important; }
+  .limites-actions button,
+  .dividas-actions button,
+  .investimentos-actions button,
+  .mobile-primary-action {
+    display: flex !important;
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+    min-height: 2.5rem !important;
+    flex: 0 0 2.5rem !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 0 !important;
+    border-radius: 0.75rem !important;
+    font-size: 1rem !important;
+  }
+  .mobile-action-label { display: none !important; }
+
+  /* Dívidas: nome/status, valor e vencimento em blocos legíveis. */
+  .divida-list-card { min-width: 0; padding: 0.875rem !important; }
+  .divida-card-head { align-items: flex-start !important; gap: 0.625rem; }
+  .divida-card-main { align-items: flex-start !important; gap: 0.5rem !important; }
+  .divida-card-info { min-width: 0; }
+  .divida-card-icon { font-size: 1.25rem !important; }
+  .divida-card-name { font-size: 0.875rem !important; line-height: 1.25; }
+  .divida-card-badges { gap: 0.2rem !important; }
+  .divida-card-badges > span { margin-left: 0 !important; font-size: 0.5625rem !important; }
+  .divida-card-institution { font-size: 0.6875rem !important; }
+  .divida-card-amount { max-width: 42%; }
+  .divida-card-amount > div:first-child { font-size: 0.875rem !important; line-height: 1.2; white-space: nowrap; }
+  .divida-card-footer { align-items: flex-end !important; gap: 0.5rem; }
+  .divida-card-meta { flex: 1; min-width: 0; line-height: 1.45; }
+
+  /* Modais de Cartões: conteúdo navegável sem ultrapassar a tela. */
+  .modal-box,
+  .confirm-box {
+    box-sizing: border-box;
+    width: min(100%, 32rem) !important;
+    max-width: calc(100vw - 1.5rem) !important;
+    max-height: calc(100dvh - 1.5rem) !important;
+    overflow: auto !important;
+    padding: 1rem !important;
+    border-radius: 1.125rem !important;
+  }
+  .confirm-modal-overlay { padding: 0.75rem !important; }
+  .confirm-btns { display: grid !important; grid-template-columns: 1fr 1fr; }
+  .parcelamento-grid,
+  .review-period-grid { grid-template-columns: 1fr !important; gap: 0.625rem !important; }
+  .dp-calendar { width: min(17.5rem, calc(100vw - 2.5rem)) !important; }
+
+  .modal-overlay { padding: 0.75rem !important; }
+  .modal-card {
+    width: min(100%, 32rem) !important;
+    max-width: calc(100vw - 1.5rem) !important;
+    max-height: calc(100dvh - 1.5rem) !important;
+    padding: 1rem !important;
+    border-radius: 1.125rem !important;
+  }
+
+  input, select, textarea, button { max-width: 100%; }
+  img, canvas, svg { max-width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .dash-main { padding: 0.625rem !important; }
+  .summary-card,
+  .section-card,
+  .dash-section,
+  .conta-card,
+  .meta-card { padding: 0.875rem !important; }
+  .modal-overlay { padding: 0.5rem !important; }
+  .modal-card { max-width: calc(100vw - 1rem) !important; }
+  .modal-box,
+  .confirm-box { max-width: calc(100vw - 1rem) !important; }
+  .cartao-actions { grid-template-columns: 1fr 1fr 1.25fr 2.25rem; }
+}
+
+@media (max-width: 360px) {
+  /* Em telas muito estreitas, ações analíticas ocupam uma segunda linha. */
+  .relatorio-header,
+  .comparativo-header,
+  .insights-header {
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
+  }
+  .relatorio-header > div:first-child,
+  .comparativo-header > div:first-child,
+  .insights-header > div:first-child { width: 100%; flex: 1 0 100%; }
+  .relatorio-acoes,
+  .comparativo-acoes,
+  .insights-acoes {
+    width: 100%;
+    justify-content: flex-end;
+    padding-left: 2.6rem;
+  }
+  .relatorio-acoes > button,
+  .relatorio-acoes > .btn-cal-mobile,
+  .comparativo-acoes > button,
+  .insights-acoes > button {
+    width: 2rem !important;
+    height: 2rem !important;
+    padding: 0.25rem !important;
+  }
+}

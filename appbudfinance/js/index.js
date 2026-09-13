@@ -342,6 +342,10 @@ formLogin.addEventListener('submit', async function (e) {
     var _checkoutRef    = _checkoutParams.get('ref') || '';
     var _planosValidos  = ['starter', 'pro', 'plus'];
     if (_planosValidos.includes(_checkoutPlano)) {
+      if (window.BUD_USE_EMULATOR) {
+        abrirCheckoutTesteLocal(user, _checkoutPlano);
+        return;
+      }
       try {
         var _idToken = await user.getIdToken();
         var _body    = { planKey: _checkoutPlano };
@@ -365,3 +369,33 @@ formLogin.addEventListener('submit', async function (e) {
     resetBtn();
   }
 });
+
+function abrirCheckoutTesteLocal(user, planKey) {
+  var planos = { starter: ['Starter', 'R$ 9,99'], pro: ['Pro', 'R$ 29,90'], plus: ['Plus', 'R$ 49,90'] };
+  var plano = planos[planKey] || [planKey, ''];
+  var overlay = document.createElement('div');
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:20px;background:rgba(15,23,42,.55);';
+  overlay.innerHTML = '<section style="width:min(100%,420px);background:#fff;border-radius:20px;padding:24px;font-family:inherit;color:#17233a;box-shadow:0 24px 70px rgba(0,0,0,.25)">' +
+    '<p style="margin:0 0 10px;color:#2563eb;font-size:12px;font-weight:800;letter-spacing:.06em">AMBIENTE LOCAL DE TESTE</p>' +
+    '<h2 style="margin:0;font-size:22px">Assinatura ' + plano[0] + '</h2><p style="margin:6px 0 18px;color:#64748b">' + plano[1] + ' por mês. Nenhum dado de cartão será solicitado ou cobrado.</p>' +
+    '<p style="margin:0 0 12px;font-size:14px;font-weight:700">Simular resultado do pagamento:</p>' +
+    '<div style="display:grid;gap:10px"><button data-status="approved" style="border:0;border-radius:10px;padding:12px;background:#16a34a;color:white;font-weight:800;cursor:pointer">Aprovar pagamento</button><button data-status="pending" style="border:0;border-radius:10px;padding:12px;background:#d97706;color:white;font-weight:800;cursor:pointer">Deixar pendente</button><button data-status="rejected" style="border:0;border-radius:10px;padding:12px;background:#dc2626;color:white;font-weight:800;cursor:pointer">Recusar pagamento</button><button data-cancel style="border:0;background:transparent;padding:8px;color:#475569;cursor:pointer">Cancelar</button></div></section>';
+  document.body.appendChild(overlay);
+  overlay.querySelector('[data-cancel]').onclick = function () { window.location.href = 'configuracoes.html'; };
+  overlay.querySelectorAll('[data-status]').forEach(function (button) {
+    button.onclick = async function () {
+      var status = button.dataset.status;
+      overlay.querySelectorAll('button').forEach(function (item) { item.disabled = true; });
+      try {
+        var token = await user.getIdToken();
+        var response = await fetch((window.BUD_FUNCTIONS_URL || 'http://127.0.0.1:3000') + '/mercadopago/local-test-payment', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ planKey: planKey, status: status }) });
+        if (!response.ok) throw new Error();
+        var title = status === 'approved' ? 'Pagamento aprovado' : status === 'pending' ? 'Pagamento pendente' : 'Pagamento recusado';
+        overlay.querySelector('section').innerHTML = '<p style="margin:0 0 10px;color:#2563eb;font-size:12px;font-weight:800">TESTE LOCAL</p><h2 style="margin:0 0 10px">' + title + '</h2><p style="color:#64748b">O resultado foi salvo somente no emulador.</p><button id="localCheckoutContinue" style="width:100%;border:0;border-radius:10px;padding:12px;background:#2563eb;color:#fff;font-weight:800;cursor:pointer">Continuar</button>';
+        overlay.querySelector('#localCheckoutContinue').onclick = function () { window.location.href = status === 'approved' ? 'dashboard.html' : 'configuracoes.html'; };
+      } catch (_) { window.budShowToast('Não foi possível registrar o teste local.', 'error'); overlay.querySelectorAll('button').forEach(function (item) { item.disabled = false; }); }
+    };
+  });
+}

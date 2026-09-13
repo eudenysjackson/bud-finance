@@ -30,7 +30,9 @@
 
   // ─── Detecção de ambiente (local vs produção) ─────────────────────────
   var _hostname = window.location.hostname;
-  var _isLocal  = (_hostname === 'localhost' || _hostname === '127.0.0.1' || _hostname === '');
+  // Inclui IPs privados para testar o app em celulares da mesma rede.
+  var _isPrivateNetwork = /^(?:10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[0-1])\.)/.test(_hostname);
+  var _isLocal  = (_hostname === 'localhost' || _hostname === '127.0.0.1' || _hostname === '' || _isPrivateNetwork);
   window.BUD_IS_LOCAL = _isLocal;
 
   // ─── Emulator: ativado APENAS via localStorage explícito ────────────
@@ -55,7 +57,7 @@
 
   // ─── Cloud Functions URL ──────────────────────────────────────────────
   window.BUD_FUNCTIONS_URL = (window.BUD_USE_EMULATOR && _isLocal)
-    ? 'http://127.0.0.1:3000'
+    ? 'http://' + _hostname + ':3000'
     : 'https://bud-finance-backend.onrender.com';
 
   // ─── reCAPTCHA v3 site key ────────────────────────────────────────────

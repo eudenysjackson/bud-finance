@@ -45,6 +45,7 @@ let contaCorSelecionada = 'sem_cor';
 let _rowCatDdTargetIdx = null;
 let _rowCatDdBtn = null;
 let _contaTipoClickHandler = null;
+let _importarSomenteHistorico = true;
 
 // ── Sort / Filter state ───────────────────────────────────
 let _contasSortBy = 'criado';   // 'criado' | 'nome' | 'saldo' | 'atualizado'
@@ -366,6 +367,7 @@ function renderHistoricoImportacoes(items) {
     }
 
     const row = document.createElement('div');
+    row.className = 'historico-import-row';
     row.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.75rem 0;border-top:1px solid var(--input-border);flex-wrap:wrap;';
 
     const origemLabel = ORIGEM_LABEL[item.origem] || item.origem || '—';
@@ -376,18 +378,19 @@ function renderHistoricoImportacoes(items) {
       ? `<div style="font-size:0.6875rem;font-weight:600;margin-top:2px;"><span style="color:#16a34a;">↑ ${fmtBRL(item.receitas||0)}</span>&nbsp;&nbsp;<span style="color:#dc2626;">↓ ${fmtBRL(item.despesas||0)}</span></div>`
       : '';
     row.innerHTML = `
-      <div style="width:2.25rem;height:2.25rem;border-radius:0.625rem;background:${origemBg};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.75rem;font-weight:800;color:${origemColor};">${origemLabel}</div>
-      <div style="flex:1;min-width:0;">
+      <div class="historico-import-origem" style="width:2.25rem;height:2.25rem;border-radius:0.625rem;background:${origemBg};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.75rem;font-weight:800;color:${origemColor};">${origemLabel}</div>
+      <div class="historico-import-main" style="flex:1;min-width:0;">
         <div style="font-size:0.8125rem;font-weight:700;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(item.nomeArquivo || '')}">${escapeHtml(item.nomeArquivo || 'arquivo')}</div>
         <div style="font-size:0.75rem;color:var(--card-text-sec);margin-top:0.125rem;">${escapeHtml(item.contaNome || '—')} · Período: ${periodoStr}</div>
       </div>
-      <div style="text-align:right;flex-shrink:0;">
+      <div class="historico-import-summary" style="text-align:right;flex-shrink:0;">
         <div style="font-size:0.8125rem;font-weight:700;color:var(--card-text);">${item.qtdTransacoes || 0} transações</div>
         ${recStr}
         <div style="font-size:0.6875rem;color:var(--card-text-sec);">${dataStr}</div>
       </div>`;
     if (item.periodoInicio && item.periodoFim) {
       const linkEl = document.createElement('a');
+      linkEl.className = 'historico-import-link';
       linkEl.href = `extrato.html?inicio=${item.periodoInicio}&fim=${item.periodoFim}`;
       linkEl.style.cssText = 'font-size:0.75rem;color:#2563eb;font-weight:600;padding:0.25rem 0.625rem;border-radius:0.375rem;border:1px solid #bfdbfe;background:#eff6ff;text-decoration:none;white-space:nowrap;flex-shrink:0;align-self:center;';
       linkEl.textContent = '📋 Ver';
@@ -542,13 +545,13 @@ function buildContaCard(conta) {
   let cardStyle, iconHtml, badgeStyle, btnStyle;
 
   if (banco) {
-    cardStyle = `background:linear-gradient(145deg,${banco.bg}77 0%,${banco.bg}33 100%),var(--card-bg);border:1px solid ${banco.bg}66;border-left:4px solid ${banco.bg};box-shadow:0 4px 24px -6px ${banco.bg}55;`;
+    cardStyle = `background:linear-gradient(145deg,${banco.bg}77 0%,${banco.bg}33 100%),var(--card-bg);border:1px solid ${banco.bg}66;box-shadow:0 4px 24px -6px ${banco.bg}55;`;
     iconHtml = `<div style="width:44px;height:44px;border-radius:10px;background:${banco.bg};display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:800;color:${banco.text};letter-spacing:-0.5px;flex-shrink:0;box-shadow:0 2px 8px ${banco.bg}66;">${banco.abbrev}</div>`;
     badgeStyle = `background:rgba(255,255,255,0.22);color:var(--card-text);`;
     btnStyle = `border-color:${banco.bg};color:${banco.bg};`;
   } else {
     const bordaCor = corHex;
-    cardStyle = bordaCor ? `border-left:4px solid ${bordaCor};` : '';
+    cardStyle = bordaCor ? `border:1px solid ${bordaCor}66;` : '';
     const iconBg = corHex ? `background:${corHex}18;` : `background:${cfg.bg};`;
     iconHtml = `<div class="conta-tipo-icon" style="${iconBg}">${cfg.icon}</div>`;
     badgeStyle = `background:${cfg.bg};color:${cfg.color};`;
@@ -989,6 +992,7 @@ function abrirModalImport(contaId) {
   globalTipo = 'auto';
   globalCat = '';
   dedupIds.clear();
+  _importarSomenteHistorico = true;
 
   // Pré-carregar fitIds existentes para detectar duplicatas
   (async () => {
@@ -1009,6 +1013,14 @@ function abrirModalImport(contaId) {
   // Reset UI
   resetImportModal();
   document.getElementById('importContaNome').textContent = conta.nome;
+  const competenciaEl = document.getElementById('importCompetencia');
+  const historicoEl = document.getElementById('importHistoricoSomente');
+  if (competenciaEl) competenciaEl.value = new Date().toISOString().slice(0, 7);
+  if (historicoEl) {
+    historicoEl.checked = true;
+    historicoEl.onchange = () => { _importarSomenteHistorico = historicoEl.checked; };
+  }
+  _importarSomenteHistorico = historicoEl ? historicoEl.checked : true;
   goImportStep(1);
 
   const modal = document.getElementById('modalImport');
@@ -1033,7 +1045,15 @@ function abrirModalImport(contaId) {
       const parsed = parseFloat(raw);
       if (!isNaN(parsed)) saldoFinal = parsed;
     }
-    // Salvar saldo confirmado no Firestore
+    // Importações históricas servem para análise e não reescrevem o saldo atual.
+    if (_importarSomenteHistorico) {
+      modal.classList.remove('open');
+      window._ofxLedgerBal = null;
+      carregarContas();
+      carregarHistoricoImportacoes();
+      return;
+    }
+    // Salvar saldo confirmado no Firestore apenas em uma conciliação atual.
     try {
       await updateDoc(doc(db, 'usuarios', btn._pendingUid, 'carteira', btn._pendingId), {
         saldo: saldoFinal,
@@ -1919,6 +1939,7 @@ async function confirmarImport() {
           data: (function(s) { const [y,m,d] = s.split('-').map(Number); return Timestamp.fromDate(new Date(y, m-1, d, 12, 0, 0)); })(r.data),
           dataCriacao: serverTimestamp(),
           origem: 'importacao',                  // BUG #4: não soma ao saldo calculado
+          importacaoHistorica: _importarSomenteHistorico,
           pago: true,
           confirmado: true,
           pagamentoFatura: false,
@@ -1966,6 +1987,8 @@ async function confirmarImport() {
         periodoInicio:   periodoInicio,
         periodoFim:      periodoFim,
         dataImportacao:  serverTimestamp(),
+        historico:       _importarSomenteHistorico,
+        competencia:     document.getElementById('importCompetencia')?.value || null,
       });
     } catch (_e) {
       console.warn('Não foi possível salvar histórico de importação:', _e);
@@ -2030,11 +2053,11 @@ async function confirmarImport() {
       ${ignoradosHtml}
     `;
 
-    // Mostrar campo de confirmação de saldo
+    // Mostrar campo de confirmação de saldo somente para conciliação atual.
     const saldoConfirmDiv = document.getElementById('importSaldoConfirm');
     const saldoInput = document.getElementById('importSaldoFinalInput');
     if (saldoConfirmDiv && saldoInput) {
-      saldoConfirmDiv.style.display = 'block';
+      saldoConfirmDiv.style.display = _importarSomenteHistorico ? 'none' : 'block';
       saldoInput.value = fmtBRL(novoSaldo);
     }
 

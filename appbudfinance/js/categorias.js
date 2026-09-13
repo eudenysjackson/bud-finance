@@ -753,8 +753,8 @@ function setupModal() {
   document.getElementById('btnFecharModal')?.addEventListener('click', fecharModal);
   document.getElementById('btnCancelarModal')?.addEventListener('click', fecharModal);
 
-  // Fechar ao clicar no overlay escuro
-  document.getElementById('modalOverlay')?.addEventListener('click', fecharModal);
+  // O formulário só fecha pelos controles explícitos, evitando perder dados
+  // por um clique acidental no fundo escuro.
 
   // Fechar com Escape
   document.addEventListener('keydown', (e) => {

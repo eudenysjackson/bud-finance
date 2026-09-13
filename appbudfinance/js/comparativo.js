@@ -675,21 +675,15 @@ onAuthStateChanged(auth, async (user) => {
     const userData = snap.exists() ? snap.data() : {};
     if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(userData.photoURL || null, userData.nome || user.displayName || '');
     // BUG 8 — persiste downgrade no Firestore
-    if (typeof window.NexoPlanos?.resolvePlan === 'function') {
-      const resolved = window.NexoPlanos.resolvePlan(userData);
+    if (typeof window.BudPlanos?.resolvePlan === 'function') {
+      const resolved = window.BudPlanos.resolvePlan(userData);
       if (resolved?.shouldDowngrade) {
         userData.plano = 'free';
-        updateDoc(doc(db, 'usuarios', user.uid), {
-          plano: 'free',
-          atualizadoEm: serverTimestamp(),
-        }).catch(e => console.warn('[Comparativo] Erro ao persistir downgrade:', e));
       }
     }
 
-    // Verificar feature gate (fallback permissivo se NexoPlanos não carregou)
-    const temAcesso = typeof window.NexoPlanos?.canUseFeature === 'function'
-      ? window.NexoPlanos.canUseFeature(userData, 'monthlyComparative')
-      : true;
+    // Verificar acesso ao recurso pelo plano efetivo do usuário.
+    const temAcesso = window.BudPlanos.canUseFeature(userData, 'monthlyComparative');
 
     if (!temAcesso) {
       mostrarPaywall();

@@ -2,6 +2,17 @@
 // Applies saved theme immediately on load to prevent flash.
 // Must be loaded as a regular <script> (NOT module) in <head>.
 
+// Todas as telas autenticadas carregam este arquivo no <head>. Mantemos aqui
+// a inclusão da base mobile compartilhada para evitar regras divergentes por página.
+(function loadSharedMobileStyles() {
+  if (document.querySelector('link[data-bud-mobile-uniform]')) return;
+  var link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'css/mobile-uniform.css?v=20260912-5';
+  link.setAttribute('data-bud-mobile-uniform', '');
+  document.head.appendChild(link);
+})();
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONFIGURAÇÃO DOS TEMAS — DT-008
 // Edite aqui para adicionar ou modificar temas sem tocar na lógica abaixo.
@@ -39,88 +50,88 @@ var BUD_THEMES_CONFIG = {
     chartCores: ['#e2e8f0','#94a3b8','#64748b','#475569','#cbd5e1','#f1f5f9','#7c8fa4','#b0c0d0','#334155']
   },
   azul: {
-    label: 'Azul', color: '#005BAA', activeRing: '#005BAA', blobOpacity: '0',
-    bg: '#005BAA', text: '#ffffff', sec: '#dbeafe',
-    glass: 'rgba(255,255,255,0.92)', border: 'rgba(255,255,255,0.5)',
-    cardText: '#1e293b', cardTextSec: '#475569',
-    btnBg: '#ffffff', btnText: '#005BAA',
-    inputBg: '#f8fafc', inputBorder: '#e2e8f0', inputFocus: '#005BAA',
-    balFrom: '#004a91', balTo: '#003b75', balText: '#ffffff', balMiniBg: 'rgba(255,255,255,0.18)',
-    sidebarBg: 'rgba(255,255,255,0.18)', sidebarUserBg: 'rgba(255,255,255,0.12)',
-    sidebarLinkHoverBg: 'rgba(255,255,255,0.15)', sidebarLinkHoverColor: '#ffffff',
-    sidebarLinkActiveBg: 'rgba(255,255,255,0.22)', sidebarLinkActiveColor: '#ffffff',
-    accent: '#005BAA', errorColor: '#ef4444',
-    chartCores: ['#005BAA','#1a75c4','#3d8ed4','#60a8e4','#0073d1','#2186c8','#4399d5','#66ace0','#004a91']
+    label: 'Azul Safira', color: '#2563EB', activeRing: '#2563EB', blobOpacity: '0.45',
+    bg: '#EEF4FF', text: '#172554', sec: '#52627E',
+    glass: 'rgba(255,255,255,0.86)', border: 'rgba(191,219,254,0.88)',
+    cardText: '#172554', cardTextSec: '#64748B',
+    btnBg: '#1D4ED8', btnText: '#ffffff',
+    inputBg: '#F8FAFF', inputBorder: '#DBEAFE', inputFocus: '#2563EB',
+    balFrom: '#3159B9', balTo: '#1E3A8A', balText: '#ffffff', balMiniBg: 'rgba(255,255,255,0.16)',
+    sidebarBg: 'rgba(238,244,255,0.92)', sidebarUserBg: '#E4EEFF',
+    sidebarLinkHoverBg: 'rgba(37,99,235,0.09)', sidebarLinkHoverColor: '#1D4ED8',
+    sidebarLinkActiveBg: 'rgba(37,99,235,0.14)', sidebarLinkActiveColor: '#1E40AF',
+    accent: '#2563EB', errorColor: '#DC3D5B',
+    chartCores: ['#2563EB','#4F46E5','#0891B2','#3B82F6','#6366F1','#0E7490','#1D4ED8','#7C3AED','#94A3B8']
   },
   roxo: {
-    label: 'Roxo', color: '#7C3AED', activeRing: '#7C3AED', blobOpacity: '0',
-    bg: '#7C3AED', text: '#ffffff', sec: '#ede9fe',
-    glass: 'rgba(255,255,255,0.92)', border: 'rgba(255,255,255,0.5)',
-    cardText: '#1e293b', cardTextSec: '#475569',
-    btnBg: '#ffffff', btnText: '#7C3AED',
-    inputBg: '#f8fafc', inputBorder: '#e2e8f0', inputFocus: '#7C3AED',
-    balFrom: '#6929d4', balTo: '#5521b5', balText: '#ffffff', balMiniBg: 'rgba(255,255,255,0.18)',
-    sidebarBg: 'rgba(255,255,255,0.18)', sidebarUserBg: 'rgba(255,255,255,0.12)',
-    sidebarLinkHoverBg: 'rgba(255,255,255,0.15)', sidebarLinkHoverColor: '#ffffff',
-    sidebarLinkActiveBg: 'rgba(255,255,255,0.22)', sidebarLinkActiveColor: '#ffffff',
-    accent: '#7C3AED', errorColor: '#ef4444',
-    chartCores: ['#7C3AED','#9461f5','#a87bf7','#bc96f9','#6929d4','#8b5cf6','#a78bfa','#c4b5fd','#5521b5']
+    label: 'Roxo Imperial', color: '#7C3AED', activeRing: '#6D3FD1', blobOpacity: '0.42',
+    bg: '#F5F2FC', text: '#2D1F4A', sec: '#665A7C',
+    glass: 'rgba(255,255,255,0.87)', border: 'rgba(221,214,254,0.88)',
+    cardText: '#2D1F4A', cardTextSec: '#776C8B',
+    btnBg: '#6D3FD1', btnText: '#ffffff',
+    inputBg: '#FBFAFF', inputBorder: '#E9E2FB', inputFocus: '#7C3AED',
+    balFrom: '#7650C8', balTo: '#45217F', balText: '#ffffff', balMiniBg: 'rgba(255,255,255,0.16)',
+    sidebarBg: 'rgba(248,246,255,0.92)', sidebarUserBg: '#EFE9FC',
+    sidebarLinkHoverBg: 'rgba(109,63,209,0.09)', sidebarLinkHoverColor: '#6135C4',
+    sidebarLinkActiveBg: 'rgba(109,63,209,0.14)', sidebarLinkActiveColor: '#542BA8',
+    accent: '#6D3FD1', errorColor: '#D13D63',
+    chartCores: ['#6D3FD1','#8B5CF6','#A855F7','#C084FC','#4C1D95','#7E4CCB','#B06EEA','#D8B4FE','#7C3AED']
   },
   rosa: {
-    label: 'Rosa', color: '#ff4d94', activeRing: '#ff4d94', blobOpacity: '0',
-    bg: '#ff4d94', text: '#ffffff', sec: '#fce7f3',
-    glass: 'rgba(255,255,255,0.92)', border: 'rgba(255,255,255,0.5)',
-    cardText: '#1e293b', cardTextSec: '#475569',
-    btnBg: '#ffffff', btnText: '#ff4d94',
-    inputBg: '#f8fafc', inputBorder: '#e2e8f0', inputFocus: '#ff4d94',
-    balFrom: '#d4407d', balTo: '#b83568', balText: '#ffffff', balMiniBg: 'rgba(255,255,255,0.18)',
-    sidebarBg: 'rgba(255,255,255,0.18)', sidebarUserBg: 'rgba(255,255,255,0.12)',
-    sidebarLinkHoverBg: 'rgba(255,255,255,0.15)', sidebarLinkHoverColor: '#ffffff',
-    sidebarLinkActiveBg: 'rgba(255,255,255,0.22)', sidebarLinkActiveColor: '#ffffff',
-    accent: '#ff4d94', errorColor: '#ef4444',
-    chartCores: ['#ff4d94','#ff70a8','#ff93bc','#ffb6d0','#e0307a','#d4407d','#c8506a','#f472b6','#b83568']
+    label: 'Rosa Framboesa', color: '#C43A70', activeRing: '#C43A70', blobOpacity: '0.36',
+    bg: '#FFF3F7', text: '#4A1F33', sec: '#7B5A68',
+    glass: 'rgba(255,255,255,0.88)', border: 'rgba(253,205,222,0.9)',
+    cardText: '#4A1F33', cardTextSec: '#8A6675',
+    btnBg: '#B52D62', btnText: '#ffffff',
+    inputBg: '#FFF9FB', inputBorder: '#FCE0EA', inputFocus: '#C43A70',
+    balFrom: '#C34B78', balTo: '#7E1F48', balText: '#ffffff', balMiniBg: 'rgba(255,255,255,0.17)',
+    sidebarBg: 'rgba(255,246,249,0.93)', sidebarUserBg: '#FDECF2',
+    sidebarLinkHoverBg: 'rgba(181,45,98,0.09)', sidebarLinkHoverColor: '#B52D62',
+    sidebarLinkActiveBg: 'rgba(181,45,98,0.14)', sidebarLinkActiveColor: '#941E4D',
+    accent: '#B52D62', errorColor: '#D33B5D',
+    chartCores: ['#B52D62','#D9467C','#E879A5','#9D174D','#BE185D','#F472B6','#C24178','#DB2777','#FDA4AF']
   },
   amarelo: {
-    label: 'Amarelo', color: '#ffc700', activeRing: '#ffc700', blobOpacity: '0',
-    bg: '#ffc700', text: '#1a1a1a', sec: '#78716c',
-    glass: 'rgba(255,255,255,0.93)', border: 'rgba(255,255,255,0.7)',
-    cardText: '#1a1a1a', cardTextSec: '#57534e',
-    btnBg: '#1a1a1a', btnText: '#ffc700',
-    inputBg: '#fffcf0', inputBorder: '#e2e8f0', inputFocus: '#1a1a1a',
-    balFrom: '#1a1a1a', balTo: '#2d3748', balText: '#ffffff', balMiniBg: 'rgba(255,255,255,0.12)',
-    sidebarBg: 'rgba(255,255,255,0.22)', sidebarUserBg: 'rgba(255,255,255,0.15)',
-    sidebarLinkHoverBg: 'rgba(0,0,0,0.08)', sidebarLinkHoverColor: '#1a1a1a',
-    sidebarLinkActiveBg: 'rgba(0,0,0,0.12)', sidebarLinkActiveColor: '#1a1a1a',
-    accent: '#ffc700', errorColor: '#dc2626',
-    chartCores: ['#ffc700','#e6a800','#f59e0b','#d97706','#b45309','#fbbf24','#fcd34d','#fde68a','#92400e']
+    label: 'Dourado', color: '#D6A20A', activeRing: '#B98008', blobOpacity: '0.38',
+    bg: '#FFFBEA', text: '#3D2D08', sec: '#776333',
+    glass: 'rgba(255,255,255,0.89)', border: 'rgba(253,230,138,0.78)',
+    cardText: '#3B2A13', cardTextSec: '#806B4C',
+    btnBg: '#B98008', btnText: '#ffffff',
+    inputBg: '#FFFDF5', inputBorder: '#F8E6A7', inputFocus: '#D6A20A',
+    balFrom: '#D6A20A', balTo: '#7A5505', balText: '#ffffff', balMiniBg: 'rgba(255,255,255,0.16)',
+    sidebarBg: 'rgba(255,252,237,0.94)', sidebarUserBg: '#FFF4C9',
+    sidebarLinkHoverBg: 'rgba(214,162,10,0.10)', sidebarLinkHoverColor: '#9D6900',
+    sidebarLinkActiveBg: 'rgba(214,162,10,0.16)', sidebarLinkActiveColor: '#7A5505',
+    accent: '#B98008', errorColor: '#C9374C',
+    chartCores: ['#B98008','#D6A20A','#EAB308','#F59E0B','#9A6700','#F4C95D','#CA8A04','#FDE68A','#A16207']
   },
   verde: {
-    label: 'Verde', color: '#11c76f', activeRing: '#11c76f', blobOpacity: '0',
-    bg: '#11c76f', text: '#ffffff', sec: '#dcfce7',
-    glass: 'rgba(255,255,255,0.92)', border: 'rgba(255,255,255,0.5)',
-    cardText: '#1e293b', cardTextSec: '#475569',
-    btnBg: '#ffffff', btnText: '#11c76f',
-    inputBg: '#f8fafc', inputBorder: '#e2e8f0', inputFocus: '#11c76f',
-    balFrom: '#0ea55c', balTo: '#0b8a4c', balText: '#ffffff', balMiniBg: 'rgba(255,255,255,0.18)',
-    sidebarBg: 'rgba(255,255,255,0.18)', sidebarUserBg: 'rgba(255,255,255,0.12)',
-    sidebarLinkHoverBg: 'rgba(255,255,255,0.15)', sidebarLinkHoverColor: '#ffffff',
-    sidebarLinkActiveBg: 'rgba(255,255,255,0.22)', sidebarLinkActiveColor: '#ffffff',
-    accent: '#11c76f', errorColor: '#ef4444',
-    chartCores: ['#11c76f','#34d888','#57e9a1','#7af4ba','#0ea55c','#059c52','#047842','#10b981','#065f46']
+    label: 'Verde Esmeralda', color: '#0F8A67', activeRing: '#087A5B', blobOpacity: '0.36',
+    bg: '#EFFAF6', text: '#123B31', sec: '#5A746B',
+    glass: 'rgba(255,255,255,0.87)', border: 'rgba(167,243,208,0.72)',
+    cardText: '#123B31', cardTextSec: '#668278',
+    btnBg: '#087A5B', btnText: '#ffffff',
+    inputBg: '#F9FEFC', inputBorder: '#D6F4E6', inputFocus: '#0F8A67',
+    balFrom: '#17866B', balTo: '#07513E', balText: '#ffffff', balMiniBg: 'rgba(255,255,255,0.16)',
+    sidebarBg: 'rgba(243,252,248,0.94)', sidebarUserBg: '#E4F6EE',
+    sidebarLinkHoverBg: 'rgba(8,122,91,0.09)', sidebarLinkHoverColor: '#087A5B',
+    sidebarLinkActiveBg: 'rgba(8,122,91,0.14)', sidebarLinkActiveColor: '#05664C',
+    accent: '#087A5B', errorColor: '#CD3D58',
+    chartCores: ['#087A5B','#0F9D78','#14B88A','#059669','#0F766E','#34B27B','#2DD4A0','#047857','#6EE7B7']
   },
   vermelho: {
-    label: 'Vermelho', color: '#ed1c24', activeRing: '#ed1c24', blobOpacity: '0',
-    bg: '#ed1c24', text: '#ffffff', sec: '#fee2e2',
-    glass: 'rgba(255,255,255,0.92)', border: 'rgba(255,255,255,0.5)',
-    cardText: '#1e293b', cardTextSec: '#475569',
-    btnBg: '#ffffff', btnText: '#ed1c24',
-    inputBg: '#f8fafc', inputBorder: '#e2e8f0', inputFocus: '#ed1c24',
-    balFrom: '#c8171e', balTo: '#a71219', balText: '#ffffff', balMiniBg: 'rgba(255,255,255,0.18)',
-    sidebarBg: 'rgba(255,255,255,0.18)', sidebarUserBg: 'rgba(255,255,255,0.12)',
-    sidebarLinkHoverBg: 'rgba(255,255,255,0.15)', sidebarLinkHoverColor: '#ffffff',
-    sidebarLinkActiveBg: 'rgba(255,255,255,0.22)', sidebarLinkActiveColor: '#ffffff',
-    accent: '#ed1c24', errorColor: '#ef4444',
-    chartCores: ['#ed1c24','#f44','#f97316','#f59e0b','#c8171e','#dc2626','#ef4444','#fca5a5','#a71219']
+    label: 'Vermelho Rubi', color: '#D91E3A', activeRing: '#C71632', blobOpacity: '0.36',
+    bg: '#FFF5F5', text: '#4B1520', sec: '#805761',
+    glass: 'rgba(255,255,255,0.89)', border: 'rgba(254,205,211,0.88)',
+    cardText: '#4B1520', cardTextSec: '#8D626B',
+    btnBg: '#C71632', btnText: '#ffffff',
+    inputBg: '#FFF9F9', inputBorder: '#FDE0E3', inputFocus: '#D91E3A',
+    balFrom: '#D91E3A', balTo: '#7F1024', balText: '#ffffff', balMiniBg: 'rgba(255,255,255,0.17)',
+    sidebarBg: 'rgba(255,248,248,0.94)', sidebarUserBg: '#FDECEE',
+    sidebarLinkHoverBg: 'rgba(217,30,58,0.10)', sidebarLinkHoverColor: '#C71632',
+    sidebarLinkActiveBg: 'rgba(217,30,58,0.15)', sidebarLinkActiveColor: '#9F1028',
+    accent: '#C71632', errorColor: '#B91C35',
+    chartCores: ['#C71632','#E11D48','#EF4444','#B91C1C','#F43F5E','#DC2626','#FB7185','#991B1B','#FDA4AF']
   }
 };
 

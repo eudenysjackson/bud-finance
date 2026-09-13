@@ -642,8 +642,8 @@
           <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
-        <a href="graficos.html" class="sidebar-link">
-          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
+        <a href="relatorios.html" class="sidebar-link">
+          <span class="sidebar-link-icon">📑</span><span class="sidebar-link-text"> Relatórios</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <a href="assistente-ia.html" class="sidebar-link">
@@ -673,7 +673,7 @@
     <main class="dash-main" id="dashMain">
 
       <!-- Header -->
-      <div class="dash-header">
+      <div class="dash-header cartoes-header">
         <div style="display:flex;align-items:center;gap:0.75rem;">
           <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
           <div class="dash-welcome">
@@ -681,8 +681,8 @@
             <p id="dataHoje">—</p>
           </div>
         </div>
-        <button class="btn-primary" id="btnNovoCartao" style="display:flex;align-items:center;gap:0.375rem;">
-          <span style="font-size:1rem;">+</span> Novo Cartão
+        <button class="btn-primary cartoes-new-action" id="btnNovoCartao" aria-label="Novo cartão" style="display:flex;align-items:center;gap:0.375rem;">
+          <span style="font-size:1rem;">+</span><span class="cartoes-new-action-label">Novo Cartão</span>
         </button>
       </div>
 
@@ -914,6 +914,35 @@
     </div>
   </div>
 
+  <!-- ─── Modal: Parcelar Fatura ───────────────────────────────── -->
+  <div class="confirm-modal-overlay" id="modalParcelarFatura" role="dialog" aria-modal="true">
+    <div class="confirm-box" style="max-width:460px;">
+      <div class="confirm-title">↪ Parcelar Fatura</div>
+      <div class="confirm-sub" id="subParcelarFatura">O saldo financiado ficará reservado no limite do cartão e será liberado conforme as parcelas forem pagas.</div>
+      <div id="infoParcelarFatura" style="background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:.75rem;padding:.75rem;margin:1rem 0;font-size:.875rem;font-weight:700;color:#6d28d9;text-align:center;"></div>
+      <div class="parcelamento-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.875rem;">
+        <label class="modal-label">Entrada (opcional)<input class="modal-input" id="inputEntradaParcelamento" type="number" min="0" step="0.01" value="0"></label>
+        <label class="modal-label">Número de parcelas<input class="modal-input" id="inputNParcelasFatura" type="number" min="2" max="48" value="6"></label>
+      </div>
+      <div class="parcelamento-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem;">
+        <label class="modal-label">Juros ao mês (%)<input class="modal-input" id="inputJurosParcelamento" type="number" min="0" max="100" step="0.01" value="0"></label>
+        <label class="modal-label">1º vencimento<input class="modal-input" id="inputVencimentoParcelamento" type="date"></label>
+      </div>
+      <label class="modal-label" style="margin-bottom:1rem;display:block;">Conta da entrada (se houver)
+        <div class="custom-select-wrap" id="wrapContaEntradaParcelamento">
+          <button type="button" class="custom-select-trigger" id="triggerContaEntradaParcelamento" aria-haspopup="listbox" aria-expanded="false">
+            <span id="labelContaEntradaParcelamento">Registrar entrada sem descontar conta</span>
+            <span class="custom-select-arrow">▼</span>
+          </button>
+          <div class="custom-select-dropdown" id="dropdownContaEntradaParcelamento" role="listbox"></div>
+          <input type="hidden" id="inputContaEntrada" value="">
+        </div>
+      </label>
+      <div id="resumoParcelamento" style="font-size:.8125rem;color:var(--card-text-sec);background:var(--input-bg);border-radius:.75rem;padding:.75rem;margin-bottom:1rem;"></div>
+      <div class="confirm-btns"><button class="btn-secondary" id="btnCancelarParcelarFatura">Cancelar</button><button class="btn-primary" id="btnConfirmarParcelarFatura" style="background:#7c3aed;">Criar parcelamento</button></div>
+    </div>
+  </div>
+
   <!-- ─── Modal: Excluir Cartão ────────────────────────────────── -->
   <div class="confirm-modal-overlay" id="modalExcluirCartao" role="dialog" aria-modal="true">
     <div class="confirm-box">
@@ -1012,7 +1041,7 @@
       <div style="font-size:0.75rem;font-weight:600;color:var(--card-text-sec);margin-top:-0.75rem;margin-bottom:1rem;" id="subtitleModalReviewIA">Revise e edite antes de salvar</div>
 
       <!-- Mês/Ano de referência -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.625rem;margin-bottom:1.25rem;">
+      <div class="review-period-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:0.625rem;margin-bottom:1.25rem;">
         <div class="modal-field">
           <label class="modal-label">Mês da Fatura</label>
           <div class="custom-select-wrap" id="iaMesWrapper">

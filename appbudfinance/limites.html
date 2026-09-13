@@ -223,8 +223,8 @@
           <span class="sidebar-link-icon">🏷️</span><span class="sidebar-link-text"> Categorias</span>
         </a>
         <div class="sidebar-group-label">Panorama Geral</div>
-        <a href="graficos.html" class="sidebar-link">
-          <span class="sidebar-link-icon">📊</span><span class="sidebar-link-text"> Análises</span>
+        <a href="relatorios.html" class="sidebar-link">
+          <span class="sidebar-link-icon">📑</span><span class="sidebar-link-text"> Relatórios</span>
         </a>
         <div class="sidebar-group-label">Bud Plus</div>
         <a href="assistente-ia.html" class="sidebar-link">
@@ -253,14 +253,8 @@
     <!-- ─ Main ─────────────────────────────────────────── -->
     <main class="dash-main" id="dashMain">
 
-      <!-- ── Sub-nav Limites ───────────────────────────────────────── -->
-      <div style="display:flex;align-items:center;gap:0.25rem;margin-bottom:1rem;background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1rem;padding:0.5rem 0.625rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);">
-        <a href="recorrentes.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;">🔄 Recorrentes</a>
-        <a href="limites.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;background:var(--btn-bg);color:var(--btn-text);box-shadow:inset 0 0 0 1.5px var(--theme-accent);font-size:0.8125rem;font-weight:700;text-decoration:none;white-space:nowrap;">🎯 Limites</a>
-      </div>
-
       <!-- Header -->
-      <div class="dash-header">
+      <div class="dash-header limites-header">
         <div style="display:flex;align-items:center;gap:0.75rem;">
           <button class="hamburger-btn" id="btnHamburger" aria-label="Abrir menu">☰</button>
           <div class="dash-welcome">
@@ -268,14 +262,20 @@
             <p>Controle de orçamento por categoria</p>
           </div>
         </div>
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-          <button id="btnCopiar" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Copiar limites do mês anterior">
-            📋 Copiar mês anterior
+        <div class="limites-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+          <button id="btnCopiar" aria-label="Copiar limites do mês anterior" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);color:var(--card-text);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;" title="Copiar limites do mês anterior">
+            📋 <span class="mobile-action-label">Copiar mês anterior</span>
           </button>
-          <button id="btnNovoLimite" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:0.875rem;font-weight:700;border:none;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .2s;" title="Novo Limite">
-            + Novo Limite
+          <button id="btnNovoLimite" aria-label="Novo limite" style="display:flex;align-items:center;gap:0.375rem;padding:0.5625rem 1rem;border-radius:0.75rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:0.875rem;font-weight:700;border:none;cursor:pointer;font-family:inherit;transition:opacity .2s,transform .2s;" title="Novo Limite">
+            + <span class="mobile-action-label">Novo Limite</span>
           </button>
         </div>
+      </div>
+
+      <!-- ── Sub-nav Limites ───────────────────────────────────────── -->
+      <div class="page-subnav" style="display:flex;align-items:center;gap:0.25rem;margin-bottom:1rem;background:var(--card-bg);backdrop-filter:blur(16px);border:1px solid var(--card-border);border-radius:1rem;padding:0.5rem 0.625rem;box-shadow:0 4px 20px -5px rgba(0,0,0,0.06);">
+        <a href="recorrentes.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;color:var(--card-text-sec);font-size:0.8125rem;font-weight:600;text-decoration:none;white-space:nowrap;">🔄 Recorrentes</a>
+        <a href="limites.html" style="padding:0.375rem 0.875rem;border-radius:0.625rem;background:var(--btn-bg);color:var(--btn-text);box-shadow:inset 0 0 0 1.5px var(--theme-accent);font-size:0.8125rem;font-weight:700;text-decoration:none;white-space:nowrap;">🎯 Limites</a>
       </div>
 
       <!-- KPIs 3 cards -->

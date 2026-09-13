@@ -1011,7 +1011,9 @@ function _renderizarSecaoPlano(plano, data) {
     btn.style.cssText = 'padding:0.5rem 1rem;background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;border:none;border-radius:0.625rem;font-size:0.8125rem;font-weight:700;cursor:pointer;white-space:nowrap;';
     btn.onclick = function () {
       const dest = planoDest ? '?checkout=' + planoDest : '';
-      window.location.href = '../index.html' + dest;
+      // Configurações já está dentro de appbudfinance: volte ao login do app,
+      // não à landing page institucional que leva a um novo cadastro.
+      window.location.href = 'index.html' + dest;
     };
     return btn;
   }

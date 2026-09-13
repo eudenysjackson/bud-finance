@@ -9,7 +9,11 @@
     "test:report": "playwright show-report",
     "emulators": "firebase emulators:start --project bud-finance-local --only auth,firestore",
     "emulators:local": "powershell -ExecutionPolicy Bypass -File scripts/start-emulators.ps1",
-    "backend:local": "node --env-file=backend/.env.local backend/server.js"
+    "backend:local": "node --env-file=backend/.env.local backend/server.js",
+    "deploy:firestore-rules": "firebase deploy --only firestore:rules",
+    "seed:homologacao": "node scripts/seed-homologacao.js",
+    "seed:responsividade": "node scripts/reconstruir-base-responsividade.js",
+    "clonar:homologacao": "node scripts/clonar-conta-producao.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.44.0",

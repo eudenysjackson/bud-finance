@@ -826,16 +826,14 @@ onAuthStateChanged(auth, async (user) => {
     const userData = userDoc.exists() ? userDoc.data() : {};
 
     // ── Plan check (BUG 4 + BUG 8) ───────────────────────────────────────────
-    if (window.NexoPlanos) {
+    if (window.BudPlanos) {
       try {
-        const resolved = window.NexoPlanos.resolvePlan(userData);
+        const resolved = window.BudPlanos.resolvePlan(userData);
         if (resolved && resolved.shouldDowngrade) {
           userData.plano = 'free';
           // BUG 8 — persistir downgrade no Firestore
-          updateDoc(doc(db, 'usuarios', user.uid), { plano: 'free' }).catch(console.error);
         }
-        if (typeof window.NexoPlanos.canUseFeature === 'function' &&
-            !window.NexoPlanos.canUseFeature(userData, 'evolutionChart')) {
+        if (!window.BudPlanos.canUseFeature(userData, 'evolutionChart')) {
           const paywall  = document.getElementById('paywallContainer');
           const conteudo = document.getElementById('conteudoPrincipal');
           if (paywall)  paywall.style.display  = 'block';

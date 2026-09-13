@@ -1,0 +1,11 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:3002",
+      "localStorage": [
+        { "name": "bud_use_emulator", "value": "true" }
+      ]
+    }
+  ]
+}

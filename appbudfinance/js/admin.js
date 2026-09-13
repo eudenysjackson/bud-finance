@@ -38,7 +38,7 @@ let _salesLoaded      = false;
 let _iaMetricsLoaded  = false;
 
 // ── Plan prices for MRR estimate ───────────────────────────────
-const PLAN_PRICES = { starter: 19.90, plus: 29.90, pro: 49.90 };
+const PLAN_PRICES = { starter: 9.99, pro: 29.90, plus: 49.90 };
 
 // ═══════════════════════════════════════════════════════════════
 //  HELPERS
@@ -998,10 +998,8 @@ const DEFAULT_FLAGS = [
   { nome: 'Comparativo Mensal',   key: 'comparativo',         desc: 'Comparar receitas/despesas por mês',        planos: ['plus','pro'], enabled: true },
   { nome: 'Dívidas e Empréstimos',key: 'dividas',             desc: 'Controle de dívidas e parcelamentos',       planos: ['trial','plus','pro'], enabled: true },
   { nome: 'Investimentos',        key: 'investimentos',       desc: 'Carteira de investimentos e rendimentos',   planos: ['plus','pro'], enabled: true },
-  { nome: 'Balanço Mensal',       key: 'balanco',             desc: 'Resumo detalhado por mês',                  planos: ['starter','trial','plus','pro'], enabled: true },
   { nome: 'Extrato Completo',     key: 'extrato',             desc: 'Extrato com filtros avançados',             planos: ['free','starter','trial','plus','pro'], enabled: true },
   { nome: 'Insights Automáticos', key: 'insights',            desc: 'Sugestões e análises automáticas',          planos: ['pro'],         enabled: true },
-  { nome: 'Gráficos Avançados',   key: 'graficos',            desc: 'Gráficos interativos e personalizados',     planos: ['plus','pro'], enabled: true },
   { nome: 'Dark Mode',            key: 'dark_mode',           desc: 'Tema escuro para o aplicativo',             planos: ['free','starter','trial','plus','pro'], enabled: true },
   { nome: 'Notificações Push',    key: 'push_notifications',  desc: 'Alertas e notificações push FCM',           planos: ['plus','pro'], enabled: true },
 ];
@@ -1314,7 +1312,6 @@ async function loadAppSettings() {
 
     const v = document.getElementById('inputVersao'); if (v) v.value = _appSettings.versao || '';
     const b = document.getElementById('inputBoasVindas'); if (b) b.value = _appSettings.mensagemBoasVindas || '';
-    const ic = document.getElementById('inputInviteCode'); if (ic) ic.value = _appSettings.adminInviteCode || '';
   } catch(e) {
     console.error('[settings]', e);
   }
@@ -1337,15 +1334,14 @@ window.saveToggle = async function(field, val) {
 window.saveAppSettings = async function() {
   const versao       = document.getElementById('inputVersao')?.value.trim() || '';
   const boasVindas   = document.getElementById('inputBoasVindas')?.value.trim() || '';
-  const inviteCode   = document.getElementById('inputInviteCode')?.value.trim() || '';
 
   const btn = document.getElementById('btnSalvarSistema');
   btn.disabled = true; btn.textContent = '⏳ Salvando...';
   try {
     await setDoc(doc(db, 'admin', 'config'), {
-      versao, mensagemBoasVindas: boasVindas, adminInviteCode: inviteCode
+      versao, mensagemBoasVindas: boasVindas
     }, { merge: true });
-    Object.assign(_appSettings, { versao, mensagemBoasVindas: boasVindas, adminInviteCode: inviteCode });
+    Object.assign(_appSettings, { versao, mensagemBoasVindas: boasVindas });
     budToast('✅ Configurações salvas!');
   } catch(e) {
     budToast('Erro: ' + e.message, 'error');

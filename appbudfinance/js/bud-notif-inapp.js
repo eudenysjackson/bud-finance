@@ -382,11 +382,11 @@
           var eMsg = 'Seu plano ' + lblP + ' expira amanhã. Renove para não perder o acesso.';
           _add({
             key: kExp, emoji: '🔔', msg: eMsg,
-            link: '../index.html?checkout=' + plano, linkLabel: 'Renovar',
+            link: '../budfinance/?checkout=' + plano, linkLabel: 'Renovar',
             ts: Date.now(), read: false, dismissed: false
           });
           if (!_isDismissed(kExp)) {
-            _showBanner(kExp, '🔔', eMsg, '../index.html?checkout=' + plano, 'Renovar');
+            _showBanner(kExp, '🔔', eMsg, '../budfinance/?checkout=' + plano, 'Renovar');
             _updateBadge();
             return;
           }
@@ -404,11 +404,11 @@
           var tMsg = 'Seu trial acaba em ' + dtTrial + ' dia' + (dtTrial > 1 ? 's' : '') + '. Escolha um plano para continuar.';
           _add({
             key: kTrial, emoji: '⏳', msg: tMsg,
-            link: '../index.html?checkout=pro', linkLabel: 'Ver planos',
+            link: '../budfinance/?checkout=pro', linkLabel: 'Ver planos',
             ts: Date.now(), read: false, dismissed: false
           });
           if (!_isDismissed(kTrial)) {
-            _showBanner(kTrial, '⏳', tMsg, '../index.html?checkout=pro', 'Ver planos');
+            _showBanner(kTrial, '⏳', tMsg, '../budfinance/?checkout=pro', 'Ver planos');
             _updateBadge();
             return;
           }
