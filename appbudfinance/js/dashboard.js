@@ -9,7 +9,7 @@ import {
   addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, increment
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 import { getMessaging, getToken, onMessage, deleteToken } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
-import { registerPushToken, listenForeground, showForegroundNotification } from './push.js';
+import { registerPushToken, listenForeground, showForegroundNotification } from './push.js?v=20261031';
 import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────

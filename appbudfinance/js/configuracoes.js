@@ -7,7 +7,7 @@ import { getAuth, onAuthStateChanged, signOut, updateProfile }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, getDocs, updateDoc, deleteDoc, deleteField, setDoc, collection, query, orderBy, writeBatch }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
-import { registerPushToken, listenForeground, revokePushToken } from './push.js?v=7';
+import { registerPushToken, listenForeground, revokePushToken, showForegroundNotification } from './push.js?v=20261031';
 import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
@@ -30,15 +30,7 @@ let _pushAtivo = false;
 window._budRequestPushToken = async function (user) {
   try {
     await registerPushToken(app, user);
-    listenForeground(app, function (payload) {
-      var n = payload.notification || payload.data || {};
-      navigator.serviceWorker.ready.then(function (reg) {
-        reg.showNotification(n.title || 'Bud Finance', {
-          body: n.body || '',
-          icon: '/appbudfinance/icons/icon-192.png'
-        });
-      }).catch(function () {});
-    });
+    listenForeground(app, showForegroundNotification);
     if (window.budShowToast) window.budShowToast('Notificações ativadas neste dispositivo. 🔔', 'success');
   } catch (err) {
     if (window.budWarn) window.budWarn(err.message);
@@ -1458,15 +1450,7 @@ onAuthStateChanged(auth, async function (user) {
       if (Notification.permission === 'granted') {
         registerPushToken(app, user).then(function () {
           _mostrarBotaoAtivado();
-          listenForeground(app, function (payload) {
-            var n = payload.notification || payload.data || {};
-            navigator.serviceWorker.ready.then(function (reg) {
-              reg.showNotification(n.title || 'Bud Finance', {
-                body: n.body || '',
-                icon: '/appbudfinance/icons/icon-192.png'
-              });
-            }).catch(function () {});
-          });
+          listenForeground(app, showForegroundNotification);
         }).catch(function () {
           _mostrarBotaoAtivar();
           if (pushDesc) pushDesc.textContent = 'Não foi possível ativar neste dispositivo. Clique em Ativar para tentar novamente.';
@@ -1510,15 +1494,7 @@ onAuthStateChanged(auth, async function (user) {
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         try {
           await registerPushToken(app, user);
-          listenForeground(app, function (payload) {
-            var n = payload.notification || payload.data || {};
-            navigator.serviceWorker.ready.then(function (reg) {
-              reg.showNotification(n.title || 'Bud Finance', {
-                body: n.body || '',
-                icon: '/appbudfinance/icons/icon-192.png'
-              });
-            }).catch(function () {});
-          });
+          listenForeground(app, showForegroundNotification);
           localStorage.setItem('bud_push_asked', 'granted');
           _mostrarBotaoAtivado();
           if (window.budShowToast) window.budShowToast('Notificações ativadas neste dispositivo. 🔔', 'success');
@@ -1534,15 +1510,7 @@ onAuthStateChanged(auth, async function (user) {
         window._budRequestPushToken = async function (u) {
           try {
             await registerPushToken(app, u);
-            listenForeground(app, function (payload) {
-              var n = payload.notification || payload.data || {};
-              navigator.serviceWorker.ready.then(function (reg) {
-                reg.showNotification(n.title || 'Bud Finance', {
-                  body: n.body || '',
-                  icon: '/appbudfinance/icons/icon-192.png'
-                });
-              }).catch(function () {});
-            });
+            listenForeground(app, showForegroundNotification);
             _mostrarBotaoAtivado();
             if (window.budShowToast) window.budShowToast('Notificações ativadas neste dispositivo. 🔔', 'success');
           } catch (err) {

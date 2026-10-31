@@ -121,6 +121,7 @@ export async function registerPushToken(app, user) {
  */
 const foregroundListeners = new WeakMap();
 export async function showForegroundNotification(payload) {
+  console.info('[Push] Mensagem recebida neste navegador.');
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
   const data = payload.data || payload.notification || {};
   const registration = await navigator.serviceWorker.getRegistration(new URL('firebase-messaging-sw.js', window.location.href).href);

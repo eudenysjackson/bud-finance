@@ -170,6 +170,7 @@
         return new Promise(function (done, fail) {
           var unsubscribe = authMod.onAuthStateChanged(auth, async function (user) {
             unsubscribe();
+            if (!user) { done(null); return; }
             if (user) {
               try {
                 var userSnap = await fs.getDoc(fs.doc(fs.getFirestore(app), 'usuarios', user.uid));
@@ -685,4 +686,4 @@
   };
 })();
 
-import('./push-foreground.js').catch(function () {});
+import('./push-foreground.js?v=20261031').catch(function () {});
