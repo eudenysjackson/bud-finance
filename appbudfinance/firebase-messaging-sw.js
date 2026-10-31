@@ -22,6 +22,8 @@ var messaging = firebase.messaging();
 
 // ── Notificações recebidas com app em background / tela bloqueada ──────────
 messaging.onBackgroundMessage(function (payload) {
+  // Mensagens com notification já são exibidas pelo SDK. Evitar duplicação.
+  if (payload.notification) return;
   var d = payload.data         || {};
   var n = payload.notification || {};   // fallback para mensagens com campo notification
   var title   = d.title   || n.title || 'Bud Finance';

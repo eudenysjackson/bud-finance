@@ -8,7 +8,7 @@ service cloud.firestore {
     }
     function billingFields() {
       return ['plano', 'planoExpira', 'planoAtivadoEm', 'planoAtualizadoEm',
-        'mpSubscriptionId', 'assinaturaStatus', 'trialFim', 'trialIniciado',
+        'mpSubscriptionId', 'mpPayerId', 'mpCheckout', 'fcmTokens', 'assinaturaStatus', 'trialFim', 'trialIniciado', 'planoTroca', 'planoTrocaLock',
         'role', 'bloqueado', 'status'];
     }
 
@@ -25,9 +25,12 @@ service cloud.firestore {
         allow read: if owner(uid) || admin();
         allow write: if false;
       }
+      match /metas/{metaId}/depositos/{depositoId} {
+        allow read, write: if owner(uid) || admin();
+      }
       // Dados financeiros pertencem somente ao titular; o admin pode operar suporte.
       match /{subcolecao}/{documento} {
-        allow read, write: if (owner(uid) || admin()) && subcolecao != 'uso-ia';
+        allow read, write: if (owner(uid) || admin()) && !(subcolecao in ['uso-ia', '_seguranca', '_ai_jobs']);
       }
     }
 

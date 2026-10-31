@@ -569,3 +569,58 @@
 | `js/comparativo.js` | ✅ | ES module. 11 bugs do cérebro/comparativo.md corrigidos preventivamente. BUG 1: getDocs sem limit. BUG 2: charts destruídos quando valoresOcultos. BUG 3: filtra status!='pendente'. BUG 4: populaSelects(preservarSelecao) não reseta escolha. BUG 5: getDocs (não onSnapshot). BUG 6: calcDiffLabel trata base-zero (Novo/Zerou/=). BUG 7: catsDespesa e catsReceita separados. BUG 8: downgrade persistido no Firestore. BUG 9: Number(t.valor)||0. BUG 10: sincronizarDados() re-busca real. BUG 11: normalizarData() aceita string e Timestamp. Dep: Chart.js 4.4.1 CDN. |
 | `graficos.html` | ✅ | Gráficos — read-only analítico (Fase 2, Item 3). Paywall para não-Pro (feature: evolutionChart). 4 KPIs (Receitas/Despesas/Saldo/Transações). 4 charts Chart.js 4.4.1: Doughnut (despesas/categoria), Bar (receitas vs despesas), Line (tendência 6 meses), Bar diário (gastos/dia). Nav meses desktop (◄►) + bottom-sheet mobile. Sidebar ativo em graficos.html. |
 | `js/graficos.js` | ✅ | ES module. 10 bugs do cérebro/graficos.md corrigidos preventivamente. BUG 1: getDocs sem limit(5000). BUG 2: setDate(1) antes setMonth (navegação + seletor mobile). BUG 3: filtra status!='pendente' em todos os 4 charts + tendência. BUG 4: null safety + try/catch no resolvePlan. BUG 5: tooltip callbacks respeitam valoresOcultos. BUG 6: getDocs (não onSnapshot). BUG 7: Number(t.valor)||0. BUG 8: downgrade persistido via updateDoc. BUG 9: sincronizarDados() re-busca real. BUG 10: normalizarData() aceita string e Timestamp. Dep: Chart.js 4.4.1 CDN. |
+
+## Retomada — integrações IA (27/10/2026)
+
+- `backend/server.js`: todas as sete chamadas Groq usam `GROQ_MODEL` (padrão `qwen/qwen3.8-27b`), incluindo fatura/extrato por texto ou imagem, cupons por texto ou imagem, classificação de documentos, chat e insight opcional de notificações.
+- `GROQ_MAX_OUTPUT_TOKENS`: orçamento configurável de saída (150–8192; padrão 8192); ambiente local usa 900 pela cota da conta. Classificação usa no máximo 600; chat no máximo 1500. Extrações e classificação rejeitam `finish_reason=length` via `ensureCompleteAIResponse`.
+- Leitura PDF: `pdf-parse` com `Uint8Array` independente e versão já instalada `v2.0.550` nas três rotas de leitura.
+- `scripts/smoke-ia-local.js` + `tests/fixtures/ia/`: validações reais com documentos fictícios e conta `homologacao@bud.local`, limitada ao Firebase Emulator. Não grava transações financeiras. Oito cenários aprovados; entrega FCM não exercitada.
+- Buddy continua fora do lançamento, conforme orientação do usuário; a correção da infraestrutura não altera flags nem disponibiliza o produto.
+
+## Leitura de documentos em partes e acompanhamento (27/10/2026)
+
+- `backend/ai-reader.js`: fila por processo, orçamento de saída adaptável ao limite informado pela Groq, espera automática de 429 (`retry-after`), divisão recursiva de texto quando a saída não cabe e recomposição em ordem. Não corta o documento em 30 mil caracteres. Preserva compras iguais em linhas distintas.
+- Imagens: divisão em regiões com sobreposição e seleção pela coordenada vertical da linha; `sharp` realiza os recortes. PDFs: lê todas as páginas; páginas sem texto são renderizadas por `@napi-rs/canvas` e encaminhadas à leitura visual.
+- `backend/ai-jobs.js`: resposta 202 para upload com `X-Bud-Async: 1`; processamento continua no servidor. `GET /api/ia/jobs/:id` entrega progresso/resultado somente ao titular autenticado. Resultados concluídos expiram em 30 minutos; trabalhos em memória são perdidos se o processo reiniciar. Compatibilidade com chamadas síncronas mantida.
+- `window.budAIRequest` em `bud-utils.js`: upload único e acompanhamento periódico. Usado por Cartões, Contas, Mercado e anexos do assistente. Removido o cancelamento automático aos 45/120 segundos dos fluxos de importação.
+- `tests/ai-reader.test.js`, `tests/ai-jobs.test.js`, `tests/ai-client.test.js`: nove testes de particionamento, integridade de linhas, espera por cota, PDFs escaneados, progresso, isolamento por titular e transporte do navegador.
+- Testes reais Groq: fatura com 24 compras em três páginas retornou 24 itens e R$ 300; cupom em PDF escaneado retornou dois itens e R$ 20. Fatura curta e cupom em texto também aprovados após a alteração.
+
+## Leitura direta de faturas — 27/10/2026
+
+`backend/invoice-reader.js` reconhece o layout Nubank textual, lê linhas datadas (incluindo estornos e financiamentos) e só retorna quando a soma líquida em centavos coincide com o resumo. Layout não reconhecido ou soma divergente continua pela IA; PDFs com páginas escaneadas não usam o atalho. `cartoes.js` não fabrica mais saldo de ajuste nem classifica estorno apenas para fechar uma diferença.
+
+## Homologação das telas e artefato público (27/10/2026)
+
+Contas autentica uploads. Compras envia PDFs originais; Dívidas lê todas as páginas com OCR nas vazias. Buddy desabilitado nesta candidata por budFeatureEnabled. scripts/package-release.js gera dist/site por lista permitida; deploy.yml testa importações antes de publicar. Evidências e condições em RELEASE_IMPORTACOES_2026-10-27.md.
+
+## Fechamento local de bloqueios (27/10/2026)
+
+backend/account-lifecycle.js e DELETE /api/account: exclusão recursiva com login recente e bloqueio de assinatura; configuracoes.js usa rota autenticada. firestore.rules libera apenas depósitos de Metas ao titular/admin. metas.js grava aporte/histórico/saldo/transação atomicamente com dataReferencia. relatorios.js consulta carteira/tipo credito. CORS inclui DELETE. scripts/smoke-release-local.js valida regras e fluxos em contas descartáveis; testes/account-lifecycle.test.js e release-flows.test.js integram npm run test:release e CI. Estado de publicação em RELEASE_STATUS_2026-10-27.md.
+
+## Homologação final de e-mail e checkout (27/10/2026)
+
+31 regressões e7 grupos emulados. tests/email-flows.test.js testa recuperação/ação/confirmação; checkout.test.js cobre preço/identidade, webhook, estados e cancelamento simulado. Script inspect-online.js compara apenas estado público por padrão; --test-reset-email é um envio real e exige autorização do destinatário. Recuperação é exclusiva pelo backend; acao-auth.js conecta ao emulador e aceita links sem mode. Portal raiz lista Produtos Bud. Estado detalhado em RELEASE_STATUS_2026-10-27.md.
+
+## Cobranças recorrentes MP (27/10/2026)
+
+server.js trata subscription_authorized_payment com _mpHandleAuthorizedPayment e vínculo da fatura ao preapproval. Webhook só confirma após processamento, retorna503 em falhas e usa HMAC constante/IDs coerentes. next_payment_date orienta expiração; duplicatas preservam o período.37 regressões,12 específicas de checkout.
+
+## Conferência real do checkout (27/10/2026)
+
+Fluxo publicado página comercial -> POST create-subscription autenticado -> checkout oficial Mercado Pago conferido com Starter/R$9,99. Evidência em test-results/qa-checkout-real-starter.png. Teste não confirmou pagamento; fechamento depende de validação da aprovação e webhook.
+
+## Assinaturas com contas MP fictícias (27/10/2026)
+
+Harness privado em .tools/mp-sandbox-integration.cjs executa as rotas da candidata com Auth/Firestore Emulator e credencial conferida por /users/me (test_user e vendedor esperado). Checkout oficial aprovado com cartão fictício, plano Starter ativado pelo processamento local assinado, duplicata preservando validade e cancelamento real no provedor de teste retornando free no emulador. Fatura oficial de teste approved/processed confirmada por API. O teste não recebeu webhook externo nem usa Firebase de produção; alcance público e segredo do Render continuam por conferir. Evidências e limites em RELEASE_STATUS_2026-10-27.md; arquivos privados não integram o pacote público.
+
+## Troca de plano para a próxima cobrança (31/10/2026)
+
+backend/subscription-change.js fornece a rota autenticada change-subscription: transação/lease, vínculo da assinatura ao UID/pagador, alteração de preço no mesmo contrato MP e intenção recuperável em planoTroca. _mpHandleSubscription só promove o plano agendado mediante pagamento aprovado com data/valor do novo ciclo; eventos comuns preservam o plano vigente. Configurações permite agendar e desfazer; Firestore protege planoTroca, planoTrocaLock e mpPayerId e impede acesso direto a _seguranca. Teste real MP e testes HTTP emulados registrados em RELEASE_VALIDACOES_2026-10-31.md.
+
+## 31/10/2026 — armazenamento de importações e notificações
+backend/ai-job-store.js fornece armazenamento compartilhado no Firestore com fragmentos, leases, limpeza e admissão transacional. ai-jobs.js coordena workers e AsyncLocalStorage; cota é contabilizada uma vez por trabalho. firestore.indexes.json inclui índices de expiração e desindexa bytes. Documentos temporários são inacessíveis ao cliente; backend usa Admin. Checkout registra reserva/link pendente em mpCheckout protegido. Push preserva subscription e só confirma ativação após registro aceito. Ver RELEASE_VALIDACOES_2026-10-31.md para evidências e limites.
+
+##31/10/2026 — notificações por canal
+bud-notif-inapp.js passou a calcular apenas avisos atuais da assinatura; dashboard não consulta comunicados globais. push-foreground.js recebe push nas demais telas; push.js preserva subscription e exibe avisos no sistema. backend/financial-notifications.js calcula pendências pagas/não pagas e monta multicast/TTL. server.js registra até20dispositivos, revoga individualmente e cron dispensa IA. Ver DEC-061 e relatório de validação.

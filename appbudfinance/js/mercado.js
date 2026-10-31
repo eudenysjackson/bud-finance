@@ -2016,27 +2016,8 @@ function renderThumbsIA() {
   }
 }
 
-// ─── Converte páginas de um PDF em blobs JPEG (usa PDF.js do CDN) ───
-async function pdfParaImagens(file) {
-  if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js não carregado.');
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const blobs = [];
-  const maxPages = Math.min(pdf.numPages, 3); // máx 3 páginas = 3 arquivos
-  for (let p = 1; p <= maxPages; p++) {
-    const page = await pdf.getPage(p);
-    const viewport = page.getViewport({ scale: 3.0 }); // maior resolução → melhor OCR
-    const canvas = document.createElement('canvas');
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-    const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.92));
-    blobs.push(blob);
-  }
-  return blobs;
-}
+// ─── Envia documentos completos ao backend ───
 
-// ─── Envio para backend ──────────────────────────────────────────
 async function enviarParaIA() {
   if (restanteIA() === 0) {
     showToast(`Seu plano atingiu o limite de processamentos inteligentes. Faça upgrade para continuar.`, 'warning');
@@ -2055,7 +2036,7 @@ async function enviarParaIA() {
   progText.textContent = 'Enviando…';
 
   const ctrl = new AbortController();
-  const tid = setTimeout(() => ctrl.abort(), IA_TIMEOUT_MS);
+  const tid = null;
 
   try {
     let resp;
@@ -2063,7 +2044,7 @@ async function enviarParaIA() {
       const texto = document.getElementById('inputTextoIA').value.trim();
       progText.textContent = 'Lendo texto…';
       progBar.style.width = '40%';
-      resp = await fetch(`${BUD_BACKEND_URL}/api/extrair-cupom`, {
+      resp = await (window.budAIRequest || fetch)(`${BUD_BACKEND_URL}/api/extrair-cupom`, {
         method: 'POST',
         headers: await headersApi({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ texto }),
@@ -2071,22 +2052,12 @@ async function enviarParaIA() {
       });
     } else {
       const fd = new FormData();
-      // PDFs escaneados: converte páginas para JPEG no browser antes de enviar
-      let arquivosParaEnviar = [];
-      for (const a of _iaArquivos) {
-        if (a.file.type === 'application/pdf') {
-          progText.textContent = 'Convertendo PDF em imagem…';
-          progBar.style.width = '20%';
-          const imgs = await pdfParaImagens(a.file);
-          imgs.forEach((blob, i) => arquivosParaEnviar.push(new File([blob], `pagina${i+1}.jpg`, { type: 'image/jpeg' })));
-        } else {
-          arquivosParaEnviar.push(a.file);
-        }
-      }
+      // Preserve PDF text and every page; the backend renders scans when needed.
+      const arquivosParaEnviar = _iaArquivos.map(a => a.file);
       arquivosParaEnviar.forEach(f => fd.append('arquivos', f));
-      progText.textContent = arquivosParaEnviar.length > 1 ? `Analisando ${arquivosParaEnviar.length} imagens…` : 'Analisando imagem…';
+      progText.textContent = 'Lendo documento…';
       progBar.style.width = '40%';
-      resp = await fetch(`${BUD_BACKEND_URL}/api/extrair-cupom`, {
+      resp = await (window.budAIRequest || fetch)(`${BUD_BACKEND_URL}/api/extrair-cupom`, {
         method: 'POST', headers: await headersApi(), body: fd, signal: ctrl.signal,
       });
     }
@@ -2121,7 +2092,7 @@ async function enviarParaIA() {
     clearTimeout(tid);
     error('enviarParaIA', err);
     // PEND-MER-08: tentar OCR local com Tesseract.js quando IA falha em imagem
-    if (err.name !== 'AbortError' && _iaTabAtual === 'foto' && _iaArquivos.length > 0) {
+    if (err.name !== 'AbortError' && _iaTabAtual === 'foto' && _iaArquivos.length === 1 && _iaArquivos[0].file.type.startsWith('image/')) {
       await _tentarOcrFallback(_iaArquivos[0].file, prog, progBar, progText, btn);
     } else {
       const msg = err.name === 'AbortError'
@@ -2170,8 +2141,8 @@ async function _tentarOcrFallback(file, prog, progBar, progText, btn) {
 
     // Redireciona para o fluxo de análise de texto
     const ctrl2 = new AbortController();
-    const tid2 = setTimeout(() => ctrl2.abort(), IA_TIMEOUT_MS);
-    const resp = await fetch(`${BUD_BACKEND_URL}/api/extrair-cupom`, {
+    const tid2 = null;
+    const resp = await (window.budAIRequest || fetch)(`${BUD_BACKEND_URL}/api/extrair-cupom`, {
       method: 'POST',
       headers: await headersApi({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ texto: textoOCR }),
@@ -2320,6 +2291,7 @@ async function confirmarReviewIA() {
   abrirModalCompra(fakeCompra);
   // Garante CRIAR (não editar)
   document.getElementById('compraId').value = '';
+  document.getElementById('modalCompraTitulo').textContent = 'Nova Compra';
 }
 
 // ─── Wire up Import IA ───────────────────────────────────────────

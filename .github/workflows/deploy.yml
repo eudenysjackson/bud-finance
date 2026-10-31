@@ -25,6 +25,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install backend dependencies for import regression tests
+        run: npm ci --prefix backend
+
+      - name: Validate release regressions
+        run: npm run test:release
+
       - name: Inject env into firebase-config.js
         env:
           FIREBASE_API_KEY:                  ${{ secrets.FIREBASE_API_KEY }}
@@ -44,10 +55,13 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Package public files only
+        run: node scripts/package-release.js
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: dist/site
 
       - name: Deploy to GitHub Pages
         id: deployment

@@ -407,12 +407,33 @@ window.processarArquivoIA = async function(inputEl) {
       const buffer = await file.arrayBuffer();
       const pdfDoc = await window.pdfjsLib.getDocument({ data: buffer }).promise;
       const paginas = [];
-      for (let p = 1; p <= Math.min(pdfDoc.numPages, 5); p++) {
-        const page    = await pdfDoc.getPage(p);
-        const content = await page.getTextContent();
-        paginas.push(content.items.map(i => i.str).join(' '));
+      let pdfOcrWorker;
+      try {
+        for (let p = 1; p <= pdfDoc.numPages; p++) {
+          const page = await pdfDoc.getPage(p);
+          const content = await page.getTextContent();
+          let pageText = content.items.map(i => i.str).join(' ');
+          if (!pageText.trim()) {
+            if (!window.Tesseract) throw new Error('O leitor de imagens não carregou. Recarregue a página.');
+            pdfOcrWorker = pdfOcrWorker || await window.Tesseract.createWorker('por', 1);
+            const viewport = page.getViewport({ scale: 1.7 });
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.ceil(viewport.width);
+            canvas.height = Math.ceil(viewport.height);
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            const result = await pdfOcrWorker.recognize(canvas);
+            pageText = result.data.text;
+            canvas.width = canvas.height = 0;
+            if (!pageText.trim()) throw new Error(`Não foi possível ler a página ${p}. Envie uma cópia mais legível.`);
+          }
+          paginas.push(pageText);
+          page.cleanup();
+        }
+        texto = paginas.join('\n');
+      } finally {
+        if (pdfOcrWorker) await pdfOcrWorker.terminate();
+        await pdfDoc.destroy();
       }
-      texto = paginas.join('\n');
     } else if (file.type === 'text/plain' || ext === 'txt') {
       texto = await file.text();
     } else {

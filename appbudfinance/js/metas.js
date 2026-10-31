@@ -1012,6 +1012,8 @@ async function handleSubmitAporte(e) {
       descricao: `Aporte: ${meta.nome}`.substring(0, 100),
       valor,
       data: dataTimestamp,
+      dataReferencia: dataISO,
+      mesReferencia: dataISO.slice(0, 7),
       carteiraId,
       origem: 'meta',
       metaId: metaAportandoId,
@@ -1024,15 +1026,15 @@ async function handleSubmitAporte(e) {
       saldo: increment(-valor),
     });
 
-    await batch.commit();
-
-    // 4. Registrar no histórico de aportes (subcoleção) — após batch
-    await addDoc(collection(db, 'usuarios', uid, 'metas', metaAportandoId, 'depositos'), {
+    // Commit the goal, balance, transaction and history together.
+    const depositRef = doc(collection(db, 'usuarios', uid, 'metas', metaAportandoId, 'depositos'));
+    batch.set(depositRef, {
       valor,
       data: dataISO,
       carteiraId,
       dataCriacao: serverTimestamp(),
     });
+    await batch.commit();
 
     window.budShowToast('Depósito registrado! 💰', 'success');
     fecharModalAporte();

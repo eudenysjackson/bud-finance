@@ -1,4 +1,4 @@
-﻿/**
+/**
  * js/assistente-ia.js — Bud Finance Assistente IA v2
  *
  * V2 melhorias:
@@ -1218,7 +1218,7 @@ async function processarArquivoChat(file) {
     } else if (ext === 'pdf') {
       const fd = new FormData();
       fd.append('arquivo', file);
-      const r = await fetch(`${BACKEND_URL}/api/extrair-fatura`, { method: 'POST', headers: await authHeaders(), body: fd });
+      const r = await (window.budAIRequest || fetch)(`${BACKEND_URL}/api/extrair-fatura`, { method: 'POST', headers: await authHeaders(), body: fd });
       if (!r.ok) {
         const e = await r.json().catch(() => ({}));
         throw new Error(e.error || 'Erro ao processar PDF');
@@ -1230,7 +1230,7 @@ async function processarArquivoChat(file) {
       // Imagem: tenta extrato/fatura → fallback cupom fiscal
       const fd1 = new FormData();
       fd1.append('arquivo', file);
-      const r1 = await fetch(`${BACKEND_URL}/api/extrair-fatura`, { method: 'POST', headers: await authHeaders(), body: fd1 });
+      const r1 = await (window.budAIRequest || fetch)(`${BACKEND_URL}/api/extrair-fatura`, { method: 'POST', headers: await authHeaders(), body: fd1 });
       if (r1.ok) {
         const tx = await r1.json();
         rows = tx.map(t => ({ data: t.data, descricao: t.desc, valor: t.valor, tipo: t.tipo || 'despesa' }));
@@ -1238,7 +1238,7 @@ async function processarArquivoChat(file) {
       if (rows.length === 0) {
         const fd2 = new FormData();
         fd2.append('arquivos', file);
-        const r2 = await fetch(`${BACKEND_URL}/api/extrair-cupom`, { method: 'POST', headers: await authHeaders(), body: fd2 });
+        const r2 = await (window.budAIRequest || fetch)(`${BACKEND_URL}/api/extrair-cupom`, { method: 'POST', headers: await authHeaders(), body: fd2 });
         if (!r2.ok) {
           const e = await r2.json().catch(() => ({}));
           throw new Error(e.error || 'Não foi possível extrair dados da imagem');
@@ -1352,7 +1352,7 @@ async function _detectarEProcessarDocumento(file) {
 
     const fd = new FormData();
     fd.append('arquivo', file);
-    const resp = await fetch(`${BACKEND_URL}/api/analisar-documento`, {
+    const resp = await (window.budAIRequest || fetch)(`${BACKEND_URL}/api/analisar-documento`, {
       method:  'POST',
       headers: { 'Authorization': `Bearer ${token}` },
       body:    fd

@@ -1,3 +1,4 @@
+import { connectEmulators } from './bud-emulator-connect.js';
 // js/acao-auth.js — Bud Finance Auth Action Handler (ES Module)
 // Processes Firebase oobCode from password reset and email verification emails.
 // Firebase SDK Modular v10.8.1 — NO compat layer.
@@ -10,6 +11,7 @@ import { getAuth, verifyPasswordResetCode, confirmPasswordReset, applyActionCode
 // ─── Firebase init ──────────────────────────────────────────────────
 const app  = initializeApp(window.BUD_FIREBASE_CONFIG);
 const auth = getAuth(app);
+connectEmulators(auth, null);
 
 // ─── DOM refs: sections ─────────────────────────────────────────────
 const stateValidating    = document.getElementById('stateValidating');
@@ -94,7 +96,7 @@ function getUrlParam(name) {
   } catch (_) { return ''; }
 }
 
-var mode    = getUrlParam('mode');
+var mode    = getUrlParam('mode') || 'resetPassword';
 var oobCode = getUrlParam('oobCode');
 
 // ─── Reset button helper ────────────────────────────────────────────

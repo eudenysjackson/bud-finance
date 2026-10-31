@@ -618,3 +618,59 @@
 - **Regra de prevenção**: Para imagens pequenas e por usuário (avatar), preferir base64 no Firestore. Para mídias maiores ou compartilhadas, considerar Cloudinary free tier ou ImgBB antes de habilitar Storage pago.
 - **Status**: ✅ Resolvido em 31/05/2026 — telas que mostram avatar pelo `<img>` continuam funcionando porque data URLs são URLs válidas. Sidebar de outras telas que ainda usa só inicial fica como pendência.
 
+
+### ERR-060 — Modelos indisponíveis interrompiam importações de IA
+- **Data**: 27/10/2026.
+- **Arquivos**: `backend/server.js`, `backend/.env.local.example`.
+- **Sintoma**: importação de fatura retornava erro genérico; Groq respondia `model_not_found` para `qwen/qwen3.6-27b`. Classificação de PDF também referenciava `llama3-8b-8192`, ausente da lista da chave.
+- **Solução**: modelo multimodal centralizado em `GROQ_MODEL`, padrão `qwen/qwen3.8-27b`, confirmado pela API da conta e por chamadas reais. Removidas todas as referências aos dois modelos indisponíveis nas chamadas.
+- **Segundo bloqueio**: resposta 429 por limite de saída de 1000 tokens/minuto da conta. Orçamento configurável; local 900. Resposta cortada deixa de ser aceita como extração completa e recebe mensagem orientando dividir o documento.
+- **Validação**: oito testes HTTP locais com documentos fictícios: fatura PDF/imagem, cupom texto/imagem, extrato imagem, classificação PDF/imagem e conexão de chat. Conferidos itens e valores nos cenários financeiros.
+- **Status**: corrigido localmente. Produção requer publicação; capacidade de documentos longos depende da cota da Groq (PEND-IA-001).
+
+### ERR-061 — PDF válido rejeitado pelo leitor antigo em teste de integração
+- **Data**: 27/10/2026.
+- **Sintoma**: PDF sintético válido era lido no teste isolado, mas falhava com `bad XRef entry` no runtime do servidor.
+- **Solução**: passar `new Uint8Array(buffer)` ao `pdf-parse`, selecionando `v2.0.550` já distribuída na dependência. Aplicado também a cupons e classificação de documentos.
+- **Validação**: importação HTTP de fatura PDF e classificação PDF aprovadas.
+- **Status**: corrigido; não há garantia de leitura de PDFs escaneados ou protegidos por senha.
+
+### ERR-062 — Importação longa abortava por limite de saída e cota por minuto
+- **Data**: 27/10/2026.
+- **Sintoma**: mesmo após corrigir o modelo, uma fatura real atingia `finish_reason=length`; nova tentativa recebia 429 com espera de 40,2 segundos, mas o código aguardava apenas 1,5 segundo e a tela cancelava em 45 segundos.
+- **Correção**: leitura recursiva em partes, espera automática da janela do provedor, fila e acompanhamento assíncrono. Textos completos são preservados; PDF escaneado passa pela renderização de páginas. A correção substitui a orientação anterior de dividir o arquivo manualmente.
+- **Validação**: nove testes automatizados aprovados; teste real de 24 compras em três páginas conferiu todos os itens e soma R$ 300; PDF escaneado conferiu soma R$ 20.
+- **Limites reais**: capacidade diária/financeira do fornecedor e legibilidade do documento não podem ser removidas pelo aplicativo. Reinício do processo interrompe trabalhos em memória (PEND-IA-004).
+
+## ERR-063 — Espera por IA e conciliação artificial (27/10/2026)
+
+Faturas textuais eram sempre enviadas à Groq, incluindo páginas de instruções, sujeitas ao limite de saída por minuto. Leitura direta validada do layout Nubank evita esse custo. A revisão criava saldo de ajuste e inferia estorno pelo valor da diferença, ocultando divergências; ambos removidos. Falhas de capacidade e timeout de fatura agora têm códigos e mensagens específicos. O erro terminal relatado pelo usuário não foi reproduzido: ao inspecionar o navegador, a tentativa anterior já estava em revisão. Novo upload fictício chegou à revisão com 24 compras/R$300; teste HTTP assíncrono mediu 1536ms.
+
+## ERR-064 — Importações nas demais telas (27/10/2026)
+
+Contas não enviava Authorization e falhava401. Compras descartava páginas após a terceira e rasterizava PDFs textuais. Dívidas descartava páginas após a quinta e não reconhecia PDF escaneado. Corrigidos e reproduzidos no navegador com extrato de imagem, cupom de quatro páginas e contrato de seis páginas/escaneado. Compra importada abria com título Editar Compra; corrigido para Nova Compra. Upload de Compras permitia8MB na tela mas3MB no servidor; alinhado em8MB com normalização de imagem.
+
+## ERR-065 — Bloqueios fora da importação (27/10/2026)
+
+Aportes falhavam por falta de regra para depositos; histórico fora do batch permitia débito parcial e repetição. Exclusão usava user.delete inexistente no SDK modular, era bloqueada pelas regras e não limpava dados aninhados. Relatórios consultava coleção legada cartoes. DELETE de push era barrado no preflight. Corrigidos e validados por21 regressões,5 grupos emulados e conferência de Metas/Relatórios no navegador. Regras, backend e frontend corrigidos ainda precisam ser publicados.
+
+## ERR-066 — Recuperação sem marca e link incompatível (27/10/2026)
+
+Publicação antiga falhava no EmailJS e recorria ao Firebase padrão. Histórico real identificou autorização Gmail expirada (Invalid grant). Usuário reconectou; serviço salvo, template atualizado, envio visual confirmado no histórico. Código atualizado remove falso sucesso no transporte e fallback sem marca em Configurações; link de recuperação inclui mode e aliases de template. Recuperação emulada completa com código de uso único aprovada.
+
+## ERR-067 — Estados de cobrança em homologação (27/10/2026)
+
+Cancelamento de assinatura LOCAL_TEST tentava consultar MP real; correção limitada ao modo emulador. Aprovação não limpava pagamentoPendente; agora limpa e mantém assinaturaStatus. Testes automatizados e HTTP emulados cobrem os estados sem cobrança real.
+
+## ERR-068 — Cobranças recorrentes e webhook (27/10/2026)
+
+Evento subscription_authorized_payment não era tratado; pagamentos sem preapproval_id perdiam associação. Webhook reconhecia200 antes de gravar e ignorava falhas. Status duplicados podiam recalcular o prazo indevidamente. Corrigidos com resolução pela fatura,503 em falhas e prazo baseado no provedor.12 testes de checkout e37 regressões aprovados; ciclo real continua pendente de sessão/configuração/publicação.
+## Validação adicional — 31/10/2026
+
+Troca de plano abria novo checkout mantendo assinatura anterior: reproduzido por teste200 onde deveria bloquear; agora bloqueado e substituído por alteração no mesmo contrato para o próximo ciclo. Mensagem de cancelamento contraditória corrigida. Teste com MP real revelou payer_email omitido: conferência passa a usar vínculo UID/assinatura e payer_id, validando e-mail quando retornado. Regras genéricas permitiam escrita do titular em _seguranca, incluindo tentativas de verificação: bloqueado acesso direto e validado403 no emulador. Render não tinha chave privada EmailJS/template boas-vindas/segredo de confirmação: variáveis aplicadas com autorização e reinício Live. Workflows GitHub diário/deploy desativados manualmente; última falha diária por billing identificada, sem reativação ou disparo coletivo.
+
+## 31/10/2026 — erros tratados na validação final
+Trabalhos IA em memória perdiam arquivo após reinício: candidata usa Firestore fragmentado/lease; retomada, isolamento e cota única passaram. Teste inicial usava Promise de vm incompatível com SDK: função do teste compilada no contexto nativo. Push podia indicar ativo por preferência local mesmo com registro falho, destruía subscription ao reabrir e acumulava listeners: corrigido; entrega física ainda não validada. Checkout permitia múltiplas contratações pendentes: reserva transacional, reutilização e cancelamento pendente implementados;51 regressões passaram. Classificador opcional Buddy retornou429 no teste estendido, permanece fora da primeira versão. Não confundir sucesso de envio FCM/EmailJS com recebimento no dispositivo/caixa postal.
+
+##31/10/2026 — correção de avisos antigos
+Cache sem validade e consulta de globais reapresentavam testes antigos para diferentes contas. Removidos da exibição; nenhum documento financeiro ou comunicado do servidor foi apagado. Faixas de assinatura unificadas, avisos de pagamento não ignoram confirmações, push preserva vários dispositivos e TTL curto.59regressões aprovadas. Entrega física depende da conferência pós-publicação.

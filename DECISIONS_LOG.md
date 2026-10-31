@@ -679,3 +679,48 @@ unTransaction. Sem atomicidade, falha parcial corromperia dados.
   - Sidebar de todas as telas precisa ser atualizada: remover "Importar", adicionar "🏦 Carteira" (ou "💳 Minhas Contas").
   - `cérebro/carteira-importar.md` é o documento de referência para a implementação.
 - **Quando revisar**: Ao iniciar a sprint de `carteira.html`.
+
+### DEC-052 — Modelo Groq configurável e rejeição de extração truncada
+- **Data**: 27/10/2026.
+- **Decisão**: centralizar modelo multimodal em `GROQ_MODEL` e orçamento de resposta em `GROQ_MAX_OUTPUT_TOKENS`. Padrão validado: `qwen/qwen3.8-27b`, com texto, imagem e JSON. Referência oficial: https://console.groq.com/docs/vision.
+- **Motivo**: nomes hardcoded indisponíveis quebravam fatura, extrato, cupom e classificação; orçamento incompatível com a conta provocava 429.
+- **Integridade**: rejeitar extrações/classificações que terminem por `length`, em vez de aproveitar JSON parcial. Usar orçamento local de 900 para a conta atual; documentos longos exigem partes menores ou aumento de cota, não apenas aumento da variável.
+- **Escopo de lançamento**: Buddy continua previsto para atualização futura; alterar sua configuração de provedor não altera sua disponibilidade comercial.
+
+### DEC-053 — Repartir a leitura automaticamente e acompanhar trabalho no servidor
+- **Data**: 27/10/2026.
+- **Motivo**: usuário exige envio do arquivo inteiro sem precisar dividir manualmente. Trocar o modelo e reduzir o orçamento não resolvia faturas longas nem espera por cota.
+- **Decisão**: substituir as extrações de fatura/extrato e cupom por `ai-reader.js`; repartir entradas/respostas grandes, aguardar 429 conforme o provedor e recompor resultados. Respostas cortadas não são aproveitadas. Esta decisão substitui a parte da DEC-052 que orientava dividir documentos manualmente.
+- **Transporte**: upload com 202 e consulta autenticada de progresso impede que uma espera por capacidade dependa de uma única conexão HTTP longa.
+- **Dependências**: `sharp` e `@napi-rs/canvas` para recortes e renderização de PDFs escaneados. Backend passa a exigir Node >=20.9.
+- **Limitação de implantação**: trabalhos atualmente em memória. Para execução resistente a reinícios e múltiplas réplicas, persistir a fila e os resultados em infraestrutura compartilhada antes de escalar produção.
+
+## DEC-054 — Leitura direta validada antes da IA (27/10/2026)
+
+Usar parser específico somente em layout reconhecido e conciliado com total explícito. Não tratar regex genérica como leitor universal. Preservar caminho IA para outros layouts e scans. Diferença de total deve aparecer na revisão, nunca gerar lançamento sintético nem estorno presumido. Validação automática do total reduz risco, mas não substitui a revisão das linhas.
+
+## DEC-055 — Candidata de lançamento com artefato público isolado (27/10/2026)
+
+Enviar PDF original para preservar texto e páginas no backend. O leitor local de Dívidas usa OCR somente nas páginas sem texto. Restringir artefato Pages a index/logo/CNAME/appbudfinance/budfinance e extensões públicas; raiz do repositório não deve ser artefato de hospedagem. Bloquear Buddy na função de feature durante esta candidata, conforme escopo de lançamento informado pelo usuário.
+
+## DEC-056 — Exclusão autenticada e aporte atômico (27/10/2026)
+
+Manter exclusão direta de perfil bloqueada para o cliente; usar backend com UID do token, login recente e limpeza recursiva, preservando Auth até concluir dados para permitir nova tentativa em caso de falha. Bloquear exclusão de assinatura identificada até cancelamento prévio; não fazer cancelamento financeiro implícito. Aporte deve gravar meta, transação, débito e histórico no mesmo batch. Regras de depósitos são específicas e mantêm isolamento por titular.
+
+## DEC-057 — Homologar a candidata atualizada e padronizar e-mails (27/10/2026)
+
+Conforme usuário, testar atualizações que substituirão a publicação anterior. Recuperação usa backend e template próprio, mantém resposta pública neutra para preservar privacidade, mas sinaliza falhas de transporte e registra erros de envio no servidor. HTML do EmailJS foi atualizado no serviço com autorização do usuário; Gmail reconectado por ele. Testes de pagamento usam respostas controladas e contas descartáveis, sem equivaler a aprovação de cobrança real.
+
+## DEC-058 — Reconciliação de assinaturas pelo recurso oficial (27/10/2026)
+
+Cobranças recorrentes usam authorized_payments para obter o preapproval associado; falhas não devem ser reconhecidas como sucesso. Responder após processar, limitar consultas ao provedor e permitir reenvio. Expiração segue next_payment_date e não é estendida por repetição do mesmo status.
+
+## DEC-059 — Troca na mesma assinatura, no próximo ciclo (31/10/2026)
+
+Escolha explícita do titular: alterar o contrato existente e conservar plano/acesso atuais até a próxima cobrança aprovada. Não criar segunda assinatura nem cobrar imediatamente pela troca. Preservar data da cobrança e desconto de indicação; valor sempre calculado no servidor. Persistir intenção antes da alteração no MP e permitir repetição para confirmar resultado incerto. Na promoção do plano, exigir pagamento aprovado posterior à data agendada com valor correspondente; não aceitar simples status/replay antigo. Cancelamento continua imediato conforme implementação existente, com texto coerente e limpeza do agendamento. A criação de checkout com assinatura já vinculada fica bloqueada.
+
+## DEC-060 — 31/10/2026 — recuperação de importações e proteção da contratação
+Persistir arquivos/resultados fragmentados no Firestore com leases e exclusão temporária, sem salvar bearer tokens. Worker pode repetir chamada externa após queda; a cobrança de cota do app é idempotente por trabalho. Expiração lógica:2h ativo e30min resultado; limpeza no processo, sem depender de TTL. Retomada requer acompanhamento autenticado com jobId. Reservar checkout antes de chamar MP, reutilizar contratação pendente e reter bloqueio em resultado desconhecido até conciliação, evitando segunda cobrança por retry cego. Usuário escolheu troca na mesma assinatura após próxima cobrança aprovada (DEC-059).
+
+## DEC-061 —31/10/2026 — canais de notificação
+A pedido do titular, dentro do app somente assinatura/upgrade calculados do perfil atual. Cache legado de comunicados é removido e globais deixam de ser consultados. Lembretes financeiros são push determinístico, sem Buddy, marketing ou lançamentos automáticos. Tokens múltiplos por conta permitem celular/computador, com revogação individual e compatibilidade com token legado. TTL1h evita lembretes antigos entregues após longa desconexão.

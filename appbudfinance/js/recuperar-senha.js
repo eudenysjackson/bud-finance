@@ -39,19 +39,24 @@ form.addEventListener('submit', async function (e) {
 
   try {
     var backendUrl = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\/$/, '');
-    await fetch(backendUrl + '/reset-senha', {
+    var response = await fetch(backendUrl + '/reset-senha', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email })
+      body: JSON.stringify({ email: email }),
+      signal: AbortSignal.timeout(30000)
     });
+    if (!response.ok) throw new Error('Serviço temporariamente indisponível.');
 
   } catch (err) {
     // Não revelar a existência do e-mail (anti-enumeração).
-    console.warn('[Bud] Falha ao solicitar recuperação:', err.message);
+    console.warn('[Bud] Falha ao solicitar recuperação:', err.name);
+    resetBtn();
+    window.budShowToast('Não foi possível solicitar o link agora. Tente novamente em instantes.', 'error', 5000);
+    return;
   }
 
   // Sempre mostrar sucesso (anti-enumeração de e-mails)
-  btn.textContent = '✅ Link enviado!';
+  btn.textContent = '✅ Solicitação recebida';
   btn.classList.add('bud-btn-success');
   window.budShowToast(
     'Se este e-mail estiver cadastrado, você receberá o link. Verifique também o spam.',

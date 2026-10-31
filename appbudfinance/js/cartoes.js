@@ -2120,7 +2120,7 @@ async function enviarParaIA() {
   if (progressBar) progressBar.style.width = '15%';
 
   const controller = new AbortController();
-  const timeoutId  = setTimeout(() => controller.abort(), 45000); // 45s timeout
+  const timeoutId  = null; // O trabalho assíncrono acompanha a leitura até a conclusão.
 
   try {
     if (progressText) progressText.textContent = 'Lendo fatura...';
@@ -2131,7 +2131,7 @@ async function enviarParaIA() {
     formData.append('tipo', 'fatura'); // informa backend que é fatura de cartão, não extrato
 
     const idToken = await auth.currentUser.getIdToken();
-    const resp = await fetch(`${BUD_BACKEND_URL}/api/extrair-fatura`, {
+    const resp = await (window.budAIRequest || fetch)(`${BUD_BACKEND_URL}/api/extrair-fatura`, {
       method: 'POST',
       body: formData,
       headers: { Authorization: `Bearer ${idToken}` },
@@ -2351,59 +2351,7 @@ function processarItensIA(itens) {
     };
   }).filter(item => item.valor > 0 || item.status !== 'ativa'); // remove itens com valor 0 que não são especiais
 
-  // ── Auto-correção de discrepância ─────────────────────────────────────────
-  // Para imagem: usa totalCompras como ref (compras brutas, sem juros/saldo ant.).
-  // Para PDF/OFX: usa totalAPagar (valor real cobrado).
-  const _fonte = _importMetaIA?.fonte || 'ia';
-  const totalAPagarRef = _fonte === 'imagem'
-    ? (_importMetaIA?.totalCompras || _importMetaIA?.totalAPagar)
-    : (_importMetaIA?.totalAPagar || _importMetaIA?.totalCompras);
-  if (totalAPagarRef) {
-    const computado = itensProcessados
-      .filter(i => i.status === 'ativa')
-      .reduce((s, i) => s + i.valor, 0);
-    let diff = Math.round((computado - totalAPagarRef) * 100) / 100;
-    if (diff > 0.01) {
-      // Tenta 1 item de cada vez (do fim para o início)
-      for (let i = itensProcessados.length - 1; i >= 0 && diff > 0.01; i--) {
-        const it = itensProcessados[i];
-        if (it.status !== 'ativa') continue;
-        if (Math.abs(it.valor - diff) < 0.02) {
-          it.status = 'estornado';
-          it.selecionado = false;
-          diff = 0;
-          console.warn(`[BudAI] Auto-correção: "${it.desc}" R$ ${it.valor.toFixed(2)} → estorno (diff R$ ${(computado - totalAPagarRef).toFixed(2)})`);
-        }
-      }
-    }
-  }
-
-  // O total a pagar de uma fatura pode incluir saldo líquido da fatura anterior
-  // (saldo anterior, pagamentos e créditos), que não aparece no detalhamento de
-  // compras. Registramos essa diferença separadamente para a fatura do mês fechar
-  // no mesmo valor do banco, sem transformar esse saldo em compra ou parcela futura.
-  if (_fonte === 'pdf' && totalAPagarRef > 0) {
-    const totalSelecionado = itensProcessados
-      .filter(i => i.selecionado && i.status !== 'estornado' && i.status !== 'cancelado')
-      .reduce((s, i) => s + i.valor, 0);
-    const ajuste = Math.round((totalAPagarRef - totalSelecionado) * 100) / 100;
-    if (ajuste > 0.01) {
-      itensProcessados.push({
-        desc: 'Saldo anterior e ajustes da fatura',
-        valor: ajuste,
-        dataRaw: '',
-        status: 'ativa',
-        categoria: 'Outros',
-        parcelado: false,
-        parcelaAtual: null,
-        totalParcelas: null,
-        expandirParcelas: false,
-        ajusteFatura: true,
-        selecionado: true,
-      });
-    }
-  }
-
+  // Preserve extracted values; a total mismatch must remain visible for review.
   return itensProcessados;
 }
 

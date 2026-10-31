@@ -306,3 +306,54 @@ _Sem pendências ativas._
 - **22/05/2026** — **Sistema de notificações completo implementado** (PEND-046 + PEND-084 + PEND-076 ✅): `appbudfinance/sw.js` (Service Worker + FCM compat), `js/bud-notif-inapp.js` (in-app banners + painel central), `js/bud-utils.js` (SW registration + popup de permissão Bud customizado), `js/dashboard.js` (bell icon, BudInAppNotif.init, push request 3s delay, onMessage foreground), `backend/server.js` (`POST /api/push/token` + `GET /api/notifications/daily` com engine de regras: recorrentes/cartões/metas/plano/re-engagement + Buddy AI insight via Groq + smart bundling + deduplicação por tag + quiet hours 22h–8h), `manifest.json` (gcm_sender_id), `firebase-config.js` (BUD_FCM_VAPID_KEY placeholder), `configuracoes.html`+`configuracoes.js` (botão "Ativar" funcional + estado visual pós-ativação). ⚠️ Pendente manual: (1) gerar VAPID key no Firebase Console → substitua `__FCM_VAPID_KEY__` em firebase-config.js; (2) add env var `CRON_SECRET` no Render; (3) configurar Upstash QStash: POST `GET https://bud-finance-backend.onrender.com/api/notifications/daily` com header `x-cron-secret: <CRON_SECRET>` às 11:00 UTC diariamente.
 
 
+
+## Retomada IA — 27/10/2026
+
+| ID | Item | Status |
+|---|---|---|
+| PEND-IA-001 | Validar faturas reais longas e definir capacidade da Groq para lançamento. A chave local tem 1000 tokens de saída/minuto; foi configurada saída de até 900. Documentos que ultrapassem o orçamento são recusados com orientação para dividir. Aumentar a variável sem ampliar a cota pode gerar 429. | Aberto — capacidade externa |
+| PEND-IA-002 | Publicar backend corrigido no Render quando o serviço for reativado; conferir `GROQ_MODEL` e `GROQ_MAX_OUTPUT_TOKENS` conforme a cota de produção. A atualização atual foi validada somente no localhost. | Aberto — publicação |
+| PEND-IA-003 | Buddy continua fora do lançamento e será trabalhado como atualização futura, conforme definição do usuário. Infraestrutura de modelo corrigida e conexão local testada; não equivale à homologação do produto nem à validação de entrega FCM. | Futuro |
+
+### Atualização das pendências IA — 27/10/2026
+
+- **PEND-IA-001**: divisão manual deixou de ser necessária; particionamento e espera por cota foram implementados. Homologação sintética de 24 compras/3 páginas e PDF escaneado aprovada. Continua pendente dimensionar capacidade do provedor para o volume e tempo de resposta desejados em produção e testar layouts reais variados.
+- **PEND-IA-004**: persistir fila/resultados de leitura para resistir a reinícios e atender múltiplas réplicas em produção. Hoje `ai-jobs.js` mantém trabalhos em memória, com isolamento por usuário e expiração dos concluídos em 30 minutos.
+
+### Validação de desempenho — 27/10/2026
+
+- Layout Nubank textual: caminho direto implementado, teste de 24 compras com resultado em 1,536s via HTTP assíncrono e revisão conferida no navegador interno. Fatura local de sete páginas: 42 linhas e soma líquida reconciliada, sem chamada externa.
+- Outros layouts/imagens continuam sujeitos à cota Groq; não há garantia de latência universal com a capacidade atual. Para reproduzir o erro final específico relatado, ainda é necessário o arquivo exato ou nova ocorrência com mensagem/log. Não houve publicação online.
+
+### Candidata de lançamento — 27/10/2026
+
+Homologação das importações em Cartões/Contas/Compras/Dívidas concluída no navegador interno. Backend e configuração online ainda precisam ser publicados e validados no domínio público; Groq mantém limites externos. Pendência de persistência da fila permanece. Escopo, evidências, comandos e condições em RELEASE_IMPORTACOES_2026-10-27.md.
+
+### Bloqueios locais corrigidos — 27/10/2026
+
+Metas/depósitos e atomicidade, exclusão modular/recursiva, cartões em Relatórios e CORS DELETE corrigidos e testados localmente. Publicar firestore.rules e a nova rota DELETE /api/account junto do frontend. Entrega FCM real, ciclo de pagamentos, e-mails e capacidade IA online continuam por validar após Render ativo. Organização local do site difere do publicado: /budfinance/ público ainda404 e raiz pública ainda comercial. Relatório completo em RELEASE_STATUS_2026-10-27.md.
+
+### Fechamento de e-mail e checkout — 27/10/2026
+
+Conexão Gmail do EmailJS renovada; template de recuperação salvo e teste visual registrado com sucesso. Candidata atualizada passou31 testes e7 grupos emulados, incluindo redefinição e checkout simulado. Publicar código/regras/configurações e repetir conferência real após deploy. Cobrança efetiva e entrega dos fluxos novos pela infraestrutura de produção permanecem por confirmar. Portal raiz preparado como catálogo de produtos Bud, com Finance e caminhos separados conforme pedido.
+
+### Mercado Pago — correção de renovação (27/10/2026)
+
+Código de cobrança recorrente, validação de webhook, reenvio e expiração corrigido e coberto por12 testes. Restam conferir eventos/segredo no painel MP, publicar e validar checkout com sessão real. Credenciais não foram expostas; teste de cobrança efetiva não executado.
+
+### Checkout publicado verificado — 27/10/2026
+
+Sessão online autenticada gerou checkout real do Starter (R$9,99), com página oficial Mercado Pago mostrando Bud Soluções. Pendência de abertura do checkout resolvida para a versão publicada. Permanecem aprovação financeira/webhook/liberação de plano e deploy das correções de recorrência. Nenhuma cobrança confirmada.
+
+### Atualização Mercado Pago com contas fictícias — 27/10/2026
+
+Checkout oficial entre vendedor/comprador fictícios aprovado (R$9,99), fatura approved/processed conferida por API, liberação Starter e cancelamento/free conferidos com código atualizado e Auth/Firestore Emulator. Pendente: entrega externa de webhook HTTPS, correspondência do segredo no Render, publicação e conferência da candidata online. URL de teste no painel real aponta para https://budsolucoes.com.br e precisa de receptor de homologação antes de testar eventos externos. O handler foi invocado localmente com HMAC de homologação; isso não certifica entrega externa. Recorrência futura agendada não executada. Nenhum pagamento real feito.
+### Validação retomada — 31/10/2026
+
+Troca no próximo ciclo implementada conforme escolha do usuário, testada com provider MP fictício e navegador/emuladores. E-mails de confirmação/recuperação passaram pelos handlers atualizados + EmailJS real; Render recebeu cinco variáveis autorizadas e reiniciou com build antigo Live. Publicar subscription-change.js, server.js, Configurações e regras juntos. Novos bloqueios: workflow de push e deploy estão desativados manualmente; última falha de cron por billing GitHub (independente do Render). Não executar disparo diário coletivo em homologação. Detalhes, evidências e pendências restantes em RELEASE_VALIDACOES_2026-10-31.md.
+
+## Atualização de31/10/2026 — validações finais da candidata
+51 regressões,7 grupos HTTP/emulador e4 de recuperação passaram. Oito importações reais passaram; fatura longa79,6s. Armazenamento persistente implementado, ainda precisa publicar regras/índices e backend. Checkout concorrente/pendente corrigido e testado com vendedor fictício, cancelado ao final. Push:FCM aceitou envio individual, usuário NÃO recebeu; corrigido falso estado ativo/renovação desnecessária, entrega segue pendente após publicação. GitHub autenticado não mostrou alerta atual de billing; workflows seguem desativados e execução não comprovada. Pendências externas: publicação autorizada da candidata, webhook público automático assinado, dispositivo push e execução Actions; Daily Push coletivo depende de autorização específica. Buddy/WhatsApp fora do lançamento. Detalhes em RELEASE_VALIDACOES_2026-10-31.md.
+
+##31/10/2026 — publicação autorizada e notificações
+Usuário autorizou publicar backend/site/regras/índices, condicionando à correção das notificações. Correção local concluída com59regressões: somente assinatura/upgrade no app e lembretes financeiros por push, vários dispositivos e revogação individual. Login Firebase concluído com conta titular; deploy de regras/índices iniciado. Ainda confirmar deploy/código público, webhook automático e entrega física de push antes de declarar lançamento concluído.

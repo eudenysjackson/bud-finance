@@ -338,7 +338,7 @@ async function buscarERenderi() {
       orderBy('dataReferencia', 'asc'),
     );
     const qDiv = query(collection(db, 'usuarios', currentUser.uid, 'dividas'));
-    const qCartoes = query(collection(db, 'usuarios', currentUser.uid, 'cartoes'));
+    const qCartoes = query(collection(db, 'usuarios', currentUser.uid, 'carteira'), where('tipo', '==', 'credito'));
     const [snap, snapDiv, snapCartoes] = await Promise.all([getDocs(q), getDocs(qDiv), getDocs(qCartoes)]);
     transacoes = snap.docs.map(d => {
       const data = d.data();
@@ -804,7 +804,7 @@ function renderFaturas() {
     labels.push(`${MESES_ABR[d.getMonth()]}/${String(d.getFullYear()).slice(2)}`);
     cartoesCredito.forEach((cartao, indice) => {
       const total = transacoes
-        .filter(t => t.cartaoId === cartao.id && t.dataReferencia?.startsWith(prefixo) && t.status !== 'pendente' && !t.pagamentoFatura)
+        .filter(t => t.cartaoId === cartao.id && t.dataReferencia?.startsWith(prefixo) && t.status !== 'pendente' && t.pago !== false && !t.pagamentoFatura)
         .reduce((soma, t) => soma + (Number(t.valor) || 0), 0);
       series[indice].push(valoresOcultos ? null : total);
     });

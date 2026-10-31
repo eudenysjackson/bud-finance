@@ -3,7 +3,7 @@
 // Modular Firebase SDK v10.8.1
 
 import { initializeApp, getApps }                from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
-import { getAuth, onAuthStateChanged, signOut, updateProfile, sendPasswordResetEmail }
+import { getAuth, onAuthStateChanged, signOut, updateProfile }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, getDocs, updateDoc, deleteDoc, deleteField, setDoc, collection, query, orderBy, writeBatch }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
@@ -39,7 +39,7 @@ window._budRequestPushToken = async function (user) {
         });
       }).catch(function () {});
     });
-    if (window.budShowToast) window.budShowToast('Notificações ativadas! O Buddy vai te avisar. 🔔', 'success');
+    if (window.budShowToast) window.budShowToast('Notificações ativadas neste dispositivo. 🔔', 'success');
   } catch (err) {
     if (window.budWarn) window.budWarn(err.message);
     else console.warn(err.message);
@@ -644,7 +644,7 @@ async function exportarDadosJSON() {
 
     const perfilData = perfilSnap.exists() ? perfilSnap.data() : {};
     // Não exportar campos internos de plano/pagamento (não são dados pessoais do usuário)
-    const { fcmToken: _f, assinatura: _a, ...perfilPublico } = perfilData;
+    const { fcmToken: _f, fcmTokens: _devices, assinatura: _a, ...perfilPublico } = perfilData;
 
     const exportacao = {
       gerado_em: new Date().toISOString(),
@@ -707,37 +707,22 @@ async function confirmarExcluirConta() {
   const btnConf = document.getElementById('btnConfirmarExcluir');
   if (btnConf) { btnConf.disabled = true; btnConf.textContent = 'Excluindo...'; }
 
-  const COLECOES = [
-    'transacoes', 'carteira', 'cartoes', 'metas',
-    'limites', 'categorias', 'recorrentes', 'dividas', 'investimentos',
-    'compras', 'listas-compras', 'tokens', 'notificacoes_eventos_enviadas', 'importacoes'
-  ];
-
   try {
     const user = auth.currentUser;
     if (!user) throw new Error('Usuário não autenticado.');
-
-    // Coletar todas as referências a deletar
-    const refs = [];
-    for (const col of COLECOES) {
-      try {
-        const snap = await getDocs(collection(db, 'usuarios', uid, col));
-        snap.docs.forEach(d => refs.push(d.ref));
-      } catch (_) { /* coleção pode não existir */ }
+    const token = await user.getIdToken();
+    const response = await fetch((window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com') + '/api/account', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmation: 'EXCLUIR' }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(result.error || 'Erro ao excluir conta. Tente novamente.');
+      error.code = result.code;
+      throw error;
     }
-    // Documento principal do usuário
-    refs.push(doc(db, 'usuarios', uid));
-
-    // Deletar em batches de 400
-    const CHUNK = 400;
-    for (let i = 0; i < refs.length; i += CHUNK) {
-      const batch = writeBatch(db);
-      refs.slice(i, i + CHUNK).forEach(ref => batch.delete(ref));
-      await batch.commit();
-    }
-
-    // Deletar conta do Firebase Auth
-    await user.delete();
+    await signOut(auth);
 
     fecharModalExcluirConta();
     window.location.href = 'index.html';
@@ -756,7 +741,7 @@ async function confirmarExcluirConta() {
       }, 2500);
     } else {
       if (btnConf) { btnConf.disabled = false; btnConf.textContent = 'Confirmar Exclusão'; }
-      if (window.budShowToast) window.budShowToast('Erro ao excluir conta. Tente novamente.', 'error');
+      if (window.budShowToast) window.budShowToast(err.message || 'Erro ao excluir conta. Tente novamente.', 'error');
     }
   }
 }
@@ -964,10 +949,17 @@ function _renderizarSecaoPlano(plano, data) {
       free:    'Plano gratuito — acesso às funcionalidades básicas.',
       starter: 'Plano Starter ativo — funcionalidades essenciais.',
       pro:     'Plano Pro ativo — acesso completo ao Bud Finance.',
-      plus:    'Plano Plus ativo — tudo do Pro + WhatsApp.',
+      plus:    'Plano Plus ativo — contas, cartões e importações ilimitados.',
       trial:   'Período de testes ativo — todas as funcionalidades Pro.'
     };
     elDesc.textContent = descs[plano] || 'Plano ativo.';
+    if (data.planoTroca && LABELS[data.planoTroca.planKey]) {
+      const date = new Date(data.planoTroca.effectiveAt);
+      const when = Number.isFinite(date.getTime()) ? date.toLocaleDateString('pt-BR') : 'próxima cobrança';
+      elDesc.textContent += data.planoTroca.status === 'scheduled'
+        ? ' Troca para ' + LABELS[data.planoTroca.planKey] + ' agendada para a cobrança de ' + when + ', após aprovação do pagamento.'
+        : ' Há uma troca de plano aguardando confirmação. Tente novamente para conferir.';
+    }
   }
 
   // Expira / trial
@@ -991,7 +983,7 @@ function _renderizarSecaoPlano(plano, data) {
   const status = (data.assinaturaStatus || (data.assinatura && data.assinatura.status) || '').toLowerCase();
   if (elBanner) {
     if (status === 'pending') {
-      elBanner.textContent = '⏳ Pagamento em análise — sua assinatura será ativada em breve.';
+      elBanner.textContent = data.mpCheckout?.state === 'pending' ? '⏳ Contratação pendente. Continue o checkout ou cancele antes de escolher outro plano.' : '⏳ Pagamento em análise — sua assinatura será ativada em breve.';
       elBanner.style.cssText = 'display:block;background:#fef9c3;border:1px solid #fde047;color:#854d0e;border-radius:0.75rem;padding:0.75rem 1rem;margin-top:0.875rem;font-size:0.8125rem;font-weight:600;';
     } else if (status === 'past_due') {
       elBanner.textContent = '⚠️ Problema no pagamento — verifique seus dados no Mercado Pago para não perder o acesso.';
@@ -1010,6 +1002,10 @@ function _renderizarSecaoPlano(plano, data) {
     btn.textContent = label;
     btn.style.cssText = 'padding:0.5rem 1rem;background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;border:none;border-radius:0.625rem;font-size:0.8125rem;font-weight:700;cursor:pointer;white-space:nowrap;';
     btn.onclick = function () {
+      if (data.mpSubscriptionId && PLANOS_PAGOS.includes(plano)) {
+        _confirmarTrocaPlano(planoDest, data);
+        return;
+      }
       const dest = planoDest ? '?checkout=' + planoDest : '';
       // Configurações já está dentro de appbudfinance: volte ao login do app,
       // não à landing page institucional que leva a um novo cadastro.
@@ -1026,6 +1022,11 @@ function _renderizarSecaoPlano(plano, data) {
     return btn;
   }
 
+  if (status === 'pending' && data.mpSubscriptionId && data.mpCheckout?.state === 'pending') {
+    elBotoes.appendChild(_btnUpgrade('Continuar contratação', data.mpCheckout.planKey));
+    elBotoes.appendChild(_btnCancelar());
+    return;
+  }
   if (plano === 'free') {
     elBotoes.appendChild(_btnUpgrade('🚀 Fazer Upgrade', 'pro'));
   } else if (plano === 'trial') {
@@ -1052,6 +1053,58 @@ function _renderizarSecaoPlano(plano, data) {
     elBotoes.appendChild(_btnUpgrade('⬇️ Mudar para Starter', 'starter'));
     elBotoes.appendChild(_btnCancelar());
   }
+  if (data.planoTroca && data.planoTroca.planKey !== plano && PLANOS_PAGOS.includes(plano)) {
+    elBotoes.appendChild(_btnUpgrade('Manter plano atual (desfazer troca)', plano));
+  }
+}
+
+function _confirmarTrocaPlano(planKey, data) {
+  const plans = { starter: ['Starter', 9.99], pro: ['Pro', 29.90], plus: ['Plus', 49.90] };
+  if (!plans[planKey]) return;
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:300;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  const card = document.createElement('div');
+  card.style.cssText = 'background:var(--bg-page,#fff);color:var(--card-text,#1e293b);border-radius:1.25rem;padding:1.75rem;max-width:420px;width:100%;';
+  const heading = document.createElement('h3');
+  heading.textContent = 'Alterar para ' + plans[planKey][0] + '?';
+  const explanation = document.createElement('p');
+  explanation.style.cssText = 'font-size:.875rem;line-height:1.6;margin:1rem 0;';
+  explanation.textContent = 'A mesma assinatura será mantida. O novo valor mensal é ' + plans[planKey][1].toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + ' (desconto de indicação, se aplicável, é preservado). O plano atual continua até a próxima cobrança aprovada. Não há nova cobrança imediata.';
+  const message = document.createElement('p');
+  message.style.cssText = 'font-size:.8125rem;color:#dc2626;';
+  const back = document.createElement('button');
+  back.textContent = 'Voltar';
+  back.style.cssText = 'padding:.75rem;border-radius:.625rem;margin-right:.75rem;';
+  back.onclick = () => overlay.remove();
+  const confirm = document.createElement('button');
+  confirm.textContent = 'Confirmar alteração';
+  confirm.style.cssText = 'padding:.75rem;border-radius:.625rem;background:#2563eb;color:#fff;';
+  confirm.onclick = async () => {
+    confirm.disabled = true;
+    back.disabled = true;
+    confirm.textContent = 'Confirmando...';
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const response = await fetch((window.BUD_FUNCTIONS_URL || '').replace(/\/$/, '') + '/mercadopago/change-subscription', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ planKey })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Não foi possível confirmar a alteração.');
+      const snapshot = await getDoc(doc(db, 'usuarios', uid));
+      const profile = snapshot.data() || data;
+      _renderizarSecaoPlano(profile.plano, profile);
+      overlay.remove();
+      if (window.budShowToast) window.budShowToast(result.scheduled ? 'Troca agendada para a próxima cobrança aprovada.' : 'Plano atual mantido.', 'success');
+    } catch (error) {
+      message.textContent = error.message || 'Tente novamente.';
+      confirm.disabled = false;
+      back.disabled = false;
+      confirm.textContent = 'Tentar novamente';
+    }
+  };
+  card.append(heading, explanation, message, back, confirm);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
 }
 
 async function _confirmarCancelamento() {
@@ -1061,7 +1114,7 @@ async function _confirmarCancelamento() {
     '<div style="background:var(--bg-page,#fff);border-radius:1.25rem;padding:1.75rem 1.5rem;max-width:400px;width:100%;border:1px solid var(--card-border,#e2e8f0);box-shadow:0 24px 64px rgba(0,0,0,.25);">'
     + '<div style="font-size:2rem;text-align:center;margin-bottom:.625rem;">⚠️</div>'
     + '<h3 style="font-weight:800;font-size:1rem;text-align:center;margin:0 0 .5rem;color:var(--card-text,#1e293b);">Cancelar assinatura?</h3>'
-    + '<p style="font-size:.8125rem;color:var(--card-text-sec,#64748b);text-align:center;margin:0 0 .875rem;line-height:1.5;">Você perderá acesso às funcionalidades do seu plano ao final do período pago. Esta ação não pode ser desfeita.</p>'
+    + '<p style="font-size:.8125rem;color:var(--card-text-sec,#64748b);text-align:center;margin:0 0 .875rem;line-height:1.5;">O cancelamento interrompe as próximas cobranças e devolve sua conta ao plano Gratuito imediatamente. Uma troca de plano agendada também será cancelada.</p>'
     + '<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:.625rem;padding:.625rem .875rem;margin-bottom:1.25rem;font-size:.75rem;color:#991b1b;font-weight:600;">O cancelamento é imediato — o plano volta para Gratuito agora.</div>'
     + '<div style="display:flex;gap:.75rem;">'
     + '<button id="_cfgCancelBtn" style="flex:1;padding:.625rem;background:var(--input-bg,#f1f5f9);color:var(--card-text,#1e293b);border:none;border-radius:.625rem;font-size:.875rem;font-weight:600;cursor:pointer;">Manter plano</button>'
@@ -1203,23 +1256,26 @@ function setupSeguranca() {
       btnReset.disabled = true;
       btnReset.textContent = 'Enviando...';
 
-      const backendUrl = (window.BUD_FUNCTIONS_URL || '').replace(/\/$/, '');
+      const backendUrl = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\/$/, '');
       let backendOk = false;
       if (backendUrl) {
         try {
           const res = await fetch(backendUrl + '/reset-senha', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: user.email })
+            body: JSON.stringify({ email: user.email }),
+            signal: AbortSignal.timeout(30000)
           });
           if (res.ok) backendOk = true;
         } catch (_) {
           // backend indisponível — usa Firebase Auth como fallback
         }
       }
-      // Fallback: Firebase Auth envia o email diretamente
       if (!backendOk) {
-        try { await sendPasswordResetEmail(auth, user.email); } catch (_) {}
+        window.budShowToast?.('Não foi possível solicitar o link agora. Tente novamente em instantes.', 'error', 5000);
+        btnReset.textContent = 'Enviar link';
+        btnReset.disabled = false;
+        return;
       }
 
       // Sempre mostra sucesso (anti-enumeração)
@@ -1228,7 +1284,7 @@ function setupSeguranca() {
         'success',
         4000
       );
-      btnReset.textContent = 'Enviado ✓';
+      btnReset.textContent = 'Solicitação recebida ✓';
       setTimeout(function () {
         btnReset.textContent = 'Enviar link';
         btnReset.disabled = false;
@@ -1381,27 +1437,27 @@ onAuthStateChanged(auth, async function (user) {
   function _mostrarBotaoAtivado() {
     _pushAtivo = true;
     if (btnAtivarPush) { btnAtivarPush.textContent = '🔕 Desativar'; btnAtivarPush.disabled = false; btnAtivarPush.style.background = '#64748b'; }
-    if (btnTestarPush && _isAdmin) btnTestarPush.style.display = '';
-    if (pushDesc) pushDesc.textContent = 'O Buddy já está te enviando alertas personalizados.';
+    if (btnTestarPush) btnTestarPush.style.display = '';
+    if (pushDesc) pushDesc.textContent = 'Os alertas estão ativados neste dispositivo.';
   }
 
   function _mostrarBotaoAtivar() {
     _pushAtivo = false;
     if (btnAtivarPush) { btnAtivarPush.textContent = 'Ativar'; btnAtivarPush.disabled = false; btnAtivarPush.style.background = 'linear-gradient(135deg,#2563eb,#4f46e5)'; }
     if (btnTestarPush) btnTestarPush.style.display = 'none';
-    if (pushDesc) pushDesc.textContent = 'Receba alertas de vencimentos, metas e dicas do Buddy';
+    if (pushDesc) pushDesc.textContent = 'Receba alertas de vencimentos e metas.';
   }
 
   // alias para compatibilidade com chamadas existentes
   function _mostrarBotaoTestar() { _mostrarBotaoAtivado(); }
 
   if (btnAtivarPush) {
-    const pushed = localStorage.getItem('bud_push_asked');
-    if (pushed === 'granted' || Notification.permission === 'granted') {
-      _mostrarBotaoTestar();
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      if (pushDesc) pushDesc.textContent = 'Verificando notificações neste dispositivo...';
       // Re-registra token silenciosamente (pode ter expirado)
       if (Notification.permission === 'granted') {
         registerPushToken(app, user).then(function () {
+          _mostrarBotaoAtivado();
           listenForeground(app, function (payload) {
             var n = payload.notification || payload.data || {};
             navigator.serviceWorker.ready.then(function (reg) {
@@ -1411,7 +1467,10 @@ onAuthStateChanged(auth, async function (user) {
               });
             }).catch(function () {});
           });
-        }).catch(function () {});
+        }).catch(function () {
+          _mostrarBotaoAtivar();
+          if (pushDesc) pushDesc.textContent = 'Não foi possível ativar neste dispositivo. Clique em Ativar para tentar novamente.';
+        });
       }
     }
 
@@ -1448,7 +1507,7 @@ onAuthStateChanged(auth, async function (user) {
         return;
       }
       // Permissão já concedida (ex: após revogar token e re-ativar) → registrar direto
-      if (Notification.permission === 'granted') {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         try {
           await registerPushToken(app, user);
           listenForeground(app, function (payload) {
@@ -1462,7 +1521,7 @@ onAuthStateChanged(auth, async function (user) {
           });
           localStorage.setItem('bud_push_asked', 'granted');
           _mostrarBotaoAtivado();
-          if (window.budShowToast) window.budShowToast('Notificações ativadas! O Buddy vai te avisar. 🔔', 'success');
+          if (window.budShowToast) window.budShowToast('Notificações ativadas neste dispositivo. 🔔', 'success');
         } catch (err) {
           if (window.budWarn) window.budWarn(err.message);
           else if (window.budShowToast) window.budShowToast('Erro ao ativar notificações: ' + (err && err.message ? err.message : err), 'error');
@@ -1485,7 +1544,7 @@ onAuthStateChanged(auth, async function (user) {
               }).catch(function () {});
             });
             _mostrarBotaoAtivado();
-            if (window.budShowToast) window.budShowToast('Notificações ativadas! O Buddy vai te avisar. 🔔', 'success');
+            if (window.budShowToast) window.budShowToast('Notificações ativadas neste dispositivo. 🔔', 'success');
           } catch (err) {
             if (window.budWarn) window.budWarn(err.message);
             else alert('Erro ao ativar notificações:\n' + (err && err.message ? err.message : err));
@@ -1494,7 +1553,7 @@ onAuthStateChanged(auth, async function (user) {
         localStorage.removeItem('bud_push_asked');
         window.BudPush.requestIfNeeded(user);
         setTimeout(function () {
-          if (localStorage.getItem('bud_push_asked') === 'granted') _mostrarBotaoAtivado();
+          // O registro confirmado chama _mostrarBotaoAtivado; a preferência local não prova entrega.
         }, 2000);
       }
     });
@@ -1511,7 +1570,7 @@ onAuthStateChanged(auth, async function (user) {
         let pushToken;
         try {
           pushToken = await registerPushToken(app, user);
-          console.log('[Push Test] Token registrado e salvo no backend:', pushToken ? pushToken.substring(0, 20) + '...' : '(vazio)');
+          console.log('[Push Test] Registro concluído:', !!pushToken);
         } catch (regErr) {
           console.error('[Push Test] Falha ao registrar:', regErr);
           btnTestarPush.textContent = 'Testar';
@@ -1524,7 +1583,8 @@ onAuthStateChanged(auth, async function (user) {
         const baseUrl = window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com';
         const resp = await fetch(baseUrl + '/api/push/test', {
           method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' }
+          headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: pushToken })
         });
         const data = await resp.json().catch(function () { return {}; });
         console.log('[Push Test] Resposta:', resp.status, data);

@@ -71,6 +71,8 @@
   };
 
   window.budFeatureEnabled = function (key) {
+    // Buddy is reserved for a future release, including cached/remote flags.
+    if (key === 'assistente_ia') return false;
     var rule = window.BUD_FEATURE_RULES[key];
     if (window.BUD_FEATURES[key] === false || (rule && rule.enabled === false)) return false;
     return true;
@@ -615,7 +617,10 @@
     requestIfNeeded: function (user) {
       if (!window.budFeatureEnabled('push_notifications')) return;
       if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
-      if (localStorage.getItem('bud_push_asked') === 'granted') return;
+      if (localStorage.getItem('bud_push_asked') === 'granted' && Notification.permission === 'granted') {
+        if (window._budRequestPushToken && user) window._budRequestPushToken(user, true);
+        return;
+      }
       // Se já negou mais de 7 dias atrás, perguntar de novo
       var denied = localStorage.getItem('bud_push_asked');
       if (denied === 'denied' || denied === 'default') {
@@ -654,4 +659,30 @@
     }
   };
 
+  // Upload curto + acompanhamento: a leitura continua durante espera da cota.
+  window.budAIRequest = async function (url, options) {
+    var headers = new Headers(options.headers || {});
+    headers.set('X-Bud-Async', '1');
+    var response = await fetch(url, Object.assign({}, options, { headers: headers }));
+    if (response.status !== 202) return response;
+    var accepted = await response.json();
+    var pollUrl = new URL('/api/ia/jobs/' + encodeURIComponent(accepted.jobId), url).href;
+    while (true) {
+      await new Promise(function (resolve) { setTimeout(resolve, 1500); });
+      if (options.signal && options.signal.aborted) throw new DOMException('Leitura cancelada.', 'AbortError');
+      var poll = await fetch(pollUrl, { headers: { Authorization: headers.get('Authorization') }, signal: options.signal, cache: 'no-store' });
+      if (!poll.ok) return poll;
+      var state = await poll.json();
+      if (state.message) {
+        ['importIA-progress-text', 'iaProgressText'].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.textContent = state.message;
+        });
+        window.dispatchEvent(new CustomEvent('bud:ai-progress', { detail: state }));
+      }
+      if (state.state !== 'running') return new Response(JSON.stringify(state.result), { status: state.status || 500, headers: { 'Content-Type': 'application/json' } });
+    }
+  };
 })();
+
+import('./push-foreground.js').catch(function () {});

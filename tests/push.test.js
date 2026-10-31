@@ -1,0 +1,29 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const source = fs.readFileSync('appbudfinance/js/push.js', 'utf8').replace(/import\s+[\s\S]*?from\s+'[^']+';/, '').replace(/export /g, '');
+function setup(status = 200) {
+  let unsubscribed = 0, listeners = 0, removed = 0, saved = 0;
+  const app = {}, registration = { pushManager: { getSubscription: async () => ({ unsubscribe: async () => { unsubscribed++; } }) } };
+  const api = new Function('window', 'navigator', 'Notification', 'localStorage', 'getMessaging', 'getToken', 'onMessage', 'deleteToken', 'fetch', source + ';return {registerPushToken,listenForeground};')(
+    { BUD_FCM_VAPID_KEY: 'public-test-key', Notification: {}, PushManager: {}, BUD_FUNCTIONS_URL: 'https://backend.example' },
+    { serviceWorker: { register: async () => registration, ready: Promise.resolve(registration) } },
+    { permission: 'granted' }, { setItem() { saved++; } }, () => ({}), async () => 'fictitious-token',
+    () => { listeners++; return () => { removed++; }; }, async () => {}, async () => ({ ok: status === 200, status, json: async () => ({ error: 'rejected' }) })
+  );
+  return { api, app, counters: () => ({ unsubscribed, listeners, removed, saved }) };
+}
+test('push registration preserves a valid subscription and only marks active after backend accepts', async () => {
+  const ctx = setup();
+  assert.equal(await ctx.api.registerPushToken(ctx.app, { getIdToken: async () => 'fictitious-auth' }), 'fictitious-token');
+  assert.equal(ctx.counters().unsubscribed, 0);
+  assert.equal(ctx.counters().saved, 1);
+  const rejected = setup(503);
+  await assert.rejects(rejected.api.registerPushToken(rejected.app, { getIdToken: async () => 'fictitious-auth' }), /503/);
+  assert.equal(rejected.counters().saved, 0);
+});
+test('foreground push listener is replaced instead of displaying the same alert several times', () => {
+  const ctx = setup();
+  ctx.api.listenForeground(ctx.app, () => {});ctx.api.listenForeground(ctx.app, () => {});
+  assert.deepEqual(ctx.counters(), { unsubscribed: 0, listeners: 2, removed: 1, saved: 0 });
+});

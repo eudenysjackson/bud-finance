@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex,follow">
-  <title>Bud Soluções — Em construção</title>
-  <meta name="description" content="A Bud Soluções está preparando novas experiências digitais inteligentes.">
+  <meta name="robots" content="index,follow">
+  <title>Bud Soluções — Nossos produtos</title>
+  <meta name="description" content="Conheça os produtos Bud: soluções digitais para simplificar sua rotina.">
   <link rel="icon" type="image/png" href="logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,7 +16,7 @@
     body::before, body::after { content:""; position:fixed; z-index:-1; width:28rem; height:28rem; border-radius:50%; filter:blur(18px); opacity:.42; }
     body::before { top:-12rem; left:-9rem; background:#6ee7b7; }
     body::after { right:-10rem; bottom:-13rem; background:#93c5fd; }
-    main { width:min(100%,42rem); padding:clamp(2rem,7vw,4rem); text-align:center; background:rgba(255,255,255,.75); border:1px solid rgba(255,255,255,.9); border-radius:1.75rem; box-shadow:0 24px 64px rgba(15,23,42,.12); backdrop-filter:blur(14px); }
+    main { width:min(100%,54rem); padding:clamp(2rem,7vw,4rem); text-align:center; background:rgba(255,255,255,.75); border:1px solid rgba(255,255,255,.9); border-radius:1.75rem; box-shadow:0 24px 64px rgba(15,23,42,.12); backdrop-filter:blur(14px); }
     .brand { display:inline-flex; align-items:center; gap:.7rem; font-size:1.1rem; font-weight:800; }
     .brand img { width:2.4rem; height:2.4rem; object-fit:contain; }
     .eyebrow { display:inline-flex; margin-top:2.4rem; padding:.4rem .75rem; color:var(--green-dark); background:#d1fae5; border-radius:999px; font-size:.75rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
@@ -27,17 +27,28 @@
     .primary { color:white; background:var(--green); box-shadow:0 8px 18px rgba(5,150,105,.22); }
     .primary:hover { background:var(--green-dark); }
     .secondary { color:var(--ink); background:white; border:1px solid #dbe4ef; }
+    .product { margin-top:2rem;padding:1.5rem;text-align:left;border:1px solid #dbe4ef;border-radius:1.25rem;background:white; }
+    .product h2 { margin:0 0 .75rem;font-size:1.5rem; }
+    .product p { margin:0; }
+    .product .actions { justify-content:flex-start;margin-top:1.25rem; }
     footer { margin-top:2.4rem; color:#94a3b8; font-size:.75rem; }
   </style>
 </head>
 <body>
   <main>
     <div class="brand"><img src="logo.png" alt="Bud"> Bud Soluções</div>
-    <div class="eyebrow">Em construção</div>
-    <h1>Novas soluções inteligentes estão a caminho.</h1>
-    <p>A Bud cria aplicações para tornar o dia a dia mais simples. Estamos preparando o próximo capítulo.</p>
+    <div class="eyebrow">Produtos Bud</div>
+    <h1>Soluções que simplificam o seu dia a dia.</h1>
+    <p>Conheça nossas aplicações e encontre novas formas de organizar sua rotina.</p>
+    <article class="product">
+      <h2>Bud Finance</h2>
+      <p>Organize suas finanças, acompanhe seus cartões, planeje metas e importe documentos em um só lugar.</p>
+      <div class="actions">
+        <a class="primary" href="/budfinance/">Conhecer o Bud Finance</a>
+        <a class="secondary" href="/appbudfinance/">Acessar o aplicativo</a>
+      </div>
+    </article>
     <div class="actions">
-      <a class="primary" href="/budfinance/">Conheça o Bud Finance</a>
       <a class="secondary" href="mailto:budsolucoes@gmail.com">Falar com a Bud</a>
     </div>
     <footer>© 2026 Bud Soluções</footer>

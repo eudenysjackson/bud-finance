@@ -173,7 +173,7 @@
       <li><strong>Dados de uso:</strong> registros financeiros que você inserir voluntariamente (receitas, despesas, categorias, metas, dívidas, investimentos, cartões, recorrentes, limites, lista de compras);</li>
       <li><strong>Dados técnicos:</strong> endereço IP, tipo de navegador, data e hora de acesso (para segurança e prevenção de fraude);</li>
       <li><strong>Dados de indicação:</strong> código de indicação utilizado, se aplicável;</li>
-      <li><strong>Conteúdo de faturas bancárias (temporário):</strong> ao usar a função de importação de fatura via IA, o conteúdo do arquivo PDF, OFX, CSV ou imagem é enviado ao nosso servidor exclusivamente para extração das transações — <strong>não é armazenado permanentemente</strong> em nenhum banco de dados após o processamento;</li>
+      <li><strong>Documentos enviados para importação (temporário):</strong> arquivos e seu conteúdo são processados para extrair os dados solicitados. As leituras com acompanhamento usam armazenamento temporário protegido no Firebase para permitir a retomada após interrupções. O arquivo é excluído ao concluir; leituras pendentes expiram em até 2 horas e resultados ficam disponíveis por 30 minutos. A exclusão é automática enquanto o serviço está em funcionamento e é retomada após eventual indisponibilidade. Dados que você revisar e salvar passam a integrar seus registros financeiros;</li>
       <li><strong>Dados de assinatura e pagamento:</strong> referência de assinatura (Mercado Pago) associada ao seu UID — não armazenamos dados de cartão de crédito ou débito;</li>
       <li><strong>Token FCM (notificações):</strong> identificador de dispositivo armazenado no Firestore para futura entrega de notificações push. O recurso ainda não está ativo — o token é armazenado mas não utilizado para envio de mensagens nesta versão.</li>
     </ul>
@@ -214,7 +214,7 @@
     </p>
     <ul>
       <li><strong>Serviços de autenticação e armazenamento:</strong> para criar sua conta, proteger o acesso e guardar os dados do aplicativo;</li>
-      <li><strong>Serviços de processamento:</strong> para executar funcionalidades solicitadas pelo usuário, como importação e leitura de documentos e recursos de suporte;</li>
+      <li><strong>Serviços de processamento:</strong> utilizamos Firebase/Google Cloud para armazenamento e autenticação, Render para o servidor e Groq para leitura por IA. O conteúdo necessário à leitura é enviado ao provedor de IA quando a funcionalidade solicitada exige esse processamento;</li>
       <li><strong>Mercado Pago:</strong> para processar assinaturas. Os dados de cartão são informados diretamente ao Mercado Pago e não ficam acessíveis ao Bud Finance;</li>
       <li><strong>Serviços de comunicação:</strong> para enviar mensagens essenciais, como verificação de e-mail e recuperação de acesso;</li>
       <li><strong>Autoridades competentes:</strong> quando exigido por decisão judicial ou lei aplicável.</li>
@@ -286,7 +286,7 @@
       <li>Seus dados são mantidos enquanto sua conta estiver ativa;</li>
       <li>Ao solicitar a exclusão da conta pelo aplicativo, todos os dados financeiros e o registro de autenticação são eliminados imediatamente, em uma única operação atômica;</li>
       <li>Registros de consentimento LGPD são mantidos pelo prazo legal mesmo após exclusão da conta;</li>
-      <li>Conteúdo de faturas bancárias enviados para processamento via IA não são armazenados — são descartados após a extração das transações na mesma requisição.</li>
+      <li>Documentos de importação usam armazenamento temporário protegido durante o acompanhamento da leitura, com exclusão após a conclusão ou expiração. Leituras pendentes expiram em até 2 horas e resultados em 30 minutos; a rotina de exclusão é retomada após eventual indisponibilidade do serviço. Os registros que você optar por salvar permanecem em sua conta.</li>
     </ul>
 
     <!-- ─── 11. Cookies e Armazenamento Local ────────────────────── -->

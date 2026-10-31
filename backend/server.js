@@ -1,4 +1,4 @@
-﻿// backend/server.js â€” Bud Finance Backend
+// backend/server.js â€” Bud Finance Backend
 // Generates Firebase password reset links via Admin SDK.
 // Sends the reset email server-side via EmailJS REST API.
 // Also: POST /api/extrair-fatura â€” extrai transaÃ§Ãµes de PDF de fatura de cartÃ£o.
@@ -10,6 +10,28 @@ const admin   = require('firebase-admin');
 const multer  = require('multer');
 const pdfParse = require('pdf-parse');
 const crypto  = require('crypto');
+const { createReader, readPDF } = require('./ai-reader');
+const { createJobs, currentJob } = require('./ai-jobs');
+const { createFirestoreJobStore } = require('./ai-job-store');
+const { readNubankInvoice } = require('./invoice-reader');
+const { createDeleteAccount } = require('./account-lifecycle');
+const { createSubscriptionChange } = require('./subscription-change');
+const { financialNotices, sendFinancialPush } = require('./financial-notifications');
+
+// Modelo multimodal configurável; validado na API da Groq em 24/10/2026.
+const GROQ_MODEL = process.env.GROQ_MODEL || 'qwen/qwen3.8-27b';
+const GROQ_MAX_OUTPUT_TOKENS = Math.max(150, Math.min(8192, Number(process.env.GROQ_MAX_OUTPUT_TOKENS) || 8192));
+const AI_OUTPUT_LIMIT_MESSAGE = 'A leitura atingiu o limite de resposta da IA. Envie menos páginas ou itens por vez. Nenhum resultado parcial foi aceito.';
+
+function ensureCompleteAIResponse(data) {
+  if (data.choices?.[0]?.finish_reason === 'length') {
+    const error = new Error(AI_OUTPUT_LIMIT_MESSAGE);
+    error.code = 'AI_OUTPUT_LIMIT';
+    throw error;
+  }
+}
+const aiReader = createReader({ model: GROQ_MODEL, key: process.env.GROQ_API_KEY, maxTokens: GROQ_MAX_OUTPUT_TOKENS });
+
 
 // â”€â”€â”€ Firebase Admin init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Service account credentials injected via environment variable.
@@ -36,6 +58,8 @@ try {
 }
 
 // â”€â”€â”€ EmailJS config (env vars â€” set on Render) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const aiJobs = createJobs(getBearerUser, { store: db ? createFirestoreJobStore(db) : undefined });
+
 const EMAILJS_PUBLIC_KEY  = process.env.EMAILJS_PUBLIC_KEY  || '';
 const EMAILJS_PRIVATE_KEY = process.env.EMAILJS_PRIVATE_KEY || '';
 const EMAILJS_SERVICE_ID  = process.env.EMAILJS_SERVICE_ID  || '';
@@ -139,8 +163,8 @@ app.use(cors({
       callback(new Error('CORS not allowed'));
     }
   },
-  methods: ['POST', 'GET', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['POST', 'GET', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Bud-Async']
 }));
 
 // â”€â”€â”€ Rate limiting (simple in-memory) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -190,6 +214,7 @@ async function sendEmailViaEmailJS(templateParams, templateId) {
 
   var response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
     method: 'POST',
+    signal: AbortSignal.timeout(20000),
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(Object.assign({
       service_id:  EMAILJS_SERVICE_ID,
@@ -303,12 +328,19 @@ app.post('/api/verificacao-email/enviar', async function (req, res) {
     tentativas: 0
   });
   try {
+    var verificationProfile = {};
+    try {
+      var verificationUser = await db.collection('usuarios').doc(decoded.uid).get();
+      if (verificationUser.exists) verificationProfile = verificationUser.data() || {};
+    } catch (_) {}
     await sendEmailViaEmailJS({
       to_email: decoded.email,
-      to_name: sanitizeStr(decoded.name || decoded.email),
+      to_name: sanitizeStr(verificationProfile.nome || decoded.name || decoded.email),
+      matricula: sanitizeStr(String(verificationProfile.matricula || '')),
       email: decoded.email,
       verification_code: codigo,
-      magic_link: FRONTEND_URL + '/index.html?magic_verification=' + encodeURIComponent(decoded.uid + '.' + magicToken)
+      magic_link: FRONTEND_URL + '/index.html?magic_verification=' + encodeURIComponent(decoded.uid + '.' + magicToken),
+      verify_url: FRONTEND_URL + '/index.html?magic_verification=' + encodeURIComponent(decoded.uid + '.' + magicToken)
     }, EMAILJS_TEMPLATE_BOAS_VINDAS);
     return res.json({ ok: true, expiresInMinutes: 15 });
   } catch (e) {
@@ -540,7 +572,7 @@ app.post('/reset-senha', async function (req, res) {
 
     // Extract oobCode and build custom reset URL (server-side only)
     var oobCode = new URL(resetLink).searchParams.get('oobCode');
-    var resetUrl = FRONTEND_URL + '/acao-auth.html?oobCode=' + encodeURIComponent(oobCode);
+    var resetUrl = FRONTEND_URL.replace(/\/$/, '') + '/acao-auth.html?mode=resetPassword&oobCode=' + encodeURIComponent(oobCode);
 
     // Send email via EmailJS REST API (oobCode stays on the server)
     try {
@@ -552,15 +584,18 @@ app.post('/reset-senha', async function (req, res) {
         email_preheader: 'Recebemos uma solicitação para redefinir sua senha.',
         email_body: 'Para criar uma nova senha, use o botão abaixo. Se não foi você, ignore este e-mail.',
         action_label: 'Redefinir minha senha',
-        action_url: resetUrl
+        action_url: resetUrl,
+        reset_url: resetUrl
       });
     } catch (_emailErr) {
+      console.error('[reset-senha email]', _emailErr.message || 'delivery-failed');
       // Email failed â€” but don't leak info to the client
     }
 
     return res.json({ success: true });
 
   } catch (_err) {
+    console.error('[reset-senha]', _err.code || _err.name || 'internal');
     // Generic success to prevent information leakage
     return res.json({ success: true });
   }
@@ -622,62 +657,7 @@ async function extractWithAIFromText(text, tipo) {
     'Retorne SOMENTE JSON vÃ¡lido: {"transacoes":[{"desc":"Loja","valor":50.00,"data":"2026-04-01"}],"meta":{"totalCompras":908.47,"totalAPagar":1242.36}}'
   ].join(' ');
 
-  // Limita texto a 30k chars para nÃ£o estourar contexto
-  var textoLimitado = text.length > 30000 ? text.substring(0, 30000) : text;
-
-  var body = JSON.stringify({
-    model: 'qwen/qwen3.6-27b',
-    reasoning_effort: 'none',
-    messages: [
-      { role: 'system', content: promptInstrucoes },
-      { role: 'user', content: 'Texto do extrato:\n\n' + textoLimitado }
-    ],
-    temperature: 0.0,
-    // A chave local está no tier com limite de 1k tokens de saída por minuto.
-    // Pedir mais que isso é recusado pela Groq antes mesmo de ler o PDF.
-    max_tokens: 900,
-    response_format: { type: 'json_object' }
-  });
-
-  var controller = new AbortController();
-  var timeoutId = setTimeout(function(){ controller.abort(); }, 40000);
-
-  try {
-    var resp = await fetch(
-      'https://api.groq.com/openai/v1/chat/completions',
-      { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: body, signal: controller.signal }
-    );
-    // Retry once on rate limit
-    if (resp.status === 429) {
-      await new Promise(function(r){ setTimeout(r, 1500); });
-      resp = await fetch(
-        'https://api.groq.com/openai/v1/chat/completions',
-        { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: body, signal: controller.signal }
-      );
-    }
-    clearTimeout(timeoutId);
-    if (!resp.ok) {
-      var errText = await resp.text().catch(function(){ return resp.status; });
-      throw new Error('Groq API: ' + errText);
-    }
-    var data = await resp.json();
-    var content = (data.choices || [])[0]?.message?.content || '{}';
-    var parsed;
-    try { parsed = JSON.parse(content); }
-    catch (_e) {
-      var objMatch = content.match(/\{[\s\S]*\}/);
-      try { parsed = objMatch ? JSON.parse(objMatch[0]) : null; } catch(_e2) { parsed = null; }
-    }
-    var txArr   = (parsed && Array.isArray(parsed.transacoes)) ? parsed.transacoes : (Array.isArray(parsed) ? parsed : []);
-    var metaObj = (parsed && parsed.meta) ? parsed.meta : null;
-    return {
-      transacoes: txArr.filter(function(t){ return t.desc && parseFloat(t.valor) !== 0; }),
-      meta: metaObj
-    };
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
+  return aiReader.readText(text, promptInstrucoes, 'transacoes');
 }
 
 // Soma transaÃ§Ãµes por tipo para validar contra meta declarada
@@ -739,86 +719,18 @@ async function extractWithAI(buffer, mimeType, tipo) {
     'Se nÃ£o houver transaÃ§Ãµes visÃ­veis: {"transacoes":[],"meta":null}'
   ].join(' ');
 
-  var messages = [
-    {
-      role: 'user',
-      content: [
-        {
-          type: 'image_url',
-          image_url: { url: 'data:' + mimeType + ';base64,' + base64 }
-        },
-        { type: 'text', text: prompt }
-      ]
-    }
-  ];
-
-  var body = JSON.stringify({
-    model: 'qwen/qwen3.6-27b',
-    reasoning_effort: 'none',
-    messages: messages,
-    temperature: 0.0,
-    max_tokens: 8192,
-    response_format: { type: 'json_object' }
-  });
-
-  var controller = new AbortController();
-  var timeoutId = setTimeout(function(){ controller.abort(); }, 40000);
-
-  try {
-    var resp = await fetch(
-      'https://api.groq.com/openai/v1/chat/completions',
-      { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: body, signal: controller.signal }
-    );
-    // Retry once on rate limit
-    if (resp.status === 429) {
-      await new Promise(function(r){ setTimeout(r, 1500); });
-      resp = await fetch(
-        'https://api.groq.com/openai/v1/chat/completions',
-        { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: body, signal: controller.signal }
-      );
-    }
-    clearTimeout(timeoutId);
-
-    if (!resp.ok) {
-      var errText = await resp.text().catch(function(){ return resp.status; });
-      throw new Error('Groq API: ' + errText);
-    }
-
-    var data = await resp.json();
-    var content = (data.choices || [])[0]?.message?.content || '[]';
-
-    // Tenta extrair JSON vÃ¡lido da resposta (objeto {transacoes,meta} ou array)
-    var parsed;
-    try {
-      parsed = JSON.parse(content);
-    } catch (_e) {
-      var objMatch = content.match(/\{[\s\S]*\}/);
-      var arrMatch = content.match(/\[[\s\S]*\]/);
-      try { parsed = objMatch ? JSON.parse(objMatch[0]) : (arrMatch ? JSON.parse(arrMatch[0]) : null); }
-      catch (_e2) { parsed = null; }
-    }
-
-    // Formato esperado: {"transacoes":[...], "meta":{...}} â€” tanto extrato como fatura
-    var txArr   = Array.isArray(parsed) ? parsed : ((parsed && parsed.transacoes) || []);
-    var metaObj = (!Array.isArray(parsed) && parsed && parsed.meta) ? parsed.meta : null;
-    return { transacoes: txArr.filter(function(t){ return t.desc && parseFloat(t.valor) !== 0; }), meta: metaObj };
-
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
+  return aiReader.readImage(buffer, mimeType, prompt, 'transacoes');
 }
 
-// â”€â”€â”€ POST /api/extrair-fatura â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Recebe: multipart/form-data { arquivo: File (PDF|JPEG|PNG|WEBP) }
-// Retorna: [{desc, valor, data}] â€” transaÃ§Ãµes extraÃ­das
 async function requireAuthenticatedUser(req, res, next) {
   var decoded = await getBearerUser(req, res);
   if (!decoded) return;
   req.budUser = decoded;
   next();
 }
-app.post('/api/extrair-fatura', requireAuthenticatedUser, upload.single('arquivo'), async function (req, res) {
+app.get('/api/ia/jobs/:id', aiJobs.poll);
+app.delete('/api/account', createDeleteAccount({ authenticate: getBearerUser, auth, db, emulator: process.env.BUD_USE_EMULATOR === 'true' }));
+app.post('/api/extrair-fatura', requireAuthenticatedUser, upload.single('arquivo'), aiJobs.wrap(async function (req, res) {
   try {
     try {
       await verificarQuotaIA(req.budUser.uid);
@@ -840,8 +752,10 @@ app.post('/api/extrair-fatura', requireAuthenticatedUser, upload.single('arquivo
     if (mimeType === 'application/pdf') {
       // â”€â”€ 1) Extrair texto do PDF com pdf-parse â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       var pdfData;
+      var pdfPages;
       try {
-        pdfData = await pdfParse(buffer, { max: 20 });
+        pdfPages = await readPDF(buffer);
+        pdfData = { text: pdfPages.map(p => p.text || '').join('\n') };
       } catch (pdfErr) {
         // PDF ilegÃ­vel ou criptografado â€” retornar erro direto (visÃ£o IA nÃ£o lÃª PDFs binÃ¡rios)
         return res.status(422).json({
@@ -852,6 +766,12 @@ app.post('/api/extrair-fatura', requireAuthenticatedUser, upload.single('arquivo
       if (pdfData) {
         // â”€â”€ 2) Extrair meta do texto e preparar transaÃ§Ãµes â”€â”€â”€â”€â”€â”€â”€â”€â”€
         textMeta = extractMetaFromText(pdfData.text || '');
+        const directInvoice = tipo === 'fatura' && pdfPages.every(page => page.text)
+          ? readNubankInvoice(pdfData.text) : null;
+        if (directInvoice) {
+          await incrementarQuotaIA(req.budUser.uid);
+          return res.json(directInvoice);
+        }
 
         // Fatura de cartÃ£o: parseBankStatementText Ã© para extratos bancÃ¡rios
         // Para faturas, vai sempre para IA (mais preciso e evita garbage)
@@ -893,11 +813,16 @@ app.post('/api/extrair-fatura', requireAuthenticatedUser, upload.single('arquivo
           } catch (_aiErr) {
             aiFailureMessage = String(_aiErr && _aiErr.message || 'Falha desconhecida na IA');
             console.warn('[AI text-mode falhou]', _aiErr.message);
+            // Se a IA era necessária, não devolver o resultado parcial do parser.
+            throw _aiErr;
           }
         }
 
-        // Nota: IA-visÃ£o removida para PDFs â€” modelos de visÃ£o nÃ£o processam PDF binÃ¡rio.
-        // Somente imagens (JPEG/PNG/WEBP/HEIC) sÃ£o enviadas para extractWithAI.
+        for (const page of pdfPages.filter(p => p.image)) {
+          const scanned = await extractWithAI(page.image, 'image/png', tipo);
+          transacoes.push(...scanned.transacoes);
+          aiMeta = Object.assign({}, aiMeta || {}, scanned.meta || {});
+        }
       }
 
     } else {
@@ -915,7 +840,7 @@ app.post('/api/extrair-fatura', requireAuthenticatedUser, upload.single('arquivo
     if (!transacoes || transacoes.length === 0) {
       if (aiFailureMessage) {
         return res.status(502).json({
-          error: 'O serviço de IA não conseguiu analisar o arquivo.',
+          error: aiFailureMessage === AI_OUTPUT_LIMIT_MESSAGE ? AI_OUTPUT_LIMIT_MESSAGE : 'O serviço de IA não conseguiu analisar o arquivo.',
           detail: aiFailureMessage.replace(/Bearer\s+\S+/gi, 'Bearer ***').slice(0, 500)
         });
       }
@@ -929,11 +854,14 @@ app.post('/api/extrair-fatura', requireAuthenticatedUser, upload.single('arquivo
     return res.json({ transacoes: transacoes, meta: meta });
 
   } catch (err) {
+    if (err.code === 'AI_OUTPUT_LIMIT') return res.status(502).json({ error: AI_OUTPUT_LIMIT_MESSAGE });
+    if (err.code === 'AI_RATE_LIMIT') return res.status(503).json({ error: err.message, code: err.code });
+    if (err.name === 'TimeoutError') return res.status(504).json({ error: 'O provedor de IA não respondeu a tempo. Tente novamente.', code: 'AI_TIMEOUT' });
     var safeMsg = (err.message || '').replace(/(key=)[^\s&]+/, '$1***');
     console.error('[extrair-fatura]', safeMsg);
     return res.status(500).json({ error: 'Erro ao processar arquivo. Tente novamente.' });
   }
-});
+}, 'invoice'));
 
 // â”€â”€â”€ Cache em memÃ³ria de extraÃ§Ã£o de cupom (24h) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Chave: SHA-256 do buffer de cada arquivo combinado.
@@ -1012,77 +940,9 @@ async function extractCupomWithGroq(buffers, mimeTypes) {
     'Se nÃ£o houver itens: {"mercado":"","cnpj":"","data":"","itens":[]}'
   ].join('\n');
 
-  // Monta content: imagens primeiro (mesmo padrÃ£o do extractWithAI que funciona em cartÃµes/extrato)
-  var imgContent = buffers.map(function (buf, i) {
-    return { type: 'image_url', image_url: { url: 'data:' + (mimeTypes[i] || 'image/jpeg') + ';base64,' + buf.toString('base64') } };
-  });
-  imgContent.push({ type: 'text', text: prompt });
-
-  var body = JSON.stringify({
-    model: 'qwen/qwen3.6-27b',
-    reasoning_effort: 'none',
-    messages: [{ role: 'user', content: imgContent }],
-    temperature: 0.0,
-    max_tokens: 8192,
-    response_format: { type: 'json_object' }
-  });
-
-  var controller = new AbortController();
-  var timeoutId = setTimeout(function(){ controller.abort(); }, 40000);
-
-  async function callGroq() {
-    return fetch(
-      'https://api.groq.com/openai/v1/chat/completions',
-      { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: body, signal: controller.signal }
-    );
-  }
-
-  try {
-    var resp = await callGroq();
-    // Retry automÃ¡tico em rate limit (mesmo padrÃ£o do extractWithAI)
-    if (resp.status === 429) {
-      await new Promise(function(r){ setTimeout(r, 1500); });
-      resp = await callGroq();
-    }
-    clearTimeout(timeoutId);
-
-    if (!resp.ok) {
-      var errText = await resp.text().catch(function(){ return String(resp.status); });
-      throw new Error('Groq API [' + resp.status + ']: ' + errText);
-    }
-
-    var data = await resp.json();
-    var content = (data.choices || [])[0]?.message?.content || '{}';
-
-    var parsed;
-    try {
-      parsed = JSON.parse(content);
-    } catch (_e) {
-      var objMatch = content.match(/\{[\s\S]*\}/);
-      try { parsed = objMatch ? JSON.parse(objMatch[0]) : {}; } catch(_e2) { parsed = {}; }
-    }
-
-    if (typeof parsed !== 'object' || !parsed) parsed = {};
-    parsed.itens = Array.isArray(parsed.itens) ? parsed.itens : [];
-    parsed.itens = parsed.itens
-      .map(function (i) {
-        var nome = String(i.nome || i.name || i.descricao || '').trim().slice(0, 60);
-        var valor = parseFloat(String(i.valor || i.value || i.total || 0).toString().replace(',', '.')) || 0;
-        var qtd = parseFloat(String(i.qtd || i.quantidade || i.quantity || 1).toString().replace(',', '.')) || 1;
-        var cat = normalizeCupomCategory(i.cat || i.categoria || 'Mercado');
-        return { nome: nome, qtd: qtd, valor: Math.abs(valor), cat: cat };
-      })
-      .filter(function (i) { return i.nome && i.valor > 0; });
-
-    parsed.mercado = String(parsed.mercado || '').trim().slice(0, 60);
-    parsed.cnpj = String(parsed.cnpj || '').replace(/\D/g, '').slice(0, 14);
-    parsed.data = String(parsed.data || '').slice(0, 10);
-
-    return parsed;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
+  const parts = [];
+  for (let i = 0; i < buffers.length; i++) parts.push(await aiReader.readImage(buffers[i], mimeTypes[i], prompt, 'itens'));
+  return normalizeCupomResult(aiReader.merge(parts, 'itens'));
 }
 
 /**
@@ -1105,77 +965,29 @@ async function extractCupomFromText(texto) {
     '',
     'TEXTO DO CUPOM:',
     '"""',
-    String(texto || '').slice(0, 15000),
+    '', // O texto completo é enviado em trechos por aiReader.readText.
     '"""'
   ].join('\n');
 
-  var body = JSON.stringify({
-    model: 'qwen/qwen3.6-27b',
-    reasoning_effort: 'none',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
-    ],
-    temperature: 0.0,
-    max_tokens: 8192,
-    response_format: { type: 'json_object' }
-  });
-
-  var controller = new AbortController();
-  var timeoutId = setTimeout(function(){ controller.abort(); }, 40000);
-
-  async function callGroq() {
-    return fetch(
-      'https://api.groq.com/openai/v1/chat/completions',
-      { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key }, body: body, signal: controller.signal }
-    );
-  }
-
-  try {
-    var resp = await callGroq();
-    if (resp.status === 429) {
-      await new Promise(function(r){ setTimeout(r, 1500); });
-      resp = await callGroq();
-    }
-    clearTimeout(timeoutId);
-    if (!resp.ok) {
-      var errText = await resp.text().catch(function(){ return String(resp.status); });
-      throw new Error('Groq API [' + resp.status + ']: ' + errText);
-    }
-    var data = await resp.json();
-    var content = (data.choices || [])[0]?.message?.content || '{}';
-    var parsed;
-    try { parsed = JSON.parse(content); }
-    catch (_e) {
-      var objMatch = content.match(/\{[\s\S]*\}/);
-      try { parsed = objMatch ? JSON.parse(objMatch[0]) : {}; } catch(_e2) { parsed = {}; }
-    }
-    if (typeof parsed !== 'object' || !parsed) parsed = {};
-    parsed.itens = Array.isArray(parsed.itens) ? parsed.itens : [];
-    parsed.itens = parsed.itens
-      .map(function (i) {
-        return {
-          nome: String(i.nome || i.name || i.descricao || '').trim().slice(0, 60),
-          qtd: parseFloat(String(i.qtd || i.quantidade || 1).toString().replace(',', '.')) || 1,
-          valor: Math.abs(parseFloat(String(i.valor || i.value || 0).toString().replace(',', '.')) || 0),
-          cat: normalizeCupomCategory(i.cat || i.categoria || 'Mercado'),
-        };
-      })
-      .filter(function (i) { return i.nome && i.valor > 0; });
-    parsed.mercado = String(parsed.mercado || '').trim().slice(0, 60);
-    parsed.cnpj = String(parsed.cnpj || '').replace(/\D/g, '').slice(0, 14);
-    parsed.data = String(parsed.data || '').slice(0, 10);
-    return parsed;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
+  return normalizeCupomResult(await aiReader.readText(texto, systemPrompt + '\n' + userPrompt.split('TEXTO DO CUPOM:')[0], 'itens'));
 }
 
-// â”€â”€â”€ Multer pra cupom (atÃ© 3 arquivos) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function normalizeCupomResult(parsed) {
+  parsed.itens = (parsed.itens || []).map(i => ({
+    nome: String(i.nome || i.name || i.descricao || '').trim().slice(0, 60),
+    qtd: Number(String(i.qtd || i.quantidade || 1).replace(',', '.')) || 1,
+    valor: Math.abs(Number(String(i.valor || i.value || i.total || 0).replace(',', '.')) || 0),
+    cat: normalizeCupomCategory(i.cat || i.categoria || 'Mercado')
+  })).filter(i => i.nome && i.valor > 0);
+  parsed.mercado = String(parsed.mercado || '').slice(0, 60);
+  parsed.cnpj = String(parsed.cnpj || '').replace(/\D/g, '').slice(0, 14);
+  parsed.data = String(parsed.data || '').slice(0, 10);
+  return parsed;
+}
+
 var uploadCupom = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 3 * 1024 * 1024, files: 3 }, // 3 MB cada (base64 â‰ˆ 4MB = limite Groq)
+  limits: { fileSize: 8 * 1024 * 1024, files: 3 }, // Same upload limit advertised by Compras.
   fileFilter: function (_req, file, cb) {
     var ok = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
     if (ok.includes(file.mimetype)) return cb(null, true);
@@ -1192,6 +1004,7 @@ var uploadCupom = multer({
 var IA_LIMITES_CUPOM = { free: 0, starter: 3, trial: 10, pro: 10, plus: 9999 };
 
 async function verificarQuotaIA(uid) {
+  if (currentJob()?.uid === uid && currentJob().quotaApplied) return;
   if (!db) return; // Firebase nÃ£o iniciado â€” permite (degrada gracefully)
   var anoMes = (function() {
     var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
@@ -1221,34 +1034,35 @@ async function incrementarQuotaIA(uid) {
   })();
   try {
     var FieldValue = require('firebase-admin').firestore.FieldValue;
-    await db.collection('usuarios').doc(uid).collection('uso-ia').doc(anoMes).set(
-      { processamentos: FieldValue.increment(1), mercado: FieldValue.increment(1) }, { merge: true }
-    );
-  } catch (_e) { /* silencioso */ }
+    const quotaRef = db.collection('usuarios').doc(uid).collection('uso-ia').doc(anoMes);
+    const increment = { processamentos: FieldValue.increment(1), mercado: FieldValue.increment(1) };
+    const job = currentJob();
+    if (job?.documentPath && job.uid === uid) {
+      await db.runTransaction(async transaction => {
+        const jobRef = db.doc(job.documentPath), snap = await transaction.get(jobRef);
+        if (!snap.exists || snap.data().owner !== job.owner) throw new Error('Job lease changed');
+        if (snap.data().quotaApplied) return;
+        transaction.set(quotaRef, increment, { merge: true });transaction.update(jobRef, { quotaApplied: true });
+      });
+      job.quotaApplied = true;
+    } else await quotaRef.set(increment, { merge: true });
+  } catch (_e) { if (currentJob()?.documentPath) throw _e; }
 }
 
-app.post('/api/extrair-cupom', function (req, res) {
-  uploadCupom.array('arquivos', 3)(req, res, async function (multerErr) {
+app.post('/api/extrair-cupom', requireAuthenticatedUser, function parseReceiptFiles(req, res, next) {
+  uploadCupom.array('arquivos', 3)(req, res, function (multerErr) {
   if (multerErr) {
     var msg = multerErr.code === 'LIMIT_FILE_SIZE'
-      ? 'Imagem muito grande. MÃ¡ximo 3MB por arquivo. Comprima a imagem ou use a aba Texto.'
+      ? 'Arquivo muito grande. Máximo 8MB por arquivo.'
       : multerErr.message || 'Erro ao processar arquivo.';
     return res.status(413).json({ error: msg });
   }
+    next();
+  });
+}, aiJobs.wrap(async function (req, res) {
   try {
-    // PEND-MER-07: autenticaÃ§Ã£o + quota server-side
-    var cupomUid = null;
-    var authHeaderCupom = req.headers.authorization || '';
-    var idTokenCupom = authHeaderCupom.startsWith('Bearer ') ? authHeaderCupom.slice(7) : null;
-    if (!idTokenCupom || !auth) return res.status(401).json({ error: 'Autenticação necessária.' });
-    try {
-      var decodedCupom = await auth.verifyIdToken(idTokenCupom);
-      cupomUid = decodedCupom.uid;
-      await verificarQuotaIA(cupomUid);
-    } catch (authErr) {
-      if (authErr.status === 429) return res.status(429).json({ error: authErr.message });
-      return res.status(401).json({ error: 'Token inválido.' });
-    }
+    var cupomUid = req.budUser.uid;
+    await verificarQuotaIA(cupomUid);
 
     // Modo TEXTO (sem arquivos)
     if (req.is('application/json') || (req.body && req.body.texto && (!req.files || req.files.length === 0))) {
@@ -1260,7 +1074,7 @@ app.post('/api/extrair-cupom', function (req, res) {
       if (!resultText.itens.length) {
         return res.status(422).json({ error: 'Nenhum item encontrado no texto.' });
       }
-      if (cupomUid) incrementarQuotaIA(cupomUid);
+      if (cupomUid) await incrementarQuotaIA(cupomUid);
       return res.json(resultText);
     }
 
@@ -1285,39 +1099,34 @@ app.post('/api/extrair-cupom', function (req, res) {
     }
 
     // â”€â”€ PDFs: extrair texto com pdf-parse â†’ enviar como texto (Groq vision nÃ£o aceita PDF) â”€â”€
-    var hasPdf = mimeTypes.some(function (m) { return m === 'application/pdf'; });
+    var hasPdf = mimeTypes.some(m => m === 'application/pdf');
     if (hasPdf) {
-      var pdfTexts = [];
-      for (var pi = 0; pi < req.files.length; pi++) {
-        if (mimeTypes[pi] === 'application/pdf') {
-          try {
-            var pdfDataCupom = await pdfParse(buffers[pi], { max: 20 });
-            if (pdfDataCupom.text && pdfDataCupom.text.trim().length > 10) {
-              pdfTexts.push(pdfDataCupom.text.trim());
-            }
-          } catch (pdfErr) {
-            console.warn('[extrair-cupom] pdf-parse falhou:', pdfErr.message);
-          }
-        }
+      const parts = [];
+      for (let i = 0; i < buffers.length; i++) {
+        if (mimeTypes[i] === 'application/pdf') {
+          const pages = await readPDF(buffers[i]);
+          const text = pages.map(p => p.text || '').join('\n');
+          if (text.trim()) parts.push(await extractCupomFromText(text));
+          for (const page of pages.filter(p => p.image)) parts.push(await extractCupomWithGroq([page.image], ['image/png']));
+        } else parts.push(await extractCupomWithGroq([buffers[i]], [mimeTypes[i]]));
       }
-      var combinedPdfText = pdfTexts.join('\n\n---\n\n').trim();
-      if (!combinedPdfText || combinedPdfText.length < 20) {
-        return res.status(422).json({ error: 'NÃ£o foi possÃ­vel extrair texto do PDF. Tente fotografar o cupom (aba Foto).' });
-      }
-      var resultPdf = await extractCupomFromText(combinedPdfText);
+      const resultPdf = normalizeCupomResult(aiReader.merge(parts, 'itens'));
       cupomCacheSet(cacheKey, resultPdf);
-      if (cupomUid) incrementarQuotaIA(cupomUid);
+      await incrementarQuotaIA(cupomUid);
       return res.json(resultPdf);
     }
 
     var result = await extractCupomWithGroq(buffers, mimeTypes);
 
     cupomCacheSet(cacheKey, result);
-    if (cupomUid) incrementarQuotaIA(cupomUid);
+    if (cupomUid) await incrementarQuotaIA(cupomUid);
     return res.json(result);
 
   } catch (err) {
+    if (err.code === 'AI_OUTPUT_LIMIT') return res.status(502).json({ error: AI_OUTPUT_LIMIT_MESSAGE });
     var safeMsg = (err.message || '').replace(/(key=)[^\s&]+/, '$1***');
+    if (err.status === 429) return res.status(429).json({ error: err.message });
+    if (err.code === 'AI_RATE_LIMIT') return res.status(503).json({ error: err.message, code: err.code });
     console.error('[extrair-cupom]', safeMsg);
     var isGroqErr = /Groq API/.test(safeMsg);
     var status = isGroqErr ? 502 : 500;
@@ -1326,22 +1135,14 @@ app.post('/api/extrair-cupom', function (req, res) {
       : 'Erro ao processar cupom. Verifique a imagem e tente novamente.';
     return res.status(status).json({ error: userMsg });
   }
-  }); // fim uploadCupom callback
-});
+}, 'receipt'));
 
 // â”€â”€â”€ POST /api/analisar-documento â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // PEND-063: Classifica automaticamente documentos financeiros (contrato de
 // emprÃ©stimo, boleto, fatura de cartÃ£o, extrato bancÃ¡rio, investimento etc.)
 // sem exigir que o usuÃ¡rio identifique o tipo manualmente.
 // Aceita PDF e imagens. Retorna { ok, tipo, confianca, dados }.
-app.post('/api/analisar-documento', upload.single('arquivo'), async function (req, res) {
-  // AutenticaÃ§Ã£o via Bearer token
-  var authHeader = req.headers.authorization || '';
-  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!idToken) return res.status(401).json({ ok: false, error: 'Token ausente.' });
-  try { await auth.verifyIdToken(idToken); }
-  catch (_e) { return res.status(401).json({ ok: false, error: 'Token invÃ¡lido.' }); }
-
+app.post('/api/analisar-documento', requireAuthenticatedUser, upload.single('arquivo'), aiJobs.wrap(async function (req, res) {
   if (!req.file) return res.status(400).json({ ok: false, error: 'Arquivo nÃ£o enviado.' });
 
   var GROQ_API_KEY = process.env.GROQ_API_KEY || '';
@@ -1356,7 +1157,7 @@ app.post('/api/analisar-documento', upload.single('arquivo'), async function (re
 
     if (mime === 'application/pdf') {
       try {
-        var pdfResult = await pdfParse(buffer, { max: 3 });
+        var pdfResult = await pdfParse(new Uint8Array(buffer), { max: 3, version: 'v2.0.550' });
         textoPDF = (pdfResult.text || '').substring(0, 6000).trim();
       } catch (_pdfErr) {
         textoPDF = '';
@@ -1398,9 +1199,7 @@ app.post('/api/analisar-documento', upload.single('arquivo'), async function (re
       messages.push({ role: 'user', content: USER_PROMPT });
     }
 
-    var modelName = imageB64
-      ? 'qwen/qwen3.6-27b'
-      : 'llama3-8b-8192';
+    var modelName = GROQ_MODEL;
 
     var aiResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method:  'POST',
@@ -1410,12 +1209,13 @@ app.post('/api/analisar-documento', upload.single('arquivo'), async function (re
       },
       body: JSON.stringify({
         model:           modelName,
+        reasoning_effort: 'none',
         messages:        [
           { role: 'system', content: 'VocÃª Ã© especialista em documentos financeiros brasileiros. Retorne APENAS JSON vÃ¡lido, sem markdown, sem explicaÃ§Ãµes.' },
           ...messages
         ],
         temperature:     0,
-        max_tokens:      600,
+        max_tokens: Math.min(600, GROQ_MAX_OUTPUT_TOKENS),
         response_format: { type: 'json_object' }
       })
     });
@@ -1426,6 +1226,7 @@ app.post('/api/analisar-documento', upload.single('arquivo'), async function (re
     }
 
     var aiJson = await aiResp.json();
+    ensureCompleteAIResponse(aiJson);
     var rawContent = ((aiJson.choices || [])[0] || {});
     var rawText = (rawContent.message && rawContent.message.content || '').trim();
 
@@ -1471,10 +1272,11 @@ app.post('/api/analisar-documento', upload.single('arquivo'), async function (re
     return res.json({ ok: true, tipo, confianca, dados });
 
   } catch (e) {
+    if (e.code === 'AI_OUTPUT_LIMIT') return res.status(502).json({ ok: false, error: AI_OUTPUT_LIMIT_MESSAGE });
     console.error('[analisar-documento]', e.message);
     return res.status(500).json({ ok: false, error: 'Erro interno ao processar documento.' });
   }
-});
+}, 'document'));
 
 // â”€â”€â”€ Health check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 app.get('/', function (_req, res) {
@@ -1869,11 +1671,11 @@ app.post('/api/chat', async function (req, res) {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
       body:    JSON.stringify({
-        model:       'qwen/qwen3.6-27b',
+        model:       GROQ_MODEL,
         reasoning_effort: 'none',
         messages:    groqMessages,
         temperature: 0.7,
-        max_tokens:  1500,
+        max_tokens: Math.min(1500, GROQ_MAX_OUTPUT_TOKENS),
         stream:      streamMode,
       }),
       signal: controller.signal
@@ -2226,7 +2028,7 @@ app.post('/api/alerta-financeiro', async function (req, res) {
             badge: FRONTEND_URL + '/icons/icon-192.png',
             vibrate: [300, 100, 300]
           },
-          fcm_options: { link: FRONTEND_URL + '/assistente-ia.html' }
+          fcmOptions: { link: FRONTEND_URL + '/assistente-ia.html' }
         }
       });
     } catch (pushErr) {
@@ -2579,6 +2381,26 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
   // 5. Criar assinatura pendente sem plano associado. O Mercado Pago retorna
   // o init_point para o assinante informar o meio de pagamento no checkout.
   // Não definimos end_date: ela encerraria a recorrência, e não apenas o link.
+  if (!userSnap || !userSnap.exists) return res.status(503).json({ error: 'Não foi possível consultar o cadastro para iniciar a assinatura.' });
+  if (userSnap.data().mpSubscriptionId && !['cancelled', 'canceled'].includes(userSnap.data().assinaturaStatus)) {
+    var pendingCheckout = userSnap.data().mpCheckout;
+    if (userSnap.data().assinaturaStatus === 'pending' && pendingCheckout?.planKey === planKey && pendingCheckout.subscriptionId === userSnap.data().mpSubscriptionId && pendingCheckout.init_point) {
+      return res.json({ init_point: pendingCheckout.init_point });
+    }
+    return res.status(409).json({ error: 'Já existe uma assinatura vinculada. Use a troca de plano em Configurações.', code: 'SUBSCRIPTION_EXISTS' });
+  }
+  // Reserve before contacting the provider. An unknown response must be reconciled,
+  // never retried as a new subscription just because a timeout elapsed.
+  var checkoutNonce = crypto.randomUUID(), checkoutRef = db.collection('usuarios').doc(uid);
+  try {
+    await db.runTransaction(async transaction => {
+      const snapshot = await transaction.get(checkoutRef), profile = snapshot.data();
+      if (!snapshot.exists || (profile.mpSubscriptionId && !['cancelled', 'canceled'].includes(profile.assinaturaStatus)) || ['creating', 'unknown'].includes(profile.mpCheckout?.state)) {
+        throw Object.assign(new Error('A contratação anterior está sendo conferida. Aguarde ou contate o suporte antes de iniciar outra.'), { status: 409 });
+      }
+      transaction.update(checkoutRef, { mpCheckout: { state: 'creating', planKey, nonce: checkoutNonce, createdAt: Date.now() } });
+    });
+  } catch (error) { return res.status(error.status || 503).json({ error: error.status === 409 ? error.message : 'Não foi possível preparar o checkout.', code: 'CHECKOUT_IN_PROGRESS' }); }
   var mpBody = {
     reason:               plan.title,
     external_reference:   externalRef,
@@ -2607,10 +2429,21 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
     var mpData = await mpRes.json();
     if (!mpRes.ok) {
       console.error('[MP] create-subscription error:', JSON.stringify(mpData));
+      await checkoutRef.update({ mpCheckout: { state: mpRes.status >= 400 && mpRes.status < 500 ? 'rejected' : 'unknown', planKey, nonce: checkoutNonce } });
       return res.status(502).json({ error: mpData.message || 'Erro ao criar assinatura no Mercado Pago.' });
     }
     var isSandbox  = MP_ACCESS_TOKEN.startsWith('TEST-');
     var checkoutUrl = isSandbox ? (mpData.sandbox_init_point || mpData.init_point) : mpData.init_point;
+    if (!checkoutUrl || !mpData.id) throw new Error('Incomplete subscription response');
+    await db.runTransaction(async transaction => {
+      const snapshot = await transaction.get(checkoutRef), profile = snapshot.data();
+      if (profile.mpCheckout?.nonce !== checkoutNonce || (profile.mpSubscriptionId && !['cancelled','canceled'].includes(profile.assinaturaStatus) && profile.mpSubscriptionId !== mpData.id)) throw new Error('Checkout binding changed');
+      transaction.update(checkoutRef, {
+        mpCheckout: { state: 'pending', planKey, subscriptionId: mpData.id, init_point: checkoutUrl },
+        mpSubscriptionId: mpData.id,
+        ...(['authorized','active'].includes(profile.assinaturaStatus) && profile.mpSubscriptionId === mpData.id ? {} : { assinaturaStatus: 'pending' })
+      });
+    });
     return res.json({ init_point: checkoutUrl });
   } catch (err) {
     console.error('[MP] create-subscription fetch error:', err.message);
@@ -2622,50 +2455,43 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
 // Recebe notificaÃ§Ãµes do Mercado Pago e atualiza o plano no Firestore.
 // Configurar no painel MP â†’ IntegraÃ§Ãµes â†’ Webhooks:
 //   URL: https://bud-finance-backend.onrender.com/webhook/mercadopago
-//   Eventos: subscription_preapproval, payment
+//   Eventos: subscription_preapproval, subscription_authorized_payment, payment
 app.post('/webhook/mercadopago', async function (req, res) {
-  // 1. Verificar assinatura HMAC-SHA256 (obrigatÃ³rio â€” falha se secret nÃ£o configurado)
-  if (!MP_WEBHOOK_SECRET) {
-    console.error('[MP webhook] MP_WEBHOOK_SECRET nÃ£o configurado â€” rejeitando requisiÃ§Ã£o');
-    return res.status(503).json({ error: 'Webhook nÃ£o configurado.' });
-  }
-  var xSig    = req.headers['x-signature']  || '';
-  var xReqId  = req.headers['x-request-id'] || '';
-  var dataId  = (req.body.data && req.body.data.id)
-    ? String(req.body.data.id) : (req.query['data.id'] || '');
-  var tsParts  = xSig.split(',');
-  var ts       = (tsParts.find(p => p.startsWith('ts=')) || '').replace('ts=', '');
-  var v1       = (tsParts.find(p => p.startsWith('v1=')) || '').replace('v1=', '');
+  if (!MP_WEBHOOK_SECRET) return res.status(503).json({ error: 'Webhook não configurado.' });
+  var queryId = String(req.query['data.id'] || '').toLowerCase();
+  var bodyId = String(req.body.data && req.body.data.id || '').toLowerCase();
+  if (queryId && bodyId && queryId !== bodyId) return res.status(401).json({ error: 'Notificação inconsistente.' });
+  var dataId = queryId || bodyId;
+  var xReqId = req.headers['x-request-id'] || '';
+  var parts = String(req.headers['x-signature'] || '').split(',').map(function (part) { return part.trim(); });
+  var ts = (parts.find(p => p.startsWith('ts=')) || '').slice(3);
+  var v1 = (parts.find(p => p.startsWith('v1=')) || '').slice(3);
   var manifest = 'id:' + dataId + ';request-id:' + xReqId + ';ts:' + ts + ';';
-  var expected = require('crypto').createHmac('sha256', MP_WEBHOOK_SECRET).update(manifest).digest('hex');
-  if (expected !== v1) {
-    console.warn('[MP webhook] Assinatura invÃ¡lida â€” ignorando');
-    return res.status(401).json({ error: 'Assinatura invÃ¡lida.' });
+  var expected = crypto.createHmac('sha256', MP_WEBHOOK_SECRET).update(manifest).digest('hex');
+  if (!dataId || !xReqId || !ts || !/^[a-f0-9]{64}$/i.test(v1) || !crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(v1, 'hex'))) {
+    return res.status(401).json({ error: 'Assinatura inválida.' });
   }
-
-  // 2. Responder imediatamente (MP exige resposta rÃ¡pida)
-  res.sendStatus(200);
-
-  if (!db) return;
-  var type   = req.body.type   || req.query.type         || '';
-  var dataId = (req.body.data && req.body.data.id)
-    ? String(req.body.data.id) : (req.query['data.id']   || '');
-  if (!dataId) return;
-
+  if (!db) return res.status(503).json({ error: 'Serviço indisponível.' });
+  var type = req.body.type || req.query.type || '';
   try {
-    if      (type === 'subscription_preapproval') await _mpHandleSubscription(dataId);
-    else if (type === 'payment')                  await _mpHandlePayment(dataId);
+    if (type === 'subscription_preapproval') await _mpHandleSubscription(dataId);
+    else if (type === 'subscription_authorized_payment') await _mpHandleAuthorizedPayment(dataId);
+    else if (type === 'payment') await _mpHandlePayment(dataId);
+    // Acknowledge only after processing; failures must be retried by Mercado Pago.
+    return res.sendStatus(200);
   } catch (err) {
-    console.error('[MP webhook] Erro ao processar notificaÃ§Ã£o:', err.message);
+    console.error('[MP webhook]', err.code || String(err.message || 'processing-failed').slice(0, 200));
+    return res.status(503).json({ error: 'Não foi possível processar a notificação. Tente novamente.' });
   }
 });
 
-// Busca detalhes da assinatura no MP e atualiza o Firestore
-async function _mpHandleSubscription(preapprovalId) {
+app.post('/mercadopago/change-subscription', createSubscriptionChange({ auth, db, token: MP_ACCESS_TOKEN, plans: MP_PLANS, emulator: process.env.BUD_USE_EMULATOR === 'true', fetch }));
+
+async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
   var mpRes = await fetch('https://api.mercadopago.com/preapproval/' + preapprovalId, {
-    headers: { 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN }
+    headers: { 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN }, signal: AbortSignal.timeout(5000)
   });
-  if (!mpRes.ok) return;
+  if (!mpRes.ok) throw new Error('MP subscription HTTP ' + mpRes.status);
   var sub = await mpRes.json();
 
   var parts   = String(sub.external_reference || '').split('|');
@@ -2688,7 +2514,7 @@ async function _mpHandleSubscription(preapprovalId) {
           // Cancelar no MP para evitar cobranÃ§as futuras
           try {
             await fetch('https://api.mercadopago.com/preapproval/' + preapprovalId, {
-              method:  'PUT',
+              method:  'PUT', signal: AbortSignal.timeout(5000),
               headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN },
               body:    JSON.stringify({ status: 'cancelled' })
             });
@@ -2701,15 +2527,47 @@ async function _mpHandleSubscription(preapprovalId) {
           return; // nÃ£o ativa o plano
         }
       }
-    } catch (_ev) { /* se validaÃ§Ã£o falhar, prossegue com ativaÃ§Ã£o normal */ }
+    } catch (_ev) { throw _ev; }
 
-    var expira = new Date();
-    expira.setMonth(expira.getMonth() + 1);
+    var currentProfile = userSnap2 && userSnap2.exists ? userSnap2.data() : {};
+    // external_reference keeps the original plan; the paid profile is authoritative
+    // after a scheduled change, until a matching new-cycle payment is approved.
+    if (currentProfile.mpSubscriptionId === preapprovalId && MP_PLANS[currentProfile.plano]) planKey = currentProfile.plano;
+    var scheduledChange = currentProfile.planoTroca;
+    var applyScheduledChange = false;
+    if (scheduledChange && scheduledChange.subscriptionId === preapprovalId && MP_PLANS[scheduledChange.planKey] && paymentConfirmed && typeof paymentConfirmed === 'object') {
+      var paidAt = new Date(paymentConfirmed.date_approved || paymentConfirmed.date_created || 0).getTime();
+      var effectiveAt = new Date(scheduledChange.effectiveAt).getTime();
+      applyScheduledChange = Number.isFinite(effectiveAt) && paidAt >= effectiveAt &&
+        Math.round(Number(paymentConfirmed.transaction_amount) * 100) === Math.round(scheduledChange.amount * 100) &&
+        Math.round(Number(sub.auto_recurring && sub.auto_recurring.transaction_amount) * 100) === Math.round(scheduledChange.amount * 100);
+      if (applyScheduledChange) planKey = scheduledChange.planKey;
+    }
+    var currentExpiry = currentProfile.planoExpira;
+    var storedExpiry = currentExpiry && typeof currentExpiry.toDate === 'function' ? currentExpiry.toDate() : new Date(currentExpiry || 0);
+    var expira;
+    if (sub.next_payment_date) {
+      expira = new Date(sub.next_payment_date);
+      if (!Number.isFinite(expira.getTime())) throw new Error('Invalid subscription billing date');
+    } else if (currentProfile.mpSubscriptionId === preapprovalId && Number.isFinite(storedExpiry.getTime()) && storedExpiry.getTime() > 0 && (!paymentConfirmed || storedExpiry > new Date())) {
+      // Repeated status notifications must not extend access indefinitely.
+      expira = storedExpiry;
+    } else {
+      expira = new Date();
+      var day = expira.getDate();
+      expira.setDate(1);
+      expira.setMonth(expira.getMonth() + 1);
+      expira.setDate(Math.min(day, new Date(expira.getFullYear(), expira.getMonth() + 1, 0).getDate()));
+    }
     await db.collection('usuarios').doc(uid).update({
       plano:             planKey,
       planoExpira:       admin.firestore.Timestamp.fromDate(expira),
       mpSubscriptionId:  preapprovalId,
+      ...(sub.payer_id ? { mpPayerId: String(sub.payer_id) } : {}),
+      assinaturaStatus:  'authorized',
+      pagamentoPendente: false,
       erroAssinatura:    admin.firestore.FieldValue.delete(),
+      ...(applyScheduledChange ? { planoTroca: admin.firestore.FieldValue.delete() } : {}),
       planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp()
     });
     console.log('[MP webhook] Plano ativado:', uid, planKey);
@@ -2718,6 +2576,9 @@ async function _mpHandleSubscription(preapprovalId) {
   } else if (status === 'cancelled' || status === 'paused') {
     await db.collection('usuarios').doc(uid).update({
       plano:             'free',
+      assinaturaStatus:  status,
+      planoTroca:        admin.firestore.FieldValue.delete(),
+      mpCheckout:        admin.firestore.FieldValue.delete(),
       mpSubscriptionId:  preapprovalId,
       planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp()
     });
@@ -2726,39 +2587,53 @@ async function _mpHandleSubscription(preapprovalId) {
 }
 
 // Para pagamentos avulsos: atualiza Firestore via preapproval_id
-async function _mpHandlePayment(paymentId) {
+async function _mpHandlePayment(paymentId, relatedSubscriptionId) {
   var mpRes = await fetch('https://api.mercadopago.com/v1/payments/' + paymentId, {
-    headers: { 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN }
+    headers: { 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN }, signal: AbortSignal.timeout(5000)
   });
-  if (!mpRes.ok) return;
+  if (!mpRes.ok) throw new Error('MP payment HTTP ' + mpRes.status);
   var payment = await mpRes.json();
+  var subscriptionId = payment.preapproval_id || relatedSubscriptionId;
 
   // Se pagamento recusado: marca flag no Firestore para o front exibir alerta
-  if (payment.status === 'rejected' && payment.preapproval_id) {
+  if (payment.status === 'rejected' && subscriptionId) {
     try {
-      var subRes  = await fetch('https://api.mercadopago.com/preapproval/' + payment.preapproval_id, {
-        headers: { 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN }
+      var subRes  = await fetch('https://api.mercadopago.com/preapproval/' + subscriptionId, {
+        headers: { 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN }, signal: AbortSignal.timeout(5000)
       });
+      if (!subRes.ok) throw new Error('MP subscription HTTP ' + subRes.status);
       if (subRes.ok) {
         var sub  = await subRes.json();
         var uid  = String(sub.external_reference || '').split('|')[0];
         if (uid) {
           await db.collection('usuarios').doc(uid).update({
             pagamentoPendente:   true,
-            mpSubscriptionId:    String(payment.preapproval_id),
+            assinaturaStatus:    'past_due',
+            mpSubscriptionId:    String(subscriptionId),
             planoAtualizadoEm:   admin.firestore.FieldValue.serverTimestamp()
           });
           console.log('[MP webhook] Pagamento recusado â€” flag pagamentoPendente:', uid, payment.status_detail);
         }
       }
-    } catch (e) { console.error('[MP webhook] Erro ao marcar pagamentoPendente:', e.message); }
+    } catch (e) { throw e; }
     return;
   }
 
-  if (payment.preapproval_id) await _mpHandleSubscription(String(payment.preapproval_id));
+  if (subscriptionId && payment.status === 'approved') await _mpHandleSubscription(String(subscriptionId), payment);
 }
 
 // Registra indicaÃ§Ã£o bem-sucedida na subcoleÃ§Ã£o do referrer
+async function _mpHandleAuthorizedPayment(invoiceId) {
+  var response = await fetch('https://api.mercadopago.com/authorized_payments/' + encodeURIComponent(invoiceId), {
+    headers: { Authorization: 'Bearer ' + MP_ACCESS_TOKEN }, signal: AbortSignal.timeout(5000)
+  });
+  if (!response.ok) throw new Error('MP invoice HTTP ' + response.status);
+  var invoice = await response.json();
+  if (invoice.preapproval_id && invoice.payment && invoice.payment.id) {
+    await _mpHandlePayment(String(invoice.payment.id), String(invoice.preapproval_id));
+  }
+}
+
 async function _mpCreditarIndicacao(refCode, novoUid, planKey) {
   try {
     var snap = await db.collection('usuarios')
@@ -2836,10 +2711,10 @@ app.post('/mercadopago/local-test-payment', express.json(), async function (req,
     var expiresAt = new Date();
     expiresAt.setMonth(expiresAt.getMonth() + 1);
     await userRef.set({ plano: planKey, planoExpira: admin.firestore.Timestamp.fromDate(expiresAt),
-      mpSubscriptionId: 'LOCAL_TEST_' + Date.now(), pagamentoPendente: false,
+      mpSubscriptionId: 'LOCAL_TEST_' + Date.now(), pagamentoPendente: false, assinaturaStatus: 'authorized',
       erroAssinatura: admin.firestore.FieldValue.delete(), planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
   } else {
-    await userRef.set({ pagamentoPendente: true,
+    await userRef.set({ pagamentoPendente: true, assinaturaStatus: status === 'rejected' ? 'past_due' : 'pending',
       erroAssinatura: status === 'rejected' ? 'Pagamento de teste recusado.' : 'Pagamento de teste pendente.',
       planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
   }
@@ -2866,12 +2741,13 @@ app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req
     var userData = snap.data();
     var subId    = userData.mpSubscriptionId;
 
-    if (!subId || userData.plano === 'free') {
+    if (!subId) {
       return res.status(400).json({ error: 'Nenhuma assinatura ativa para cancelar.' });
     }
 
     // Cancelar no Mercado Pago (pular em sandbox)
-    if (!String(subId).startsWith('SANDBOX_TEST_')) {
+    var localTestSubscription = process.env.BUD_USE_EMULATOR === 'true' && String(subId).startsWith('LOCAL_TEST_');
+    if (!String(subId).startsWith('SANDBOX_TEST_') && !localTestSubscription) {
       var mpRes = await fetch('https://api.mercadopago.com/preapproval/' + subId, {
         method:  'PUT',
         headers: { 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN, 'Content-Type': 'application/json' },
@@ -2890,6 +2766,10 @@ app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req
       mpSubscriptionId:  admin.firestore.FieldValue.delete(),
       planoExpira:       admin.firestore.FieldValue.delete(),
       planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
+      assinaturaStatus:  'cancelled',
+      planoTroca:        admin.firestore.FieldValue.delete(),
+      mpCheckout:        admin.firestore.FieldValue.delete(),
+      pagamentoPendente: false,
       canceladoEm:       admin.firestore.FieldValue.serverTimestamp()
     });
 
@@ -2920,16 +2800,17 @@ app.post('/api/push/token', async function (req, res) {
   if (!token) return res.status(400).json({ error: 'token Ã© obrigatÃ³rio.' });
 
   try {
-    await db.collection('usuarios').doc(decoded.uid).update({
-      fcmToken:         token,
-      fcmTokenPlatform: platform,
-      fcmTokenAt:       admin.firestore.FieldValue.serverTimestamp(),
-      pushEnabled:      true
+    var registrationRef = db.collection('usuarios').doc(decoded.uid);
+    await db.runTransaction(async transaction => {
+      const snap=await transaction.get(registrationRef), data=snap.data()||{};
+      const tokens=[...new Set([...(data.fcmTokens||[]),data.fcmToken,token].filter(Boolean))];
+      if(tokens.length>20) throw Object.assign(new Error('Limite de dispositivos atingido.'),{status:409});
+      transaction.update(registrationRef,{fcmToken:token,fcmTokens:tokens,fcmTokenPlatform:platform,fcmTokenAt:admin.firestore.FieldValue.serverTimestamp(),pushEnabled:true});
     });
     return res.json({ ok: true });
   } catch (e) {
     console.error('[/api/push/token]', e.message);
-    return res.status(500).json({ error: 'Erro ao salvar token.' });
+    return res.status(e.status||500).json({ error: e.status===409?e.message:'Erro ao salvar token.' });
   }
 });
 
@@ -2947,8 +2828,20 @@ app.delete('/api/push/token', async function (req, res) {
   catch (_) { return res.status(401).json({ error: 'Token invalido.' }); }
 
   try {
-    await db.collection('usuarios').doc(decoded.uid).update({
+    var pushRef = db.collection('usuarios').doc(decoded.uid);
+    var deviceToken = String(req.body?.token || '');
+    if (deviceToken) {
+      await db.runTransaction(async transaction => {
+        const snap = await transaction.get(pushRef), data = snap.data() || {};
+        const remaining = (data.fcmTokens || []).filter(token => token !== deviceToken);
+        const legacy = data.fcmToken && data.fcmToken !== deviceToken ? data.fcmToken : null;
+        transaction.update(pushRef, { fcmTokens: remaining, fcmToken: legacy || remaining[0] || admin.firestore.FieldValue.delete(), pushEnabled: !!(remaining.length || legacy) });
+      });
+      return res.json({ ok: true });
+    }
+    await pushRef.update({
       fcmToken:    admin.firestore.FieldValue.delete(),
+      fcmTokens:   admin.firestore.FieldValue.delete(),
       pushEnabled: false,
       fcmTokenAt:  admin.firestore.FieldValue.serverTimestamp()
     });
@@ -2973,14 +2866,16 @@ app.post('/api/push/test', async function (req, res) {
   try {
     var userDoc = await db.collection('usuarios').doc(decoded.uid).get();
     if (!userDoc.exists) return res.status(404).json({ error: 'UsuÃ¡rio nÃ£o encontrado.' });
-    var fcmToken = (userDoc.data() || {}).fcmToken;
+    var pushProfile = userDoc.data() || {};
+    var fcmToken = req.body?.token || pushProfile.fcmToken;
+    if (req.body?.token && req.body.token !== pushProfile.fcmToken && !(pushProfile.fcmTokens || []).includes(req.body.token)) return res.status(400).json({ error: 'Dispositivo não registrado nesta conta.' });
     if (!fcmToken) return res.status(400).json({ error: 'Nenhum FCM token salvo. Ative as notificaÃ§Ãµes primeiro.' });
 
     await admin.messaging().send({
       token: fcmToken,
       notification: {
-        title: 'ðŸ§ª Teste â€” Bud Finance',
-        body: 'NotificaÃ§Ãµes push funcionando perfeitamente!'
+        title: 'Teste do Bud Finance',
+        body: 'Este é o teste solicitado para este dispositivo.'
       },
       webpush: {
         fcmOptions: { link: FRONTEND_URL + '/dashboard.html' }
@@ -3209,14 +3104,10 @@ app.get('/api/notifications/daily', async function (req, res) {
     return res.status(401).json({ error: 'Unauthorized.' });
   }
 
-  // Hora atual em BrasÃ­lia
-  var agora = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-  var hojeStr   = agora.toISOString().slice(0, 10);
-  var mesRef    = hojeStr.slice(0, 7);
-  var amanha    = new Date(agora); amanha.setDate(amanha.getDate() + 1);
-  var amanhaStr = amanha.toISOString().slice(0, 10);
-  var isMonday  = agora.getDay() === 1;
-  var horaAtual = agora.getHours();
+  const agora=new Date();
+  const clockParts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(agora).map(p=>[p.type,p.value]));
+  const hojeStr=clockParts.year+'-'+clockParts.month+'-'+clockParts.day;
+  const horaAtual=Number(clockParts.hour);
 
   // Quiet hours 22hâ€“8h BrasÃ­lia
   if (horaAtual < 8 || horaAtual >= 22) {
@@ -3225,8 +3116,6 @@ app.get('/api/notifications/daily', async function (req, res) {
 
   // E-mails de assinatura independem de push ativado e são deduplicados por dia.
   var subscriptionEmails = await enviarLembretesDeAssinatura(agora);
-
-  var groqKey = process.env.GROQ_API_KEY || '';
 
   // Buscar usuÃ¡rios com push ativado (max 500 por execuÃ§Ã£o)
   var usersSnap;
@@ -3244,379 +3133,29 @@ app.get('/api/notifications/daily', async function (req, res) {
     var userDoc = usersSnap.docs[i];
     var uid = userDoc.id;
     var ud  = userDoc.data();
-    var token = ud.fcmToken;
-    if (!token) continue;
+    var tokens = [...new Set([...(ud.fcmTokens || []), ud.fcmToken].filter(Boolean))];
+    if (!tokens.length) continue;
 
     try {
       var notifs = [];
 
-      // Buscar dados do usuÃ¡rio em paralelo
-      var [recSnap, cartSnap, metaSnap, dividaSnap, limiteSnap, txSnap, carteiraSnap] = await Promise.all([
-        db.collection('usuarios').doc(uid).collection('recorrentes')
-          .where('ativa', '==', true).limit(50).get(),
-        db.collection('usuarios').doc(uid).collection('cartoes').limit(20).get(),
-        db.collection('usuarios').doc(uid).collection('metas').limit(20).get(),
-        db.collection('usuarios').doc(uid).collection('dividas').limit(30).get(),
-        db.collection('usuarios').doc(uid).collection('limites').limit(20).get(),
-        db.collection('usuarios').doc(uid).collection('transacoes')
-          .where('mesReferencia', '==', mesRef).orderBy('dataCriacao', 'desc').limit(100).get(),
-        db.collection('usuarios').doc(uid).collection('carteira')
-          .where('tipo', '!=', 'credito').limit(20).get()
+      // Sem IA e sem comunicados promocionais: somente pendências financeiras atuais.
+      var [recSnap, cartSnap, dividaSnap, txSnap] = await Promise.all([
+        db.collection('usuarios').doc(uid).collection('recorrentes').where('ativa', '==', true).get(),
+        db.collection('usuarios').doc(uid).collection('cartoes').get(),
+        db.collection('usuarios').doc(uid).collection('dividas').get(),
+        db.collection('usuarios').doc(uid).collection('transacoes').select('cartaoId','pagamentoFatura','status','valor','dataReferencia','data','mesReferencia','recorrenteId','origem','tipo','descricao','confirmado','pago','pendenteConfirmacao').get()
       ]);
-
-      var recs     = recSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
-      var cartoes  = cartSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
-      var metas    = metaSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
-      var dividas  = dividaSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
-      var limites  = limiteSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
-      var contas   = carteiraSnap.docs.map(function (d) { return Object.assign({ _id: d.id }, d.data()); });
-
-      // Totais do mÃªs (reutilizados por limites, saldo e Buddy AI)
-      var gastosPorCat = {}, totalReceitasMes = 0, totalDespesasMes = 0;
-      txSnap.docs.forEach(function (d) {
-        var tx = d.data();
-        if (tx.tipo === 'receita') {
-          totalReceitasMes += Number(tx.valor) || 0;
-        } else if (tx.tipo === 'despesa') {
-          var catTx = sanitizeStr(String(tx.categoria || 'Outros')).substring(0, 40);
-          gastosPorCat[catTx] = (gastosPorCat[catTx] || 0) + (Number(tx.valor) || 0);
-          totalDespesasMes   += Number(tx.valor) || 0;
-        }
-      });
-
-      var amanhaDia  = amanha.getDate();
-      var amanhaMes  = amanha.getMonth() + 1;
-
-      // 1. Recorrentes vencendo amanhÃ£
-      recs.forEach(function (r) {
-        var dia = parseInt(r.diaVencimento, 10) || 1;
-        var maxD = new Date(amanha.getFullYear(), amanhaMes, 0).getDate();
-        if (Math.min(dia, maxD) === amanhaDia) {
-          var val = 'R$ ' + (Number(r.valor) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          if (r.tipo === 'receita') {
-            notifs.push({
-              emoji: 'ðŸ’°', tag: 'rec-rec-' + r._id + '-' + amanhaStr,
-              title: 'ðŸ’° VocÃª recebe amanhÃ£!',
-              body:  (r.descricao || 'Receita') + ' â€” ' + val,
-              url:   'extrato.html'
-            });
-          } else {
-            notifs.push({
-              emoji: 'â°', tag: 'rec-desp-' + r._id + '-' + amanhaStr,
-              title: 'â° Vence amanhÃ£: ' + (r.descricao || 'Conta'),
-              body:  val + ' â€” nÃ£o esqueÃ§a de registrar o pagamento.',
-              url:   'recorrentes.html',
-              actions: [{ action: 'ok', title: 'âœ… Registrar' }]
-            });
-          }
-        }
-      });
-
-      // 2. Faturas de cartÃ£o: vencimento amanhÃ£ / fechamento em 2 dias
-      cartoes.forEach(function (c) {
-        var diaVenc = parseInt(c.diaVencimento || c.vencimento, 10);
-        if (diaVenc) {
-          var maxDV = new Date(amanha.getFullYear(), amanhaMes, 0).getDate();
-          if (Math.min(diaVenc, maxDV) === amanhaDia) {
-            notifs.push({
-              emoji: 'ðŸ“…', tag: 'cartao-venc-' + c._id + '-' + amanhaStr,
-              title: 'ðŸ“… Fatura vence amanhÃ£',
-              body:  'Fatura do ' + (c.nome || 'cartÃ£o') + ' vence amanhÃ£. NÃ£o perca o prazo!',
-              url:   'cartoes.html',
-              actions: [{ action: 'ver', title: 'ðŸ’³ Ver fatura' }]
-            });
-          }
-        }
-        var diaFech = parseInt(c.diaFechamento || c.fechamento, 10);
-        if (diaFech) {
-          var doisDias = new Date(agora); doisDias.setDate(doisDias.getDate() + 2);
-          var maxDF = new Date(doisDias.getFullYear(), doisDias.getMonth() + 1, 0).getDate();
-          if (Math.min(diaFech, maxDF) === doisDias.getDate()) {
-            notifs.push({
-              emoji: 'ðŸ’³', tag: 'cartao-fech-' + c._id + '-' + hojeStr,
-              title: 'ðŸ’³ Fatura fecha em 2 dias',
-              body:  'Sua fatura do ' + (c.nome || 'cartÃ£o') + ' fecha em 2 dias. Tudo lanÃ§ado?',
-              url:   'cartoes.html'
-            });
-          }
-        }
-      });
-
-      // 3. Metas prÃ³ximas de concluir (â‰¥90%)
-      metas.forEach(function (m) {
-        var atual = Number(m.valorAtual || m.valorDepositado || 0);
-        var alvo  = Number(m.valorAlvo  || m.valor || 0);
-        if (alvo > 0) {
-          var pct = atual / alvo;
-          var nomeMeta = sanitizeStr(m.nome || m.descricao || 'Meta').substring(0, 40);
-          if (pct >= 1.0) {
-            notifs.push({
-              emoji: 'ðŸŽ‰', tag: 'meta-100-' + m._id + '-' + mesRef,
-              title: 'ðŸŽ‰ Meta atingida!',
-              body:  'ParabÃ©ns! VocÃª concluiu a meta "' + nomeMeta + '"! ðŸ†',
-              url:   'metas.html'
-            });
-          } else if (pct >= 0.9) {
-            notifs.push({
-              emoji: 'ðŸŽ¯', tag: 'meta-90-' + m._id + '-' + mesRef,
-              title: 'ðŸŽ¯ Quase lÃ¡ na meta!',
-              body:  Math.round(pct * 100) + '% da meta "' + nomeMeta + '". Continue assim!',
-              url:   'metas.html'
-            });
-          }
-          // Meta parada: sem atualizaÃ§Ã£o hÃ¡ â‰¥15 dias e ainda nÃ£o concluÃ­da
-          if (pct < 1.0 && m.atualizadoEm) {
-            try {
-              var updDate2 = m.atualizadoEm.toDate ? m.atualizadoEm.toDate() : new Date(m.atualizadoEm);
-              var diasSemDep = Math.floor((agora - updDate2) / 86400000);
-              if (diasSemDep >= 15 && diasSemDep < 60) {
-                notifs.push({
-                  emoji: 'ðŸ˜´', tag: 'meta-parada-' + m._id + '-' + Math.floor(diasSemDep / 15),
-                  title: 'ðŸ˜´ Meta parada: ' + nomeMeta,
-                  body:  'Faz ' + diasSemDep + ' dias sem depÃ³sito. ' + Math.round(pct * 100) + '% concluÃ­da.',
-                  url:   'metas.html'
-                });
-              }
-            } catch (_) {}
-          }
-        }
-      });
-
-      // 4. DÃ­vidas: parcela vencendo amanhÃ£ (vencimento = string ISO YYYY-MM-DD)
-      dividas.forEach(function (d) {
-        if (!d.vencimento) return;
-        // Ignora se jÃ¡ quitada (todas parcelas pagas)
-        var pagas = parseInt(d.parcelasPagas || 0, 10);
-        var total = parseInt(d.parcelas || 1, 10);
-        if (pagas >= total) return;
-        try {
-          var vencDate = new Date(d.vencimento + 'T12:00:00');
-          if (vencDate.toISOString().slice(0, 10) === amanhaStr) {
-            var nomeDivida = sanitizeStr(String(d.nome || d.instituicao || 'DÃ­vida')).substring(0, 40);
-            var valParcela = Number(d.valorParcela || (d.valorTotal / total) || 0);
-            var valStr = 'R$ ' + valParcela.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            notifs.push({
-              emoji: 'ðŸ’¸', tag: 'divida-venc-' + d._id + '-' + amanhaStr,
-              title: 'ðŸ’¸ Parcela vence amanhÃ£',
-              body:  nomeDivida + ' â€” ' + valStr + (total > 1 ? ' (' + (pagas + 1) + '/' + total + ')' : ''),
-              url:   'dividas.html'
-            });
-          }
-        } catch (_) {}
-      });
-
-      // 5. Limites de categoria (80% ou ultrapassados)
-      limites.forEach(function (lim) {
-        var catNome  = sanitizeStr(String(lim.categoria || '')).substring(0, 30);
-        var limValor = Number(lim.valorLimite) || 0;
-        if (!catNome || limValor <= 0) return;
-        var gastoLim = gastosPorCat[catNome] || 0;
-        var pctLim   = gastoLim / limValor;
-        if (pctLim >= 1.0) {
-          notifs.push({
-            emoji: 'ðŸš¨', tag: 'limite-100-' + lim._id + '-' + mesRef,
-            title: 'ðŸš¨ Limite estourado: ' + catNome,
-            body:  'R$' + gastoLim.toFixed(0) + ' gastos de R$' + limValor.toFixed(0) + ' em ' + catNome + '.',
-            url:   'limites.html'
-          });
-        } else if (pctLim >= 0.8) {
-          notifs.push({
-            emoji: 'âš ï¸', tag: 'limite-80-' + lim._id + '-' + mesRef,
-            title: 'âš ï¸ ' + Math.round(pctLim * 100) + '% do limite: ' + catNome,
-            body:  'R$' + gastoLim.toFixed(0) + ' gastos de R$' + limValor.toFixed(0) + ' em ' + catNome + '.',
-            url:   'limites.html'
-          });
-        }
-      });
-
-      // 6. Saldo negativo no mÃªs
-      if (totalDespesasMes > totalReceitasMes && totalReceitasMes > 0) {
-        var saldoNeg = totalReceitasMes - totalDespesasMes;
-        notifs.push({
-          emoji: 'ðŸ“‰', tag: 'saldo-neg-' + mesRef + '-' + uid,
-          title: 'ðŸ“‰ Gastos maiores que receitas',
-          body:  'Este mÃªs vocÃª gastou R$' + Math.abs(saldoNeg).toFixed(0) + ' a mais do que recebeu.',
-          url:   'balanco-mensal.html'
-        });
-      }
-
-      // 7. Resumo do mÃªs (Ãºltimo dia)
-      var ultimoDiaMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0).getDate();
-      if (agora.getDate() === ultimoDiaMes) {
-        var saldoFim    = totalReceitasMes - totalDespesasMes;
-        var saldoFimStr = (saldoFim >= 0 ? '+R$' : '-R$') + Math.abs(saldoFim).toFixed(0);
-        var nomeMesArr  = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-        notifs.push({
-          emoji: 'ðŸ“Š', tag: 'resumo-mes-' + mesRef + '-' + uid,
-          title: 'ðŸ“Š Resumo de ' + nomeMesArr[agora.getMonth()] + ': saldo ' + saldoFimStr,
-          body:  'Receitas R$' + totalReceitasMes.toFixed(0) + ' Â· Despesas R$' + totalDespesasMes.toFixed(0) + '. Confira o balanÃ§o!',
-          url:   'balanco-mensal.html'
-        });
-      }
-
-      // 8. InÃ­cio do mÃªs: total de recorrentes programadas
-      if (agora.getDate() === 1) {
-        var recsDesp    = recs.filter(function (r) { return r.tipo === 'despesa'; });
-        var totalRecsV  = recsDesp.reduce(function (s, r) { return s + (Number(r.valor) || 0); }, 0);
-        if (totalRecsV > 0) {
-          notifs.push({
-            emoji: 'ðŸ“‹', tag: 'inicio-mes-recs-' + mesRef + '-' + uid,
-            title: 'ðŸ“‹ Novo mÃªs! R$' + totalRecsV.toFixed(0) + ' em contas fixas',
-            body:  recsDesp.length + ' conta' + (recsDesp.length > 1 ? 's' : '') + ' programada' + (recsDesp.length > 1 ? 's' : '') + ' para este mÃªs.',
-            url:   'recorrentes.html'
-          });
-        }
-      }
-
-      // 9. Incentivo upgrade (plano free, dia 15, com â‰¥5 transaÃ§Ãµes no mÃªs)
-      if ((!ud.plano || ud.plano === 'free') && agora.getDate() === 15 && txSnap.size >= 5) {
-        notifs.push({
-          emoji: 'â­', tag: 'upgrade-' + mesRef + '-' + uid,
-          title: 'â­ Desbloqueie tudo no Bud Finance',
-          body:  'VocÃª jÃ¡ fez ' + txSnap.size + ' lanÃ§amentos este mÃªs. ConheÃ§a o plano Premium!',
-          url:   'configuracoes.html'
-        });
-      }
-
-      // 10. Plano expirando amanhÃ£
-      var expField = ud.planoExpira || ud.assinaturaExpira;
-      if (expField && ud.plano && ud.plano !== 'free') {
-        try {
-          var expDate = expField.toDate ? expField.toDate() : new Date(expField);
-          if (expDate.toISOString().slice(0, 10) === amanhaStr) {
-            notifs.push({
-              emoji: 'ðŸ””', tag: 'plano-expire-' + amanhaStr + '-' + uid,
-              title: 'ðŸ”” Seu plano expira amanhÃ£',
-              body:  'Renove seu plano ' + (ud.plano || '') + ' para continuar com todas as funcionalidades.',
-              url:   'configuracoes.html'
-            });
-          }
-        } catch (_) {}
-      }
-
-      // 12. PEND-066: Saldo de conta desatualizado hÃ¡ â‰¥7 dias
-      contas.forEach(function (c) {
-        var updField = c.atualizadaEm || c.criadaEm;
-        if (!updField) return;
-        try {
-          var updDate3 = updField.toDate ? updField.toDate() : new Date(updField);
-          var diasSemAtualizar = Math.floor((agora - updDate3) / 86400000);
-          // Avisar semanalmente (7, 14, 21... dias) para nÃ£o spam
-          if (diasSemAtualizar >= 7 && diasSemAtualizar % 7 === 0) {
-            var nomeConta = sanitizeStr(String(c.nome || 'Conta')).substring(0, 30);
-            var semanas = Math.floor(diasSemAtualizar / 7);
-            notifs.push({
-              emoji: 'ðŸ¦', tag: 'saldo-stale-' + c._id + '-' + hojeStr,
-              title: 'ðŸ¦ Saldo desatualizado: ' + nomeConta,
-              body:  'Faz ' + (semanas === 1 ? '1 semana' : semanas + ' semanas') + ' sem confirmar o saldo. Ainda estÃ¡ correto?',
-              url:   'carteira.html'
-            });
-          }
-        } catch (_) {}
-      });
-
-      // 11. Re-engagement: sem abrir o app hÃ¡ 5â€“30 dias
-      var lastField = ud.ultimoAcesso || ud.lastLoginAt;
-      if (lastField) {
-        try {
-          var lastDate = lastField.toDate ? lastField.toDate() : new Date(lastField);
-          var inativos = Math.floor((agora - lastDate) / 86400000);
-          if (inativos >= 5 && inativos < 30) {
-            var kReeng = 'reeng-' + Math.floor(inativos / 5) + '-' + uid;
-            notifs.push({
-              emoji: 'ðŸ¤–', tag: kReeng,
-              title: 'ðŸ‘‹ O Buddy sentiu sua falta!',
-              body:  'Faz ' + inativos + ' dias sem abrir o app. Que tal uma conferida rÃ¡pida?',
-              url:   'dashboard.html'
-            });
-          }
-        } catch (_) {}
-      }
-
-      // 12. Buddy AI insight (Ã s segundas ou quando nÃ£o hÃ¡ regras)
-      if (groqKey && (isMonday || notifs.length === 0)) {
-        try {
-          var gastos = {};
-          var totalDesp = 0;
-          txSnap.docs.forEach(function (d) {
-            var tx = d.data();
-            if (tx.tipo === 'despesa') {
-              var cat = sanitizeStr(String(tx.categoria || 'Outros')).substring(0, 40);
-              gastos[cat] = (gastos[cat] || 0) + (Number(tx.valor) || 0);
-              totalDesp  += Number(tx.valor) || 0;
-            }
-          });
-          var topCats = Object.entries(gastos)
-            .sort(function (a, b) { return b[1] - a[1]; })
-            .slice(0, 3)
-            .map(function (e) { return e[0] + ' R$' + e[1].toFixed(0); })
-            .join(', ');
-          var nomeU = sanitizeStr(String(ud.nome || 'usuÃ¡rio')).split(' ')[0].substring(0, 30);
-          var diasSemana = ['domingo','segunda','terÃ§a','quarta','quinta','sexta','sÃ¡bado'];
-
-          var budPrompt =
-            'VocÃª Ã© o Buddy, assistente financeiro do Bud Finance.\n' +
-            'UsuÃ¡rio: ' + nomeU + '\n' +
-            'Top gastos do mÃªs (' + mesRef + '): ' + (topCats || 'sem dados ainda') + '\n' +
-            'Total despesas: R$' + totalDesp.toFixed(0) + '\n' +
-            'Hoje: ' + diasSemana[agora.getDay()] + '\n\n' +
-            'Crie UMA notificaÃ§Ã£o push curta e personalizada (tÃ­tulo â‰¤40 chars, corpo â‰¤90 chars).\n' +
-            'Pode ser: dica de economia, observaÃ§Ã£o sobre padrÃµes, motivaÃ§Ã£o de meta, ou curiosidade financeira.\n' +
-            'Formato de resposta: JSON puro {"title":"...","body":"...","emoji":"emoji"}\n' +
-            'Retorne APENAS o JSON, sem markdown ou texto extra.';
-
-          var gRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + groqKey },
-            body: JSON.stringify({
-              model: 'qwen/qwen3.6-27b',
-              reasoning_effort: 'none',
-              messages: [{ role: 'user', content: budPrompt }],
-              temperature: 0.8,
-              max_tokens: 150
-            })
-          });
-          if (gRes.ok) {
-            var gData = await gRes.json();
-            var raw = ((gData.choices || [])[0] || {}).message?.content || '';
-            var parsed = JSON.parse(raw.trim());
-            if (parsed && parsed.title && parsed.body) {
-              notifs.push({
-                emoji:    sanitizeStr(parsed.emoji || 'ðŸ¤–').substring(0, 5),
-                tag:      'buddy-' + hojeStr + '-' + uid,
-                title:    sanitizeStr(parsed.emoji + ' ' + parsed.title).substring(0, 60),
-                body:     sanitizeStr(parsed.body).substring(0, 120),
-                url:      'assistente-ia.html',
-                isBuddy:  true
-              });
-            }
-          }
-        } catch (_buddyErr) {
-          // Buddy insight Ã© opcional â€” continua sem ele
-        }
-      }
+      var records = snap => snap.docs.map(d => Object.assign({ _id: d.id }, d.data()));
+      notifs = financialNotices({recorrentes:records(recSnap),cartoes:records(cartSnap),dividas:records(dividaSnap),transacoes:records(txSnap)},hojeStr);
 
       if (notifs.length === 0) continue;
 
-      // Smart bundling: se >3 notificaÃ§Ãµes de regras â†’ resumo + Buddy separado
-      var toSend;
-      if (notifs.length > 3) {
-        var buddyItem = notifs.find(function (n) { return n.isBuddy; });
-        var ruleItems = notifs.filter(function (n) { return !n.isBuddy; });
-        toSend = [];
-        if (ruleItems.length > 0) {
-          toSend.push({
-            emoji: 'ðŸ“‹',
-            tag:   'bundle-' + hojeStr + '-' + uid,
-            title: 'ðŸ“‹ ' + ruleItems.length + ' avisos de hoje',
-            body:  ruleItems.slice(0, 3).map(function (n) { return n.emoji + ' ' + n.body.substring(0, 35); }).join(' Â· '),
-            url:   'dashboard.html'
-          });
-        }
-        if (buddyItem) toSend.push(buddyItem);
-      } else {
-        toSend = notifs;
-      }
+      // Cada pendência mantém tag estável por dia para deduplicação.
+      var toSend = notifs.length > 3 ? [{
+        tag:'financial-summary-'+hojeStr+'-'+uid,title:notifs.length+' pendências financeiras',
+        body:notifs.slice(0,2).map(n=>n.body).join(' · ').slice(0,220),url:'dashboard.html',emoji:'🔔'
+      }] : notifs;
 
       // Enviar cada notificaÃ§Ã£o via FCM + salvar no Firestore
       var batch  = db.batch();
@@ -3632,36 +3171,16 @@ app.get('/api/notifications/daily', async function (req, res) {
 
         // Enviar FCM
         try {
-          await admin.messaging().send({
-            token: token,
-            data: {
-              title:   n.title  || 'Bud Finance',
-              body:    n.body   || '',
-              url:     n.url    || 'dashboard.html',
-              tag:     n.tag    || 'bud',
-              emoji:   n.emoji  || 'ðŸ“¢',
-              actions: JSON.stringify(n.actions || [{ action: 'open', title: 'Abrir app' }])
-            },
-            webpush: {
-              notification: {
-                icon:    FRONTEND_URL + '/icons/icon-192.png',
-                badge:   FRONTEND_URL + '/icons/icon-192.png',
-                vibrate: [200, 100, 200]
-              },
-              fcm_options: {
-                link: FRONTEND_URL + '/' + (n.url || 'dashboard.html')
-              }
-            }
-          });
-          sent++;
-        } catch (fcmErr) {
-          // Token invÃ¡lido ou expirado â€” limpar do Firestore
-          if (fcmErr.code === 'messaging/registration-token-not-registered' ||
-              fcmErr.code === 'messaging/invalid-registration-token') {
-            try {
-              await db.collection('usuarios').doc(uid).update({ fcmToken: null, pushEnabled: false });
-            } catch (_) {}
+          const delivery = await sendFinancialPush(admin.messaging(),tokens,n,FRONTEND_URL);
+          if(delivery.invalid.length) {
+            const patch={fcmTokens:admin.firestore.FieldValue.arrayRemove(...delivery.invalid)};
+            if(delivery.invalid.includes(ud.fcmToken)) patch.fcmToken=admin.firestore.FieldValue.delete();
+            await db.collection('usuarios').doc(uid).update(patch);
           }
+          if(!delivery.successCount){errors++;continue;}
+          sent += delivery.successCount;
+
+        } catch (fcmErr) {
           errors++;
           continue;
         }

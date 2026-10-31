@@ -68,19 +68,14 @@ export async function registerPushToken(app, user) {
   const messaging = getMessaging(app);
   let token;
 
-  // Limpar subscription antiga antes de pedir token:
-  // subscription cacheada com VAPID diferente faz getToken travar indefinidamente.
-  try {
-    const oldSub = await swReg.pushManager.getSubscription();
-    if (oldSub) await oldSub.unsubscribe();
-  } catch (_) {}
-
   async function _getTokenOnce() {
+    let timeoutId;
     const tokenPromise = getToken(messaging, { vapidKey, serviceWorkerRegistration: swReg });
     const timeoutPromise = new Promise(function (_, reject) {
-      setTimeout(function () { reject(new Error('[Push] getToken timeout 30s — verifique conexão e VAPID key')); }, 30000);
+      timeoutId = setTimeout(function () { reject(new Error('[Push] getToken timeout 30s — verifique conexão e VAPID key')); }, 30000);
     });
-    return Promise.race([tokenPromise, timeoutPromise]);
+    try { return await Promise.race([tokenPromise, timeoutPromise]); }
+    finally { clearTimeout(timeoutId); }
   }
   try {
     token = await _getTokenOnce();
@@ -124,10 +119,25 @@ export async function registerPushToken(app, user) {
  * @param {FirebaseApp} app
  * @param {function(import('firebase/messaging').MessagePayload): void} onNotif
  */
+const foregroundListeners = new WeakMap();
+export async function showForegroundNotification(payload) {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  const data = payload.data || payload.notification || {};
+  const registration = await navigator.serviceWorker.getRegistration(new URL('firebase-messaging-sw.js', window.location.href).href);
+  if (!registration) return;
+  const base = new URL('./', window.location.href);
+  const target = new URL(data.url || 'dashboard.html', base);
+  const url = target.origin === base.origin && target.pathname.startsWith(base.pathname) ? target.href : new URL('dashboard.html', base).href;
+  await registration.showNotification(data.title || 'Bud Finance', {
+    body: data.body || '', icon: new URL('icons/icon-192.png', base).href,
+    tag: data.tag || payload.messageId || 'bud-finance', data: { url }
+  });
+}
 export function listenForeground(app, onNotif) {
   try {
     const messaging = getMessaging(app);
-    onMessage(messaging, onNotif);
+    foregroundListeners.get(app)?.();
+    foregroundListeners.set(app, onMessage(messaging, onNotif));
   } catch (_) {
     // Não lança — listener em foreground não é crítico
   }
@@ -143,6 +153,11 @@ export function listenForeground(app, onNotif) {
  */
 export async function revokePushToken(app, user) {
   try {
+    let currentToken = null;
+    const registration = await navigator.serviceWorker?.getRegistration(new URL('firebase-messaging-sw.js', window.location.href).href);
+    if (registration && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      currentToken = await getToken(getMessaging(app), { vapidKey: window.BUD_FCM_VAPID_KEY, serviceWorkerRegistration: registration }).catch(() => null);
+    }
     // 1. Deletar token no browser (FCM)
     if ('serviceWorker' in navigator && Notification.permission === 'granted') {
       const messaging = getMessaging(app);
@@ -151,11 +166,12 @@ export async function revokePushToken(app, user) {
 
     // 2. Limpar token no backend (Firestore via server)
     const idToken = await user.getIdToken().catch(() => null);
-    if (idToken) {
+    if (idToken && currentToken) {
       const baseUrl = (window.BUD_FUNCTIONS_URL || '').replace(/\/$/, '');
       await fetch(baseUrl + '/api/push/token', {
         method: 'DELETE',
-        headers: { 'Authorization': 'Bearer ' + idToken }
+        headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: currentToken })
       }).catch(() => {});
     }
 

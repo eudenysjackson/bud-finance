@@ -9,7 +9,7 @@ import {
   addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, increment
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 import { getMessaging, getToken, onMessage, deleteToken } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
-import { registerPushToken, listenForeground } from './push.js';
+import { registerPushToken, listenForeground, showForegroundNotification } from './push.js';
 import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
@@ -20,24 +20,11 @@ connectEmulators(auth, db);
 
 // ─── Push: exposto para BudPush.requestIfNeeded() (bud-utils.js) ────────────
 // dashboard.js é a página principal — aqui ficam o registro e o listener.
-window._budRequestPushToken = async function (user) {
+window._budRequestPushToken = async function (user, silent) {
   try {
     await registerPushToken(app, user);
-    // Mensagens em foreground: adiciona ao painel de notificações in-app
-    listenForeground(app, function (payload) {
-      var d = payload.data || {};
-      var key = d.tag || 'fcm-' + Date.now();
-      if (window.BudInAppNotif) {
-        window.BudInAppNotif.addExternal(
-          key,
-          d.emoji || '📢',
-          d.body  || d.title || 'Nova notificação',
-          d.url   || null,
-          d.url   ? 'Ver' : null
-        );
-      }
-    });
-    if (window.budShowToast) window.budShowToast('Notificações ativadas! O Buddy vai te avisar. 🔔', 'success');
+    listenForeground(app, showForegroundNotification);
+    if (!silent && window.budShowToast) window.budShowToast('Notificações ativadas neste dispositivo. 🔔', 'success');
   } catch (err) {
     if (window.budWarn) window.budWarn(err.message);
     else console.warn(err.message);
@@ -2060,45 +2047,9 @@ function renderizarAtividades(transacoesDoMes) {
 
 // ─── Banner Trial ───────────────────────────────────────────────────────
 function configurarBannerPlano(userData) {
-  var banner = document.getElementById('trialBanner');
-  var bannerText = document.getElementById('trialBannerText');
-  if (!banner || !bannerText) return;
-
-  var plano = userData.plano || 'free';
-
-  // ── Erro de pagador inválido (outra conta MP pagou o link) ──────────
-  if (userData.erroAssinatura === 'pagador_invalido') {
-    banner.style.background  = 'linear-gradient(135deg, #fef3c7, #fde68a)';
-    banner.style.borderColor = '#f59e0b';
-    banner.style.color       = '#92400e';
-    bannerText.textContent   = 'Pagamento recusado: o link foi pago por uma conta do Mercado Pago diferente da sua. Acesse "Ver Planos" e tente novamente com a sua conta MP.';
-    banner.querySelector('.trial-banner-icon').textContent = '⚠️';
-    banner.classList.add('show');
-    return;
-  }
-
-  // ── Pagamento recusado pelo banco/MP ────────────────────────────────
-  if (userData.pagamentoPendente && plano !== 'pro' && plano !== 'plus' && plano !== 'starter') {
-    banner.style.background  = 'linear-gradient(135deg, #fee2e2, #fecaca)';
-    banner.style.borderColor = '#f87171';
-    banner.style.color       = '#991b1b';
-    bannerText.textContent   = 'Seu pagamento foi recusado. Tente novamente com outro método de pagamento.';
-    banner.querySelector('.trial-banner-icon').textContent = '❌';
-    banner.classList.add('show');
-    return;
-  }
-
-  if (plano === 'trial') {
-    var trialFim = userData.trialFim;
-    if (!trialFim) { banner.classList.remove('show'); return; }
-
-    var fimDate = trialFim.toDate ? trialFim.toDate() : new Date(trialFim);
-    var agora = new Date();
-    var diffMs = fimDate - agora;
-    var diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDias <= 0) {
-      // Trial vencido: rebaixar para free no servidor e recarregar
+  if (userData.plano === 'trial' && userData.trialFim) {
+    const end = userData.trialFim.toDate ? userData.trialFim.toDate() : new Date(userData.trialFim);
+    if (end < new Date()) {
       var _uid = usuarioAtualId;
       if (_uid) {
         (_dashCurrentUser ? _dashCurrentUser.getIdToken() : Promise.resolve(null))
@@ -2110,28 +2061,7 @@ function configurarBannerPlano(userData) {
           .then(function(d) { if (d.ok) location.reload(); })
           .catch(function() {});
       }
-      banner.style.background = 'linear-gradient(135deg, #fee2e2, #fecaca)';
-      banner.style.borderColor = '#f87171';
-      banner.style.color = '#991b1b';
-      bannerText.textContent = 'Período de testes encerrado. Faça upgrade para continuar usando todas as funcionalidades.';
-      banner.querySelector('.trial-banner-icon').textContent = '⚠️';
-      banner.classList.add('show');
-    } else if (diffDias <= 3) {
-      bannerText.textContent = 'Seu trial termina em ' + diffDias + (diffDias === 1 ? ' dia' : ' dias') + '! Aproveite para conhecer todas as funcionalidades.';
-      banner.classList.add('show');
-    } else {
-      bannerText.textContent = diffDias + ' dias restantes no seu período de testes.';
-      banner.classList.add('show');
     }
-  } else if (plano === 'free') {
-    banner.style.background = 'linear-gradient(135deg, #eff6ff, #dbeafe)';
-    banner.style.borderColor = '#93c5fd';
-    banner.style.color = '#1e40af';
-    bannerText.textContent = 'Plano gratuito ativo. Faça upgrade para desbloquear funcionalidades premium.';
-    banner.querySelector('.trial-banner-icon').textContent = '💡';
-    banner.classList.add('show');
-  } else {
-    banner.classList.remove('show');
   }
 }
 
@@ -3032,45 +2962,8 @@ onAuthStateChanged(auth, async function (user) {
     // ── Banner de plano/trial ───────────────────────────────────────
     configurarBannerPlano(userData);
 
-    // ── Notificações in-app (Buddy banners) ────────────────────────
-    if (window.BudInAppNotif) {
-      window.BudInAppNotif.init(user, userData);
-      // Busca notificacoes globais enviadas pelo admin
-      (async function () {
-        try {
-          var tipoEmoji = { info: '💡', promo: '🎉', update: '🚀', alert: '⚠️' };
-          var plano = (userData && userData.plano) || 'free';
-          var criadoEm = user && user.metadata && user.metadata.creationTime
-            ? Timestamp.fromDate(new Date(user.metadata.creationTime))
-            : null;
-          var filtros = [collection(db, 'notificacoes-globais')];
-          // Usuários novos recebem apenas comunicados enviados após o cadastro.
-          if (criadoEm) filtros.push(where('criadoEm', '>=', criadoEm));
-          filtros.push(orderBy('criadoEm', 'desc'), limit(10));
-          var snap = await getDocs(query(...filtros));
-          var globaisValidas = [];
-          snap.forEach(function (d) {
-            var n = d.data();
-            var dest = n.destino || 'all';
-            if (dest !== 'all' && dest !== plano) return;
-            // Testes operacionais nunca são comunicados para usuários.
-            var texto = `${n.titulo || ''} ${n.mensagem || ''}`.toLowerCase();
-            if (/\bteste+\b|testando|funcionalidade/.test(texto)) return;
-            globaisValidas.push('global_' + d.id);
-            var emoji = tipoEmoji[n.tipo] || '🔔';
-            window.BudInAppNotif.addExternal(
-              'global_' + d.id,
-              emoji,
-              (n.titulo || '') + (n.mensagem ? ': ' + n.mensagem : ''),
-              null,
-              null,
-              n.criadoEm && typeof n.criadoEm.toMillis === 'function' ? n.criadoEm.toMillis() : Date.now()
-            );
-          });
-          window.BudInAppNotif.reconcileGlobals(globaisValidas);
-        } catch (_) {}
-      })();
-    }
+    // Somente o estado atual da assinatura aparece dentro do app.
+    if (window.BudInAppNotif) window.BudInAppNotif.init(user, userData);
 
     // ── Push permission (3s delay para não interromper carregamento) ─
     setTimeout(function () {

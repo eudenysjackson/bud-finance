@@ -1273,22 +1273,27 @@ async function processarArquivo() {
 // ── Backend (PDF / imagem) ────────────────────────────────
 async function processarViaBackend(file) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 120_000); // BUG #8 fix: 120s timeout
+  const timer = null; // A leitura aguarda automaticamente a capacidade do serviço.
 
   try {
     const formData = new FormData();
     formData.append('arquivo', file);
     formData.append('tipo', 'extrato');
+    const idToken = await auth.currentUser.getIdToken();
 
-    const resp = await fetch(`${BACKEND_URL}/api/extrair-fatura`, {
+    const resp = await (window.budAIRequest || fetch)(`${BACKEND_URL}/api/extrair-fatura`, {
       method: 'POST',
       body: formData,
+      headers: { Authorization: `Bearer ${idToken}` },
       signal: controller.signal,
     });
 
     clearTimeout(timer);
 
-    if (!resp.ok) throw new Error(`Servidor retornou ${resp.status}`);
+    if (!resp.ok) {
+      const failure = await resp.json().catch(() => ({}));
+      throw new Error(failure.error || `Servidor retornou ${resp.status}`);
+    }
     const data = await resp.json();
     // Backend retorna {transacoes:[...], meta:{...}} — guardar meta para barra de confiança
     _importMeta = (data && !Array.isArray(data) && data.meta) ? data.meta : null;
