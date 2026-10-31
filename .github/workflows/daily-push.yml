@@ -1,7 +1,12 @@
 name: Daily Push Notifications
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Verificar configuração sem enviar notificações ou e-mails
+        type: boolean
+        default: true
   schedule:
     - cron: '0 11 * * *'
 
@@ -13,5 +18,10 @@ jobs:
       - name: Trigger backend cron
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
         run: |
-          curl -fsS -X GET -H "x-cron-secret: $CRON_SECRET" https://bud-finance-backend.onrender.com/api/notifications/daily
+          endpoint='https://bud-finance-backend.onrender.com/api/notifications/daily'
+          if [ "$DRY_RUN" = 'true' ]; then endpoint="$endpoint?dry_run=1"; fi
+          curl -fsS --max-time 240 -H "x-cron-secret: $CRON_SECRET" "$endpoint" -o notification-result.json
+          cat notification-result.json
+          node -e "const r=require('./notification-result.json'); if(!r.ok || r.errors>0) process.exit(1);"

@@ -3104,6 +3104,12 @@ app.get('/api/notifications/daily', async function (req, res) {
     return res.status(401).json({ error: 'Unauthorized.' });
   }
 
+  // Homologação do agendamento: confere acesso e banco sem enviar push ou e-mail.
+  if (req.query.dry_run === '1') {
+    const recipients = await db.collection('usuarios').where('pushEnabled', '==', true).limit(1).get();
+    return res.json({ ok: true, dryRun: true, pushRecipientsFound: !recipients.empty, schedule: '08:00 America/Sao_Paulo' });
+  }
+
   const agora=new Date();
   const clockParts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(agora).map(p=>[p.type,p.value]));
   const hojeStr=clockParts.year+'-'+clockParts.month+'-'+clockParts.day;

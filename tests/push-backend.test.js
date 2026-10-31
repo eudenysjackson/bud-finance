@@ -27,3 +27,14 @@ test('financial push fans out once per device, expires after one hour and identi
  const result=await sendFinancialPush(transport,['phone','phone','computer'],{title:'Fatura amanhã',body:'R$ 20',tag:'bill-test',url:'cartoes.html'},'https://budsolucoes.com.br/appbudfinance');
  assert.deepEqual(message.tokens,['phone','computer']);assert.equal(message.webpush.headers.TTL,'3600');assert.equal(message.notification,undefined);assert.equal(message.webpush.fcmOptions.link,'https://budsolucoes.com.br/appbudfinance/cartoes.html');assert.deepEqual(result,{successCount:1,invalid:['computer']});
 });
+
+test('scheduled dry-run verifies the shared secret and database without sending any message',async()=>{
+ const source=fs.readFileSync('backend/server.js','utf8');let handler,reads=0;
+ const db={collection:()=>({where:()=>({limit:()=>({get:async()=>{reads++;return{empty:false};}})})})};
+ new Function('app','auth','db','process','enviarLembretesDeAssinatura',source.slice(source.indexOf("app.get('/api/notifications/daily'"),source.indexOf('var PORT = process.env.PORT')))(
+  {get:(_,h)=>{handler=h;}},{},db,{env:{CRON_SECRET:'test-only'}},()=>{throw Error('dry-run must not send emails');}
+ );
+ async function call(secret){const res={statusCode:200,status(n){this.statusCode=n;return this;},json(data){this.data=data;return this;}};await handler({headers:{'x-cron-secret':secret},query:{dry_run:'1'}},res);return res;}
+ assert.equal((await call('wrong')).statusCode,401);assert.equal(reads,0);
+ const result=await call('test-only');assert.equal(result.statusCode,200);assert.equal(result.data.dryRun,true);assert.equal(result.data.pushRecipientsFound,true);assert.equal(reads,1);
+});
