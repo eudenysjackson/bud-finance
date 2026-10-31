@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {subscriptionNotice}=require('../appbudfinance/js/bud-notif-inapp');
-const {financialNotices}=require('../backend/financial-notifications');
+const {financialNotices,subscriptionPushNotices}=require('../backend/financial-notifications');
 test('in-app notices are derived only from current subscription; blue near expiry, red overdue, upgrade for free',()=>{
  const now=new Date('2026-10-31T12:00:00Z');
  assert.equal(subscriptionNotice({plano:'plus',planoExpira:'2026-11-30T12:00:00Z'},now),null);
@@ -39,4 +39,14 @@ test('debt reminder uses next unpaid installment and clamps short months without
  const debt={_id:'debt',nome:'Compra',vencimento:'2026-01-31',parcelas:3,parcelasPagas:1,valorParcela:100};
  const notices=financialNotices({dividas:[debt]},'2026-02-27');assert.equal(notices.length,1);assert.match(notices[0].body,/2\/3/);assert.match(notices[0].title,/amanhã/);
  assert.equal(financialNotices({dividas:[{...debt,parcelasPagas:3}]},'2026-02-27').length,0);
+});
+
+test('renewal notices show the exact billing date and do not claim automatic renewal without a subscription',()=>{
+ const profile={plano:'pro',assinaturaStatus:'authorized',mpSubscriptionId:'fictitious',planoExpira:'2026-11-03T15:00:00Z'};
+ const notice=subscriptionNotice(profile,new Date('2026-10-31T18:00:00Z'));assert.match(notice.message,/Renovação do plano Pro/);assert.match(notice.message,/Próxima cobrança: 03\/11\/2026/);
+ const push=subscriptionPushNotices(profile,'2026-10-31');assert.equal(push.length,1);assert.match(push[0].body,/Próxima cobrança: 03\/11\/2026/);
+ assert.equal(subscriptionPushNotices({...profile,planoExpira:'2026-12-03T15:00:00Z'},'2026-10-31').length,0);
+ assert.equal(subscriptionPushNotices({...profile,assinaturaStatus:'cancelled'},'2026-10-31').length,0);
+ assert.match(subscriptionPushNotices({...profile,mpSubscriptionId:null},'2026-10-31')[0].title,/Vencimento/);
+ assert.match(subscriptionPushNotices({...profile,planoTroca:{status:'scheduled',planKey:'plus'}},'2026-10-31')[0].title,/Plus/);
 });

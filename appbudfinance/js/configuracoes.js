@@ -965,7 +965,7 @@ function _renderizarSecaoPlano(plano, data) {
         elTrial.style.display = 'block';
         elTrial.style.color = dias > 0 ? '#059669' : '#dc2626';
       } else if (elExpira) {
-        elExpira.textContent = 'Válido até ' + expDate.toLocaleDateString('pt-BR');
+        elExpira.textContent = (data.mpSubscriptionId && data.assinaturaStatus === 'authorized' ? 'Próxima cobrança em ' : 'Válido até ') + expDate.toLocaleDateString('pt-BR', {timeZone:'America/Sao_Paulo'});
         elExpira.style.display = 'block';
       }
     } catch (_) {}

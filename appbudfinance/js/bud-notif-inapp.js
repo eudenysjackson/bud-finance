@@ -13,11 +13,15 @@
     var end = date(plan === 'trial' ? profile.trialFim : profile.planoExpira || profile.assinaturaExpira);
     var paid = ['starter', 'pro', 'plus'].includes(plan);
     var overdue = status === 'past_due' || status === 'expired' || ((paid || plan === 'trial') && end && end <= now);
-    if (overdue) return { key: 'expired', color: 'red', emoji: '⚠️', message: plan === 'trial' ? 'Seu período de testes terminou. Escolha um plano para continuar.' : 'Sua assinatura está vencida. Confira o pagamento para regularizar o acesso.', label: 'Ver assinatura', link: 'configuracoes.html' };
+    var dueDate = end ? new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric'}).format(end) : '';
+    if (overdue) return { key: 'expired', color: 'red', emoji: '⚠️', message: plan === 'trial' ? 'Seu período de testes terminou' + (dueDate ? ' em ' + dueDate : '') + '. Escolha um plano para continuar.' : 'Sua assinatura está vencida' + (dueDate ? ' desde ' + dueDate : '') + '. Confira o pagamento para regularizar o acesso.', label: 'Ver assinatura', link: 'configuracoes.html' };
     if (end && (paid || plan === 'trial') && end - now <= 3 * 86400000) {
       var days = Math.max(1, Math.ceil((end - now) / 86400000));
-      var period = days + (days === 1 ? ' dia' : ' dias');
-      return { key: 'due-' + end.toISOString(), color: 'blue', emoji: '🔔', message: plan === 'trial' ? 'Seu período de testes termina em ' + period + '.' : 'Sua próxima cobrança é em ' + period + '. Confira sua assinatura.', label: 'Ver assinatura', link: 'configuracoes.html' };
+      var nextPlan = profile.planoTroca?.status === 'scheduled' ? profile.planoTroca.planKey : plan;
+      var planName = {starter:'Starter',pro:'Pro',plus:'Plus'}[nextPlan] || 'atual';
+      var automatic = profile.mpSubscriptionId && status === 'authorized';
+      var message = plan === 'trial' ? 'Seu período de testes termina em ' + dueDate + '.' : automatic ? 'Renovação do plano ' + planName + ' em ' + dueDate + '. Próxima cobrança: ' + dueDate + '.' : 'Seu plano ' + planName + ' vence em ' + dueDate + '. Confira sua assinatura.';
+      return { key: 'due-' + end.toISOString(), color: 'blue', emoji: '🔔', message: message, label: 'Ver assinatura', link: 'configuracoes.html' };
     }
     if (plan === 'free') return { key: 'upgrade', color: 'blue', emoji: '✨', message: 'Conheça os planos e libere mais recursos para suas finanças.', label: 'Fazer upgrade', link: 'configuracoes.html' };
     return null;

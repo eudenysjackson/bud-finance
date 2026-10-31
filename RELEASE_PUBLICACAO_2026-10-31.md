@@ -13,3 +13,8 @@ O titular autorizou publicar backend, site e regras/índices, depois de corrigir
 Permanecem: verificar publicação do último ajuste, confirmar entrega no dispositivo e ativação do agendamento, homologar entrega automática do webhook público do Mercado Pago com contas fictícias. Fatura longa medida em79,6s: cota externa pode impor espera; não há promessa de latência universal. Buddy/WhatsApp seguem fora da primeira versão.
 
 Evidências locais não são incluídas no pacote público. Credenciais locais, emuladores, .tools e relatórios de navegador permanecem excluídos da publicação estática.
+
+## Atualização solicitada pelo titular —18h e renovação
+O titular alterou o horário para18h America/Sao_Paulo (cron0 21 * * *UTC). Avisos de assinatura agora mostram data exata da cobrança/renovação no app e no push, com mensagens3dias/1dia/no dia, respeitando cancelamento e troca agendada. A tela de plano identifica a próxima cobrança.63regressões aprovadas.
+
+O celular recebeu o teste, confirmado pelo titular. Falhas recebidas por e-mail vieram do dry-run GitHub: primeiroCRON_SECRET ausente; após cadastro autorizado a cópia automatizada não correspondeu ao segredo real e houve novo401. Probe dentro do Render com o próprio segredo confirmou200/dryRuntrue, sem envio de mensagens. Abas foram preparadas para colagem manual do valor protegido no GitHub. Não repetir execuções com valor sabidamente incorreto. Agendamento está habilitado; validação final da autorização continua pendente dessa colagem. Nenhum push/e-mail coletivo foi disparado manualmente.

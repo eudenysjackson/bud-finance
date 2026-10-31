@@ -57,6 +57,20 @@ function financialNotices({recorrentes=[],cartoes=[],dividas=[],transacoes=[]}, 
   }
   return notices;
 }
+function subscriptionPushNotices(profile, today) {
+  const status=String(profile.assinaturaStatus||'').toLowerCase(),plan=String(profile.plano||'free').toLowerCase();
+  if (['cancelled','canceled','paused'].includes(status)) return [];
+  const due=iso(plan==='trial'?profile.trialFim:profile.planoExpira||profile.assinaturaExpira);
+  if (!due) return [];
+  const days=Math.round((new Date(due+'T12:00:00Z')-new Date(today+'T12:00:00Z'))/86400000);
+  const formatted=due.split('-').reverse().join('/'),paid=['starter','pro','plus'].includes(plan);
+  if((days<0&&paid)||(status==='past_due'&&days<=0)) return [{tag:'subscription-overdue-'+due+'-'+today,title:'Pagamento da assinatura pendente',body:'Vencimento: '+formatted+'. Confira o pagamento do seu plano no Bud Finance.',url:'configuracoes.html',emoji:'⚠️'}];
+  if(![3,1,0].includes(days)||(!paid&&plan!=='trial')) return [];
+  const nextPlan=profile.planoTroca?.status==='scheduled'?profile.planoTroca.planKey:plan;
+  const label={starter:'Starter',pro:'Pro',plus:'Plus',trial:'de testes'}[nextPlan]||nextPlan;
+  const automatic=paid&&profile.mpSubscriptionId&&status==='authorized';
+  return [{tag:'subscription-due-'+due+'-'+today,title:automatic?'Renovação do plano '+label: 'Vencimento do plano '+label,body:automatic?'Próxima cobrança: '+formatted+'. Sua assinatura será renovada nessa data.':'Seu plano vence em '+formatted+'. Confira as opções para continuar.',url:'configuracoes.html',emoji:'🔔'}];
+}
 async function sendFinancialPush(messaging, tokens, notice, frontendUrl) {
   const targets=[...new Set(tokens.filter(token=>typeof token==='string'&&token))].slice(0,20);
   if (!targets.length) return {successCount:0,invalid:[]};
@@ -67,4 +81,4 @@ async function sendFinancialPush(messaging, tokens, notice, frontendUrl) {
   });
   return {successCount:response.successCount,invalid:response.responses.flatMap((result,index)=>!result.success&&['messaging/registration-token-not-registered','messaging/invalid-registration-token'].includes(result.error?.code)?[targets[index]]:[])};
 }
-module.exports={financialNotices,sendFinancialPush};
+module.exports={financialNotices,subscriptionPushNotices,sendFinancialPush};

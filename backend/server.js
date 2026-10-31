@@ -16,7 +16,7 @@ const { createFirestoreJobStore } = require('./ai-job-store');
 const { readNubankInvoice } = require('./invoice-reader');
 const { createDeleteAccount } = require('./account-lifecycle');
 const { createSubscriptionChange } = require('./subscription-change');
-const { financialNotices, sendFinancialPush } = require('./financial-notifications');
+const { financialNotices, subscriptionPushNotices, sendFinancialPush } = require('./financial-notifications');
 
 // Modelo multimodal configurável; validado na API da Groq em 24/10/2026.
 const GROQ_MODEL = process.env.GROQ_MODEL || 'qwen/qwen3.8-27b';
@@ -3098,8 +3098,8 @@ async function enviarLembretesDeAssinatura(hoje) {
 app.get('/api/notifications/daily', async function (req, res) {
   if (!auth || !db) return res.status(503).json({ error: 'Firebase Admin nÃ£o inicializado.' });
 
-  var cronSecret = process.env.CRON_SECRET;
-  var provided   = req.headers['x-cron-secret'] || req.query.secret;
+  var cronSecret = String(process.env.CRON_SECRET || '').trim();
+  var provided   = String(req.headers['x-cron-secret'] || req.query.secret || '').trim();
   if (!cronSecret || provided !== cronSecret) {
     return res.status(401).json({ error: 'Unauthorized.' });
   }
@@ -3107,7 +3107,7 @@ app.get('/api/notifications/daily', async function (req, res) {
   // Homologação do agendamento: confere acesso e banco sem enviar push ou e-mail.
   if (req.query.dry_run === '1') {
     const recipients = await db.collection('usuarios').where('pushEnabled', '==', true).limit(1).get();
-    return res.json({ ok: true, dryRun: true, pushRecipientsFound: !recipients.empty, schedule: '08:00 America/Sao_Paulo' });
+    return res.json({ ok: true, dryRun: true, pushRecipientsFound: !recipients.empty, schedule: '18:00 America/Sao_Paulo' });
   }
 
   const agora=new Date();
@@ -3155,13 +3155,15 @@ app.get('/api/notifications/daily', async function (req, res) {
       var records = snap => snap.docs.map(d => Object.assign({ _id: d.id }, d.data()));
       notifs = financialNotices({recorrentes:records(recSnap),cartoes:records(cartSnap),dividas:records(dividaSnap),transacoes:records(txSnap)},hojeStr);
 
-      if (notifs.length === 0) continue;
+      var subscriptionNotifs = subscriptionPushNotices(ud,hojeStr);
+      if (notifs.length === 0 && subscriptionNotifs.length === 0) continue;
 
       // Cada pendência mantém tag estável por dia para deduplicação.
       var toSend = notifs.length > 3 ? [{
         tag:'financial-summary-'+hojeStr+'-'+uid,title:notifs.length+' pendências financeiras',
         body:notifs.slice(0,2).map(n=>n.body).join(' · ').slice(0,220),url:'dashboard.html',emoji:'🔔'
       }] : notifs;
+      toSend = subscriptionNotifs.concat(toSend);
 
       // Enviar cada notificaÃ§Ã£o via FCM + salvar no Firestore
       var batch  = db.batch();
