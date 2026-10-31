@@ -3,7 +3,7 @@
   "private": true,
   "description": "Bud Finance — testes automatizados com Playwright",
   "scripts": {
-    "test:release": "node --test tests/email-flows.test.js tests/checkout.test.js tests/account-lifecycle.test.js tests/release-flows.test.js tests/ai-reader.test.js tests/ai-jobs.test.js tests/ai-client.test.js tests/invoice-reader.test.js tests/import-screens.test.js tests/push.test.js tests/notifications.test.js tests/push-backend.test.js",
+    "test:release": "node --test tests/email-flows.test.js tests/checkout.test.js tests/account-lifecycle.test.js tests/release-flows.test.js tests/ai-reader.test.js tests/ai-jobs.test.js tests/ai-client.test.js tests/invoice-reader.test.js tests/import-screens.test.js tests/push.test.js tests/notifications.test.js tests/push-backend.test.js tests/build-config.test.js",
     "test:release:local": "node --env-file=backend/.env.local scripts/smoke-release-local.js",
     "test:ai:recovery": "node --env-file=backend/.env.local scripts/smoke-ai-recovery-local.js",
     "test:imports": "node --test tests/ai-reader.test.js tests/ai-jobs.test.js tests/ai-client.test.js tests/invoice-reader.test.js tests/import-screens.test.js",
