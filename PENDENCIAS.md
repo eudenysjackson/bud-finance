@@ -409,3 +409,8 @@ ERR-071 / PEND-IA-ESPERA: a mensagem aguardando serviço vem do retry HTTP 429; 
 - **PEND-IA-005 — FUTURO:** avaliar arquitetura própria/híbrida para reduzir dependência de um único fornecedor: extração direta de texto e parsers de layouts conhecidos, OCR local e modelo visual de pesos abertos em infraestrutura com GPU. Comparar precisão em faturas reais anonimizadas, velocidade, custo de GPU, manutenção e necessidade de fallback. Não contratar infraestrutura nem implementar sem decisão posterior.
 - Cotas do produto e do provedor são camadas diferentes. O master define processamentos inteligentes mensais por usuário: Free 0, Starter 3, Trial 10, Pro 10 e Plus sem limite prático no app. Mesmo Plus depende da capacidade global da organização Groq; a captura mostra 429 do fornecedor, não bloqueio do plano Bud.
 - A captura é apenas da tela de progresso. Para reproduzir o layout e identificar por que esta fatura caiu na IA, é necessário o PDF original ou registros de uma nova tentativa.
+
+## Diagnóstico adicional IA — 01/11/2026
+
+- **PEND-IA-006 — ABERTA:** corrigir/testar parser determinístico Nubank para variações de extração de texto e linhas de total, usando fixtures sintéticas sem dados pessoais; aceitar o caminho direto somente quando a soma conciliar exatamente. O PDF real enviado foi reconhecido como Nubank, mas não conciliou e iria para IA. Nenhum dado do documento foi armazenado ou enviado à Groq durante esta análise.
+- Cotas Groq têm janelas independentes por organização/modelo (requisições e tokens por minuto/dia); usar `retry-after` e `x-ratelimit-reset-*` para entender o reset concreto. Um retry de 10s não comprova que todas as cotas estarão disponíveis depois dele.

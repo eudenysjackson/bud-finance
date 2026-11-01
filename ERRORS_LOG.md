@@ -710,3 +710,10 @@ ERR-071 / PEND-IA-ESPERA: a mensagem aguardando serviço vem do retry HTTP 429; 
 ## Limite de capacidade Groq observado — 01/11/2026
 
 A captura às 17:24 mostra progresso emitido após HTTP 429 do provedor, aguardando 10s (primeira de até duas esperas curtas por chamada/trecho). Logo, a leitura ainda não havia terminado naquele instante; um documento pode apresentar essa etapa em mais de um trecho, e cada trecho enfrenta a mesma cota global. Se a capacidade continuar indisponível, a correção publicada encerra com erro em vez de manter a tela infinita. Isso não garante leitura da fatura original, que não foi fornecida. PEND-IA-001 segue aberta para medir capacidade em documentos reais; ver DEC-069 para Developer futuro e avaliação de arquitetura híbrida/própria.
+
+### ERR-072 — Parser direto rejeita variação de fatura Nubank e encaminha à IA (01/11/2026)
+
+- **Evidência:** análise local de PDF textual Nubank de 7 páginas enviado pelo usuário; nenhuma chamada à Groq.
+- **Causa observada:** parser exige espaço entre `Total a pagar` e `R$`, ausente nesta extração. Ao relaxar apenas o espaço num diagnóstico isolado, a soma das linhas capturadas ainda não conciliou com o total, portanto a rejeição estrita permanece correta e a rota encaminha para IA.
+- **Impacto:** chamadas à Groq para layout reconhecível; sob cota compartilhada pode ocorrer429. O arquivo não foi importado ou persistido. Não aceitar resultado parcial para ocultar divergência.
+- **Status:** aberto para correção com fixtures sintéticas e nova validação de conciliação; PEND-IA-006. Não registrar dados pessoais/financeiros do documento.

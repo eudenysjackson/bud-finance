@@ -769,3 +769,7 @@ A resposta “Indicação” do onboarding é dado de origem (`comoConheceu`) e,
 ## DEC-069 — Capacidade e independência do leitor de IA (01/11/2026)
 
 A contratação do Groq Developer fica registrada como aquisição futura, depois de medir volume, consumo e custo. O tier pago aumenta limites e inclui recursos adicionais, mas não torna o serviço ilimitado nem elimina falhas de capacidade. No curto prazo, manter os prazos e o encerramento explícito publicados e acompanhar 429s. Em avaliação futura, comparar arquitetura híbrida (parsers determinísticos, OCR e fornecedor(es) alternativo(s)) com auto-hospedagem de modelo visual aberto em GPU. Cotas por plano do Bud são separadas do limite global do provedor; o plano Plus remove a cota mensal própria do app, mas não a do Groq. Não prometer precisão universal ou operação ininterrupta; esta decisão não autoriza contratação nem desenvolvimento do leitor próprio.
+
+## DEC-070 — Manter Groq como provedor atual e tratar cotas por janela (01/11/2026)
+
+O titular decidiu manter Groq como provedora atual. A compra do Developer fica para o futuro após medir volume e custos (DEC-069). Não tratar o serviço como ilimitado: os limites variam por organização, modelo e janela e são consultáveis pelos cabeçalhos da resposta. Reduzir chamadas desnecessárias com parsers determinísticos validados; manter erro explícito e, em etapa futura, projetar filas justas e contingência. Esta decisão não autoriza contratação nem alteração dos limites comerciais dos planos Bud.

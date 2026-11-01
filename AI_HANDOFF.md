@@ -98,3 +98,10 @@ ERR-071 / PEND-IA-ESPERA: a mensagem aguardando serviço vem do retry HTTP 429; 
 ## Continuidade — falha de capacidade IA observada (01/11/2026)
 
 Captura às 17:24 mostra o retry de um trecho da fatura após HTTP 429 da Groq: aguardando 10 segundos, primeira de até duas esperas curtas desta chamada. O usuário relata que a fatura não foi lida; a captura não mostra o resultado final. O encerramento de esperas infinitas está publicado no commit e50356c, mas não aumenta a cota do fornecedor. Cotas do Bud: Free 0, Starter 3, Trial 10, Pro 10, Plus ilimitado no app; qualquer plano continua sujeito à cota da organização Groq. Aquisição Groq Developer futura e avaliação híbrida/própria registradas em DEC-069/PEND-IA-005. Para reprodução do layout específico, solicitar o PDF original ou log da tentativa.
+
+## Diagnóstico da fatura Nubank enviada e cotas Groq — 01/11/2026
+
+- Análise local, sem chamada à Groq nem gravação de transações: PDF textual pesquisável de 7 páginas. O leitor reconhece Nubank, mas o atalho determinístico não aceita o arquivo: o rótulo `Total a pagar` aparece junto a `R$` sem espaço e, ao tolerar essa variação em diagnóstico isolado, as linhas capturadas ainda não conciliam com o total. O fluxo encaminha o documento à IA, sujeita a HTTP 429. Não registrar no Git nem no chat valores, nomes ou estabelecimentos do documento.
+- A resposta de limite tem janelas próprias. Groq fornece `retry-after` no 429 e `x-ratelimit-reset-requests` / `x-ratelimit-reset-tokens`; cada limite ativo (RPM/RPD/TPM/TPD e, se configurados, limites separados de entrada/saída) pode ter reset distinto. A espera de 10s da tela é o retry indicado para aquela chamada, não garantia de que todos os trechos ou cotas diárias estejam livres.
+- Próximo passo: corrigir o parser Nubank com fixtures sintéticas sem PII e conciliação rigorosa; planejar filas com fairness e contingência para escala. Developer continua aquisição futura DEC-069; não garante capacidade ilimitada.
+- Não houve importação autenticada no navegador nem validação da fatura pela Groq; não declarar o arquivo lido.
