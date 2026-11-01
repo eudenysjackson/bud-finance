@@ -2320,6 +2320,64 @@ app.post('/api/whatsapp/desvincular', async function (req, res) {
 // Auth: Bearer Firebase ID Token.
 // Body: { planKey: 'starter'|'pro'|'plus', ref?: string }
 // SeguranÃ§a: uid e email extraÃ­dos do Bearer token â€” nunca do body.
+// Apply one validated referral code after email confirmation, before any subscription starts.
+app.post('/api/indicacao/aplicar', async function (req, res) {
+  if (!auth || !db) return res.status(503).json({ error: 'Serviço indisponível.' });
+  var authHeader = req.headers.authorization || '';
+  var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) return res.status(401).json({ error: 'Faça login novamente.' });
+  var decoded;
+  try { decoded = await auth.verifyIdToken(idToken); }
+  catch (_) { return res.status(401).json({ error: 'Sessão inválida.' }); }
+  var code = String(req.body.codigo || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32);
+  if (!/^[A-Z0-9]{8}$/.test(code)) return res.status(400).json({ error: 'Informe um código de indicação válido com 8 caracteres.' });
+  var userRef = db.collection('usuarios').doc(decoded.uid);
+  var userSnap = await userRef.get();
+  if (!userSnap.exists) return res.status(404).json({ error: 'Cadastro não encontrado.' });
+  var current = userSnap.data() || {};
+  if (current.indicadoPor) {
+    if (String(current.indicadoPor.codigo || '').toUpperCase() === code) return res.json({ ok: true, alreadyApplied: true, discountPercent: 15 });
+    return res.status(409).json({ error: 'Uma indicação já está vinculada a esta conta.' });
+  }
+  if (current.primeiraCobrancaPagaEm || current.mpSubscriptionId || current.mpCheckout) {
+    return res.status(409).json({ error: 'O código só pode ser vinculado antes de iniciar uma assinatura.' });
+  }
+  var refSnap = await db.collection('usuarios').where('codigoIndicacao', '==', code).limit(2).get();
+  if (refSnap.size !== 1) return res.status(400).json({ error: 'Código não encontrado ou indisponível.' });
+  var referrerDoc = refSnap.docs[0];
+  if (referrerDoc.id === decoded.uid) return res.status(400).json({ error: 'Você não pode usar o próprio código.' });
+  var referrer = referrerDoc.data() || {};
+  var referralRef = referrerDoc.ref.collection('indicacoes').doc(decoded.uid);
+  try {
+    await db.runTransaction(async function (transaction) {
+      var fresh = await transaction.get(userRef);
+      if (!fresh.exists) throw Object.assign(new Error('Cadastro não encontrado.'), { status: 404 });
+      var data = fresh.data() || {};
+      if (data.indicadoPor) {
+        if (String(data.indicadoPor.codigo || '').toUpperCase() !== code) throw Object.assign(new Error('Uma indicação já está vinculada a esta conta.'), { status: 409 });
+        return;
+      }
+      if (data.primeiraCobrancaPagaEm || data.mpSubscriptionId || data.mpCheckout) throw Object.assign(new Error('O código só pode ser vinculado antes de iniciar uma assinatura.'), { status: 409 });
+      transaction.update(userRef, {
+        indicadoPor: { uid: referrerDoc.id, nome: String(referrer.nome || '').slice(0, 100), codigo: code },
+        descontoIndicacao: 15,
+        descontoIndicacaoUsado: false,
+        codigoIndicacaoAplicadoEm: admin.firestore.FieldValue.serverTimestamp()
+      });
+      transaction.set(referralRef, {
+        indicadoUid: decoded.uid,
+        nome: String(data.nome || decoded.name || '').slice(0, 100),
+        email: String(data.email || decoded.email || '').slice(0, 254),
+        data: admin.firestore.FieldValue.serverTimestamp(),
+        assinouPlano: false
+      }, { merge: true });
+    });
+    return res.json({ ok: true, discountPercent: 15, referrerName: String(referrer.nome || '').split(/\\s+/)[0] || 'seu amigo' });
+  } catch (error) {
+    return res.status(error.status || 503).json({ error: error.message || 'Não foi possível aplicar o código.' });
+  }
+});
+
 app.post('/mercadopago/create-subscription', async function (req, res) {
   if (!MP_ACCESS_TOKEN) return res.status(503).json({ error: 'Pagamentos nÃ£o configurados.' });
   if (!auth || !db)     return res.status(503).json({ error: 'Firebase nÃ£o inicializado.' });
