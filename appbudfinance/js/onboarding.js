@@ -334,6 +334,20 @@ async function concluirOnboarding() {
     const uid = currentUser.uid;
     const san = (s) => (window.budSanitize ? window.budSanitize(s) : String(s));
 
+    const referralInput = document.getElementById('obReferralCode');
+    const referralCode = referralInput ? san(referralInput.value).toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
+    if (dados.comoConheceu === 'Indicação de amigo(a)' && referralCode && currentUser) {
+      const idToken = await currentUser.getIdToken();
+      const backend = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\\/$/, '');
+      const response = await fetch(backend + '/api/indicacao/aplicar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+        body: JSON.stringify({ codigo: referralCode })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Não foi possível aplicar o código de indicação.');
+      showToast('Código aplicado: 15% de desconto no primeiro mês.', 'success');
+    }
+
     // ── 1. Atualizar nome no Auth ──────────────────────────────────
     const nomeFinal = san(dados.nome).substring(0, 80) || currentUser.displayName || '';
     if (nomeFinal && nomeFinal !== currentUser.displayName) {
@@ -474,11 +488,13 @@ async function concluirOnboarding() {
 
 // ─── Init source grid (step 2) ─────────────────────────────────────────────
 function initSourceGrid() {
+  const referralPanel = document.getElementById('referralCodePanel');
   document.querySelectorAll('#sourceGrid .ob-source-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('#sourceGrid .ob-source-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       dados.comoConheceu = btn.getAttribute('data-value') || '';
+      if (referralPanel) referralPanel.style.display = dados.comoConheceu === 'Indicação de amigo(a)' ? '' : 'none';
     });
   });
 }
