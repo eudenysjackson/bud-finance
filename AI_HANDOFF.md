@@ -47,3 +47,13 @@ PR [#2](https://github.com/eudenysjackson/bud-finance/pull/2) integrada ao `mast
 ## Protocolo para a próxima IA
 
 Leia [AI_WORKFLOW.md](AI_WORKFLOW.md), depois consulte [PENDENCIAS.md](PENDENCIAS.md), [DECISIONS_LOG.md](DECISIONS_LOG.md), [ARCHITECTURE_MAP.md](ARCHITECTURE_MAP.md), [PROJECT_RULES.md](PROJECT_RULES.md), [ERRORS_LOG.md](ERRORS_LOG.md) e o release acima. Verifique se o master avançou além do commit de referência antes de agir; este handoff pode ficar desatualizado conforme novas entregas forem feitas.
+
+
+## Atualização de continuidade — confirmação e onboarding (01/11/2026)
+
+- Correção integrada no PR [#3](https://github.com/eudenysjackson/bud-finance/pull/3), commit `f3c0453` no `master`.
+- `entrarPorLinkMagico()` agora encaminha diretamente para `onboarding.html`; após completar o onboarding, o próprio fluxo direciona para a dashboard.
+- GitHub Actions [run 41338154393](https://github.com/eudenysjackson/bud-finance/actions/runs/41338154393) concluiu com sucesso, incluindo regressões de release e deploy do GitHub Pages.
+- A página pública de login carregou, mas a jornada real de cadastro novo → e-mail → confirmação → onboarding → dashboard ainda não foi exercitada ponta a ponta. Não afirmar validação manual completa.
+- O próximo agente deve manter essa verificação como pendência de validação manual, sem criar conta ou enviar e-mail real sem necessidade.
+- A automação de inadimplência ainda depende de confirmar no Render a revisão ativa do backend Web, conforme registrado acima.
