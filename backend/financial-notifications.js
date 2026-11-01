@@ -57,9 +57,31 @@ function financialNotices({recorrentes=[],cartoes=[],dividas=[],transacoes=[]}, 
   }
   return notices;
 }
+const PAYMENT_DUNNING_DAYS = [0,3,7,10];
+function subscriptionDunningStage(profile, today) {
+  profile = profile || {};
+  if (!profile.pagamentoPendente) return null;
+  const start = iso(profile.pagamentoPendenteDesde || profile.planoExpira || profile.assinaturaExpira);
+  if (!start || !today) return null;
+  const elapsed = Math.floor((Date.parse(today+'T12:00:00Z')-Date.parse(start+'T12:00:00Z'))/86400000);
+  if (!Number.isFinite(elapsed) || elapsed < 0) return null;
+  const stage = PAYMENT_DUNNING_DAYS.filter(day=>day<=elapsed).pop();
+  if (stage == null) return null;
+  const graceEnd = new Date(Date.parse(start+'T12:00:00Z')+10*86400000).toISOString().slice(0,10);
+  return {stage, elapsed, start, graceEnd};
+}
 function subscriptionPushNotices(profile, today) {
   const status=String(profile.assinaturaStatus||'').toLowerCase(),plan=String(profile.plano||'free').toLowerCase();
   if (['cancelled','canceled','paused'].includes(status)) return [];
+  const dunning=subscriptionDunningStage(profile,today);
+  if (dunning) {
+    const due=dunning.graceEnd.split('-').reverse().join('/');
+    const final=dunning.stage===10;
+    return [{tag:'subscription-dunning-'+String(profile.mpSubscriptionId||'plan')+'-'+dunning.start+'-'+dunning.stage,
+      title:final?'Último dia para regularizar sua assinatura':'Pagamento da assinatura pendente',
+      body:final?'A tolerância termina hoje ('+due+'). Regularize no Mercado Pago para evitar o cancelamento e o retorno ao Gratuito.':'A cobrança não foi aprovada. Regularize no Mercado Pago até '+due+' para manter seu plano.',
+      url:'configuracoes.html',emoji:final?'⚠️':'🔔'}];
+  }
   const due=iso(plan==='trial'?profile.trialFim:profile.planoExpira||profile.assinaturaExpira);
   if (!due) return [];
   const days=Math.round((new Date(due+'T12:00:00Z')-new Date(today+'T12:00:00Z'))/86400000);
@@ -81,4 +103,5 @@ async function sendFinancialPush(messaging, tokens, notice, frontendUrl) {
   });
   return {successCount:response.successCount,invalid:response.responses.flatMap((result,index)=>!result.success&&['messaging/registration-token-not-registered','messaging/invalid-registration-token'].includes(result.error?.code)?[targets[index]]:[])};
 }
-module.exports={financialNotices,subscriptionPushNotices,sendFinancialPush};
+module.exports={financialNotices,subscriptionDunningStage,subscriptionPushNotices,sendFinancialPush};
+
