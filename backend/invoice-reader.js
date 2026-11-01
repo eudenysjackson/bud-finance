@@ -39,6 +39,6 @@ function readNubankInvoice(text) {
   // A one-cent discrepancy is shown explicitly for review; never create an adjustment.
   if (!transactions.length || Math.abs(differenceCents) > 1) return null;
   return { transacoes: transactions, meta: { totalAPagar, totalLancamentos: cents / 100,
-    differenceCents, requiresReview: differenceCents !== 0 }, method: 'nubank-validated' };
+    differenceCents, requiresReview: differenceCents !== 0, signedAmounts: true }, method: 'nubank-validated' };
 }
 module.exports = { readNubankInvoice };

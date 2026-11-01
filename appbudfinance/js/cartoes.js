@@ -2179,7 +2179,7 @@ async function enviarParaIA() {
           _importMetaIA.totalCompras = metaCliente.totalCompras;
         }
         // Sempre mescla estornos detectados no PDF (sobrescreve — PDF é autoritativo)
-        if (metaCliente.estornos && metaCliente.estornos.length) {
+        if (!_importMetaIA.signedAmounts && metaCliente.estornos && metaCliente.estornos.length) {
           _importMetaIA.estornos = metaCliente.estornos;
         }
       }
@@ -2259,7 +2259,7 @@ function processarItensIA(itens) {
 
   const itensProcessados = itens.map((item, itemIdx) => {
     const desc = String(item.desc || item.descricao || item.description || '').trim();
-    const valor = Math.abs(parseFloat(String(item.valor || item.value || item.amount || 0).replace(',', '.')) || 0);
+    let valor = Math.abs(parseFloat(String(item.valor || item.value || item.amount || 0).replace(',', '.')) || 0);
     const dataRaw = String(item.data || item.date || '').trim();
     const valorOriginal = parseFloat(String(item.valor || item.value || item.amount || 0).replace(',', '.')) || 0;
 
@@ -2334,6 +2334,8 @@ function processarItensIA(itens) {
       totalParcelas = parseInt(m2[2]);
     }
 
+    // The validated PDF reader already supplies signed, individually identified rows.
+    if (_importMetaIA?.signedAmounts) { valor = valorOriginal; status = 'ativa'; }
     const cat = detectarCategoriaIA(desc);
 
     return {
@@ -2352,7 +2354,7 @@ function processarItensIA(itens) {
       // Mantemos o selo de encargo para transparência, mas já os incluímos.
       selecionado: status === 'ativa' || (_importMetaIA?.fonte === 'pdf' && status === 'encargo'),
     };
-  }).filter(item => item.valor > 0 || item.status !== 'ativa'); // remove itens com valor 0 que não são especiais
+  }).filter(item => item.valor !== 0 || item.status !== 'ativa'); // signed PDF credits remain individual rows
 
   // Preserve extracted values; a total mismatch must remain visible for review.
   return itensProcessados;

@@ -38,3 +38,16 @@ test('review does not fabricate balancing items or infer refunds from totals', (
   assert.ok(!source.includes("desc: 'Saldo anterior e ajustes da fatura'"));
   assert.ok(!source.includes('[BudAI] Auto-correção:'));
 });
+
+test('validated PDF keeps purchases and signed credits even when amounts repeat', () => {
+  const vm = require('node:vm');
+  const source = fs.readFileSync('appbudfinance/js/cartoes.js','utf8');
+  const start=source.indexOf('function processarItensIA(itens)');
+  const end=source.indexOf('\nfunction ',start+10);
+  const context={_importMetaIA:{signedAmounts:true,estornos:[20]},detectarCategoriaIA:()=> 'Outros'};
+  vm.createContext(context);
+  vm.runInContext(source.slice(start,end)+'; result=processarItensIA([{desc:"Loja",valor:20,data:"2026-01-02"},{desc:"Loja",valor:20,data:"2026-01-02"},{desc:"Estorno de Loja",valor:-20,data:"2026-01-03"}]);',context);
+  assert.deepEqual(Array.from(context.result,x=>x.valor),[20,20,-20]);
+  assert.ok(context.result.every(x=>x.status==='ativa'&&x.selecionado));
+  assert.equal(context.result.reduce((s,x)=>s+x.valor,0),20);
+});
