@@ -639,3 +639,8 @@ backend/ai-job-store.js fornece armazenamento compartilhado no Firestore com fra
 
 ##31/10/2026 — notificações por canal
 bud-notif-inapp.js passou a calcular apenas avisos atuais da assinatura; dashboard não consulta comunicados globais. push-foreground.js recebe push nas demais telas; push.js preserva subscription e exibe avisos no sistema. backend/financial-notifications.js calcula pendências pagas/não pagas e monta multicast/TTL. server.js registra até20dispositivos, revoga individualmente e cron dispensa IA. Ver DEC-061 e relatório de validação.
+
+
+## Confirmação de e-mail e onboarding — 01/11/2026
+
+Após a validação do link mágico, `appbudfinance/js/index.js` autentica a conta e direciona diretamente para `onboarding.html`. A dashboard é aberta pelo fluxo de conclusão do onboarding. Correção publicada no `master` no commit `f3c0453`; GitHub Actions `41338154393` confirmou o deploy do GitHub Pages. A jornada real com link recebido por e-mail ainda requer conferência ponta a ponta.
