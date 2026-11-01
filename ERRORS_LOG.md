@@ -1,7 +1,7 @@
 # ERRORS_LOG.md — Memória de Cura
 
 **Projeto**: Bud Finance  
-**Última atualização**: 16/05/2026
+**Última atualização**: 01/11/2026
 
 > **REGRA**: Antes de resolver um bug, verificar se já foi resolvido aqui.  
 > Todo erro encontrado deve ser registrado neste doc.
@@ -674,3 +674,13 @@ Trabalhos IA em memória perdiam arquivo após reinício: candidata usa Firestor
 
 ##31/10/2026 — correção de avisos antigos
 Cache sem validade e consulta de globais reapresentavam testes antigos para diferentes contas. Removidos da exibição; nenhum documento financeiro ou comunicado do servidor foi apagado. Faixas de assinatura unificadas, avisos de pagamento não ignoram confirmações, push preserva vários dispositivos e TTL curto.59regressões aprovadas. Entrega física depende da conferência pós-publicação.
+
+
+### ERR-069 — Link de confirmação passava pela dashboard antes do onboarding
+
+- **Data:** 01/11/2026
+- **Descrição:** após clicar no link de confirmação do cadastro, o login mágico abria a dashboard e em seguida o guard mandava o usuário para o onboarding.
+- **Causa raiz:** `entrarPorLinkMagico()` em `appbudfinance/js/index.js` redirecionava sempre para `dashboard.html`, sem considerar que o cadastro novo ainda não concluiu `onboardingConcluido`.
+- **Correção:** resolvido em código na branch `codex/fix-confirmation-onboarding-20261101`; após autenticar com o token mágico, navegar diretamente para `onboarding.html`. O guard do onboarding mantém o retorno à dashboard depois de concluir as etapas.
+- **Status de publicação:** aguardando revisão/integração. Ainda não confirmado em produção.
+- **Prevenção:** links que autenticam uma conta recém-criada devem respeitar o fluxo de onboarding antes de encaminhar ao painel.
