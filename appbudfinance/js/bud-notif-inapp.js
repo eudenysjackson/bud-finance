@@ -12,9 +12,14 @@
     var status = String(profile.assinaturaStatus || '').toLowerCase();
     var end = date(plan === 'trial' ? profile.trialFim : profile.planoExpira || profile.assinaturaExpira);
     var paid = ['starter', 'pro', 'plus'].includes(plan);
+    var pendingSince = profile.pagamentoPendente ? date(profile.pagamentoPendenteDesde) : null;
+    var graceEnd = pendingSince ? new Date(pendingSince.getTime() + 10 * 86400000) : null;
+    var inGrace = !!(paid && graceEnd && graceEnd > now);
+    if (inGrace && (!end || graceEnd > end)) end = graceEnd;
     var overdue = status === 'past_due' || status === 'expired' || ((paid || plan === 'trial') && end && end <= now);
     var dueDate = end ? new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric'}).format(end) : '';
-    if (overdue) return { key: 'expired', color: 'red', emoji: '⚠️', message: plan === 'trial' ? 'Seu período de testes terminou' + (dueDate ? ' em ' + dueDate : '') + '. Escolha um plano para continuar.' : 'Sua assinatura está vencida' + (dueDate ? ' desde ' + dueDate : '') + '. Confira o pagamento para regularizar o acesso.', label: 'Ver assinatura', link: 'configuracoes.html' };
+    if (inGrace) return { key: 'payment-grace-' + graceEnd.toISOString(), color: 'blue', emoji: '🔔', message: 'Pagamento da assinatura pendente. Regularize até ' + dueDate + ' para manter seu plano; durante a tolerância seu acesso continua ativo.', label: 'Regularizar pagamento', link: 'configuracoes.html' };
+    if (overdue) return { key: 'expired', color: 'red', emoji: '⚠️', message: plan === 'trial' ? 'Seu período de testes terminou' + (dueDate ? ' em ' + dueDate : '') + '. Escolha um plano para continuar.' : status === 'past_due' ? 'A tolerância da cobrança terminou. A assinatura será cancelada e sua conta ficará no plano Gratuito.' : 'Sua assinatura está vencida' + (dueDate ? ' desde ' + dueDate : '') + '. Confira o pagamento para regularizar o acesso.', label: 'Ver assinatura', link: 'configuracoes.html' };
     if (end && (paid || plan === 'trial') && end - now <= 3 * 86400000) {
       var days = Math.max(1, Math.ceil((end - now) / 86400000));
       var nextPlan = profile.planoTroca?.status === 'scheduled' ? profile.planoTroca.planKey : plan;
@@ -70,3 +75,4 @@
     openPanel: openPanel
   };
 }(typeof window !== 'undefined' ? window : null));
+
