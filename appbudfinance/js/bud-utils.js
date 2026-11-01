@@ -57,6 +57,12 @@
     if (!PLAN_LIMITS[plan]) plan = 'free';
     var rawExpiry = data.planoExpira || data.planoExpiracao || data.trialFim;
     var expiry = rawExpiry && typeof rawExpiry.toDate === 'function' ? rawExpiry.toDate().getTime() : new Date(rawExpiry || 0).getTime();
+    var pendingSince = data.pagamentoPendenteDesde && typeof data.pagamentoPendenteDesde.toDate === 'function'
+      ? data.pagamentoPendenteDesde.toDate().getTime() : new Date(data.pagamentoPendenteDesde || 0).getTime();
+    if (data.pagamentoPendente && ['starter','pro','plus'].indexOf(plan) !== -1 && Number.isFinite(pendingSince) && pendingSince > 0) {
+      var graceEnd = pendingSince + 10 * 86400000;
+      if (!Number.isFinite(expiry) || graceEnd > expiry) expiry = graceEnd;
+    }
     var expired = Number.isFinite(expiry) && expiry > 0 && expiry < Date.now();
     return { effectivePlan: expired ? 'free' : plan, shouldDowngrade: expired && plan !== 'free' };
   }
@@ -687,3 +693,4 @@
 })();
 
 import('./push-foreground.js?v=20261031').catch(function () {});
+
