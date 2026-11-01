@@ -263,7 +263,6 @@ form.addEventListener('submit', async function (e) {
     if (indicador) {
       docData.indicadoPor = {
         uid: indicador.uid,
-        nome: indicador.nome,
         codigo: codigoRaw
       };
       docData.descontoIndicacao = 15;
@@ -287,8 +286,7 @@ form.addEventListener('submit', async function (e) {
         await setDoc(
           doc(db, 'usuarios', indicador.uid, 'indicacoes', user.uid),
           {
-            nome: nome.substring(0, 100),
-            email: email,
+            indicadoUid: user.uid,
             data: serverTimestamp(),
             assinouPlano: false
           }
