@@ -684,3 +684,11 @@ Cache sem validade e consulta de globais reapresentavam testes antigos para dife
 - **Correção:** resolvido em código na branch `codex/fix-confirmation-onboarding-20261101`; após autenticar com o token mágico, navegar diretamente para `onboarding.html`. O guard do onboarding mantém o retorno à dashboard depois de concluir as etapas.
 - **Status de publicação:** ✅ Integrado no `master` pelo commit `f3c0453`; workflow `41338154393` passou nas regressões e no deploy do GitHub Pages. O clique real no e-mail de confirmação ainda não foi validado ponta a ponta.
 - **Prevenção:** links que autenticam uma conta recém-criada devem respeitar o fluxo de onboarding antes de encaminhar ao painel.
+
+
+### ERR-070 — origem “Indicação” não vincula código nem benefício de forma confiável
+- **Data:** 01/11/2026
+- **Sintoma:** escolher “Indicação” no onboarding não abre campo de código e não aplica benefício.
+- **Causa:** `comoConheceu` é apenas origem de aquisição; código é capturado separadamente no cadastro. Além disso, o valor gravado no perfil (30) diverge do desconto do backend (10%), checkout autenticado da página comercial não envia `ref`, e cadastro não pré-preenche o código a partir da URL.
+- **Impacto atual:** seleção da origem, sozinha, não identifica indicador nem concede desconto. Mesmo com código, o desconto não é confiável em todos os percursos. O indicador recebe somente registro da indicação paga; não há crédito/recompensa implementada.
+- **Status:** aberto para decisão de produto e correção. Não considerar sistema de indicação pronto.
