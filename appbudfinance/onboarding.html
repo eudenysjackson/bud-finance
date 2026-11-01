@@ -480,6 +480,15 @@
           <input id="inputNome" class="ob-input" type="text" maxlength="80" placeholder="Seu nome">
         </div>
 
+        <div id="referralCodePanel" style="display:none;margin-top:.875rem;padding:.875rem;border:1px solid #bfdbfe;border-radius:.875rem;background:#eff6ff;">
+          <label for="obReferralCode" style="display:block;font-size:.8125rem;font-weight:700;margin-bottom:.375rem;">Tem o código de quem indicou?</label>
+          <div style="display:flex;gap:.5rem;align-items:center;">
+            <input id="obReferralCode" class="ob-input" maxlength="8" autocomplete="off" placeholder="Ex.: AB12CD34" aria-describedby="referralCodeHelp" style="text-transform:uppercase;max-width:12rem;">
+            <span aria-hidden="true">🎁</span>
+          </div>
+          <p id="referralCodeHelp" class="ob-subtitle" style="margin:.375rem 0 0;">Opcional. Código válido dá 15% de desconto no primeiro mês.</p>
+        </div>
+
         <div class="ob-spacer"></div>
       </div>
 
