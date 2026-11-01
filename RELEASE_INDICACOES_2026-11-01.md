@@ -23,7 +23,7 @@
 
 - Branch: codex/beneficios-indicacao-15-50-20261101.
 - Estado: revisão preparada em PR rascunho; ainda não integrado nem publicado.
-- Testes: quatro regressões foram adicionadas ao checkout. GitHub Actions [41341578144](https://github.com/eudenysjackson/bud-finance/actions/runs/41341578144) e [41341608813](https://github.com/eudenysjackson/bud-finance/actions/runs/41341608813) concluíram com sucesso, incluindo a suíte completa.
+- Testes: quatro regressões foram adicionadas ao checkout. GitHub Actions [41341578144](https://github.com/eudenysjackson/bud-finance/actions/runs/41341578144) [41341608813](https://github.com/eudenysjackson/bud-finance/actions/runs/41341608813) e [41341678748](https://github.com/eudenysjackson/bud-finance/actions/runs/41341678748) concluíram com sucesso, incluindo a suíte completa.
 - Homologação Mercado Pago: pendente; usar exclusivamente usuários e meios de pagamento de teste.
 - Cobranças reais: nenhuma realizada.
 - Fonte oficial para a mudança de valor recorrente: [Gerenciamento de assinaturas do Mercado Pago](https://www.mercadopago.com.br/developers/pt/docs/subscriptions/subscription-management) e [referência da API para atualizar assinatura](https://www.mercadopago.com.br/developers/pt/reference/online-payments/subscriptions/update-preapproval/put).
