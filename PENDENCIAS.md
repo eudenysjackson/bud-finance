@@ -2,7 +2,7 @@
 
 **Projeto**: Bud Finance
 **Criado em**: 23/04/2026
-**Última atualização**: 20/05/2026
+**Última atualização**: 01/11/2026
 
 > Documento único de consulta antes de qualquer sprint. Consolida:
 > - Features descritas no `cérebro/` que ainda não foram implementadas no Bud
@@ -364,3 +364,13 @@ Usuário autorizou publicar backend/site/regras/índices, condicionando à corre
 A implementação de tolerância de cobrança, e-mails/push e retorno ao Gratuito foi integrada no commit `c42e640` e publicada no Static Site do Render; o registro detalhado está em `RELEASE_INADIMPLENCIA_2026-11-01.md`. A versão pública da Política de Privacidade é 1.6. A suíte de release passou com 80 testes; regras Firestore foram implantadas. O workspace Render verificado mostrou apenas o Static Site; embora `/api/ping` responda, ainda falta confirmar qual revisão do serviço Web `bud-finance-backend` está em execução. Portanto, a automação backend permanece pendente de confirmação de deploy/configuração; não houve envio real, cobrança ou cancelamento de assinatura nesta validação. Próximo passo e evidências atuais: `AI_HANDOFF.md`.
 
 A partir desta data, Codex, Claude e qualquer IA com acesso devem seguir `AI_WORKFLOW.md`, iniciado pelas instruções em `AGENTS.md`/`CLAUDE.md`. Atualizar o handoff versionado ao assumir e encerrar tarefas relevantes, além dos registros de pendência, decisão, arquitetura, erro e release que forem afetados.
+
+
+## Atualização de 01/11/2026 — destino após confirmação do e-mail
+
+### PEND-AUTH-086 — Link mágico da confirmação deve abrir onboarding primeiro
+
+- **Status:** ✅ Resolvido em código na branch `codex/fix-confirmation-onboarding-20261101`; aguardando revisão/integração e publicação.
+- **Causa:** a confirmação autentica a conta com token customizado e enviava para a dashboard; o guard da dashboard detectava onboarding pendente e redirecionava novamente, causando o salto visível.
+- **Correção:** após validar o link mágico e autenticar, o destino inicial agora é `onboarding.html`. O próprio fluxo do onboarding direciona à dashboard somente quando concluído.
+- **Validação:** análise estática do fluxo; suíte de testes não executada nesta etapa. Não está publicada em produção.
