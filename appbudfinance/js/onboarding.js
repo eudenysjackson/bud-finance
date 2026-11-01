@@ -338,7 +338,7 @@ async function concluirOnboarding() {
     const referralCode = referralInput ? san(referralInput.value).toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
     if (dados.comoConheceu === 'Indicação de amigo(a)' && referralCode && currentUser) {
       const idToken = await currentUser.getIdToken();
-      const backend = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\\/$/, '');
+      const backend = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\/$/, '');
       const response = await fetch(backend + '/api/indicacao/aplicar', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
         body: JSON.stringify({ codigo: referralCode })
@@ -479,10 +479,10 @@ async function concluirOnboarding() {
 
   } catch (err) {
     console.error('[onboarding] concluirOnboarding:', err);
-    showToast('Erro ao salvar. Tente novamente.', 'error');
+    showToast(err && err.message ? err.message : 'Erro ao salvar. Tente novamente.', 'error');
     btnProximo.disabled    = false;
     btnPular.disabled      = false;
-    btnProximo.textContent = 'Próximo →';
+    btnProximo.textContent = 'Ir para o Dashboard 🚀';
   }
 }
 
@@ -600,6 +600,10 @@ onAuthStateChanged(auth, async user => {
     // Pré-selecionar "Como conheceu" se já salvo
     if (userData.comoConheceu) {
       dados.comoConheceu = userData.comoConheceu;
+      const referralPanel = document.getElementById('referralCodePanel');
+      if (referralPanel) referralPanel.style.display = userData.comoConheceu === 'Indicação de amigo(a)' ? '' : 'none';
+      const referralInput = document.getElementById('obReferralCode');
+      if (referralInput && userData.indicadoPor && userData.indicadoPor.codigo) referralInput.value = String(userData.indicadoPor.codigo).toUpperCase();
       document.querySelectorAll('#sourceGrid .ob-source-btn').forEach(btn => {
         if (btn.getAttribute('data-value') === userData.comoConheceu) {
           btn.classList.add('selected');
