@@ -53,7 +53,7 @@ test('validated PDF keeps purchases and signed credits even when amounts repeat'
   assert.equal(context.result.reduce((s,x)=>s+x.valor,0),20);
 });
 
-test('matched refund pairs are excluded; unmatched credits reduce the persisted invoice', async () => {
+test('purchases remain active; explicit refunds reduce the persisted invoice', async () => {
   const vm=require('node:vm'), refunds=require('../appbudfinance/js/invoice-refunds');
   const source=fs.readFileSync('appbudfinance/js/cartoes.js','utf8');
   const extract=start=>{const i=source.indexOf(start);return source.slice(i,source.indexOf('\nfunction ',i+start.length));};
@@ -67,11 +67,11 @@ test('matched refund pairs are excluded; unmatched credits reduce the persisted 
   vm.runInContext(extract('function processarItensIA(itens)')+extract('async function salvarTransacoesIA()')+extract('function calcularFatura(cartaoId, mesKey)'),ctx);
   ctx.rows=[{desc:'Loja',valor:20,data:'2026-10-02'},{desc:'Estorno de Loja',valor:-20,data:'2026-10-02'},{desc:'Mercado',valor:50,data:'2026-10-03'},{desc:'Estorno de Outra Loja',valor:-10,data:'2026-10-03'}];
   vm.runInContext('itensIAExtraidos=processarItensIA(rows)',ctx);
-  assert.deepEqual(Array.from(ctx.itensIAExtraidos,x=>x.selecionado),[false,false,true,true]);
-  assert.deepEqual(Array.from(ctx.itensIAExtraidos,x=>x.status),['estornado','estornado','ativa','credito']);
+  assert.deepEqual(Array.from(ctx.itensIAExtraidos,x=>x.selecionado),[true,true,true,true]);
+  assert.deepEqual(Array.from(ctx.itensIAExtraidos,x=>x.status),['ativa','credito','ativa','credito']);
   await vm.runInContext('salvarTransacoesIA()',ctx);
-  assert.equal(saved.length,2);
-  assert.deepEqual(saved.map(x=>x.valor),[50,-10]);
+  assert.equal(saved.length,4);
+  assert.deepEqual(saved.map(x=>x.valor),[20,-20,50,-10]);
   ctx.transacoesGlobal=saved;
   assert.equal(vm.runInContext('calcularFatura("card","2026-11")',ctx),40);
   ctx.transacoesGlobal=saved.map(x=>({...x}));
@@ -79,7 +79,7 @@ test('matched refund pairs are excluded; unmatched credits reduce the persisted 
   ctx._importMetaIA={signedAmounts:true,totalAPagar:40};
   vm.runInContext('itensIAExtraidos=processarItensIA(rows)',ctx);
   await vm.runInContext('salvarTransacoesIA()',ctx);
-  assert.equal(saved.length,2,'an existing imported invoice must not be imported twice');
+  assert.equal(saved.length,4,'an existing imported invoice must not be imported twice');
   ctx.transacoesGlobal=[];
   saved.length=0;ctx._importMetaIA={signedAmounts:true,totalAPagar:40};ctx.itensIAExtraidos=[{valor:50,selecionado:true,status:'ativa'}];
   await vm.runInContext('salvarTransacoesIA()',ctx);

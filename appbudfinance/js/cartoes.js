@@ -2486,7 +2486,7 @@ function renderListaReviewIA() {
     const isEncargo  = item.status === 'encargo';
 
     let badgesHTML = '';
-    if (item.status === 'credito') badgesHTML += `<span style="font-size:0.6875rem;color:#15803d;">Crédito na fatura — sem compra correspondente identificada</span>`;
+    if (item.status === 'credito') badgesHTML += `<span style="font-size:0.6875rem;color:#15803d;">Estorno / devolução — abate o total da fatura</span>`;
     if (isEstornado) badgesHTML += `<span style="font-size:0.6875rem;font-weight:700;background:rgba(245,158,11,0.15);color:#d97706;border-radius:0.375rem;padding:0.125rem 0.375rem;">Estorno</span>`;
     if (isCancelado) badgesHTML += `<span style="font-size:0.6875rem;font-weight:700;background:rgba(239,68,68,0.13);color:#dc2626;border-radius:0.375rem;padding:0.125rem 0.375rem;">Cancelado</span>`;
     if (isEncargo)   badgesHTML += `<span style="font-size:0.6875rem;font-weight:700;background:rgba(107,114,128,0.12);color:#6b7280;border-radius:0.375rem;padding:0.125rem 0.375rem;">Encargo</span>`;
