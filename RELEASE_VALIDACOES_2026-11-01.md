@@ -41,3 +41,15 @@ Simulador oficial enviou recurso fictício válido ao receptor isolado:200. A pr
 Correção: eventos precisam corresponder ao mpSubscriptionId/mpCheckout atuais; gravação protegida em transação com nova conferência do vínculo. Eventos de assinatura anterior são reconhecidos sem alterar a conta; checkout ainda sem ID recebe503 para reenvio posterior. Quatro regressões adicionadas (cancelamento antigo, checkout novo preservado, recusa antiga e corrida com reserva).67 testes e sete grupos HTTP/emulados aprovados. Nova entrega oficial assinada retornou200 preservando assinatura/checkout pendentes do teste atual, conferidos no emulador.
 
 Ainda em andamento: aprovação do checkout fictício novo com entrega automática (sem simulador). O Mercado Pago pediu CAPTCHA na entrada do comprador; solicitado ao titular. Não há pagamento real envolvido.
+
+## Resultado do ciclo automático com contas fictícias
+
+Titular concluiu o CAPTCHA; comprador e vendedor conferidos como contas de teste. Checkout oficial R$9,99 aprovado com cartão fictício Mastercard fornecido pelo Mercado Pago. Eventos foram entregues automaticamente, sem invocar manualmente o handler: payment200; subscription_preapproval200; subscription_authorized_payment200. O perfil emulado passou de Free/pending para Starter/authorized. Cancelamento feito exclusivamente no provedor fictício, sem gravação local antecipada; evento automático subscription_preapproval200 retornou Free/cancelled.
+
+Primeiro ciclo demonstrou que payment nem sempre contém preapproval_id: a associação estava em point_of_interaction.transaction_data.subscription_id. Os eventos seguintes ativaram o plano, cerca de17s depois. Adicionado suporte ao campo confirmado pela API do provedor, com rejeição de vínculos conflitantes. Nunca usar external_reference fornecido pelo cliente como autorização. Mais três regressões adicionadas: aprovação/recusa pelo campo real e conflito de vínculos.
+
+Segundo ciclo confirmou a melhoria: em01/11 às15:10:19UTC, o evento automático payment retornou200 e já deixou Starter/authorized; subscription_preapproval e subscription_authorized_payment posteriores preservaram esse estado.70 regressões e sete grupos HTTP/emulados aprovados. Solicitado o cancelamento final somente no vendedor fictício.
+
+Titular confirmou recebimento do e-mail de recuperação com identidade visual correta na caixa budsolucoes@gmail.com. Nenhuma senha real foi redefinida.
+
+Alcance da homologação: receptor público do Render conferido separadamente com HMAC válido; ciclo financeiro automático completo conferido com o mesmo código em receptor HTTPS isolado, credenciais fictícias e Firestore Emulator. Não houve cobrança ou ativação financeira real no Firebase de produção. Isso mantém a restrição do titular de não realizar pagamento real. Cobrança recorrente futura na data real não foi antecipada; troca no próximo ciclo segue coberta pelas validações anteriores reais do provedor fictício e promoção emulada.

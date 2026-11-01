@@ -2618,7 +2618,15 @@ async function _mpHandlePayment(paymentId, relatedSubscriptionId) {
   });
   if (!mpRes.ok) throw new Error('MP payment HTTP ' + mpRes.status);
   var payment = await mpRes.json();
-  var subscriptionId = payment.preapproval_id || relatedSubscriptionId;
+  // Subscription checkout payments can carry their link only in transaction_data.
+  // Use provider-confirmed fields, never the caller's external_reference as a plan grant.
+  var transactionSubscriptionId = payment.point_of_interaction && payment.point_of_interaction.transaction_data && payment.point_of_interaction.transaction_data.subscription_id;
+  var paymentSubscriptionId = payment.preapproval_id || transactionSubscriptionId;
+  if ((payment.preapproval_id && transactionSubscriptionId && String(payment.preapproval_id) !== String(transactionSubscriptionId)) ||
+      (paymentSubscriptionId && relatedSubscriptionId && String(paymentSubscriptionId) !== String(relatedSubscriptionId))) {
+    throw new Error('MP payment subscription mismatch');
+  }
+  var subscriptionId = paymentSubscriptionId || relatedSubscriptionId;
 
   // Se pagamento recusado: marca flag no Firestore para o front exibir alerta
   if (payment.status === 'rejected' && subscriptionId) {

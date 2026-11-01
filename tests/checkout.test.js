@@ -92,6 +92,19 @@ test('old rejected payment cannot flag the current subscription as past due',asy
  const s=setup();Object.assign(s.profile,{plano:'pro',mpSubscriptionId:'current-sub',assinaturaStatus:'authorized',pagamentoPendente:false});
  assert.equal((await s.webhook('payment')).statusCode,200);assert.equal(s.profile.pagamentoPendente,false);assert.equal(s.profile.assinaturaStatus,'authorized');assert.equal(s.profile.mpSubscriptionId,'current-sub');
 });
+
+test('automatic checkout payment links its subscription through provider transaction_data',async()=>{
+ const s=setup();delete s.payment.preapproval_id;s.payment.status='approved';s.payment.point_of_interaction={transaction_data:{subscription_id:'sub-1'}};
+ assert.equal((await s.webhook('payment')).statusCode,200);assert.equal(s.profile.plano,'starter');assert.equal(s.profile.mpSubscriptionId,'sub-1');assert.equal(s.profile.assinaturaStatus,'authorized');
+});
+test('rejected checkout payment links through provider transaction_data',async()=>{
+ const s=setup();delete s.payment.preapproval_id;s.payment.point_of_interaction={transaction_data:{subscription_id:'sub-1'}};
+ assert.equal((await s.webhook('payment')).statusCode,200);assert.equal(s.profile.pagamentoPendente,true);assert.equal(s.profile.assinaturaStatus,'past_due');
+});
+test('conflicting provider subscription links are retryable and never activate a plan',async()=>{
+ const s=setup();s.payment.status='approved';s.payment.point_of_interaction={transaction_data:{subscription_id:'another-sub'}};
+ assert.equal((await s.webhook('payment')).statusCode,503);assert.equal(s.profile.plano,'free');assert.equal(s.profile.mpSubscriptionId,undefined);
+});
 test('event racing an unbound checkout is retryable without clearing its reservation',async()=>{
  const s=setup();s.profile.mpCheckout={state:'creating',nonce:'new-checkout'};s.sub.status='cancelled';
  assert.equal((await s.webhook()).statusCode,503);assert.equal(s.profile.mpCheckout.nonce,'new-checkout');assert.equal(s.profile.mpSubscriptionId,undefined);
