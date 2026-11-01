@@ -38,3 +38,8 @@
 - Uma conta não recebe mais de uma recompensa por indicações adicionais.
 - Se 15% e 50% forem devidos à mesma pessoa, os benefícios ficam em competências distintas.
 - Upgrade/downgrade no período promocional preserva a promoção uma vez e restaura o preço do plano vigente.
+
+
+## Homologação de indicações concluída — 01/11/2026
+
+PEND-REF-001: etapa de sandbox RESOLVIDA no código 438a21418128f562d965f6d3eb5587afaef83abe. Pagamentos fictícios aprovados de R$ 8,49 (15%) e R$ 5,00 (50%); handlers restauraram R$ 9,99 via API. Indicação em cadeia agendou 50% na próxima competência, sem acúmulo por reenvio ou excedentes. Upgrade confirmou R$ 14,95 e restauração de R$ 29,90 após pagamento futuro emulado. Suíte: 84 aprovados, zero falhas. Sete contratos fictícios cancelados e conferidos. Auth/Firestore representados em memória; entrega pública do webhook e cobrança mensal futura não foram revalidadas nesta etapa. Relatório: RELEASE_HOMOLOGACAO_INDICACOES_2026-11-01.md. PR #5 ainda não integrado/publicado. Próximo passo: revisão final, integração/deploy autorizados e verificação pública. Workspace original preservado.
