@@ -66,3 +66,12 @@ Leia [AI_WORKFLOW.md](AI_WORKFLOW.md), depois consulte [PENDENCIAS.md](PENDENCIA
 - Webhook só registra a conversão em `indicacoes`; não existe crédito, pagamento ou mês grátis para o indicador.
 - Documentado em PEND-REF-001, ERR-070, DEC-068 e ARCHITECTURE_MAP. Não implemente regra promocional até decisão explícita sobre benefício, percentual e elegibilidade.
 - Próximo passo: perguntar ao titular quais benefícios quer para indicador/indicado; então corrigir e homologar atribuição do link/código ao checkout.
+
+
+## Continuidade — programa de indicação 15%/50% (01/11/2026)
+
+- **Decisão aprovada:** DEC-069. O indicado recebe 15% somente na primeira cobrança aprovada. O indicador recebe desconto de 50% em uma cobrança futura, uma vez por conta e somente após a primeira cobrança aprovada do indicado. Não acumular os benefícios no mesmo ciclo; indicação excedente não concede nova recompensa.
+- **Branch de trabalho:** codex/beneficios-indicacao-15-50-20261101. Código e documentos dessa mudança estão apenas nessa branch; não estão publicados.
+- **Preparado:** validação e atribuição do código no backend; onboarding/cadastro/link de venda e configurações; ajuste do valor recorrente via API do Mercado Pago; restauração do preço regular no webhook; estados protegidos nas regras do Firestore. Fixture tests/checkout.test.js alinhado para 15%/50%.
+- **Validação pendente:** não foram executados testes nesta sessão. Fazer revisão do diff e aguardar CI; depois homologar com contas de teste do Mercado Pago a cobrança inicial 15%, recompensa única de 50%, não acumulação quando o indicador também recebe 15%, plano trocado durante recompensa e restauração do valor normal. Não usar cobrança real.
+- **Próximo passo:** revisar política de dados/telas e código no PR, aguardar checks automatizados, corrigir falhas, então pedir/usar autorização de integração e confirmar deploy. Manter a cópia local codex/ajustes-locais intacta: há alterações preexistentes sem commit e ela diverge da branch remota.
