@@ -657,4 +657,4 @@ Onboarding grava `comoConheceu` como origem de aquisição e não solicita códi
 - Firestore mantém a atribuição indicadoPor, indicação em usuarios/{indicadorUid}/indicacoes/{indicadoUid}, estado do desconto de primeira cobrança e estado da recompensa única do indicador. Campos promocionais de cobrança ficam protegidos por regras e são atualizados pelo backend.
 - Webhook de pagamento aprovado confirma a conversão. O backend altera o valor recorrente da assinatura no Mercado Pago para a cobrança promocional e restaura o valor normal após a cobrança descontada.
 - Regra DEC-069: indicado recebe 15% na primeira cobrança; indicador recebe 50% em uma cobrança posterior, uma única vez. Sem descontos simultâneos; excedentes de indicação não geram outra recompensa.
-- Estado: branch codex/beneficios-indicacao-15-50-20261101, ainda sem confirmação de CI, homologação ou publicação. Consulte AI_HANDOFF.md e RELEASE_INDICACOES_2026-11-01.md.
+- Estado: branch codex/beneficios-indicacao-15-50-20261101, Actions run 41341678748 passou na suíte completa; homologação sandbox pendente e ainda não publicado. Consulte AI_HANDOFF.md e RELEASE_INDICACOES_2026-11-01.md.
