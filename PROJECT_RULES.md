@@ -1,9 +1,11 @@
 # PROJECT_RULES.md — Regras Invioláveis do Projeto
 
 **Projeto**: Bud Finance  
-**Última atualização**: 15/04/2026
+**Última atualização**: 01/11/2026
 
 ---
+
+> **Atualização de contexto (01/11/2026):** este arquivo começou em 15/04/2026 e sua árvore inicial de pastas/infraestrutura é histórica. O frontend atual fica em `appbudfinance/` e o backend Node/Express em `backend/`; a arquitetura viva está em `ARCHITECTURE_MAP.md`. Para coordenar Codex, Claude ou outra IA, siga `AI_WORKFLOW.md` e leia `AI_HANDOFF.md`. Regras abaixo continuam valendo quando compatíveis com o código atual, arquitetura e decisões recentes.
 
 ## 1. Stack e Versões Exatas
 
