@@ -668,16 +668,39 @@
 
   // Upload curto + acompanhamento: a leitura continua durante espera da cota.
   window.budAIRequest = async function (url, options) {
+    options = options || {};
+    var controller = new AbortController();
+    var expired = false;
+    var abort = function () { controller.abort(); };
+    if (options.signal) {
+      if (options.signal.aborted) abort();
+      else options.signal.addEventListener('abort', abort, { once: true });
+    }
+    var deadline = setTimeout(function () { expired = true;controller.abort(); }, 210000);
+    async function boundedFetch(target, init) {
+      var request = new AbortController();
+      var cancel = function () { request.abort(); };
+      if (controller.signal.aborted) cancel();
+      else controller.signal.addEventListener('abort', cancel, { once: true });
+      var timer = setTimeout(cancel, 30000);
+      try {
+        var response = await fetch(target, Object.assign({}, init, { signal: request.signal }));
+        var body = await response.text();
+        return new Response(body, { status: response.status, headers: response.headers });
+      }
+      finally { clearTimeout(timer);controller.signal.removeEventListener('abort', cancel); }
+    }
+    try {
     var headers = new Headers(options.headers || {});
     headers.set('X-Bud-Async', '1');
-    var response = await fetch(url, Object.assign({}, options, { headers: headers }));
+    var response = await boundedFetch(url, Object.assign({}, options, { headers: headers }));
     if (response.status !== 202) return response;
     var accepted = await response.json();
     var pollUrl = new URL('/api/ia/jobs/' + encodeURIComponent(accepted.jobId), url).href;
     while (true) {
       await new Promise(function (resolve) { setTimeout(resolve, 1500); });
-      if (options.signal && options.signal.aborted) throw new DOMException('Leitura cancelada.', 'AbortError');
-      var poll = await fetch(pollUrl, { headers: { Authorization: headers.get('Authorization') }, signal: options.signal, cache: 'no-store' });
+      if (controller.signal.aborted) throw new DOMException('Leitura cancelada.', 'AbortError');
+      var poll = await boundedFetch(pollUrl, { headers: { Authorization: headers.get('Authorization') }, cache: 'no-store' });
       if (!poll.ok) return poll;
       var state = await poll.json();
       if (state.message) {
@@ -689,8 +712,17 @@
       }
       if (state.state !== 'running') return new Response(JSON.stringify(state.result), { status: state.status || 500, headers: { 'Content-Type': 'application/json' } });
     }
+    } catch (error) {
+      if (expired) throw new Error('A leitura excedeu o tempo disponível. Tente novamente.');
+      if (error.name === 'AbortError' && !(options.signal && options.signal.aborted)) throw new Error('O serviço de leitura não respondeu. Tente novamente em alguns minutos.');
+      throw error;
+    } finally {
+      clearTimeout(deadline);
+      if (options.signal) options.signal.removeEventListener('abort', abort);
+    }
   };
 })();
 
 import('./push-foreground.js?v=20261031').catch(function () {});
+
 

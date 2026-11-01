@@ -31,11 +31,11 @@ test('429 aguarda o tempo informado e continua; solicitações são serializadas
   const waits = []; let calls = 0; let active = 0; let maximum = 0;
   const reader = createReader({ sleep: async ms => waits.push(ms), fetchImpl: async () => {
     active++; maximum = Math.max(maximum, active); await Promise.resolve(); active--;
-    if (++calls === 1) return { status: 429, headers: new Headers({ 'retry-after': '40.2' }), json: async () => ({ error: { message: 'Rate limit reached.' } }) };
+    if (++calls === 1) return { status: 429, headers: new Headers({ 'retry-after': '2' }), json: async () => ({ error: { message: 'Rate limit reached.' } }) };
     return ok({ transacoes: [{ desc: 'teste', valor: 1 }] });
   } });
   await Promise.all([reader.readText('teste', 'JSON'), reader.readText('outro', 'JSON')]);
-  assert.deepEqual(waits, [40450]); assert.equal(calls, 3); assert.equal(maximum, 1);
+  assert.deepEqual(waits, [2250]); assert.equal(calls, 3); assert.equal(maximum, 1);
 });
 
 test('limite por solicitação ajusta orçamento automaticamente', async () => {
@@ -47,6 +47,25 @@ test('limite por solicitação ajusta orçamento automaticamente', async () => {
   } });
   await reader.readText('sem compras', 'JSON');
   assert.deepEqual(budgets, [8192, 850]);
+});
+
+test('limite persistente encerra após no máximo duas esperas curtas e libera a fila', async () => {
+  let calls = 0;const waits = [];
+  const reader = createReader({ sleep: async ms => waits.push(ms), fetchImpl: async () => {
+    calls++;
+    if (calls <= 3) return { status: 429, headers: new Headers({ 'retry-after': '1' }), json: async () => ({ error: {} }) };
+    return ok({ transacoes: [] });
+  } });
+  await assert.rejects(reader.readText('teste', 'JSON'), error => error.code === 'AI_RATE_LIMIT');
+  assert.equal(calls, 3);assert.equal(waits.length, 2);
+  assert.deepEqual(await reader.readText('novo', 'JSON'), { transacoes: [] });
+});
+
+test('espera longa do provedor encerra imediatamente sem dormir minutos', async () => {
+  const reader = createReader({ sleep: async () => assert.fail('não deve aguardar'), fetchImpl: async () => ({
+    status: 429, headers: new Headers({ 'retry-after': '60' }), json: async () => ({ error: {} })
+  }) });
+  await assert.rejects(reader.readText('teste', 'JSON'), error => error.code === 'AI_RATE_LIMIT');
 });
 
 test('imagem truncada é dividida em regiões e recombinada', async () => {
@@ -66,3 +85,4 @@ test('PDF de texto e PDF escaneado possuem caminho de leitura', async () => {
   const scan = await readPDF(fs.readFileSync('tests/fixtures/ia/escaneado.pdf'));
   assert.ok(scan[0].image?.length > 100);
 });
+

@@ -3,7 +3,7 @@ const CHUNK_BYTES = 450_000;
 const ACTIVE_MS = 2 * 60 * 60_000;
 const RESULT_MS = 30 * 60_000;
 
-function createFirestoreJobStore(db, { now = Date.now, leaseMs = 15000 } = {}) {
+function createFirestoreJobStore(db, { now = Date.now, leaseMs = 15000, maxDurationMs = 180_000 } = {}) {
   const owner = randomUUID();
   const ref = (uid, id) => db.collection('usuarios').doc(uid).collection('_ai_jobs').doc(id);
   const slotsRef = uid => db.collection('usuarios').doc(uid).collection('_seguranca').doc('ia-jobs');
@@ -55,8 +55,20 @@ function createFirestoreJobStore(db, { now = Date.now, leaseMs = 15000 } = {}) {
   async function read(uid, id) {
     const doc = await ref(uid, id).get();
     if (!doc.exists) return null;
-    const data = doc.data();
+    let data = doc.data();
     if (data.expiresAt <= now()) { await db.recursiveDelete(doc.ref);await release(uid, id);return null; }
+    if (!['completed', 'failed'].includes(data.state) && now() - data.createdAt >= maxDurationMs) {
+      await db.runTransaction(async tx => {
+        const [fresh, slots] = await Promise.all([tx.get(doc.ref), tx.get(slotsRef(uid))]);
+        if (!fresh.exists) return;
+        data = fresh.data();
+        if (['completed', 'failed'].includes(data.state)) return;
+        const active = { ...(slots.exists ? slots.data().active || {} : {}) };delete active[id];
+        data = { ...data, state: 'failed', status: 504, finishedAt: now(), expiresAt: now() + RESULT_MS,
+          terminalResult: { error: 'A leitura excedeu o tempo disponível e foi encerrada. Tente novamente.', code: 'AI_JOB_TIMEOUT' } };
+        tx.update(doc.ref, data);tx.set(slotsRef(uid), { active });
+      });
+    }
     if (['completed', 'failed'].includes(data.state)) await release(uid, id);
     return data;
   }
@@ -117,7 +129,8 @@ function createFirestoreJobStore(db, { now = Date.now, leaseMs = 15000 } = {}) {
   }
   return { create, read, claim, heartbeat, finish, ref, leaseMs, sweep,
     payload: (uid, id, data) => load(ref(uid, id), 'input-', data.payloadChunks),
-    result: (uid, id, data) => load(ref(uid, id), data.resultPrefix, data.resultChunks) };
+    result: (uid, id, data) => data.terminalResult || load(ref(uid, id), data.resultPrefix, data.resultChunks) };
 }
 
 module.exports = { createFirestoreJobStore };
+

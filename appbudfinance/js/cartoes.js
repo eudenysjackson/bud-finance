@@ -2196,7 +2196,7 @@ async function enviarParaIA() {
     clearTimeout(timeoutId);
     const falhaRede = err instanceof TypeError && /failed to fetch|networkerror|load failed/i.test(err.message || '');
     const msg = err.name === 'AbortError'
-      ? 'Tempo limite excedido (45s). Tente um arquivo menor ou use OFX.'
+      ? 'A leitura foi cancelada. Você pode tentar novamente.'
       : falhaRede
         ? 'O servidor de leitura por IA está indisponível. Tente novamente mais tarde ou importe um arquivo OFX.'
         : (err.message || 'Falha ao processar arquivo.');
