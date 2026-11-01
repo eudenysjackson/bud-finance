@@ -1,7 +1,8 @@
 # Estado compartilhado e ponto de continuidade
 
 **Atualizado em:** 01/11/2026 (America/Sao_Paulo)  
-**Commit de referência no master:** `f55bbad67c1fdddf5834307c7299de7a2eca7a81`  
+**Commit do código de inadimplência:** `c42e6405202c7a9bf3a2e212026932425e76ae16`  
+**Protocolo compartilhado integrado:** PR [#2](https://github.com/eudenysjackson/bud-finance/pull/2), commit `9cad46ca8180eb1c21ba640be239cc7c013a4276`  
 **Protocolo comum:** [AI_WORKFLOW.md](AI_WORKFLOW.md)
 
 ## Contexto
@@ -29,6 +30,10 @@ O dashboard Render acessível na sessão de 01/11 mostrava somente o Static Site
 - Reconciliação e cancelamento verificados com Mercado Pago e Firestore simulados.
 - Nenhum e-mail ou push foi enviado a usuários reais; nenhuma cobrança ou assinatura real foi alterada.
 - Distinguir sempre testes locais/emulados de comportamento confirmado em produção.
+
+## Evolução do trabalho compartilhado — 01/11/2026
+
+PR [#2](https://github.com/eudenysjackson/bud-finance/pull/2) integrada ao `master` no commit `9cad46c`. Foram adicionados `AI_WORKFLOW.md`, `AGENTS.md`, `CLAUDE.md` e esta referência de handoff; também foram atualizados `PENDENCIAS.md`, `DECISIONS_LOG.md`, `ARCHITECTURE_MAP.md` e `PROJECT_RULES.md`. Todos os agentes devem ler o protocolo comum, usar branches separadas e registrar aqui avanços, validações e o ponto de continuidade. A automação da inadimplência ainda aguarda confirmação da revisão do backend Render descrita acima.
 
 ## Protocolo para a próxima IA
 
