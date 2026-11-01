@@ -357,3 +357,10 @@ Troca no próximo ciclo implementada conforme escolha do usuário, testada com p
 
 ##31/10/2026 — publicação autorizada e notificações
 Usuário autorizou publicar backend/site/regras/índices, condicionando à correção das notificações. Correção local concluída com59regressões: somente assinatura/upgrade no app e lembretes financeiros por push, vários dispositivos e revogação individual. Login Firebase concluído com conta titular; deploy de regras/índices iniciado. Ainda confirmar deploy/código público, webhook automático e entrega física de push antes de declarar lançamento concluído.
+
+
+## Atualização de 01/11/2026 — protocolo de IA e estado da inadimplência
+
+A implementação de tolerância de cobrança, e-mails/push e retorno ao Gratuito foi integrada no commit `c42e640` e publicada no Static Site do Render; o registro detalhado está em `RELEASE_INADIMPLENCIA_2026-11-01.md`. A versão pública da Política de Privacidade é 1.6. A suíte de release passou com 80 testes; regras Firestore foram implantadas. O workspace Render verificado mostrou apenas o Static Site; embora `/api/ping` responda, ainda falta confirmar qual revisão do serviço Web `bud-finance-backend` está em execução. Portanto, a automação backend permanece pendente de confirmação de deploy/configuração; não houve envio real, cobrança ou cancelamento de assinatura nesta validação. Próximo passo e evidências atuais: `AI_HANDOFF.md`.
+
+A partir desta data, Codex, Claude e qualquer IA com acesso devem seguir `AI_WORKFLOW.md`, iniciado pelas instruções em `AGENTS.md`/`CLAUDE.md`. Atualizar o handoff versionado ao assumir e encerrar tarefas relevantes, além dos registros de pendência, decisão, arquitetura, erro e release que forem afetados.
