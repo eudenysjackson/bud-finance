@@ -2409,11 +2409,9 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
   var explicitRef = req.body.ref ? String(req.body.ref).trim() : '';
   var rawRef = explicitRef || String(userProfile.indicadoPor && userProfile.indicadoPor.codigo || '');
   var refCode = rawRef ? rawRef.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8) : null;
+  if (userProfile.primeiraCobrancaPagaEm || (userProfile.descontoIndicacaoPrimeiroMes && userProfile.descontoIndicacaoPrimeiroMes.status === 'used')) refCode = null;
   var referrerDoc = null;
   if (refCode) {
-    if (userProfile.primeiraCobrancaPagaEm || (userProfile.descontoIndicacaoPrimeiroMes && userProfile.descontoIndicacaoPrimeiroMes.status === 'used')) {
-      return res.status(409).json({ error: 'O código de indicação precisa ser vinculado antes da primeira cobrança.' });
-    }
     var refSnap;
     try { refSnap = await db.collection('usuarios').where('codigoIndicacao', '==', refCode).limit(2).get(); }
     catch (_) { return res.status(503).json({ error: 'Não foi possível validar o código de indicação.' }); }
