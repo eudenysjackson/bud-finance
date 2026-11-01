@@ -39,6 +39,7 @@ test('checkout requires authentication and uses server price and identity',async
  const result=await s.invoke('/mercadopago/create-subscription',{planKey:'starter',uid:'other',amount:0,email:'other@example.test'});
  assert.equal(result.statusCode,200);assert.match(result.data.init_point,/mercadopago/);
  const payload=JSON.parse(s.calls[0].options.body);assert.equal(payload.external_reference,'owner|starter');assert.equal(payload.payer_email,'qa@example.test');assert.equal(payload.auto_recurring.transaction_amount,9.99);assert.equal(payload.status,'pending');assert.equal(s.profile.plano,'free');
+ assert.equal(payload.auto_recurring.frequency,1);assert.equal(payload.auto_recurring.frequency_type,'months');assert.equal(payload.auto_recurring.currency_id,'BRL');assert.equal(payload.auto_recurring.end_date,undefined);
 });
 test('provider failure returns an error without granting a paid plan',async()=>{
  const s=setup({providerError:true});const result=await s.invoke('/mercadopago/create-subscription',{planKey:'starter'});
@@ -152,6 +153,27 @@ function activeSubscription(s,plan='starter'){
  s.sub.next_payment_date=new Date(Date.now()+30*86400000).toISOString();s.profile.planoExpira=s.sub.next_payment_date;
  s.sub.auto_recurring={transaction_amount:plan==='plus'?49.9:plan==='pro'?29.9:9.99,currency_id:'BRL'};
 }
+
+test('successive monthly renewals extend the same subscription without another checkout',async()=>{
+ const s=setup();activeSubscription(s);s.payment.status='approved';s.payment.transaction_amount=9.99;
+ for(const nextDate of ['2027-01-01T15:00:00.000Z','2027-02-01T15:00:00.000Z','2027-03-01T15:00:00.000Z']){
+  s.sub.next_payment_date=nextDate;
+  assert.equal((await s.webhook('subscription_authorized_payment')).statusCode,200);
+  assert.equal(s.profile.plano,'starter');assert.equal(s.profile.mpSubscriptionId,'sub-1');assert.equal(s.profile.planoExpira,nextDate);
+  await s.webhook('subscription_authorized_payment');assert.equal(s.profile.planoExpira,nextDate);
+ }
+ assert.equal(s.calls.filter(c=>['POST','PUT'].includes(c.options.method)).length,0);
+});
+
+test('failed renewal does not extend access and later approval restores the same subscription',async()=>{
+ const s=setup();activeSubscription(s);const originalExpiry=s.profile.planoExpira;
+ assert.equal((await s.webhook('subscription_authorized_payment')).statusCode,200);
+ assert.equal(s.profile.pagamentoPendente,true);assert.equal(s.profile.assinaturaStatus,'past_due');assert.equal(s.profile.planoExpira,originalExpiry);
+ s.payment.status='approved';s.payment.transaction_amount=9.99;s.sub.next_payment_date='2027-03-01T15:00:00.000Z';
+ assert.equal((await s.webhook('subscription_authorized_payment')).statusCode,200);
+ assert.equal(s.profile.pagamentoPendente,false);assert.equal(s.profile.assinaturaStatus,'authorized');assert.equal(s.profile.planoExpira,s.sub.next_payment_date);assert.equal(s.profile.mpSubscriptionId,'sub-1');
+ assert.equal(s.calls.filter(c=>['POST','PUT'].includes(c.options.method)).length,0);
+});
 
 test('plan upgrade updates the same subscription at server price while retaining current access',async()=>{
  const s=setup();activeSubscription(s);const expiry=s.profile.planoExpira;

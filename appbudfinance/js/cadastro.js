@@ -4,7 +4,7 @@
 
 import { initializeApp, getApps }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, updateProfile, signOut, onAuthStateChanged }
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
@@ -204,7 +204,21 @@ form.addEventListener('submit', async function (e) {
 
   try {
     // 5. Create user in Firebase Auth (user-chosen password)
-    var cred = await createUserWithEmailAndPassword(auth, email, senha);
+    var cred;
+    try {
+      cred = await createUserWithEmailAndPassword(auth, email, senha);
+    } catch (creationError) {
+      if (creationError.code !== 'auth/email-already-in-use') throw creationError;
+      // Recover a registration interrupted after Auth creation, only after proving
+      // ownership with the password. Never overwrite an existing customer profile.
+      try { cred = await signInWithEmailAndPassword(auth, email, senha); }
+      catch (_) { throw creationError; }
+      const existingProfile = await getDoc(doc(db, 'usuarios', cred.user.uid));
+      if (existingProfile.exists()) {
+        await signOut(auth);
+        throw creationError;
+      }
+    }
     var user = cred.user;
 
     // 6. Update display name
@@ -229,14 +243,12 @@ form.addEventListener('submit', async function (e) {
       primeiroLogin: false, // User chose own password — no forced change
       dataCadastro: serverTimestamp(),
       // plano and role are set server-side (Firestore rules block these on create)
-      status: 'ativo',
       funcionalidades: {},
       lgpdConsentimento: true,
       lgpdConsentimentoData: serverTimestamp(),
       lgpdVersaoPolitica: '2026-11-01-v1.5',
       codigoIndicacao: codigoIndicacaoGerado,
-      emailVerificationRequired: true,
-      bloqueado: false
+      emailVerificationRequired: true
     };
 
     // Referral data
@@ -281,13 +293,20 @@ form.addEventListener('submit', async function (e) {
     // 12. Backend envia o e-mail de boas-vindas com código e link mágico.
     // Não usamos o e-mail padrão do Firebase como fallback, para manter uma
     // única experiência visual e evitar links de verificação conflitantes.
-    await enviarEmailBoasVindas(user, email, nome, matricula);
+    var verificationEmailSent = await enviarEmailBoasVindas(user, email, nome, matricula);
 
     // 13. Sign out (user will log in from login page)
     await signOut(auth);
 
     // 14. Show success UI
     showMatriculaEl.textContent = matricula;
+    var emailStatus = document.getElementById('verificationEmailStatus');
+    if (emailStatus) emailStatus.textContent = verificationEmailSent
+      ? 'Solicitação de verificação enviada. Confira seu e-mail e a pasta de spam.'
+      : 'Sua conta está criada, mas o envio do e-mail não foi confirmado. Vá ao login e solicite um novo código de verificação.';
+    if (!verificationEmailSent) {
+      window.budShowToast('Conta criada, mas o envio do e-mail não foi confirmado. Entre com sua senha para solicitar um novo código de verificação.', 'warning', 12000);
+    }
     formSection.classList.add('hidden');
     successSection.classList.add('active');
 
@@ -331,7 +350,7 @@ form.addEventListener('submit', async function (e) {
     } else if (error.code === 'auth/weak-password') {
       window.budShowToast('Senha muito fraca. Use pelo menos 8 caracteres.', 'warning');
     } else {
-      window.budShowToast('Erro ao criar conta. Tente novamente.', 'error');
+      window.budShowToast('Não foi possível concluir o cadastro. Tente novamente com o mesmo e-mail e senha para retomar.', 'error');
     }
   }
 });
