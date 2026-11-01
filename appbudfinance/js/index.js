@@ -39,7 +39,8 @@ onAuthStateChanged(auth, function (user) {
     var data = await resp.json().catch(function () { return {}; });
     if (!resp.ok || !data.customToken) throw new Error(data.error || 'Link inválido.');
     await signInWithCustomToken(auth, data.customToken);
-    window.location.replace('dashboard.html');
+    // New accounts must complete onboarding before reaching the dashboard.
+    window.location.replace('onboarding.html');
   } catch (err) {
     _magicLoginInProgress = false;
     window.history.replaceState({}, document.title, 'index.html');
