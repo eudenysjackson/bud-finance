@@ -732,3 +732,12 @@ Persistir arquivos/resultados fragmentados no Firestore com leases e exclusão t
 
 ## DEC-061 —31/10/2026 — canais de notificação
 A pedido do titular, dentro do app somente assinatura/upgrade calculados do perfil atual. Cache legado de comunicados é removido e globais deixam de ser consultados. Lembretes financeiros são push determinístico, sem Buddy, marketing ou lançamentos automáticos. Tokens múltiplos por conta permitem celular/computador, com revogação individual e compatibilidade com token legado. TTL1h evita lembretes antigos entregues após longa desconexão.
+
+
+### DEC-062 — Confirmação de e-mail leva primeiro ao onboarding
+
+- **Data**: 01/11/2026
+- **O que foi decidido**: Depois que o link mágico confirma o e-mail e autentica um cadastro novo, o primeiro destino é `onboarding.html`. A dashboard só deve aparecer após a conclusão do onboarding.
+- **Por quê**: Evitar o salto visual da dashboard para onboarding e preservar a sequência prevista para novas contas.
+- **Consequências**: `appbudfinance/js/index.js` encaminha o login mágico diretamente ao onboarding; a proteção existente do onboarding envia para a dashboard quando `onboardingConcluido === true`. Correção em código aguardando publicação.
+- **Quando revisar**: Se o cadastro passar a concluir ou pular o onboarding automaticamente.

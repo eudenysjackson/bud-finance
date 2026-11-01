@@ -1,5 +1,14 @@
 # Estado compartilhado e ponto de continuidade
 
+## Correção de confirmação do cadastro — PR #3 (01/11/2026)
+
+- **Causa:** o login por link mágico confirmava o e-mail, autenticava a conta e apontava para `dashboard.html`; o guard da dashboard fazia um segundo redirecionamento ao onboarding.
+- **Correção:** `appbudfinance/js/index.js` agora envia o link mágico diretamente a `onboarding.html`. O onboarding continua conduzindo à dashboard somente após conclusão.
+- **Registros atualizados:** PEND-AUTH-086 em `PENDENCIAS.md` (resolvido em código, publicação pendente); ERR-069 em `ERRORS_LOG.md`; DEC-062 em `DECISIONS_LOG.md`; snapshot de fluxo em `ARCHITECTURE_MAP.md`.
+- **Branch/PR:** `codex/fix-confirmation-onboarding-20261101`, [PR #3](https://github.com/eudenysjackson/bud-finance/pull/3), aberta para revisão. Ainda não integrada no `master` nem publicada.
+- **Validação:** código revisado por inspeção; testes não executados. Não alegar confirmação em produção até merge, deploy e navegação real confirmada.
+
+
 **Atualizado em:** 01/11/2026 (America/Sao_Paulo)  
 **Commit do código de inadimplência:** `c42e6405202c7a9bf3a2e212026932425e76ae16`  
 **Protocolo compartilhado integrado:** PR [#2](https://github.com/eudenysjackson/bud-finance/pull/2), commit `9cad46ca8180eb1c21ba640be239cc7c013a4276`  
