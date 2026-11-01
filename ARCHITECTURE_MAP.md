@@ -16,6 +16,13 @@
 - **Integrações**: Mercado Pago (checkout, recorrência e webhooks), EmailJS (mensagens transacionais) e Groq (tarefas de IA).
 - **Estado de implantação**: código de inadimplência está no `master`; revisão do serviço Web Render ainda não foi identificada. Consulte `AI_HANDOFF.md` antes de assumir que a automação backend está ativa.
 
+## Fluxo de autenticação e onboarding — 01/11/2026
+
+- Cadastro cria o perfil e envia e-mail de confirmação com link mágico.
+- O backend valida o token de uso único, confirma o e-mail e autentica a sessão.
+- Contas novas seguem para `onboarding.html`; após `onboardingConcluido === true`, o onboarding direciona para a dashboard.
+- A correção do destino direto está registrada na branch `codex/fix-confirmation-onboarding-20261101`; aguarda integração. Consulte `AI_HANDOFF.md` para o estado de publicação.
+
 ## 🌐 Estrutura de URLs (DEC-047)
 
 | URL | Conteúdo | Arquivo no repo |
