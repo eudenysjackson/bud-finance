@@ -22,8 +22,8 @@
 ## Estado desta entrega
 
 - Branch: codex/beneficios-indicacao-15-50-20261101.
-- Estado: preparado para revisão; ainda não integrado nem publicado.
-- Testes: não executados nesta etapa. O CI deve validar após a abertura/atualização do PR.
+- Estado: revisão preparada em PR rascunho; ainda não integrado nem publicado.
+- Testes: não executados nesta etapa. O workflow atual só roda o conjunto de testes ao publicar em master; não há validação automática de PR, portanto não se deve integrar antes de executar a validação em checkout isolado.
 - Homologação Mercado Pago: pendente; usar exclusivamente usuários e meios de pagamento de teste.
 - Cobranças reais: nenhuma realizada.
 - Fonte oficial para a mudança de valor recorrente: [Gerenciamento de assinaturas do Mercado Pago](https://www.mercadopago.com.br/developers/pt/docs/subscriptions/subscription-management) e [referência da API para atualizar assinatura](https://www.mercadopago.com.br/developers/pt/reference/online-payments/subscriptions/update-preapproval/put).
