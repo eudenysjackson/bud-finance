@@ -682,5 +682,5 @@ Cache sem validade e consulta de globais reapresentavam testes antigos para dife
 - **Descrição:** após clicar no link de confirmação do cadastro, o login mágico abria a dashboard e em seguida o guard mandava o usuário para o onboarding.
 - **Causa raiz:** `entrarPorLinkMagico()` em `appbudfinance/js/index.js` redirecionava sempre para `dashboard.html`, sem considerar que o cadastro novo ainda não concluiu `onboardingConcluido`.
 - **Correção:** resolvido em código na branch `codex/fix-confirmation-onboarding-20261101`; após autenticar com o token mágico, navegar diretamente para `onboarding.html`. O guard do onboarding mantém o retorno à dashboard depois de concluir as etapas.
-- **Status de publicação:** aguardando revisão/integração. Ainda não confirmado em produção.
+- **Status de publicação:** ✅ Integrado no `master` pelo commit `f3c0453`; workflow `41338154393` passou nas regressões e no deploy do GitHub Pages. O clique real no e-mail de confirmação ainda não foi validado ponta a ponta.
 - **Prevenção:** links que autenticam uma conta recém-criada devem respeitar o fluxo de onboarding antes de encaminhar ao painel.
