@@ -692,3 +692,8 @@ Cache sem validade e consulta de globais reapresentavam testes antigos para dife
 - **Causa raiz:** origem de aquisição comoConheceu era confundida com atribuição; cadastro, onboarding, link comercial, checkout, webhook e Firestore não compartilhavam um único fluxo.
 - **Correção preparada:** captura de código no onboarding e cadastro, pré-preenchimento de ref=, validação autenticada no backend, desconto de 15% na primeira cobrança, recompensa única de 50% numa cobrança futura após aprovação e restauração do preço regular via API de assinatura. Os descontos não se acumulam no mesmo ciclo.
 - **Status:** suíte automatizada passou na branch codex/beneficios-indicacao-15-50-20261101 (Actions 41341678748). Homologação sandbox, integração e deploy continuam pendentes; não afirmar como publicado.
+
+
+## Correção da espera de importação IA — 01/11/2026
+
+ERR-071 / PEND-IA-ESPERA: a mensagem aguardando serviço vem do retry HTTP 429; até 12 esperas longas e polling/worker sem prazo mantinham a interface aberta. Correção em codex/corrige-importacao-ia-travada-20261101: tentativas curtas e limitadas, worker com prazo de 180s, registro persistente antigo encerrado, cliente com 210s totais/30s por conexão e mensagens de falha/cancelamento claras. 91 regressões aprovadas. Detalhes em RELEASE_IA_ESPERA_2026-11-01.md. Integração/deploy em preparação. Indicações: PR #5 integrado em 3d6f5f4; Pages 41344526378 aprovado e backend Render Live confirmado. Regras de indicação aguardam autenticação local do Firebase. Workspace original preservado.

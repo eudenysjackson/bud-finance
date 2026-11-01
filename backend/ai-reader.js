@@ -1,17 +1,20 @@
-const { report } = require('./ai-jobs');
+const { report, currentJob } = require('./ai-jobs');
 
 // Uma fila por processo evita que importações concorrentes esgotem a cota juntas.
 function createReader({ fetchImpl = fetch, sleep = ms => new Promise(r => setTimeout(r, ms)), model, key, maxTokens = 900 } = {}) {
   let queue = Promise.resolve();
   let outputBudget = maxTokens;
   async function complete(messages) {
+    const job = currentJob();
     const task = queue.then(async () => {
-      for (let attempt = 0; attempt < 12; attempt++) {
+      let waited = 0;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        job?.signal?.throwIfAborted();
         report('Lendo documento...');
         const response = await fetchImpl('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
           body: JSON.stringify({ model, messages, reasoning_effort: 'none', temperature: 0, max_tokens: outputBudget, response_format: { type: 'json_object' } }),
-          signal: AbortSignal.timeout(60_000),
+          signal: job?.signal ? AbortSignal.any([job.signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
         });
         if (response.status === 429) {
           const data = await response.json();
@@ -26,9 +29,17 @@ function createReader({ fetchImpl = fetch, sleep = ms => new Promise(r => setTim
             const error = new Error('Trecho maior que a capacidade da IA.'); error.code = 'AI_SPLIT'; throw error;
           }
           const seconds = Number(response.headers.get('retry-after')) || Number(message.match(/try again in\s+([\d.]+)s/i)?.[1]) || 60;
-          if (seconds > 180) throw Object.assign(new Error('O provedor de IA está sem capacidade disponível para esta leitura. Tente novamente mais tarde.'), { code: 'AI_RATE_LIMIT' });
-          report('Leitura em andamento. Aguardando o serviço para continuar automaticamente...');
-          await sleep(Math.ceil(seconds * 1000) + 250);
+          const waitMs = Math.ceil(seconds * 1000) + 250;
+          if (attempt === 2 || seconds > 15 || waited + waitMs > 20_000) throw Object.assign(new Error('O serviço de IA está temporariamente sem capacidade. A leitura foi encerrada; tente novamente em alguns minutos.'), { code: 'AI_RATE_LIMIT' });
+          waited += waitMs;
+          report('Serviço de IA ocupado. Nova tentativa em ' + Math.ceil(seconds) + ' segundos (' + (attempt + 1) + '/2)...');
+          if (job?.signal) {
+            await new Promise((resolve, reject) => {
+              const onAbort = () => reject(job.signal.reason || new Error('Leitura encerrada.'));
+              job.signal.addEventListener('abort', onAbort, { once: true });
+              Promise.resolve(sleep(waitMs)).then(resolve, reject).finally(() => job.signal.removeEventListener('abort', onAbort));
+            });
+          } else await sleep(waitMs);
           continue;
         }
         if (!response.ok) throw new Error('Groq API [' + response.status + ']: ' + await response.text());
@@ -69,6 +80,7 @@ function createReader({ fetchImpl = fetch, sleep = ms => new Promise(r => setTim
   async function readText(text, prompt, field = 'transacoes') {
     const context = text.slice(0, 500);
     async function read(part, depth = 0) {
+      currentJob()?.signal?.throwIfAborted();
       if (part.length > 1800) {
         const halves = divide(part);
         return merge([await read(halves[0], depth + 1), await read(halves[1], depth + 1)], field);
@@ -89,6 +101,7 @@ function createReader({ fetchImpl = fetch, sleep = ms => new Promise(r => setTim
     return read(text);
   }
   async function readImage(buffer, mime, prompt, field = 'transacoes', depth = 0) {
+    currentJob()?.signal?.throwIfAborted();
     if (buffer.length > 3 * 1024 * 1024) {
       buffer = await require('sharp')(buffer).rotate().resize({ width: 2400, height: 3600, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 90 }).toBuffer();
       mime = 'image/jpeg';
@@ -134,6 +147,7 @@ async function readPDF(buffer) {
   const pages = [];
   try {
     for (let i = 1; i <= doc.numPages; i++) {
+      currentJob()?.signal?.throwIfAborted();
       report('Lendo página ' + i + ' de ' + doc.numPages + '...');
       const page = await doc.getPage(i);
       const content = await page.getTextContent();
@@ -161,3 +175,4 @@ async function readPDF(buffer) {
 }
 
 module.exports = { createReader, readPDF };
+

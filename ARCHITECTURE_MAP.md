@@ -658,3 +658,8 @@ Onboarding grava `comoConheceu` como origem de aquisição e não solicita códi
 - Webhook de pagamento aprovado confirma a conversão. O backend altera o valor recorrente da assinatura no Mercado Pago para a cobrança promocional e restaura o valor normal após a cobrança descontada.
 - Regra DEC-069: indicado recebe 15% na primeira cobrança; indicador recebe 50% em uma cobrança posterior, uma única vez. Sem descontos simultâneos; excedentes de indicação não geram outra recompensa.
 - Estado: branch codex/beneficios-indicacao-15-50-20261101, Actions run 41341678748 passou na suíte completa; homologação sandbox pendente e ainda não publicado. Consulte AI_HANDOFF.md e RELEASE_INDICACOES_2026-11-01.md.
+
+
+## Correção da espera de importação IA — 01/11/2026
+
+ERR-071 / PEND-IA-ESPERA: a mensagem aguardando serviço vem do retry HTTP 429; até 12 esperas longas e polling/worker sem prazo mantinham a interface aberta. Correção em codex/corrige-importacao-ia-travada-20261101: tentativas curtas e limitadas, worker com prazo de 180s, registro persistente antigo encerrado, cliente com 210s totais/30s por conexão e mensagens de falha/cancelamento claras. 91 regressões aprovadas. Detalhes em RELEASE_IA_ESPERA_2026-11-01.md. Integração/deploy em preparação. Indicações: PR #5 integrado em 3d6f5f4; Pages 41344526378 aprovado e backend Render Live confirmado. Regras de indicação aguardam autenticação local do Firebase. Workspace original preservado.

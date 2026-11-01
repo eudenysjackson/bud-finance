@@ -44,3 +44,30 @@ test('erro de leitura termina o acompanhamento com falha, sem resultado parcial'
   assert.equal(result.data.status, 422);
   assert.equal(result.data.result.error, 'Arquivo ilegível.');
 });
+
+test('leitor travado termina com 504 e resposta tardia não substitui a falha', async () => {
+  const jobs = createJobs(async () => ({ uid: 'local' }), { maxDurationMs: 10 });
+  let finish;
+  const accepted = response();
+  await jobs.wrap(async (_, output) => { await new Promise(resolve => { finish = resolve; });output.json({ transacoes: [] }); })({ headers: { 'x-bud-async': '1' } }, accepted);
+  await new Promise(resolve => setTimeout(resolve, 30));
+  const failed = response();await jobs.poll({ params: { id: accepted.data.jobId } }, failed);
+  assert.equal(failed.data.state, 'failed');assert.equal(failed.data.status, 504);assert.equal(failed.data.result.code, 'AI_JOB_TIMEOUT');
+  finish();await new Promise(resolve => setImmediate(resolve));
+  const late = response();await jobs.poll({ params: { id: accepted.data.jobId } }, late);assert.equal(late.data.status, 504);
+});
+
+test('worker persistente travado finaliza a falha no armazenamento compartilhado', async () => {
+  let record, finish;
+  const store = { leaseMs: 30000, sweep: async () => {}, ref: () => ({path:'usuarios/local/_ai_jobs/teste'}),
+    create: async (_, id, route) => { record = { route, createdAt: Date.now(), state: 'queued' }; },
+    claim: async () => record.state === 'queued' ? { ...record, owner: 'worker' } : null,
+    payload: async () => ({body:{},files:[],contentType:'application/json'}), heartbeat: async () => {},
+    finish: async (_, id, task) => { record = {...record,...task}; }, read: async () => record, result: async () => record.result };
+  const jobs = createJobs(async () => ({uid:'local'}), {store,maxDurationMs:10});
+  const accepted = response();await jobs.wrap(async (_, output) => { await new Promise(resolve => { finish = resolve; });output.json({ok:true}); }, 'test')({headers:{'x-bud-async':'1'}}, accepted);
+  await new Promise(resolve => setTimeout(resolve, 30));
+  const failed=response();await jobs.poll({params:{id:accepted.data.jobId}},failed);assert.equal(failed.data.status,504);assert.equal(failed.data.state,'failed');
+  finish();await new Promise(resolve=>setImmediate(resolve));assert.equal(record.status,504);
+});
+
