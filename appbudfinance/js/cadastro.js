@@ -29,6 +29,8 @@ const telefoneInput = document.getElementById('telefone');
 const novaSenhaInput = document.getElementById('novaSenha');
 const confirmarInput = document.getElementById('confirmarSenha');
 const codigoInput = document.getElementById('codigoIndicacao');
+const referralFromUrl = new URLSearchParams(window.location.search).get('ref') || '';
+if (codigoInput && referralFromUrl) codigoInput.value = referralFromUrl.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
 const lgpdCheckbox = document.getElementById('lgpdConsent');
 const btn = document.getElementById('btnCadastro');
 const showMatriculaEl = document.getElementById('showMatricula');
@@ -191,6 +193,15 @@ form.addEventListener('submit', async function (e) {
     return;
   }
 
+  var indicadorInformado = null;
+  if (codigoRaw) {
+    indicadorInformado = await validarCodigoIndicacao(codigoRaw);
+    if (!indicadorInformado) {
+      window.budShowToast('Código de indicação não encontrado. Confira e tente novamente.', 'warning');
+      return;
+    }
+  }
+
   // 3. reCAPTCHA
   var captchaToken = await getRecaptchaToken();
   if (captchaToken === null) {
@@ -229,10 +240,7 @@ form.addEventListener('submit', async function (e) {
     var codigoIndicacaoGerado = gerarCodigoIndicacao();
 
     // 8. Validate referral (if provided)
-    var indicador = null;
-    if (codigoRaw) {
-      indicador = await validarCodigoIndicacao(codigoRaw);
-    }
+    var indicador = indicadorInformado;
 
     // 9. Build user doc — dates use serverTimestamp (NOT client-side)
     var docData = {
@@ -258,7 +266,7 @@ form.addEventListener('submit', async function (e) {
         nome: indicador.nome,
         codigo: codigoRaw
       };
-      docData.descontoIndicacao = 30;
+      docData.descontoIndicacao = 15;
       docData.descontoIndicacaoUsado = false;
     }
 
