@@ -2813,24 +2813,46 @@ async function _mpHandleAuthorizedPayment(invoiceId) {
 
 async function _mpCreditarIndicacao(refCode, novoUid, planKey) {
   try {
-    var snap = await db.collection('usuarios')
-      .where('codigoIndicacao', '==', refCode).limit(1).get();
-    if (snap.empty) return;
-    await db.collection('usuarios').doc(snap.docs[0].id)
-      .collection('indicacoes').add({
-        indicadoUid: novoUid,
-        planKey:     planKey,
-        creditadoEm: admin.firestore.FieldValue.serverTimestamp()
-      });
-    console.log('[MP] IndicaÃ§Ã£o creditada:', refCode, 'â†’', novoUid);
+    var snap = await db.collection('usuarios').where('codigoIndicacao', '==', refCode).limit(2).get();
+    if (snap.size !== 1 || snap.docs[0].id === novoUid) return;
+    var referrerDoc = snap.docs[0], referrerRef = referrerDoc.ref;
+    var referralRef = referrerRef.collection('indicacoes').doc(novoUid);
+    var granted = false;
+    await db.runTransaction(async function (transaction) {
+      var ownerSnap = await transaction.get(referrerRef);
+      var referralSnap = await transaction.get(referralRef);
+      if (!ownerSnap.exists) return;
+      var owner = ownerSnap.data() || {};
+      var priorReferral = referralSnap.exists ? referralSnap.data() || {} : {};
+      if (priorReferral.primeiroPagamentoAprovado) {
+        granted = (owner.beneficioIndicacao50 || {}).status === 'pending';
+        return;
+      }
+      var hasPriorReward = !!owner.beneficioIndicacao50;
+      var reward = hasPriorReward ? owner.beneficioIndicacao50 : {
+        status: 'pending', percent: 50, indicadoUid: novoUid,
+        grantedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+      transaction.set(referralRef, {
+        indicadoUid: novoUid, planKey,
+        assinouPlano: true, primeiroPagamentoAprovado: true,
+        convertidoEm: admin.firestore.FieldValue.serverTimestamp(),
+        beneficioIndicador: !hasPriorReward
+      }, { merge: true });
+      if (!hasPriorReward) {
+        transaction.update(referrerRef, { beneficioIndicacao50: reward });
+        granted = true;
+      } else {
+        transaction.set(referralRef, { beneficioIndicador: false }, { merge: true });
+      }
+    });
+    if (granted) await _mpAgendarBeneficioIndicacao50(referrerDoc.id);
+    console.log('[MP] Indicação convertida:', refCode, '→', novoUid, granted ? '(benefício concedido)' : '(sem novo benefício)');
   } catch (err) {
-    console.error('[MP] Erro ao creditar indicaÃ§Ã£o:', err.message);
+    console.error('[MP] Erro ao creditar indicação:', err.message);
   }
 }
 
-// â”€â”€â”€ POST /mercadopago/sandbox-activate (APENAS sandbox) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Simula ativaÃ§Ã£o de plano sem passar pelo checkout do MP.
-// Ãštil para testar o pipeline Firestore em ambiente de teste.
 app.post('/mercadopago/sandbox-activate', async function (req, res) {
   if (!MP_ACCESS_TOKEN.startsWith('TEST-'))
     return res.status(403).json({ error: 'Endpoint disponÃ­vel apenas em modo sandbox.' });
