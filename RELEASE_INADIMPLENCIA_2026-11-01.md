@@ -28,5 +28,10 @@
 
 ## Publicação
 
-Pendente até a aprovação do CI e confirmação dos deploys do GitHub Pages e do Render. Atualizar esta seção com commit, execução e verificações públicas após a publicação.
+Commit `c42e6405202c7a9bf3a2e212026932425e76ae16` integrado ao `master`. GitHub Actions run `41333146559` concluiu com sucesso: regressões, empacotamento e GitHub Pages deploy.
 
+A política pública foi conferida em `https://budsolucoes.com.br/appbudfinance/politica-privacidade.html`: versão 1.6, tolerância, retorno ao Gratuito e não negativação publicados. As regras Firestore foram compiladas e liberadas no projeto `bud-finance`.
+
+O painel Render conferido nesta sessão mostra o Static Site `bud-finance` ligado ao `master` e implantado no commit `c42e640`. O endpoint `https://bud-finance-backend.onrender.com/api/ping` respondeu `{"ok":true}`. No workspace Render aberto, porém, só aparece o serviço Static Site; não foi possível identificar a revisão em execução do serviço Web `bud-finance-backend`. Confirmar essa revisão no workspace/serviço correto antes de considerar o fluxo automático de inadimplência integralmente publicado.
+
+Não foi disparado e-mail ou push para usuários reais; não houve cobrança nem cancelamento real. O cancelamento automático foi validado apenas com Mercado Pago e Firestore simulados.
