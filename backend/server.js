@@ -2691,6 +2691,29 @@ async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
         Math.round(Number(sub.auto_recurring && sub.auto_recurring.transaction_amount) * 100) === Math.round(scheduledChange.amount * 100);
       if (applyScheduledChange) planKey = scheduledChange.planKey;
     }
+    var promoToRestore = null;
+    if (paymentConfirmed && typeof paymentConfirmed === 'object') {
+      var paidAmountCents = Math.round(Number(paymentConfirmed.transaction_amount) * 100);
+      var paidAtForPromo = new Date(paymentConfirmed.date_approved || paymentConfirmed.date_created || 0).getTime();
+      var firstMonthPromo = currentProfile.descontoIndicacaoPrimeiroMes || {};
+      var inviterPromo = currentProfile.beneficioIndicacao50 || {};
+      if (firstMonthPromo.status === 'awaiting_payment' && firstMonthPromo.subscriptionId === preapprovalId) {
+        if (paidAmountCents !== Math.round(Number(firstMonthPromo.discountAmount) * 100)) throw new Error('Referral first-month charge amount mismatch');
+        promoToRestore = { type: 'indicado15', baseAmount: Number(firstMonthPromo.baseAmount), refCode: firstMonthPromo.refCode };
+      } else if (firstMonthPromo.status === 'restoring' && firstMonthPromo.subscriptionId === preapprovalId) {
+        promoToRestore = { type: 'indicado15', baseAmount: Number(firstMonthPromo.baseAmount), refCode: firstMonthPromo.refCode };
+      } else if (inviterPromo.status === 'awaiting_payment' && inviterPromo.subscriptionId === preapprovalId) {
+        if (paidAmountCents !== Math.round(Number(inviterPromo.discountAmount) * 100)) throw new Error('Referral reward charge amount mismatch');
+        promoToRestore = { type: 'indicador50', baseAmount: Number(inviterPromo.baseAmount) };
+      } else if (inviterPromo.status === 'scheduled' && inviterPromo.subscriptionId === preapprovalId && paidAtForPromo >= new Date(inviterPromo.effectiveAt || 0).getTime()) {
+        if (paidAmountCents !== Math.round(Number(inviterPromo.discountAmount) * 100)) throw new Error('Scheduled referral reward charge amount mismatch');
+        promoToRestore = { type: 'indicador50', baseAmount: Number(inviterPromo.baseAmount) };
+      }
+      if (promoToRestore) {
+        if (!Number.isFinite(promoToRestore.baseAmount) || promoToRestore.baseAmount <= 0) throw new Error('Invalid referral promotion base amount');
+        await _mpSetRecurringAmount(preapprovalId, promoToRestore.baseAmount);
+      }
+    }
     var currentExpiry = currentProfile.planoExpira;
     var storedExpiry = currentExpiry && typeof currentExpiry.toDate === 'function' ? currentExpiry.toDate() : new Date(currentExpiry || 0);
     var expira;
@@ -2718,13 +2741,17 @@ async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
       pagamentoPendentePagamentoId: admin.firestore.FieldValue.delete(),
       ...(paymentConfirmed && (paymentConfirmed.date_approved || paymentConfirmed.date_created) && Number.isFinite(new Date(paymentConfirmed.date_approved || paymentConfirmed.date_created).getTime())
         ? { ultimaCobrancaAprovadaEm: admin.firestore.Timestamp.fromDate(new Date(paymentConfirmed.date_approved || paymentConfirmed.date_created)) } : {}),
+      ...(paymentConfirmed && !currentProfile.primeiraCobrancaPagaEm ? { primeiraCobrancaPagaEm: admin.firestore.Timestamp.fromDate(new Date(paymentConfirmed.date_approved || paymentConfirmed.date_created || Date.now())) } : {}),
+      ...(promoToRestore && promoToRestore.type === 'indicado15' ? { descontoIndicacaoPrimeiroMes: { status: 'used', subscriptionId: preapprovalId, baseAmount: promoToRestore.baseAmount, usadoEm: admin.firestore.FieldValue.serverTimestamp() }, descontoIndicacaoUsado: true } : {}),
+      ...(promoToRestore && promoToRestore.type === 'indicador50' ? { beneficioIndicacao50: { ...currentProfile.beneficioIndicacao50, status: 'used', usadoEm: admin.firestore.FieldValue.serverTimestamp() } } : {}),
       erroAssinatura:    admin.firestore.FieldValue.delete(),
       ...(applyScheduledChange ? { planoTroca: admin.firestore.FieldValue.delete() } : {}),
       planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp()
     });
     if (!activated) return;
     console.log('[MP webhook] Plano ativado:', uid, planKey);
-    if (refCode) await _mpCreditarIndicacao(refCode, uid, planKey);
+    if (refCode && paymentConfirmed) await _mpCreditarIndicacao(refCode, uid, planKey);
+    if (paymentConfirmed && (currentProfile.beneficioIndicacao50 || {}).status === 'pending') await _mpAgendarBeneficioIndicacao50(uid);
 
   } else if (status === 'cancelled' || status === 'paused') {
     await _mpUpdateSubscriptionProfile(uid, preapprovalId, {
