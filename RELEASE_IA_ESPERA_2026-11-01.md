@@ -21,5 +21,5 @@ A mensagem da captura é emitida por `backend/ai-reader.js` ao receber HTTP 429 
 
 ## Publicação
 
-Em preparação nesta branch. Registrar commit integrado e confirmação de Render/Pages após implantação. A publicação anterior de indicações foi integrada no master em 3d6f5f4c831498a8938d4ba1ba463197a2c439ae; Pages 41344526378 aprovado, backend Render Live no mesmo commit. Publicação das regras de indicação aguarda concluir login local do Firebase CLI.
+Em preparação nesta branch. Registrar commit integrado e confirmação de Render/Pages após implantação. A publicação anterior de indicações foi integrada no master em 3d6f5f4c831498a8938d4ba1ba463197a2c439ae; Pages 41344526378 aprovado, backend Render Live no mesmo commit. Regras de indicação compiladas e publicadas no projeto bud-finance em 01/11/2026.
 
