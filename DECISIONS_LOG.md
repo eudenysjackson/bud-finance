@@ -776,3 +776,6 @@ O titular decidiu manter Groq como provedora atual. A compra do Developer fica p
 
 ## DEC-071 — revisão explícita de divergência de até um centavo (01/11/2026)
 O parser Nubank reconhecido pode devolver linhas originais quando a diferença absoluta ao total declarado não ultrapassa um centavo, com requiresReview/differenceCents e aviso visível antes de salvar. Nenhuma linha ou valor é inventado para fechar o total. Diferenças superiores continuam rejeitadas pelo caminho direto. Isso atualiza a exigência anterior de igualdade exata exclusivamente para este limite de revisão explícita; não altera a regra de não fabricar ajustes.
+
+## DEC-072 — preservar regra de estornos com identidade do par (01/11/2026)
+Restaura a regra pedida pelo titular: compra comprovadamente estornada e crédito correspondente ficam desmarcados e fora do saldo juntos. Pareamento usa descrição/data/valor e exige candidato único. Crédito que não tenha compra identificável permanece negativo e explicitamente rotulado como Crédito na fatura para não perder o abatimento legítimo. Nenhuma inferência apenas por valor nem ajuste sintético para fechar total. Revisão mostra soma persistível; crédito/compra mantêm rastreabilidade. A seleção errada e reimportação duplicada são bloqueadas no caminho PDF validado. Substitui a seleção indiscriminada de todos os sinais registrada na entrega anterior.

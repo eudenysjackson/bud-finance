@@ -1791,9 +1791,9 @@ function _renderConfiabilidadeBadge() {
     // Soma TODOS os itens ativos extraídos (independente de seleção)
     // para mostrar quanto a IA capturou vs o total declarado no PDF
     const somaAtivos = itensIAExtraidos
-      .filter(i => i.status === 'ativa')
+      .filter(i => i.status === 'ativa' || i.status === 'credito')
       .reduce((s, i) => s + i.valor, 0);
-    const pct    = Math.min(somaAtivos / alvoPdf, 1.05);
+    const pct    = somaAtivos / alvoPdf;
     const pctStr = Math.round(pct * 100) + '%';
     const diff   = somaAtivos - alvoPdf;
     const diffStr = (diff >= 0 ? '+' : '−') + fmt(Math.abs(diff));
@@ -2224,6 +2224,7 @@ function _addMesesData(dateStr, n) {
 }
 
 function processarItensIA(itens) {
+  const signedStatuses = _importMetaIA?.signedAmounts ? window.BudInvoiceRefunds.classify(itens) : null;
   // No OFX do Nubank, compra e estorno compartilham o mesmo FITID. Quando há
   // esse par, ambos devem sair da fatura; somente desmarcar o crédito mantém
   // a compra original e infla o total.
@@ -2335,7 +2336,7 @@ function processarItensIA(itens) {
     }
 
     // The validated PDF reader already supplies signed, individually identified rows.
-    if (_importMetaIA?.signedAmounts) { valor = valorOriginal; status = 'ativa'; }
+    if (signedStatuses) { valor = valorOriginal; status = signedStatuses[itemIdx]; }
     const cat = detectarCategoriaIA(desc);
 
     return {
@@ -2352,7 +2353,7 @@ function processarItensIA(itens) {
       expandirParcelas: false,
       // Em faturas, juros/multas/IOF detalhados também compõem o total devido.
       // Mantemos o selo de encargo para transparência, mas já os incluímos.
-      selecionado: status === 'ativa' || (_importMetaIA?.fonte === 'pdf' && status === 'encargo'),
+      selecionado: status === 'ativa' || status === 'credito' || (_importMetaIA?.fonte === 'pdf' && status === 'encargo'),
     };
   }).filter(item => item.valor !== 0 || item.status !== 'ativa'); // signed PDF credits remain individual rows
 
@@ -2485,6 +2486,7 @@ function renderListaReviewIA() {
     const isEncargo  = item.status === 'encargo';
 
     let badgesHTML = '';
+    if (item.status === 'credito') badgesHTML += `<span style="font-size:0.6875rem;color:#15803d;">Crédito na fatura — sem compra correspondente identificada</span>`;
     if (isEstornado) badgesHTML += `<span style="font-size:0.6875rem;font-weight:700;background:rgba(245,158,11,0.15);color:#d97706;border-radius:0.375rem;padding:0.125rem 0.375rem;">Estorno</span>`;
     if (isCancelado) badgesHTML += `<span style="font-size:0.6875rem;font-weight:700;background:rgba(239,68,68,0.13);color:#dc2626;border-radius:0.375rem;padding:0.125rem 0.375rem;">Cancelado</span>`;
     if (isEncargo)   badgesHTML += `<span style="font-size:0.6875rem;font-weight:700;background:rgba(107,114,128,0.12);color:#6b7280;border-radius:0.375rem;padding:0.125rem 0.375rem;">Encargo</span>`;
@@ -2512,7 +2514,7 @@ function renderListaReviewIA() {
 
     return `
       <div style="display:flex;gap:0.625rem;align-items:flex-start;padding:0.75rem;background:var(--card-bg);border:1.5px solid var(--card-border);border-radius:0.875rem;opacity:${item.selecionado ? '1' : '0.55'};" id="ia-item-${i}">
-        <input type="checkbox" id="iaCheck_${i}" ${item.selecionado ? 'checked' : ''} style="margin-top:0.25rem;width:1rem;height:1rem;accent-color:var(--btn-bg);flex-shrink:0;cursor:pointer;" onchange="window._iaToggle(${i}, this.checked)">
+        <input type="checkbox" id="iaCheck_${i}" ${item.selecionado ? 'checked' : ''} ${isEstornado || isCancelado ? 'disabled' : ''} style="margin-top:0.25rem;width:1rem;height:1rem;accent-color:var(--btn-bg);flex-shrink:0;cursor:pointer;" onchange="window._iaToggle(${i}, this.checked)">
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:0.375rem;flex-wrap:wrap;margin-bottom:0.375rem;">
             ${badgesHTML}
@@ -2596,7 +2598,7 @@ function renderListaReviewIA() {
   };
   // Seleções em massa
   window._iaSelAll = (val) => {
-    itensIAExtraidos.forEach(it => { it.selecionado = !!val; });
+    itensIAExtraidos.forEach(it => { it.selecionado = !!val && !['estornado','cancelado'].includes(it.status); });
     renderListaReviewIA();
   };
   window._iaSelCompras = () => {
@@ -2604,7 +2606,7 @@ function renderListaReviewIA() {
     renderListaReviewIA();
   };
   window._iaSelInv = () => {
-    itensIAExtraidos.forEach(it => { it.selecionado = !it.selecionado; });
+    itensIAExtraidos.forEach(it => { it.selecionado = !it.selecionado && !['estornado','cancelado'].includes(it.status); });
     renderListaReviewIA();
   };
 
@@ -2612,7 +2614,7 @@ function renderListaReviewIA() {
 }
 
 function atualizarResumoReviewIA() {
-  const selecionados = itensIAExtraidos.filter(i => i.selecionado);
+  const selecionados = itensIAExtraidos.filter(i => i.selecionado && !['estornado','cancelado'].includes(i.status));
   const total = selecionados
     .filter(i => i.status !== 'estornado') // encargos selecionados manualmente também contam
     .reduce((s, i) => s + (i.valor || 0), 0);
@@ -2631,12 +2633,7 @@ function atualizarResumoReviewIA() {
   if (totalEl) {
     // Para importação de fatura PDF, o total relevante é o declarado pela fatura,
     // não a soma calculada das transações (que pode divergir por detecção imprecisa de estornos)
-    const totalFatura = _importMetaIA?.totalAPagar;
-    if (totalFatura) {
-      totalEl.textContent = `Total da fatura: ${formatBRL(totalFatura)}`;
-    } else {
-      totalEl.textContent = `Total: ${formatBRL(total)}`;
-    }
+    totalEl.textContent = `Total selecionado: ${formatBRL(total)}`;
   }
 }
 
@@ -2648,9 +2645,22 @@ async function salvarTransacoesIA() {
   if (!mesEl?.value || !anoEl?.value) { showToast('Informe o mês e ano da fatura.', 'erro'); return; }
 
   const anoMes = `${anoEl.value}-${mesEl.value}`;
-  const itensSelecionados = itensIAExtraidos.filter(i => i.selecionado);
+  const itensSelecionados = itensIAExtraidos.filter(i => i.selecionado && !['estornado','cancelado'].includes(i.status));
 
   if (!itensSelecionados.length) { showToast('Selecione ao menos uma transação.', 'erro'); return; }
+  if (_importMetaIA?.signedAmounts && _importMetaIA.totalAPagar > 0) {
+    if (transacoesGlobal.some(t => t.cartaoId === cartaoImportIA && String(t.dataReferencia || '').startsWith(anoMes) &&
+      t.origem === 'importacao_ia' && !['estornado','cancelado'].includes(t.status))) {
+      showToast('Este cartão já possui uma importação nesta fatura. Os lançamentos não foram duplicados. Confira os registros existentes.', 'erro');
+      return;
+    }
+    const selectedCents = itensSelecionados.filter(i => i.status !== 'estornado' && i.status !== 'cancelado')
+      .reduce((sum, i) => sum + Math.round(Number(i.valor) * 100), 0);
+    if (Math.abs(selectedCents - Math.round(_importMetaIA.totalAPagar * 100)) > 1) {
+      showToast('A seleção não corresponde ao total da fatura. Confira as compras e os créditos antes de salvar.', 'erro');
+      return;
+    }
+  }
 
   btn.disabled = true;
   btn.textContent = 'Salvando...';

@@ -44,10 +44,50 @@ test('validated PDF keeps purchases and signed credits even when amounts repeat'
   const source = fs.readFileSync('appbudfinance/js/cartoes.js','utf8');
   const start=source.indexOf('function processarItensIA(itens)');
   const end=source.indexOf('\nfunction ',start+10);
-  const context={_importMetaIA:{signedAmounts:true,estornos:[20]},detectarCategoriaIA:()=> 'Outros'};
+  const context={_importMetaIA:{signedAmounts:true,estornos:[20]},detectarCategoriaIA:()=> 'Outros',window:{BudInvoiceRefunds:require('../appbudfinance/js/invoice-refunds')}};
   vm.createContext(context);
   vm.runInContext(source.slice(start,end)+'; result=processarItensIA([{desc:"Loja",valor:20,data:"2026-01-02"},{desc:"Loja",valor:20,data:"2026-01-02"},{desc:"Estorno de Loja",valor:-20,data:"2026-01-03"}]);',context);
   assert.deepEqual(Array.from(context.result,x=>x.valor),[20,20,-20]);
-  assert.ok(context.result.every(x=>x.status==='ativa'&&x.selecionado));
+  assert.ok(context.result.every(x=>x.selecionado));
+  assert.equal(context.result[2].status,'credito');
   assert.equal(context.result.reduce((s,x)=>s+x.valor,0),20);
+});
+
+test('matched refund pairs are excluded; unmatched credits reduce the persisted invoice', async () => {
+  const vm=require('node:vm'), refunds=require('../appbudfinance/js/invoice-refunds');
+  const source=fs.readFileSync('appbudfinance/js/cartoes.js','utf8');
+  const extract=start=>{const i=source.indexOf(start);return source.slice(i,source.indexOf('\nfunction ',i+start.length));};
+  const saved=[];
+  const ctx={window:{BudInvoiceRefunds:refunds},_importMetaIA:{signedAmounts:true,totalAPagar:40},detectarCategoriaIA:()=> 'Outros',
+    document:{getElementById:id=>id==='iaMes'?{value:'11'}:id==='iaAno'?{value:'2026'}:{}},uid:'test',cartaoImportIA:'card',db:{},
+    collection:()=>({}),doc:()=>({}),writeBatch:()=>({set:(ref,data)=>saved.push(data),commit:async()=>{}}),
+    budSanitize:x=>x,Timestamp:{fromDate:d=>d},serverTimestamp:()=>null,showToast:()=>{},fecharModalReviewIA:()=>{},
+    cartoesGlobal:[],transacoesGlobal:[],itensIAExtraidos:[]};
+  vm.createContext(ctx);
+  vm.runInContext(extract('function processarItensIA(itens)')+extract('async function salvarTransacoesIA()')+extract('function calcularFatura(cartaoId, mesKey)'),ctx);
+  ctx.rows=[{desc:'Loja',valor:20,data:'2026-10-02'},{desc:'Estorno de Loja',valor:-20,data:'2026-10-02'},{desc:'Mercado',valor:50,data:'2026-10-03'},{desc:'Estorno de Outra Loja',valor:-10,data:'2026-10-03'}];
+  vm.runInContext('itensIAExtraidos=processarItensIA(rows)',ctx);
+  assert.deepEqual(Array.from(ctx.itensIAExtraidos,x=>x.selecionado),[false,false,true,true]);
+  assert.deepEqual(Array.from(ctx.itensIAExtraidos,x=>x.status),['estornado','estornado','ativa','credito']);
+  await vm.runInContext('salvarTransacoesIA()',ctx);
+  assert.equal(saved.length,2);
+  assert.deepEqual(saved.map(x=>x.valor),[50,-10]);
+  ctx.transacoesGlobal=saved;
+  assert.equal(vm.runInContext('calcularFatura("card","2026-11")',ctx),40);
+  ctx.transacoesGlobal=saved.map(x=>({...x}));
+  ctx.cartaoImportIA='card';
+  ctx._importMetaIA={signedAmounts:true,totalAPagar:40};
+  vm.runInContext('itensIAExtraidos=processarItensIA(rows)',ctx);
+  await vm.runInContext('salvarTransacoesIA()',ctx);
+  assert.equal(saved.length,2,'an existing imported invoice must not be imported twice');
+  ctx.transacoesGlobal=[];
+  saved.length=0;ctx._importMetaIA={signedAmounts:true,totalAPagar:40};ctx.itensIAExtraidos=[{valor:50,selecionado:true,status:'ativa'}];
+  await vm.runInContext('salvarTransacoesIA()',ctx);
+  assert.equal(saved.length,0,'mismatched selection must not be persisted');
+});
+
+test('refund amount alone or ambiguous purchases never identify a cancelled pair', () => {
+  const {classify}=require('../appbudfinance/js/invoice-refunds');
+  assert.deepEqual(classify([{desc:'A',valor:20,data:'2026-10-01'},{desc:'Estorno de B',valor:-20,data:'2026-10-01'}]),['ativa','credito']);
+  assert.deepEqual(classify([{desc:'A',valor:20,data:'2026-10-01'},{desc:'A',valor:20,data:'2026-10-01'},{desc:'Estorno de A',valor:-20,data:'2026-10-01'}]),['ativa','ativa','credito']);
 });
