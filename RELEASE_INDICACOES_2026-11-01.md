@@ -23,7 +23,7 @@
 
 - Branch: codex/beneficios-indicacao-15-50-20261101.
 - Estado: revisão preparada em PR rascunho; ainda não integrado nem publicado.
-- Testes: não executados nesta etapa. O workflow atual só roda o conjunto de testes ao publicar em master; não há validação automática de PR, portanto não se deve integrar antes de executar a validação em checkout isolado.
+- Testes: quatro regressões foram adicionadas ao checkout e um workflow sem deploy foi criado para PRs/branches codex. Execução Actions 41341578144 iniciada em 01/11/2026; resultado ainda pendente.
 - Homologação Mercado Pago: pendente; usar exclusivamente usuários e meios de pagamento de teste.
 - Cobranças reais: nenhuma realizada.
 - Fonte oficial para a mudança de valor recorrente: [Gerenciamento de assinaturas do Mercado Pago](https://www.mercadopago.com.br/developers/pt/docs/subscriptions/subscription-management) e [referência da API para atualizar assinatura](https://www.mercadopago.com.br/developers/pt/reference/online-payments/subscriptions/update-preapproval/put).
