@@ -378,7 +378,7 @@ A partir desta data, Codex, Claude e qualquer IA com acesso devem seguir `AI_WOR
 
 ## PEND-REF-001 — programa de indicação (01/11/2026)
 
-- **Status:** 🟡 Regra comercial decidida e implementação preparada na branch `codex/beneficios-indicacao-15-50-20261101`; aguarda revisão/CI, homologação do Mercado Pago sandbox e publicação.
+- **Status:** 🟡 Regra comercial decidida; implementação e suíte automatizada passaram em PR. Aguarda homologação do Mercado Pago sandbox, revisão final e publicação.
 - **Decisão aprovada:** novo usuário com código válido recebe 15% de desconto apenas na primeira cobrança aprovada; quem indicou recebe 50% em uma próxima cobrança, uma única vez por conta. Os dois descontos nunca se acumulam no mesmo ciclo. Se o indicado também convidar outra pessoa, sua própria recompensa de 50% fica para uma cobrança posterior à sua cobrança inicial com 15%. Indicações excedentes não geram outra recompensa.
 - **Implementação preparada:** código opcional por link, cadastro e etapa “Indicação” do onboarding; validação server-side antes do primeiro checkout; propagação para checkout autenticado; recompensa concedida somente após pagamento inicial aprovado; atualização e restauração do valor recorrente na assinatura existente; tela de Configurações mostra código e estado do benefício.
-- **Próximo passo:** revisar fluxo e CI, homologar cada sequência no sandbox (incluindo sem sobreposição e restauração do preço regular), então integrar e confirmar deploy. Nenhuma cobrança real foi executada.
+- **Próximo passo:** homologar cada sequência no sandbox (incluindo sem sobreposição e restauração do preço regular), então integrar e confirmar deploy. Nenhuma cobrança real foi executada.
