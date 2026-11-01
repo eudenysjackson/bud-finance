@@ -2564,6 +2564,61 @@ async function _mpUpdateSubscriptionProfile(uid, subscriptionId, data) {
   });
 }
 
+async function _mpSetRecurringAmount(subscriptionId, amount) {
+  var normalizedAmount = Math.round(Number(amount) * 100) / 100;
+  var response = await fetch('https://api.mercadopago.com/preapproval/' + encodeURIComponent(subscriptionId), {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN },
+    body: JSON.stringify({ auto_recurring: { transaction_amount: normalizedAmount, currency_id: 'BRL' } }), signal: AbortSignal.timeout(10000)
+  });
+  if (!response.ok) throw new Error('MP subscription amount update HTTP ' + response.status);
+  var updated = await response.json().catch(function () { return {}; });
+  var confirmedAmount = Number(updated.auto_recurring && updated.auto_recurring.transaction_amount);
+  if (Math.round(confirmedAmount * 100) !== Math.round(normalizedAmount * 100)) {
+    var verify = await fetch('https://api.mercadopago.com/preapproval/' + encodeURIComponent(subscriptionId), {
+      headers: { 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN }, signal: AbortSignal.timeout(10000)
+    });
+    if (!verify.ok) throw new Error('MP subscription amount verification HTTP ' + verify.status);
+    updated = await verify.json();
+    confirmedAmount = Number(updated.auto_recurring && updated.auto_recurring.transaction_amount);
+  }
+  if (Math.round(confirmedAmount * 100) !== Math.round(normalizedAmount * 100)) throw new Error('MP subscription amount not confirmed');
+  return updated;
+}
+
+async function _mpAgendarBeneficioIndicacao50(uid) {
+  var ref = db.collection('usuarios').doc(uid);
+  var snapshot = await ref.get();
+  if (!snapshot.exists) return false;
+  var profile = snapshot.data() || {}, reward = profile.beneficioIndicacao50 || {};
+  if (reward.status !== 'pending') return reward.status === 'scheduled';
+  // O desconto de 50% não se acumula com os 15% do primeiro mês do indicado.
+  if (profile.descontoIndicacaoPrimeiroMes && ['awaiting_payment', 'restoring'].includes(profile.descontoIndicacaoPrimeiroMes.status)) return false;
+  if (!profile.mpSubscriptionId || !MP_PLANS[profile.plano] || !['authorized', 'active'].includes(String(profile.assinaturaStatus || '').toLowerCase())) return false;
+  var response = await fetch('https://api.mercadopago.com/preapproval/' + encodeURIComponent(profile.mpSubscriptionId), {
+    headers: { 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN }, signal: AbortSignal.timeout(10000)
+  });
+  if (!response.ok) throw new Error('MP referrer subscription lookup HTTP ' + response.status);
+  var subscription = await response.json();
+  if (String(subscription.status || '').toLowerCase() !== 'authorized') return false;
+  var nextCharge = new Date(subscription.next_payment_date || 0);
+  if (!Number.isFinite(nextCharge.getTime()) || nextCharge.getTime() <= Date.now()) return false;
+  var targetPlan = profile.planoTroca && MP_PLANS[profile.planoTroca.planKey] ? profile.planoTroca.planKey : profile.plano;
+  var baseAmount = MP_PLANS[targetPlan].amount;
+  var discountAmount = Math.round(baseAmount * (1 - MP_BONUS_INDICADOR) * 100) / 100;
+  await _mpSetRecurringAmount(profile.mpSubscriptionId, discountAmount);
+  await db.runTransaction(async function (transaction) {
+    var fresh = await transaction.get(ref);
+    if (!fresh.exists) return;
+    var latest = fresh.data() || {}, currentReward = latest.beneficioIndicacao50 || {};
+    if (currentReward.status !== 'pending' || latest.mpSubscriptionId !== profile.mpSubscriptionId) return;
+    transaction.update(ref, { beneficioIndicacao50: {
+      ...currentReward, status: 'scheduled', subscriptionId: profile.mpSubscriptionId,
+      planKey: targetPlan, baseAmount, discountAmount, effectiveAt: nextCharge.toISOString(), scheduledAt: admin.firestore.FieldValue.serverTimestamp()
+    } });
+  });
+  return true;
+}
+
 async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
   var mpRes = await fetch('https://api.mercadopago.com/preapproval/' + preapprovalId, {
     headers: { 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN }, signal: AbortSignal.timeout(5000)
