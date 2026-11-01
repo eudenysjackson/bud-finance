@@ -57,3 +57,12 @@ Leia [AI_WORKFLOW.md](AI_WORKFLOW.md), depois consulte [PENDENCIAS.md](PENDENCIA
 - A página pública de login carregou, mas a jornada real de cadastro novo → e-mail → confirmação → onboarding → dashboard ainda não foi exercitada ponta a ponta. Não afirmar validação manual completa.
 - O próximo agente deve manter essa verificação como pendência de validação manual, sem criar conta ou enviar e-mail real sem necessidade.
 - A automação de inadimplência ainda depende de confirmar no Render a revisão ativa do backend Web, conforme registrado acima.
+
+
+## Auditoria da indicação — 01/11/2026
+
+- A opção “Indicação” em `onboarding.html` salva apenas `comoConheceu`; não abre código nem dá benefício automaticamente.
+- Há código opcional no cadastro, mas não é preenchido pelo parâmetro `?ref=`; perfil grava 30% enquanto o backend aplica 10%; o checkout autenticado da página comercial não envia `ref`.
+- Webhook só registra a conversão em `indicacoes`; não existe crédito, pagamento ou mês grátis para o indicador.
+- Documentado em PEND-REF-001, ERR-070, DEC-068 e ARCHITECTURE_MAP. Não implemente regra promocional até decisão explícita sobre benefício, percentual e elegibilidade.
+- Próximo passo: perguntar ao titular quais benefícios quer para indicador/indicado; então corrigir e homologar atribuição do link/código ao checkout.
