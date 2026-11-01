@@ -102,7 +102,8 @@ const MP_PLANS = {
   pro:     { title: 'Bud Finance Pro',     amount: 29.90 },
   plus:    { title: 'Bud Finance Plus',    amount: 49.90 }
 };
-const MP_INDICACAO_DESCONTO = 0.10; // 10% off para links de indicaÃ§Ã£o
+const MP_INDICACAO_DESCONTO = 0.15; // 15% somente na primeira cobrança do indicado
+const MP_BONUS_INDICADOR = 0.50; // 50% em uma próxima cobrança, uma vez por conta
 
 // â”€â”€â”€ Express setup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const app = express();
