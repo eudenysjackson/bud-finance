@@ -370,7 +370,7 @@ A partir desta data, Codex, Claude e qualquer IA com acesso devem seguir `AI_WOR
 
 ### PEND-AUTH-086 — Link mágico da confirmação deve abrir onboarding primeiro
 
-- **Status:** ✅ Resolvido em código na branch `codex/fix-confirmation-onboarding-20261101`; aguardando revisão/integração e publicação.
+- **Status:** ✅ Resolvido, integrado e publicado no `master` em 01/11/2026 (commit `f3c0453`); GitHub Actions `41338154393` concluiu com sucesso, incluindo regressões de release e deploy do GitHub Pages.
 - **Causa:** a confirmação autentica a conta com token customizado e enviava para a dashboard; o guard da dashboard detectava onboarding pendente e redirecionava novamente, causando o salto visível.
 - **Correção:** após validar o link mágico e autenticar, o destino inicial agora é `onboarding.html`. O próprio fluxo do onboarding direciona à dashboard somente quando concluído.
-- **Validação:** análise estática do fluxo; suíte de testes não executada nesta etapa. Não está publicada em produção.
+- **Validação:** o workflow automático de release passou e o deploy do GitHub Pages concluiu. A jornada completa com cadastro novo e clique real no e-mail ainda precisa de validação manual ponta a ponta.
