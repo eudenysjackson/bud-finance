@@ -773,3 +773,6 @@ A contratação do Groq Developer fica registrada como aquisição futura, depoi
 ## DEC-070 — Manter Groq como provedor atual e tratar cotas por janela (01/11/2026)
 
 O titular decidiu manter Groq como provedora atual. A compra do Developer fica para o futuro após medir volume e custos (DEC-069). Não tratar o serviço como ilimitado: os limites variam por organização, modelo e janela e são consultáveis pelos cabeçalhos da resposta. Reduzir chamadas desnecessárias com parsers determinísticos validados; manter erro explícito e, em etapa futura, projetar filas justas e contingência. Esta decisão não autoriza contratação nem alteração dos limites comerciais dos planos Bud.
+
+## DEC-071 — revisão explícita de divergência de até um centavo (01/11/2026)
+O parser Nubank reconhecido pode devolver linhas originais quando a diferença absoluta ao total declarado não ultrapassa um centavo, com requiresReview/differenceCents e aviso visível antes de salvar. Nenhuma linha ou valor é inventado para fechar o total. Diferenças superiores continuam rejeitadas pelo caminho direto. Isso atualiza a exigência anterior de igualdade exata exclusivamente para este limite de revisão explícita; não altera a regra de não fabricar ajustes.
