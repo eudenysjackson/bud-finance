@@ -2487,6 +2487,26 @@ app.post('/webhook/mercadopago', async function (req, res) {
 
 app.post('/mercadopago/change-subscription', createSubscriptionChange({ auth, db, token: MP_ACCESS_TOKEN, plans: MP_PLANS, emulator: process.env.BUD_USE_EMULATOR === 'true', fetch }));
 
+function _mpSubscriptionEventMatches(profile, subscriptionId) {
+  var checkout = profile.mpCheckout;
+  // A provider event can race the response that binds its new checkout ID.
+  // Retry instead of acknowledging an event whose owner binding is still unknown.
+  if (checkout && ['creating', 'unknown'].includes(checkout.state)) throw new Error('MP checkout binding not ready');
+  if (checkout && checkout.subscriptionId && checkout.subscriptionId !== subscriptionId) return false;
+  return !profile.mpSubscriptionId || profile.mpSubscriptionId === subscriptionId;
+}
+
+async function _mpUpdateSubscriptionProfile(uid, subscriptionId, data) {
+  var ref = db.collection('usuarios').doc(uid);
+  return db.runTransaction(async transaction => {
+    var snapshot = await transaction.get(ref);
+    if (!snapshot.exists) throw new Error('MP account profile not found');
+    if (!_mpSubscriptionEventMatches(snapshot.data(), subscriptionId)) return false;
+    transaction.update(ref, data);
+    return true;
+  });
+}
+
 async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
   var mpRes = await fetch('https://api.mercadopago.com/preapproval/' + preapprovalId, {
     headers: { 'Authorization': 'Bearer ' + MP_ACCESS_TOKEN }, signal: AbortSignal.timeout(5000)
@@ -2499,6 +2519,10 @@ async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
   var planKey = parts[1];
   var refCode = parts[2] || null;
   if (!uid || !MP_PLANS[planKey]) return;
+
+  var eventProfile = await db.collection('usuarios').doc(uid).get();
+  if (!eventProfile.exists) throw new Error('MP account profile not found');
+  if (!_mpSubscriptionEventMatches(eventProfile.data(), preapprovalId)) return;
 
   var status = String(sub.status || '').toLowerCase();
 
@@ -2519,7 +2543,7 @@ async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
               body:    JSON.stringify({ status: 'cancelled' })
             });
           } catch (_ec) { /* cancelamento falhou â€” ativaÃ§Ã£o bloqueada de qualquer forma */ }
-          await db.collection('usuarios').doc(uid).update({
+          await _mpUpdateSubscriptionProfile(uid, preapprovalId, {
             pagamentoPendente: true,
             erroAssinatura:    'pagador_invalido',
             planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp()
@@ -2559,7 +2583,7 @@ async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
       expira.setMonth(expira.getMonth() + 1);
       expira.setDate(Math.min(day, new Date(expira.getFullYear(), expira.getMonth() + 1, 0).getDate()));
     }
-    await db.collection('usuarios').doc(uid).update({
+    var activated = await _mpUpdateSubscriptionProfile(uid, preapprovalId, {
       plano:             planKey,
       planoExpira:       admin.firestore.Timestamp.fromDate(expira),
       mpSubscriptionId:  preapprovalId,
@@ -2570,11 +2594,12 @@ async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
       ...(applyScheduledChange ? { planoTroca: admin.firestore.FieldValue.delete() } : {}),
       planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp()
     });
+    if (!activated) return;
     console.log('[MP webhook] Plano ativado:', uid, planKey);
     if (refCode) await _mpCreditarIndicacao(refCode, uid, planKey);
 
   } else if (status === 'cancelled' || status === 'paused') {
-    await db.collection('usuarios').doc(uid).update({
+    await _mpUpdateSubscriptionProfile(uid, preapprovalId, {
       plano:             'free',
       assinaturaStatus:  status,
       planoTroca:        admin.firestore.FieldValue.delete(),
@@ -2606,7 +2631,7 @@ async function _mpHandlePayment(paymentId, relatedSubscriptionId) {
         var sub  = await subRes.json();
         var uid  = String(sub.external_reference || '').split('|')[0];
         if (uid) {
-          await db.collection('usuarios').doc(uid).update({
+          await _mpUpdateSubscriptionProfile(uid, String(subscriptionId), {
             pagamentoPendente:   true,
             assinaturaStatus:    'past_due',
             mpSubscriptionId:    String(subscriptionId),

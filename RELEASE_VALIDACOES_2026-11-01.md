@@ -28,4 +28,16 @@ Cron permanece `0 21 * * *` (18h America/Sao_Paulo). Consulta de execuções no 
 
 ## Limites desta validação
 
-Não equivale a declarar lançamento completo. Área logada publicada, importações de IA e recuperação visual do e-mail ainda dependem da conferência final com sessão válida. Buddy e WhatsApp seguem fora da primeira versão.
+Não equivale a declarar lançamento completo. Recuperação visual do e-mail ainda depende da confirmação na caixa do destinatário. Buddy, WhatsApp e Compras/Mercado seguem fora da primeira versão, conforme confirmação do titular em 01/11.
+
+## Avanço após a publicação 77ce5f2
+
+Commit 77ce5f2 publicado com sucesso no Pages e Live no Render; oito verificações públicas repetidas e aprovadas. Área logada online: fatura PDF (duas compras, total R$75), extrato por imagem (entrada R$100/saída R$25) e contrato por texto (R$1.000, dez parcelas de R$100, primeiro vencimento10/12/2026) chegaram à revisão com valores corretos. Os dados fictícios não foram salvos. Solicitação de recuperação enviada pela tela pública para o destinatário autorizado budsolucoes@gmail.com; retorno à tela de login conforme fluxo de sucesso. Isso não comprova recebimento/identidade visual na caixa postal.
+
+URL de teste da aplicação real corrigida do portal raiz para a rota de webhook do backend, preservando URL produtiva e segredo. Aplicação fictícia configurada com receptor HTTPS temporário Cloudflare e o código real do webhook, executado em banco Firebase emulado. Cliente oficial cloudflared teve assinatura Authenticode válida. Receptor só disponibiliza POST/webhook/mercadopago; demais rotas404, eventos sem HMAC401. Credenciais locais e túnel não integram a publicação.
+
+Simulador oficial enviou recurso fictício válido ao receptor isolado:200. A primeira tentativa retornou503 porque o perfil descartável não estava na exportação antiga dos emuladores; recriado somente no banco local. Ao repetir evento cancelado antigo após preparar checkout novo, detectou-se falha real: a implementação anterior limpava mpCheckout e substituía o vínculo novo pelo antigo.
+
+Correção: eventos precisam corresponder ao mpSubscriptionId/mpCheckout atuais; gravação protegida em transação com nova conferência do vínculo. Eventos de assinatura anterior são reconhecidos sem alterar a conta; checkout ainda sem ID recebe503 para reenvio posterior. Quatro regressões adicionadas (cancelamento antigo, checkout novo preservado, recusa antiga e corrida com reserva).67 testes e sete grupos HTTP/emulados aprovados. Nova entrega oficial assinada retornou200 preservando assinatura/checkout pendentes do teste atual, conferidos no emulador.
+
+Ainda em andamento: aprovação do checkout fictício novo com entrega automática (sem simulador). O Mercado Pago pediu CAPTCHA na entrada do comprador; solicitado ao titular. Não há pagamento real envolvido.

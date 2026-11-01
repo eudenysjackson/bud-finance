@@ -79,6 +79,23 @@ test('a pending checkout can be canceled while access is still free, allowing a 
 test('invalid webhook cannot activate a plan',async()=>{
  const s=setup();assert.equal((await s.webhook('subscription_preapproval',false)).statusCode,401);assert.equal(s.calls.length,0);assert.equal(s.profile.plano,'free');
 });
+
+test('late cancellation from an older subscription preserves the current paid plan',async()=>{
+ const s=setup();Object.assign(s.profile,{plano:'pro',mpSubscriptionId:'current-sub',assinaturaStatus:'authorized'});s.sub.status='cancelled';
+ assert.equal((await s.webhook()).statusCode,200);assert.equal(s.profile.plano,'pro');assert.equal(s.profile.mpSubscriptionId,'current-sub');assert.equal(s.profile.assinaturaStatus,'authorized');
+});
+test('old subscription events preserve a newer pending checkout',async()=>{
+ const s=setup();Object.assign(s.profile,{mpSubscriptionId:'new-sub',assinaturaStatus:'pending',mpCheckout:{state:'pending',subscriptionId:'new-sub',planKey:'pro'}});s.sub.status='cancelled';
+ assert.equal((await s.webhook()).statusCode,200);assert.equal(s.profile.mpCheckout.subscriptionId,'new-sub');assert.equal(s.profile.mpSubscriptionId,'new-sub');assert.equal(s.profile.assinaturaStatus,'pending');
+});
+test('old rejected payment cannot flag the current subscription as past due',async()=>{
+ const s=setup();Object.assign(s.profile,{plano:'pro',mpSubscriptionId:'current-sub',assinaturaStatus:'authorized',pagamentoPendente:false});
+ assert.equal((await s.webhook('payment')).statusCode,200);assert.equal(s.profile.pagamentoPendente,false);assert.equal(s.profile.assinaturaStatus,'authorized');assert.equal(s.profile.mpSubscriptionId,'current-sub');
+});
+test('event racing an unbound checkout is retryable without clearing its reservation',async()=>{
+ const s=setup();s.profile.mpCheckout={state:'creating',nonce:'new-checkout'};s.sub.status='cancelled';
+ assert.equal((await s.webhook()).statusCode,503);assert.equal(s.profile.mpCheckout.nonce,'new-checkout');assert.equal(s.profile.mpSubscriptionId,undefined);
+});
 test('signed approval activates the correct plan and clears an earlier payment failure',async()=>{
  const s=setup();s.profile.pagamentoPendente=true;await s.webhook();
  assert.equal(s.profile.plano,'starter');assert.equal(s.profile.mpSubscriptionId,'sub-1');assert.equal(s.profile.pagamentoPendente,false);assert.equal(s.profile.assinaturaStatus,'authorized');assert.ok(s.profile.planoExpira);
