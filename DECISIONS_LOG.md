@@ -1,12 +1,20 @@
 # DECISIONS_LOG.md — Registro de Decisões Arquiteturais
 
 **Projeto**: Bud Finance  
-**Última atualização**: 21/05/2026
+**Última atualização**: 01/11/2026
 
 > **REGRA**: Antes de refatorar qualquer padrão, ler este doc primeiro.  
 > Toda decisão não-óbvia deve ser registrada aqui.
 
 ---
+
+### DEC-052 — Fonte compartilhada para coordenação entre IAs
+
+- **Data**: 01/11/2026
+- **O que foi decidido**: Codex, Claude e outras IAs que trabalhem neste repositório devem usar `AI_WORKFLOW.md` como protocolo comum e manter `AI_HANDOFF.md` atualizado com estado, evidências e próximo passo. Cada agente trabalha em branch própria e integra por Pull Request.
+- **Por quê**: Históricos e memórias privadas de ferramentas diferentes não são sincronizados; documentação commitada no repositório permite continuidade verificável.
+- **Consequências**: Instruções de entrada em `AGENTS.md` e `CLAUDE.md` apontam para o protocolo. Pendências, decisões, arquitetura, erros e releases continuam registrados em seus documentos específicos. Não descartar alterações locais alheias nem alegar deploy sem confirmar o commit implantado.
+- **Quando revisar**: Se o projeto mudar de fluxo de GitHub ou incorporar outro agente/ferramenta.
 
 ### DEC-051 — Não criar tela dedicada de Carteira — cobrir via telas existentes
 
