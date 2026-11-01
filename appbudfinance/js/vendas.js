@@ -28,7 +28,7 @@ function _makeDiscountedPrice(fullInt, fullDec, offInt, offDec) {
     '<span class="currency">R$</span>' +
     '<span class="amount">' + offInt + '<span style="font-size:1.4rem">,' + offDec + '</span></span>' +
     '<span class="period">/mês</span></div>' +
-    '<div style="font-size:.72rem;color:#059669;font-weight:700;margin-top:3px">🎁 10% off via indicação</div>';
+    '<div style="font-size:.72rem;color:#059669;font-weight:700;margin-top:3px">🎁 15% off no primeiro mês</div>';
 }
 
 function _applyRefDiscount() {
@@ -36,13 +36,13 @@ function _applyRefDiscount() {
   _refCode = params.get('ref');
   if (!_refCode) return;
 
-  // Atualizar preços: 30% off (arredondado para baixo)
+  // Preços com 15% off no primeiro mês, arredondados para centavos
   const ps = document.getElementById('plan-price-starter');
   const pp = document.getElementById('plan-price-pro');
   const px = document.getElementById('plan-price-plus');
-  if (ps) ps.innerHTML = _makeDiscountedPrice('9', '99', '8', '99');
-  if (pp) pp.innerHTML = _makeDiscountedPrice('29', '90', '26', '91');
-  if (px) px.innerHTML = _makeDiscountedPrice('49', '90', '44', '91');
+  if (ps) ps.innerHTML = _makeDiscountedPrice('9', '99', '8', '49');
+  if (pp) pp.innerHTML = _makeDiscountedPrice('29', '90', '25', '42');
+  if (px) px.innerHTML = _makeDiscountedPrice('49', '90', '42', '42');
 
   // Mostrar banner
   const banner = document.getElementById('ref-banner');
@@ -90,7 +90,7 @@ window.assinar = async function(planKey) {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + idToken
       },
-      body: JSON.stringify({ planKey })
+      body: JSON.stringify({ planKey, ref: _refCode || undefined })
     });
 
     if (!res.ok) {
