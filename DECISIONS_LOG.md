@@ -739,5 +739,5 @@ A pedido do titular, dentro do app somente assinatura/upgrade calculados do perf
 - **Data**: 01/11/2026
 - **O que foi decidido**: Depois que o link mágico confirma o e-mail e autentica um cadastro novo, o primeiro destino é `onboarding.html`. A dashboard só deve aparecer após a conclusão do onboarding.
 - **Por quê**: Evitar o salto visual da dashboard para onboarding e preservar a sequência prevista para novas contas.
-- **Consequências**: `appbudfinance/js/index.js` encaminha o login mágico diretamente ao onboarding; a proteção existente do onboarding envia para a dashboard quando `onboardingConcluido === true`. Correção em código aguardando publicação.
+- **Consequências**: `appbudfinance/js/index.js` encaminha o login mágico diretamente ao onboarding; a proteção existente do onboarding envia para a dashboard quando `onboardingConcluido === true`. Correção publicada no `master` pelo commit `f3c0453`; workflow `41338154393` concluiu regressões e deploy com sucesso. Validar a jornada real do link mágico em ponta a ponta.
 - **Quando revisar**: Se o cadastro passar a concluir ou pular o onboarding automaticamente.
