@@ -2360,15 +2360,13 @@ app.post('/api/indicacao/aplicar', async function (req, res) {
       }
       if (data.primeiraCobrancaPagaEm || data.mpSubscriptionId || data.mpCheckout) throw Object.assign(new Error('O código só pode ser vinculado antes de iniciar uma assinatura.'), { status: 409 });
       transaction.update(userRef, {
-        indicadoPor: { uid: referrerDoc.id, nome: String(referrer.nome || '').slice(0, 100), codigo: code },
+        indicadoPor: { uid: referrerDoc.id, codigo: code },
         descontoIndicacao: 15,
         descontoIndicacaoUsado: false,
         codigoIndicacaoAplicadoEm: admin.firestore.FieldValue.serverTimestamp()
       });
       transaction.set(referralRef, {
         indicadoUid: decoded.uid,
-        nome: String(data.nome || decoded.name || '').slice(0, 100),
-        email: String(data.email || decoded.email || '').slice(0, 254),
         data: admin.firestore.FieldValue.serverTimestamp(),
         assinouPlano: false
       }, { merge: true });
@@ -2505,7 +2503,7 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
         mpSubscriptionId: mpData.id,
         ...(promo && promo.type === 'indicado15' ? { descontoIndicacaoPrimeiroMes: { status: 'awaiting_payment', subscriptionId: mpData.id, planKey, baseAmount, discountAmount: amount, refCode } } : {}),
         ...(promo && promo.type === 'indicador50' ? { beneficioIndicacao50: { ...profile.beneficioIndicacao50, status: 'awaiting_payment', subscriptionId: mpData.id, planKey, baseAmount, discountAmount: amount } } : {}),
-        ...(refCode && !profile.indicadoPor && referrerDoc ? { indicadoPor: { uid: referrerDoc.id, nome: String(referrerDoc.data().nome || '').slice(0, 100), codigo: refCode }, descontoIndicacao: 15, descontoIndicacaoUsado: false } : {}),
+        ...(refCode && !profile.indicadoPor && referrerDoc ? { indicadoPor: { uid: referrerDoc.id, codigo: refCode }, descontoIndicacao: 15, descontoIndicacaoUsado: false } : {}),
         ...(['authorized','active'].includes(profile.assinaturaStatus) && profile.mpSubscriptionId === mpData.id ? {} : { assinaturaStatus: 'pending' })
       });
     });
