@@ -16,7 +16,7 @@ const { createFirestoreJobStore } = require('./ai-job-store');
 const { readNubankInvoice } = require('./invoice-reader');
 const { createDeleteAccount } = require('./account-lifecycle');
 const { createSubscriptionChange } = require('./subscription-change');
-const { financialNotices, subscriptionPushNotices, sendFinancialPush } = require('./financial-notifications');
+const { financialNotices, subscriptionDunningStage, subscriptionPushNotices, sendFinancialPush } = require('./financial-notifications');
 
 // Modelo multimodal configurável; validado na API da Groq em 24/10/2026.
 const GROQ_MODEL = process.env.GROQ_MODEL || 'qwen/qwen3.8-27b';
@@ -1010,8 +1010,7 @@ async function verificarQuotaIA(uid) {
     var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
   })();
   var userDoc = await db.collection('usuarios').doc(uid).get();
-  var plano = (userDoc.exists && userDoc.data() && userDoc.data().plano)
-    ? userDoc.data().plano.toLowerCase() : 'free';
+  var plano = userDoc.exists ? _effectivePlan(userDoc.data()) : 'free';
   var limite = Object.prototype.hasOwnProperty.call(IA_LIMITES_CUPOM, plano)
     ? IA_LIMITES_CUPOM[plano]
     : IA_LIMITES_CUPOM.free;
@@ -1312,7 +1311,7 @@ app.post('/api/processar-recorrentes', async function (req, res) {
   var PLANOS_PERMITIDOS_REC = ['pro', 'plus', 'trial'];
   try {
     var userDoc = await db.collection('usuarios').doc(uid).get();
-    var plano = (userDoc.exists && userDoc.data().plano) ? userDoc.data().plano.toLowerCase() : 'free';
+    var plano = userDoc.exists ? _effectivePlan(userDoc.data()) : 'free';
     if (!PLANOS_PERMITIDOS_REC.includes(plano)) {
       return res.status(403).json({ error: 'Recurso disponÃ­vel apenas nos planos Pro, Plus e Trial.' });
     }
@@ -1489,7 +1488,7 @@ app.post('/api/chat', async function (req, res) {
   var PLANOS_CHAT = ['plus', 'trial'];
   try {
     var userSnap = await db.collection('usuarios').doc(uid).get();
-    var plano = (userSnap.exists && userSnap.data().plano) ? userSnap.data().plano.toLowerCase() : 'free';
+    var plano = userSnap.exists ? _effectivePlan(userSnap.data()) : 'free';
     if (!PLANOS_CHAT.includes(plano)) {
       return res.status(403).json({ error: 'Assistente IA disponÃ­vel apenas no plano Plus.' });
     }
@@ -2241,7 +2240,7 @@ app.post('/api/whatsapp/gerar-token', async function (req, res) {
   // Verificar plano
   try {
     var userSnap = await db.collection('usuarios').doc(decoded.uid).get();
-    var plano = (userSnap.data()?.plano || 'free').toLowerCase();
+    var plano = _effectivePlan(userSnap.data());
     if (!['plus', 'pro', 'trial'].includes(plano)) {
       return res.status(403).json({ error: 'Recurso disponÃ­vel apenas nos planos Plus, Pro e Trial.' });
     }
@@ -2554,6 +2553,9 @@ async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
     } catch (_ev) { throw _ev; }
 
     var currentProfile = userSnap2 && userSnap2.exists ? userSnap2.data() : {};
+    // Um evento de status da assinatura, sem pagamento aprovado, não pode limpar
+    // uma recusa já registrada nem renovar o período de acesso.
+    if (currentProfile.pagamentoPendente && !paymentConfirmed) return;
     // external_reference keeps the original plan; the paid profile is authoritative
     // after a scheduled change, until a matching new-cycle payment is approved.
     if (currentProfile.mpSubscriptionId === preapprovalId && MP_PLANS[currentProfile.plano]) planKey = currentProfile.plano;
@@ -2590,6 +2592,10 @@ async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
       ...(sub.payer_id ? { mpPayerId: String(sub.payer_id) } : {}),
       assinaturaStatus:  'authorized',
       pagamentoPendente: false,
+      pagamentoPendenteDesde: admin.firestore.FieldValue.delete(),
+      pagamentoPendentePagamentoId: admin.firestore.FieldValue.delete(),
+      ...(paymentConfirmed && (paymentConfirmed.date_approved || paymentConfirmed.date_created) && Number.isFinite(new Date(paymentConfirmed.date_approved || paymentConfirmed.date_created).getTime())
+        ? { ultimaCobrancaAprovadaEm: admin.firestore.Timestamp.fromDate(new Date(paymentConfirmed.date_approved || paymentConfirmed.date_created)) } : {}),
       erroAssinatura:    admin.firestore.FieldValue.delete(),
       ...(applyScheduledChange ? { planoTroca: admin.firestore.FieldValue.delete() } : {}),
       planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp()
@@ -2602,6 +2608,10 @@ async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
     await _mpUpdateSubscriptionProfile(uid, preapprovalId, {
       plano:             'free',
       assinaturaStatus:  status,
+      pagamentoPendente: false,
+      pagamentoPendenteDesde: admin.firestore.FieldValue.delete(),
+      pagamentoPendentePagamentoId: admin.firestore.FieldValue.delete(),
+      planoExpira:       admin.firestore.FieldValue.delete(),
       planoTroca:        admin.firestore.FieldValue.delete(),
       mpCheckout:        admin.firestore.FieldValue.delete(),
       mpSubscriptionId:  preapprovalId,
@@ -2639,11 +2649,23 @@ async function _mpHandlePayment(paymentId, relatedSubscriptionId) {
         var sub  = await subRes.json();
         var uid  = String(sub.external_reference || '').split('|')[0];
         if (uid) {
-          await _mpUpdateSubscriptionProfile(uid, String(subscriptionId), {
-            pagamentoPendente:   true,
-            assinaturaStatus:    'past_due',
-            mpSubscriptionId:    String(subscriptionId),
-            planoAtualizadoEm:   admin.firestore.FieldValue.serverTimestamp()
+          var userRef = db.collection('usuarios').doc(uid);
+          var rejectedAt = _toDate(payment.date_created) || new Date();
+          await db.runTransaction(async function (transaction) {
+            var snapshot = await transaction.get(userRef);
+            if (!snapshot.exists || !_mpSubscriptionEventMatches(snapshot.data(), String(subscriptionId))) return;
+            var current = snapshot.data(), approvedAt = _toDate(current.ultimaCobrancaAprovadaEm);
+            if (approvedAt && approvedAt.getTime() >= rejectedAt.getTime()) return;
+            var patch = {
+              pagamentoPendente: true, assinaturaStatus: 'past_due',
+              mpSubscriptionId: String(subscriptionId),
+              pagamentoPendentePagamentoId: String(payment.id || paymentId),
+              planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp()
+            };
+            if (!current.pagamentoPendente || !_toDate(current.pagamentoPendenteDesde)) {
+              patch.pagamentoPendenteDesde = admin.firestore.Timestamp.fromDate(rejectedAt);
+            }
+            transaction.update(userRef, patch);
           });
           console.log('[MP webhook] Pagamento recusado â€” flag pagamentoPendente:', uid, payment.status_detail);
         }
@@ -2745,6 +2767,7 @@ app.post('/mercadopago/local-test-payment', express.json(), async function (req,
     expiresAt.setMonth(expiresAt.getMonth() + 1);
     await userRef.set({ plano: planKey, planoExpira: admin.firestore.Timestamp.fromDate(expiresAt),
       mpSubscriptionId: 'LOCAL_TEST_' + Date.now(), pagamentoPendente: false, assinaturaStatus: 'authorized',
+      pagamentoPendenteDesde: admin.firestore.FieldValue.delete(), pagamentoPendentePagamentoId: admin.firestore.FieldValue.delete(),
       erroAssinatura: admin.firestore.FieldValue.delete(), planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
   } else {
     await userRef.set({ pagamentoPendente: true, assinaturaStatus: status === 'rejected' ? 'past_due' : 'pending',
@@ -2803,6 +2826,8 @@ app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req
       planoTroca:        admin.firestore.FieldValue.delete(),
       mpCheckout:        admin.firestore.FieldValue.delete(),
       pagamentoPendente: false,
+      pagamentoPendenteDesde: admin.firestore.FieldValue.delete(),
+      pagamentoPendentePagamentoId: admin.firestore.FieldValue.delete(),
       canceladoEm:       admin.firestore.FieldValue.serverTimestamp()
     });
 
@@ -3044,9 +3069,28 @@ function _formatDateBR(date) {
   }).format(date);
 }
 
+var PAYMENT_GRACE_DAYS = 10;
+function _effectivePlan(user, now) {
+  user = user || {};
+  var plan = String(user.plano || 'free').toLowerCase();
+  var expiry = _toDate(plan === 'trial' ? user.trialFim : user.planoExpira || user.assinaturaExpira);
+  var pendingSince = user.pagamentoPendente ? _toDate(user.pagamentoPendenteDesde) : null;
+  if (pendingSince && ['starter', 'pro', 'plus'].includes(plan)) {
+    var graceEnd = new Date(pendingSince.getTime() + PAYMENT_GRACE_DAYS * 86400000);
+    if (graceEnd > (expiry || new Date(0))) expiry = graceEnd;
+  }
+  return expiry && expiry.getTime() < (now || new Date()).getTime() ? 'free' : plan;
+}
+
+function _pendingDayCount(profile, now) {
+  var since = _toDate(profile && profile.pagamentoPendenteDesde);
+  if (!since) return null;
+  return Math.floor(((now || new Date()).getTime() - since.getTime()) / 86400000);
+}
+
 async function enviarLembretesDeAssinatura(hoje) {
   if (!EMAILJS_TEMPLATE_COMUNICACAO || !EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID) {
-    return { sent: 0, skipped: 'email_not_configured' };
+    return { sent: 0, failed: 1, skipped: 'email_not_configured' };
   }
 
   var usersSnap;
@@ -3056,12 +3100,12 @@ async function enviarLembretesDeAssinatura(hoje) {
       .limit(500).get();
   } catch (err) {
     console.error('[assinaturas] Não foi possível buscar usuários:', err.message);
-    return { sent: 0, error: 'query_failed' };
+    return { sent: 0, failed: 1, error: 'query_failed' };
   }
 
   var hojeKey = _dateKeyBR(hoje);
   var hojeUtc = new Date(hojeKey + 'T00:00:00Z');
-  var sent = 0;
+  var sent = 0, failed = 0;
 
   for (var i = 0; i < usersSnap.docs.length; i++) {
     var userDoc = usersSnap.docs[i];
@@ -3073,14 +3117,24 @@ async function enviarLembretesDeAssinatura(hoje) {
     var isTrial = plano === 'trial';
     var expira = _toDate(isTrial ? user.trialFim : user.planoExpira);
     var pendente = Boolean(user.pagamentoPendente);
+    var avisos = user.emailAssinaturaAvisos || {};
     var tipoAviso = null;
     var titulo = '';
     var mensagem = '';
 
     if (pendente) {
-      tipoAviso = 'pagamento_pendente';
-      titulo = 'Não foi possível renovar sua assinatura';
-      mensagem = 'Identificamos um problema na cobrança do seu plano. Atualize a forma de pagamento para continuar aproveitando os recursos do App Bud Finance.';
+      var dunning = subscriptionDunningStage(user, hojeKey);
+      if (dunning) {
+        tipoAviso = 'pagamento_pendente_' + dunning.start + '_' + dunning.stage;
+        if (avisos[tipoAviso]) tipoAviso = null;
+        else {
+          var graceDate = new Date(dunning.graceEnd + 'T12:00:00Z');
+          titulo = dunning.stage === 10 ? 'Último dia para regularizar sua assinatura' : 'Não foi possível renovar sua assinatura';
+          mensagem = dunning.stage === 10
+            ? 'A tolerância para regularização termina hoje (' + _formatDateBR(graceDate) + '). Se o pagamento não for aprovado, sua assinatura será cancelada, sua conta retornará ao plano Gratuito e você precisará contratar um plano novamente. A Bud Finance não negativará seu nome por essa mensalidade.'
+            : 'Identificamos uma cobrança recusada na sua assinatura. Regularize o pagamento diretamente no Mercado Pago até ' + _formatDateBR(graceDate) + '. Durante a tolerância de 10 dias seu plano permanece disponível. Se o pagamento não for aprovado até o fim do prazo, a assinatura será cancelada e sua conta retornará ao plano Gratuito. A Bud Finance não negativará seu nome por essa mensalidade.';
+        }
+      }
     } else if (expira) {
       var expiraKey = _dateKeyBR(expira);
       var dias = Math.round((new Date(expiraKey + 'T00:00:00Z') - hojeUtc) / 86400000);
@@ -3100,7 +3154,6 @@ async function enviarLembretesDeAssinatura(hoje) {
     }
 
     if (!tipoAviso) continue;
-    var avisos = user.emailAssinaturaAvisos || {};
     if (avisos[tipoAviso] === hojeKey) continue;
 
     try {
@@ -3111,16 +3164,118 @@ async function enviarLembretesDeAssinatura(hoje) {
         email_title: titulo,
         email_preheader: 'Aviso sobre sua assinatura do App Bud Finance.',
         email_body: mensagem,
-        action_label: 'Ver planos',
+        action_label: pendente ? 'Regularizar assinatura' : 'Ver planos',
         action_url: FRONTEND_URL + '/configuracoes.html'
       });
       await userDoc.ref.update({ ['emailAssinaturaAvisos.' + tipoAviso]: hojeKey });
       sent++;
     } catch (err) {
       console.error('[assinaturas] Falha ao enviar e-mail para ' + userDoc.id + ':', err.message);
+      failed++;
     }
   }
-  return { sent: sent, total: usersSnap.size };
+  return { sent: sent, failed: failed, total: usersSnap.size };
+}
+
+async function cancelarAssinaturasForaDaTolerancia(agora) {
+  if (!MP_ACCESS_TOKEN || !db) return { cancelled: 0, failed: 1, skipped: 'billing_not_configured' };
+  var usersSnap;
+  try {
+    usersSnap = await db.collection('usuarios').where('pagamentoPendente', '==', true).limit(500).get();
+  } catch (err) {
+    console.error('[inadimplencia] Falha ao buscar contas pendentes:', err.message);
+    return { cancelled: 0, failed: 1, error: 'query_failed' };
+  }
+  var cancelled = 0, recovered = 0, deferred = 0, failed = 0;
+  for (var i = 0; i < usersSnap.docs.length; i++) {
+    var userDoc = usersSnap.docs[i], uid = userDoc.id, profile = userDoc.data();
+    var age = _pendingDayCount(profile, agora);
+    var subscriptionId = String(profile.mpSubscriptionId || '');
+    if (!profile.pagamentoPendente || profile.assinaturaStatus !== 'past_due' || !subscriptionId || age == null || age <= PAYMENT_GRACE_DAYS) continue;
+    if (process.env.BUD_USE_EMULATOR === 'true' || /^(LOCAL_TEST_|SANDBOX_TEST_)/.test(subscriptionId)) continue;
+    try {
+      var since = _toDate(profile.pagamentoPendenteDesde);
+      var invoiceUrl = 'https://api.mercadopago.com/authorized_payments/search?preapproval_id=' + encodeURIComponent(subscriptionId) + '&limit=20';
+      var invoiceRes = await fetch(invoiceUrl, { headers: { Authorization: 'Bearer ' + MP_ACCESS_TOKEN }, signal: AbortSignal.timeout(8000) });
+      if (!invoiceRes.ok) throw new Error('MP invoice search HTTP ' + invoiceRes.status);
+      var invoiceData = await invoiceRes.json();
+      var invoices = Array.isArray(invoiceData.results) ? invoiceData.results : [];
+      var approved = invoices.find(function (invoice) {
+        return invoice.payment && invoice.payment.status === 'approved' && invoice.payment.id &&
+          (!since || new Date(invoice.last_modified || invoice.date_created).getTime() >= since.getTime());
+      });
+      if (approved) {
+        await _mpHandlePayment(String(approved.payment.id), subscriptionId);
+        recovered++;
+        continue;
+      }
+      if (invoices.some(function (invoice) {
+        return (!since || new Date(invoice.last_modified || invoice.date_created).getTime() >= since.getTime()) &&
+          ['recycling', 'waiting for gateway'].includes(String(invoice.status || '').toLowerCase());
+      })) {
+        deferred++;
+        continue;
+      }
+
+      var paymentId = String(profile.pagamentoPendentePagamentoId || '');
+      if (!paymentId) { deferred++; continue; }
+      var paymentRes = await fetch('https://api.mercadopago.com/v1/payments/' + encodeURIComponent(paymentId), {
+        headers: { Authorization: 'Bearer ' + MP_ACCESS_TOKEN }, signal: AbortSignal.timeout(8000)
+      });
+      if (!paymentRes.ok) throw new Error('MP payment HTTP ' + paymentRes.status);
+      var payment = await paymentRes.json();
+      if (String(payment.preapproval_id || (payment.point_of_interaction?.transaction_data?.subscription_id) || '') !== subscriptionId) { deferred++; continue; }
+      if (payment.status === 'approved') {
+        await _mpHandlePayment(paymentId, subscriptionId);
+        recovered++;
+        continue;
+      }
+      if (payment.status !== 'rejected') { deferred++; continue; }
+
+      var subRes = await fetch('https://api.mercadopago.com/preapproval/' + encodeURIComponent(subscriptionId), {
+        headers: { Authorization: 'Bearer ' + MP_ACCESS_TOKEN }, signal: AbortSignal.timeout(8000)
+      });
+      if (!subRes.ok) throw new Error('MP subscription HTTP ' + subRes.status);
+      var sub = await subRes.json();
+      if (String(sub.id) !== subscriptionId || String(sub.external_reference || '').split('|')[0] !== uid) { deferred++; continue; }
+      if (['cancelled', 'canceled', 'paused'].includes(String(sub.status || '').toLowerCase())) {
+        await _mpHandleSubscription(subscriptionId);
+        cancelled++;
+        continue;
+      }
+      if (!['authorized', 'pending'].includes(String(sub.status || '').toLowerCase())) { deferred++; continue; }
+
+      var latest = await userDoc.ref.get(), current = latest.exists ? latest.data() : {};
+      var currentSince = _toDate(current.pagamentoPendenteDesde);
+      if (!current.pagamentoPendente || current.assinaturaStatus !== 'past_due' || current.mpSubscriptionId !== subscriptionId ||
+          !currentSince || currentSince.getTime() !== since.getTime()) { deferred++; continue; }
+
+      var cancelRes = await fetch('https://api.mercadopago.com/preapproval/' + encodeURIComponent(subscriptionId), {
+        method: 'PUT', headers: { Authorization: 'Bearer ' + MP_ACCESS_TOKEN, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled' }), signal: AbortSignal.timeout(8000)
+      });
+      if (!cancelRes.ok) throw new Error('MP cancellation HTTP ' + cancelRes.status);
+      var confirmRes = await fetch('https://api.mercadopago.com/preapproval/' + encodeURIComponent(subscriptionId), {
+        headers: { Authorization: 'Bearer ' + MP_ACCESS_TOKEN }, signal: AbortSignal.timeout(8000)
+      });
+      if (!confirmRes.ok) throw new Error('MP cancellation confirmation HTTP ' + confirmRes.status);
+      var confirmedSub = await confirmRes.json();
+      if (!['cancelled', 'canceled'].includes(String(confirmedSub.status || '').toLowerCase())) { deferred++; continue; }
+      await _mpUpdateSubscriptionProfile(uid, subscriptionId, {
+        plano: 'free', assinaturaStatus: 'cancelled', pagamentoPendente: false,
+        pagamentoPendenteDesde: admin.firestore.FieldValue.delete(),
+        pagamentoPendentePagamentoId: admin.firestore.FieldValue.delete(),
+        planoExpira: admin.firestore.FieldValue.delete(), planoTroca: admin.firestore.FieldValue.delete(),
+        mpCheckout: admin.firestore.FieldValue.delete(), planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp()
+      });
+      cancelled++;
+    } catch (err) {
+      console.error('[inadimplencia] Falha no encerramento automático:', err.message);
+      deferred++;
+      failed++;
+    }
+  }
+  return { cancelled: cancelled, recovered: recovered, deferred: deferred, failed: failed, total: usersSnap.size };
 }
 
 // â”€â”€â”€ GET /api/notifications/daily â€” cron de notificaÃ§Ãµes personalizadas â”€â”€
@@ -3155,6 +3310,9 @@ app.get('/api/notifications/daily', async function (req, res) {
 
   // E-mails de assinatura independem de push ativado e são deduplicados por dia.
   var subscriptionEmails = await enviarLembretesDeAssinatura(agora);
+  // Após 10 dias completos, só cancela se o provedor ainda confirma a recusa,
+  // não há fatura aprovada e o mesmo vínculo continua pendente.
+  var subscriptionCancellations = await cancelarAssinaturasForaDaTolerancia(agora);
 
   // Buscar usuÃ¡rios com push ativado (max 500 por execuÃ§Ã£o)
   var usersSnap;
@@ -3164,9 +3322,9 @@ app.get('/api/notifications/daily', async function (req, res) {
     return res.status(500).json({ error: 'Erro ao buscar usuÃ¡rios: ' + e.message });
   }
 
-  if (usersSnap.empty) return res.json({ ok: true, sent: 0, total: 0, subscriptionEmails: subscriptionEmails });
+  if (usersSnap.empty) return res.json({ ok: true, sent: 0, errors: (subscriptionEmails.failed || 0) + (subscriptionCancellations.failed || 0), total: 0, subscriptionEmails: subscriptionEmails, subscriptionCancellations: subscriptionCancellations });
 
-  var sent = 0, errors = 0;
+  var sent = 0, errors = (subscriptionEmails.failed || 0) + (subscriptionCancellations.failed || 0);
 
   for (var i = 0; i < usersSnap.docs.length; i++) {
     var userDoc = usersSnap.docs[i];
@@ -3248,7 +3406,7 @@ app.get('/api/notifications/daily', async function (req, res) {
     }
   }
 
-  return res.json({ ok: true, sent: sent, errors: errors, total: usersSnap.size });
+  return res.json({ ok: true, sent: sent, errors: errors, total: usersSnap.size, subscriptionEmails: subscriptionEmails, subscriptionCancellations: subscriptionCancellations });
 });
 
 // â”€â”€â”€ Start server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -3256,3 +3414,4 @@ var PORT = process.env.PORT || 3000;
 app.listen(PORT, function () {
   console.log('[Bud Finance Backend] Running on port ' + PORT);
 });
+

@@ -15,7 +15,9 @@ function setup({providerError=false,lookupError=false}={}){
  const ref={get:async()=>({exists:true,data:()=>({...profile})}),update,set:update};
  let transactionTail=Promise.resolve();
  const db={collection:()=>({doc:uid=>{assert.equal(uid,'owner');return ref;}}),runTransaction(fn){const work=transactionTail.then(()=>fn({get:r=>r.get(),update:(_,data)=>update(data)}));transactionTail=work.catch(()=>{});return work;}};
- const context={createSubscriptionChange:require('../backend/subscription-change').createSubscriptionChange,crypto,Buffer,AbortSignal,app:{post:(route,...handlers)=>routes.set(route,handlers.at(-1))},express:{json:()=>()=>{}},
+ const context={createSubscriptionChange:require('../backend/subscription-change').createSubscriptionChange,crypto,Buffer,AbortSignal,
+  _toDate:value=>{if(!value)return null;if(typeof value.toDate==='function')return value.toDate();const parsed=new Date(value);return Number.isNaN(parsed.getTime())?null:parsed;},
+  app:{post:(route,...handlers)=>routes.set(route,handlers.at(-1))},express:{json:()=>()=>{}},
   auth:{verifyIdToken:async token=>{assert.equal(token,'test-token');return{uid:'owner',email:'qa@example.test'};}},db,
   MP_ACCESS_TOKEN:'TEST-fake-token',MP_WEBHOOK_SECRET:'test-secret',MP_WEBHOOK_URL:'https://backend.test/webhook/mercadopago',MP_INDICACAO_DESCONTO:.1,
   MP_PLANS:{starter:{title:'Bud Finance Starter',amount:9.99},pro:{amount:29.90},plus:{amount:49.90}},FRONTEND_URL:'https://budsolucoes.com.br/appbudfinance',
@@ -111,7 +113,7 @@ test('event racing an unbound checkout is retryable without clearing its reserva
  assert.equal((await s.webhook()).statusCode,503);assert.equal(s.profile.mpCheckout.nonce,'new-checkout');assert.equal(s.profile.mpSubscriptionId,undefined);
 });
 test('signed approval activates the correct plan and clears an earlier payment failure',async()=>{
- const s=setup();s.profile.pagamentoPendente=true;await s.webhook();
+ const s=setup();s.profile.pagamentoPendente=true;s.payment.status='approved';s.payment.date_approved=new Date().toISOString();await s.webhook('payment');
  assert.equal(s.profile.plano,'starter');assert.equal(s.profile.mpSubscriptionId,'sub-1');assert.equal(s.profile.pagamentoPendente,false);assert.equal(s.profile.assinaturaStatus,'authorized');assert.ok(s.profile.planoExpira);
 });
 test('rejection remains pending; cancellation downgrades the plan',async()=>{
@@ -229,3 +231,4 @@ test('provider may omit payer email when subscription binding and payer ID ident
  s.sub.payer_id=456;
  assert.equal((await s.invoke('/mercadopago/change-subscription',{planKey:'plus'})).statusCode,403);
 });
+

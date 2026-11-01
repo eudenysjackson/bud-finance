@@ -956,16 +956,20 @@ function _renderizarSecaoPlano(plano, data) {
 
   // Expira / trial
   const expiraField = data.planoExpira || data.assinaturaExpira || data.trialFim;
+  const pagamentoDesde = data.pagamentoPendenteDesde?.toDate ? data.pagamentoPendenteDesde.toDate() : new Date(data.pagamentoPendenteDesde || 0);
+  const fimTolerancia = data.pagamentoPendente && Number.isFinite(pagamentoDesde.getTime()) && pagamentoDesde.getTime() > 0
+    ? new Date(pagamentoDesde.getTime() + 10 * 86400000) : null;
   if (expiraField) {
     try {
-      const expDate = expiraField.toDate ? expiraField.toDate() : new Date(expiraField);
+      let expDate = expiraField.toDate ? expiraField.toDate() : new Date(expiraField);
+      if (fimTolerancia && fimTolerancia > expDate) expDate = fimTolerancia;
       if (plano === 'trial' && elTrial) {
         const dias = Math.ceil((expDate - new Date()) / 86400000);
         elTrial.textContent = dias > 0 ? '⏳ ' + dias + ' dia(s) restante(s) no trial' : '⚠️ Trial encerrado';
         elTrial.style.display = 'block';
         elTrial.style.color = dias > 0 ? '#059669' : '#dc2626';
       } else if (elExpira) {
-        elExpira.textContent = (data.mpSubscriptionId && data.assinaturaStatus === 'authorized' ? 'Próxima cobrança em ' : 'Válido até ') + expDate.toLocaleDateString('pt-BR', {timeZone:'America/Sao_Paulo'});
+        elExpira.textContent = (data.pagamentoPendente ? 'Regularize até ' : data.mpSubscriptionId && data.assinaturaStatus === 'authorized' ? 'Próxima cobrança em ' : 'Válido até ') + expDate.toLocaleDateString('pt-BR', {timeZone:'America/Sao_Paulo'});
         elExpira.style.display = 'block';
       }
     } catch (_) {}
@@ -978,8 +982,13 @@ function _renderizarSecaoPlano(plano, data) {
       elBanner.textContent = data.mpCheckout?.state === 'pending' ? '⏳ Contratação pendente. Continue o checkout ou cancele antes de escolher outro plano.' : '⏳ Pagamento em análise — sua assinatura será ativada em breve.';
       elBanner.style.cssText = 'display:block;background:#fef9c3;border:1px solid #fde047;color:#854d0e;border-radius:0.75rem;padding:0.75rem 1rem;margin-top:0.875rem;font-size:0.8125rem;font-weight:600;';
     } else if (status === 'past_due') {
-      elBanner.textContent = '⚠️ Problema no pagamento — verifique seus dados no Mercado Pago para não perder o acesso.';
-      elBanner.style.cssText = 'display:block;background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:0.75rem;padding:0.75rem 1rem;margin-top:0.875rem;font-size:0.8125rem;font-weight:600;';
+      const toleranciaAtiva = fimTolerancia && fimTolerancia > new Date();
+      elBanner.textContent = toleranciaAtiva
+        ? '⚠️ Pagamento recusado. Regularize pelo Mercado Pago até ' + fimTolerancia.toLocaleDateString('pt-BR', {timeZone:'America/Sao_Paulo'}) + ' para manter o plano. Durante a tolerância, seu acesso continua ativo.'
+        : '⚠️ O prazo de tolerância terminou. A assinatura será cancelada e a conta retornará ao plano Gratuito.';
+      elBanner.style.cssText = toleranciaAtiva
+        ? 'display:block;background:#eff6ff;border:1px solid #93c5fd;color:#1d4ed8;border-radius:0.75rem;padding:0.75rem 1rem;margin-top:0.875rem;font-size:0.8125rem;font-weight:600;'
+        : 'display:block;background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:0.75rem;padding:0.75rem 1rem;margin-top:0.875rem;font-size:0.8125rem;font-weight:600;';
     } else {
       elBanner.style.display = 'none';
     }
@@ -1577,3 +1586,4 @@ onAuthStateChanged(auth, async function (user) {
   }
   } // end !_pushSetupDone
 });
+
