@@ -2398,47 +2398,53 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
   var planKey = String(req.body.planKey || '').toLowerCase().trim();
   if (!MP_PLANS[planKey]) return res.status(400).json({ error: 'Plano invÃ¡lido.' });
 
-  var plan   = MP_PLANS[planKey];
-  var amount = plan.amount;
-
-  // 3. Validar ref code e aplicar desconto de 10% se indicaÃ§Ã£o legÃ­tima
-  var rawRef  = req.body.ref ? String(req.body.ref).trim() : null;
-  var refCode = rawRef ? rawRef.slice(0, 32).replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : null;
+  var plan = MP_PLANS[planKey];
+  var checkoutRef = db.collection('usuarios').doc(uid);
+  var userSnap;
+  try { userSnap = await checkoutRef.get(); }
+  catch (_) { return res.status(503).json({ error: 'Não foi possível consultar o cadastro para iniciar a assinatura.' }); }
+  if (!userSnap.exists) return res.status(503).json({ error: 'Não foi possível consultar o cadastro para iniciar a assinatura.' });
+  var userProfile = userSnap.data() || {};
+  var explicitRef = req.body.ref ? String(req.body.ref).trim() : '';
+  var rawRef = explicitRef || String(userProfile.indicadoPor && userProfile.indicadoPor.codigo || '');
+  var refCode = rawRef ? rawRef.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8) : null;
+  var referrerDoc = null;
   if (refCode) {
-    try {
-      var refSnap = await db.collection('usuarios')
-        .where('codigoIndicacao', '==', refCode).limit(1).get();
-      if (refSnap.empty) {
-        refCode = null; // cÃ³digo nÃ£o encontrado â€” sem desconto
-      } else {
-        amount = Math.round(plan.amount * (1 - MP_INDICACAO_DESCONTO) * 100) / 100;
-      }
-    } catch (_e) { refCode = null; }
+    if (userProfile.primeiraCobrancaPagaEm || (userProfile.descontoIndicacaoPrimeiroMes && userProfile.descontoIndicacaoPrimeiroMes.status === 'used')) {
+      return res.status(409).json({ error: 'O código de indicação precisa ser vinculado antes da primeira cobrança.' });
+    }
+    var refSnap;
+    try { refSnap = await db.collection('usuarios').where('codigoIndicacao', '==', refCode).limit(2).get(); }
+    catch (_) { return res.status(503).json({ error: 'Não foi possível validar o código de indicação.' }); }
+    if (refSnap.size !== 1 || refSnap.docs[0].id === uid) return res.status(400).json({ error: 'Código de indicação inválido.' });
+    referrerDoc = refSnap.docs[0];
+    if (userProfile.indicadoPor && userProfile.indicadoPor.uid && userProfile.indicadoPor.uid !== referrerDoc.id) {
+      return res.status(409).json({ error: 'O código não corresponde à indicação já vinculada.' });
+    }
   }
+  var rewardPending = userProfile.beneficioIndicacao50 && userProfile.beneficioIndicacao50.status === 'pending';
+  // Os benefícios não se acumulam no mesmo ciclo: 15% do indicado primeiro, 50% do indicador depois.
+  var promoType = refCode ? 'indicado15' : (rewardPending ? 'indicador50' : null);
+  var discountRate = promoType === 'indicador50' ? MP_BONUS_INDICADOR : (promoType === 'indicado15' ? MP_INDICACAO_DESCONTO : 0);
+  var baseAmount = plan.amount;
+  var amount = Math.round(baseAmount * (1 - discountRate) * 100) / 100;
+  var promo = promoType ? { type: promoType, baseAmount, discountAmount: amount, refCode: refCode || null } : null;
 
   // 4. external_reference: uid|planKey[|refCode] â€” recuperado no webhook
   var externalRef = uid + '|' + planKey + (refCode ? '|' + refCode : '');
 
   // 4.5. Buscar dados do usuÃ¡rio no Firestore para enriquecer o payer (melhora aprovaÃ§Ã£o)
-  var firstName = '', lastName = '', payerPhone = null;
-  try {
-    var userSnap = await db.collection('usuarios').doc(uid).get();
-    if (userSnap.exists) {
-      var ud         = userSnap.data();
-      var nomePartes = (ud.nome || '').trim().split(/\s+/);
-      firstName  = nomePartes[0] || '';
-      lastName   = nomePartes.slice(1).join(' ') || firstName;
-      var telLimpo = (ud.telefone || '').replace(/\D/g, '');
-      if (telLimpo.length >= 10) {
-        payerPhone = { area_code: telLimpo.slice(0, 2), number: telLimpo.slice(2) };
-      }
-    }
-  } catch (_e) { /* nÃ£o bloqueia o fluxo */ }
+  // 4.5. Buscar dados do usuário no Firestore para enriquecer o payer.
+  var ud = userProfile, firstName = '', lastName = '', payerPhone = null;
+  var nomePartes = String(ud.nome || '').trim().split(/\s+/);
+  firstName = nomePartes[0] || '';
+  lastName = nomePartes.slice(1).join(' ') || firstName;
+  var telLimpo = String(ud.telefone || '').replace(/\D/g, '');
+  if (telLimpo.length >= 10) payerPhone = { area_code: telLimpo.slice(0, 2), number: telLimpo.slice(2) };
 
   // 5. Criar assinatura pendente sem plano associado. O Mercado Pago retorna
   // o init_point para o assinante informar o meio de pagamento no checkout.
   // Não definimos end_date: ela encerraria a recorrência, e não apenas o link.
-  if (!userSnap || !userSnap.exists) return res.status(503).json({ error: 'Não foi possível consultar o cadastro para iniciar a assinatura.' });
   if (userSnap.data().mpSubscriptionId && !['cancelled', 'canceled'].includes(userSnap.data().assinaturaStatus)) {
     var pendingCheckout = userSnap.data().mpCheckout;
     if (userSnap.data().assinaturaStatus === 'pending' && pendingCheckout?.planKey === planKey && pendingCheckout.subscriptionId === userSnap.data().mpSubscriptionId && pendingCheckout.init_point) {
@@ -2448,14 +2454,14 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
   }
   // Reserve before contacting the provider. An unknown response must be reconciled,
   // never retried as a new subscription just because a timeout elapsed.
-  var checkoutNonce = crypto.randomUUID(), checkoutRef = db.collection('usuarios').doc(uid);
+  var checkoutNonce = crypto.randomUUID();
   try {
     await db.runTransaction(async transaction => {
       const snapshot = await transaction.get(checkoutRef), profile = snapshot.data();
       if (!snapshot.exists || (profile.mpSubscriptionId && !['cancelled', 'canceled'].includes(profile.assinaturaStatus)) || ['creating', 'unknown'].includes(profile.mpCheckout?.state)) {
         throw Object.assign(new Error('A contratação anterior está sendo conferida. Aguarde ou contate o suporte antes de iniciar outra.'), { status: 409 });
       }
-      transaction.update(checkoutRef, { mpCheckout: { state: 'creating', planKey, nonce: checkoutNonce, createdAt: Date.now() } });
+      transaction.update(checkoutRef, { mpCheckout: { state: 'creating', planKey, nonce: checkoutNonce, createdAt: Date.now(), promo } });
     });
   } catch (error) { return res.status(error.status || 503).json({ error: error.status === 409 ? error.message : 'Não foi possível preparar o checkout.', code: 'CHECKOUT_IN_PROGRESS' }); }
   var mpBody = {
@@ -2486,7 +2492,7 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
     var mpData = await mpRes.json();
     if (!mpRes.ok) {
       console.error('[MP] create-subscription error:', JSON.stringify(mpData));
-      await checkoutRef.update({ mpCheckout: { state: mpRes.status >= 400 && mpRes.status < 500 ? 'rejected' : 'unknown', planKey, nonce: checkoutNonce } });
+      await checkoutRef.update({ mpCheckout: { state: mpRes.status >= 400 && mpRes.status < 500 ? 'rejected' : 'unknown', planKey, nonce: checkoutNonce, promo } });
       return res.status(502).json({ error: mpData.message || 'Erro ao criar assinatura no Mercado Pago.' });
     }
     var isSandbox  = MP_ACCESS_TOKEN.startsWith('TEST-');
@@ -2496,12 +2502,15 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
       const snapshot = await transaction.get(checkoutRef), profile = snapshot.data();
       if (profile.mpCheckout?.nonce !== checkoutNonce || (profile.mpSubscriptionId && !['cancelled','canceled'].includes(profile.assinaturaStatus) && profile.mpSubscriptionId !== mpData.id)) throw new Error('Checkout binding changed');
       transaction.update(checkoutRef, {
-        mpCheckout: { state: 'pending', planKey, subscriptionId: mpData.id, init_point: checkoutUrl },
+        mpCheckout: { state: 'pending', planKey, subscriptionId: mpData.id, init_point: checkoutUrl, promo },
         mpSubscriptionId: mpData.id,
+        ...(promo && promo.type === 'indicado15' ? { descontoIndicacaoPrimeiroMes: { status: 'awaiting_payment', subscriptionId: mpData.id, planKey, baseAmount, discountAmount: amount, refCode } } : {}),
+        ...(promo && promo.type === 'indicador50' ? { beneficioIndicacao50: { ...profile.beneficioIndicacao50, status: 'awaiting_payment', subscriptionId: mpData.id, planKey, baseAmount, discountAmount: amount } } : {}),
+        ...(refCode && !profile.indicadoPor && referrerDoc ? { indicadoPor: { uid: referrerDoc.id, nome: String(referrerDoc.data().nome || '').slice(0, 100), codigo: refCode }, descontoIndicacao: 15, descontoIndicacaoUsado: false } : {}),
         ...(['authorized','active'].includes(profile.assinaturaStatus) && profile.mpSubscriptionId === mpData.id ? {} : { assinaturaStatus: 'pending' })
       });
     });
-    return res.json({ init_point: checkoutUrl });
+    return res.json({ init_point: checkoutUrl, discountPercent: discountRate * 100, chargeAmount: amount, standardAmount: baseAmount });
   } catch (err) {
     console.error('[MP] create-subscription fetch error:', err.message);
     return res.status(500).json({ error: 'Erro de comunicaÃ§Ã£o com Mercado Pago.' });
