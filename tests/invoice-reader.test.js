@@ -14,6 +14,19 @@ test('unreconciled or unknown layout falls back, never invents an adjustment', (
   assert.equal(readNubankInvoice(invoice('02 DEZ\nLoja R$ 19,00')), null);
   assert.equal(readNubankInvoice(invoice('02 DEZ\nLoja R$ 20,00').replace('Nu Pagamentos S.A.', 'Outro banco')), null);
 });
+
+test('adjacent currency and one-cent discrepancy preserve source rows for explicit review', () => {
+  const text = invoice('02 DEZ\nLoja R$ 19,99').replace('Total a pagar R$', 'Total a pagarR$');
+  const result = readNubankInvoice(text);
+  assert.equal(result.transacoes.length, 1);
+  assert.equal(result.transacoes[0].valor, 19.99);
+  assert.equal(result.meta.totalAPagar, 20);
+  assert.equal(result.meta.totalLancamentos, 19.99);
+  assert.equal(result.meta.differenceCents, -1);
+  assert.equal(result.meta.requiresReview, true);
+  assert.equal(readNubankInvoice(text.replace('19,99', '19,98')), null);
+  assert.equal(readNubankInvoice(text.replace('19,99', '20,01')).meta.differenceCents, 1);
+});
 test('multi-page PDF extracts 24 purchases without an AI request', async () => {
   const pages = await readPDF(fs.readFileSync('tests/fixtures/ia/nubank-layout.pdf'));
   const result = readNubankInvoice(pages.map(p => p.text).join('\n'));

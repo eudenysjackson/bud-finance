@@ -1799,7 +1799,10 @@ function _renderConfiabilidadeBadge() {
     const diffStr = (diff >= 0 ? '+' : '−') + fmt(Math.abs(diff));
     const det    = `IA: ${fmt(somaAtivos)} · ${labelFonte}: ${fmt(alvoPdf)} · dif ${diffStr}`;
 
-    if (pct < 0.70) {
+    if (meta?.requiresReview) {
+      badgeBg = '#fff7ed'; badgeColor = '#c2410c';
+      badgeText = `⚠️ Revise antes de salvar: a soma das linhas do PDF difere do total declarado em ${fmt(Math.abs(meta.differenceCents) / 100)}. Os valores originais foram preservados.`;
+    } else if (pct < 0.70) {
       badgeBg = '#fee2e2'; badgeColor = '#b91c1c';
       badgeText = `❌ Resultado NÃO confiável — ${pctStr} capturado · ${det}`;
     } else if (pct < 0.95 || pct > 1.05) {

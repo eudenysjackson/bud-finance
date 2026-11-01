@@ -105,3 +105,12 @@ Captura às 17:24 mostra o retry de um trecho da fatura após HTTP 429 da Groq: 
 - A resposta de limite tem janelas próprias. Groq fornece `retry-after` no 429 e `x-ratelimit-reset-requests` / `x-ratelimit-reset-tokens`; cada limite ativo (RPM/RPD/TPM/TPD e, se configurados, limites separados de entrada/saída) pode ter reset distinto. A espera de 10s da tela é o retry indicado para aquela chamada, não garantia de que todos os trechos ou cotas diárias estejam livres.
 - Próximo passo: corrigir o parser Nubank com fixtures sintéticas sem PII e conciliação rigorosa; planejar filas com fairness e contingência para escala. Developer continua aquisição futura DEC-069; não garante capacidade ilimitada.
 - Não houve importação autenticada no navegador nem validação da fatura pela Groq; não declarar o arquivo lido.
+
+## Correção de importação e renovação de sessão — 01/11/2026
+
+ERR-072 / PEND-IA-006: correção implementada. PDF Nubank real analisado localmente com o mesmo readPDF de produção: 51 linhas, diferença de um centavo entre soma e total. Parser aceita apenas variação de até 1 centavo, preserva linhas/total e retorna differenceCents/requiresReview; revisão mostra aviso explícito. Diferenças maiores seguem para IA. Não cria ajuste e não presume arredondamento do banco. Rótulo de total permite moeda adjacente. Nenhum dado financeiro real incluído em fixtures ou Git.
+
+Firebase: chave Bud Finance Web não permitia securetoken.googleapis.com, bloqueando renovação de sessão. Serviço acrescentado à lista existente sem remover restrições; operação concluída e probe com refresh inválido retornou INVALID_REFRESH_TOKEN, em vez de API_SERVICE_BLOCKED. A confirmação com sessão real do titular ainda depende de abrir novamente o app.
+
+Validação: 92 testes aprovados, zero falhas; PDF real aceito pelo parser local sem chamada Groq, 51 linhas e aviso de um centavo. Não confundir isso com validação autenticada no navegador online. Groq permanece para layouts desconhecidos/imagens; capacidade externa continua finita (DEC-070). Publicação em preparação.
+

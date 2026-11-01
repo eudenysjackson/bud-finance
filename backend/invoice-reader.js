@@ -5,7 +5,7 @@ function readNubankInvoice(text) {
   if (!/Nubank|Nu Pagamentos/i.test(text)) return null;
   const issued = text.match(/FATURA\s+\d{2}\s+([A-Z]{3})\s+(\d{4})/);
   const summary = text.match(/RESUMO DA FATURA ATUAL([\s\S]*?)(?:PRÓXIMAS FATURAS|LIMITES DISPONÍVEIS)/);
-  const total = summary?.[1].match(/Total a pagar\s+R\$\s*([\d.]+,\d{2})/);
+  const total = summary?.[1].match(/Total a pagar\s*R\$\s*([\d.]+,\d{2})/);
   if (!issued || !total) return null;
   const billMonth = months.indexOf(issued[1]);
   if (billMonth < 0) return null;
@@ -35,7 +35,10 @@ function readNubankInvoice(text) {
   }
   const totalAPagar = money(total[1]);
   const cents = transactions.reduce((sum, item) => sum + Math.round(item.valor * 100), 0);
-  if (!transactions.length || cents !== Math.round(totalAPagar * 100)) return null;
-  return { transacoes: transactions, meta: { totalAPagar, totalLancamentos: totalAPagar }, method: 'nubank-validated' };
+  const differenceCents = cents - Math.round(totalAPagar * 100);
+  // A one-cent discrepancy is shown explicitly for review; never create an adjustment.
+  if (!transactions.length || Math.abs(differenceCents) > 1) return null;
+  return { transacoes: transactions, meta: { totalAPagar, totalLancamentos: cents / 100,
+    differenceCents, requiresReview: differenceCents !== 0 }, method: 'nubank-validated' };
 }
 module.exports = { readNubankInvoice };
