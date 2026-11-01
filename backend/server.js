@@ -2372,7 +2372,7 @@ app.post('/api/indicacao/aplicar', async function (req, res) {
         assinouPlano: false
       }, { merge: true });
     });
-    return res.json({ ok: true, discountPercent: 15, referrerName: String(referrer.nome || '').split(/\\s+/)[0] || 'seu amigo' });
+    return res.json({ ok: true, discountPercent: 15, referrerName: String(referrer.nome || '').split(/\s+/)[0] || 'seu amigo' });
   } catch (error) {
     return res.status(error.status || 503).json({ error: error.message || 'Não foi possível aplicar o código.' });
   }
@@ -2869,14 +2869,13 @@ async function _mpCreditarIndicacao(refCode, novoUid, planKey) {
       if (!hasPriorReward) {
         transaction.update(referrerRef, { beneficioIndicacao50: reward });
         granted = true;
-      } else {
-        transaction.set(referralRef, { beneficioIndicador: false }, { merge: true });
       }
     });
     if (granted) await _mpAgendarBeneficioIndicacao50(referrerDoc.id);
     console.log('[MP] Indicação convertida:', refCode, '→', novoUid, granted ? '(benefício concedido)' : '(sem novo benefício)');
   } catch (err) {
     console.error('[MP] Erro ao creditar indicação:', err.message);
+    throw err;
   }
 }
 
