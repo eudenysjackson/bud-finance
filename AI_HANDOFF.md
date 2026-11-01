@@ -94,3 +94,7 @@ PEND-REF-001: etapa de sandbox RESOLVIDA no código 438a21418128f562d965f6d3eb55
 ## Correção da espera de importação IA — 01/11/2026
 
 ERR-071 / PEND-IA-ESPERA: a mensagem aguardando serviço vem do retry HTTP 429; até 12 esperas longas e polling/worker sem prazo mantinham a interface aberta. Correção em codex/corrige-importacao-ia-travada-20261101: tentativas curtas e limitadas, worker com prazo de 180s, registro persistente antigo encerrado, cliente com 210s totais/30s por conexão e mensagens de falha/cancelamento claras. 91 regressões aprovadas. Detalhes em RELEASE_IA_ESPERA_2026-11-01.md. Integração/deploy em preparação. Indicações: PR #5 integrado em 3d6f5f4; Pages 41344526378 aprovado e backend Render Live confirmado. Regras de indicação compiladas e publicadas no projeto bud-finance em 01/11/2026. Workspace original preservado.
+
+## Continuidade — falha de capacidade IA observada (01/11/2026)
+
+Captura às 17:24 mostra o retry de um trecho da fatura após HTTP 429 da Groq: aguardando 10 segundos, primeira de até duas esperas curtas desta chamada. O usuário relata que a fatura não foi lida; a captura não mostra o resultado final. O encerramento de esperas infinitas está publicado no commit e50356c, mas não aumenta a cota do fornecedor. Cotas do Bud: Free 0, Starter 3, Trial 10, Pro 10, Plus ilimitado no app; qualquer plano continua sujeito à cota da organização Groq. Aquisição Groq Developer futura e avaliação híbrida/própria registradas em DEC-069/PEND-IA-005. Para reprodução do layout específico, solicitar o PDF original ou log da tentativa.
