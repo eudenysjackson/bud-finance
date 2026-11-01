@@ -649,3 +649,12 @@ Após a validação do link mágico, `appbudfinance/js/index.js` autentica a con
 ## Indicações — estado auditado (01/11/2026)
 
 Onboarding grava `comoConheceu` como origem de aquisição e não solicita código. Cadastro possui entrada manual opcional e valida `codigoIndicacao`, gerando `indicadoPor` e uma indicação em Firestore. Checkout Mercado Pago aplica desconto apenas se recebe `ref`; os caminhos de cadastro → checkout não propagam esse código de modo uniforme. Existe divergência entre `descontoIndicacao: 30` no perfil e desconto backend de 10%. Webhook registra a indicação convertida, mas não implementa recompensa financeira/meses grátis ao indicador. Ver PEND-REF-001 e DEC-068; não considerar indicação funcional ponta a ponta.
+
+
+## Programa de indicação — implementação em revisão (01/11/2026)
+
+- Links com parâmetro ?ref=CODIGO, cadastro e opção “Indicação” no onboarding levam o código para validação no endpoint autenticado POST /api/indicacao/aplicar e para POST /mercadopago/create-subscription.
+- Firestore mantém a atribuição indicadoPor, indicação em usuarios/{indicadorUid}/indicacoes/{indicadoUid}, estado do desconto de primeira cobrança e estado da recompensa única do indicador. Campos promocionais de cobrança ficam protegidos por regras e são atualizados pelo backend.
+- Webhook de pagamento aprovado confirma a conversão. O backend altera o valor recorrente da assinatura no Mercado Pago para a cobrança promocional e restaura o valor normal após a cobrança descontada.
+- Regra DEC-069: indicado recebe 15% na primeira cobrança; indicador recebe 50% em uma cobrança posterior, uma única vez. Sem descontos simultâneos; excedentes de indicação não geram outra recompensa.
+- Estado: branch codex/beneficios-indicacao-15-50-20261101, ainda sem confirmação de CI, homologação ou publicação. Consulte AI_HANDOFF.md e RELEASE_INDICACOES_2026-11-01.md.
