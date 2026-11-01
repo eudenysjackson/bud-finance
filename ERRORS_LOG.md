@@ -691,4 +691,4 @@ Cache sem validade e consulta de globais reapresentavam testes antigos para dife
 - **Sintoma:** escolher “Indicação” no onboarding não pedia código; código não acompanhava todos os links de venda até o checkout; percentuais divergiam e o indicador não recebia benefício.
 - **Causa raiz:** origem de aquisição comoConheceu era confundida com atribuição; cadastro, onboarding, link comercial, checkout, webhook e Firestore não compartilhavam um único fluxo.
 - **Correção preparada:** captura de código no onboarding e cadastro, pré-preenchimento de ref=, validação autenticada no backend, desconto de 15% na primeira cobrança, recompensa única de 50% numa cobrança futura após aprovação e restauração do preço regular via API de assinatura. Os descontos não se acumulam no mesmo ciclo.
-- **Status:** em revisão e homologação na branch codex/beneficios-indicacao-15-50-20261101. Não afirmar como publicado até CI, sandbox, integração e deploy concluídos.
+- **Status:** suíte automatizada passou na branch codex/beneficios-indicacao-15-50-20261101 (Actions 41341678748). Homologação sandbox, integração e deploy continuam pendentes; não afirmar como publicado.
