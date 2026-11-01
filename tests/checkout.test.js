@@ -5,21 +5,22 @@ const vm=require('node:vm');
 const crypto=require('node:crypto');
 const source=fs.readFileSync('backend/server.js','utf8');
 const code=source.slice(source.indexOf("app.post('/mercadopago/create-subscription'"),source.indexOf("app.post('/api/push/token'"));
-function setup({providerError=false,lookupError=false}={}){
+function setup({providerError=false,lookupError=false,referrer=null,initialProfile={}}={}){
  const routes=new Map(),calls=[];
- const profile={email:'qa@example.test',nome:'Pessoa teste',plano:'free'};
+ const profile=Object.assign({email:'qa@example.test',nome:'Pessoa teste',plano:'free'},initialProfile);
  const sub={external_reference:'owner|starter',payer_email:'qa@example.test',status:'authorized'};
  const payment={status:'rejected',preapproval_id:'sub-1'};
  const invoice={preapproval_id:'sub-1',payment:{id:1234,status:'approved'}};
  const update=async data=>{for(const [key,value] of Object.entries(data)){if(value==='__delete')delete profile[key];else profile[key]=value;}};
  const ref={get:async()=>({exists:true,data:()=>({...profile})}),update,set:update};
  let transactionTail=Promise.resolve();
- const db={collection:()=>({doc:uid=>{assert.equal(uid,'owner');return ref;}}),runTransaction(fn){const work=transactionTail.then(()=>fn({get:r=>r.get(),update:(_,data)=>update(data)}));transactionTail=work.catch(()=>{});return work;}};
+ const referrerDoc=referrer?{id:referrer.uid,data:()=>referrer.data,ref:{collection:()=>({doc:()=>({})})}}:null;
+ const db={collection:name=>({doc:uid=>{assert.equal(name,'usuarios');assert.equal(uid,'owner');return ref;},where:(_field,_op,value)=>({limit:()=>({get:async()=>referrerDoc&&referrer.data.codigoIndicacao===value?{size:1,docs:[referrerDoc]}:{size:0,docs:[]}})})}),runTransaction(fn){const work=transactionTail.then(()=>fn({get:r=>r.get(),update:(_,data)=>update(data)}));transactionTail=work.catch(()=>{});return work;}};
  const context={createSubscriptionChange:require('../backend/subscription-change').createSubscriptionChange,crypto,Buffer,AbortSignal,
   _toDate:value=>{if(!value)return null;if(typeof value.toDate==='function')return value.toDate();const parsed=new Date(value);return Number.isNaN(parsed.getTime())?null:parsed;},
   app:{post:(route,...handlers)=>routes.set(route,handlers.at(-1))},express:{json:()=>()=>{}},
   auth:{verifyIdToken:async token=>{assert.equal(token,'test-token');return{uid:'owner',email:'qa@example.test'};}},db,
-  MP_ACCESS_TOKEN:'TEST-fake-token',MP_WEBHOOK_SECRET:'test-secret',MP_WEBHOOK_URL:'https://backend.test/webhook/mercadopago',MP_INDICACAO_DESCONTO:.1,
+  MP_ACCESS_TOKEN:'TEST-fake-token',MP_WEBHOOK_SECRET:'test-secret',MP_WEBHOOK_URL:'https://backend.test/webhook/mercadopago',MP_INDICACAO_DESCONTO:.15,MP_BONUS_INDICADOR:.5,
   MP_PLANS:{starter:{title:'Bud Finance Starter',amount:9.99},pro:{amount:29.90},plus:{amount:49.90}},FRONTEND_URL:'https://budsolucoes.com.br/appbudfinance',
   admin:{firestore:{FieldValue:{delete:()=>'__delete',serverTimestamp:()=>1},Timestamp:{fromDate:date=>date.toISOString()}}},
   process:{env:{BUD_USE_EMULATOR:'true'}},require:name=>{assert.equal(name,'crypto');return crypto;},console:{log(){},warn(){},error(){}},
@@ -52,6 +53,44 @@ test('an existing authorized subscription cannot create a second checkout',async
  const s=setup();s.profile.plano='starter';s.profile.mpSubscriptionId='sub-1';s.profile.assinaturaStatus='authorized';
  const result=await s.invoke('/mercadopago/create-subscription',{planKey:'pro'});
  assert.equal(result.statusCode,409);assert.equal(s.calls.filter(c=>c.options.method==='POST').length,0);assert.equal(s.profile.plano,'starter');
+});
+
+
+test('valid referral applies 15 percent only to the first subscription charge',async()=>{
+ const s=setup({referrer:{uid:'referrer',data:{codigoIndicacao:'AB12CD34',nome:'Pessoa Indicadora'}}});
+ const result=await s.invoke('/mercadopago/create-subscription',{planKey:'starter',ref:'AB12CD34'});
+ assert.equal(result.statusCode,200);assert.equal(result.data.discountPercent,15);assert.equal(result.data.chargeAmount,8.49);
+ const payload=JSON.parse(s.calls.find(c=>c.options.method==='POST').options.body);
+ assert.equal(payload.external_reference,'owner|starter|AB12CD34');assert.equal(payload.auto_recurring.transaction_amount,8.49);
+ assert.equal(s.profile.indicadoPor.codigo,'AB12CD34');assert.equal(s.profile.descontoIndicacaoPrimeiroMes.status,'awaiting_payment');
+});
+
+test('one pending inviter reward applies 50 percent to one future checkout',async()=>{
+ const s=setup({initialProfile:{beneficioIndicacao50:{status:'pending',percent:50,indicadoUid:'friend'}}});
+ const result=await s.invoke('/mercadopago/create-subscription',{planKey:'starter'});
+ assert.equal(result.statusCode,200);assert.equal(result.data.discountPercent,50);assert.equal(result.data.chargeAmount,5);
+ assert.equal(s.profile.beneficioIndicacao50.status,'awaiting_payment');
+});
+
+test('15 percent first-month offer takes precedence over a pending 50 percent reward',async()=>{
+ const s=setup({
+  referrer:{uid:'referrer',data:{codigoIndicacao:'AB12CD34',nome:'Pessoa Indicadora'}},
+  initialProfile:{indicadoPor:{uid:'referrer',codigo:'AB12CD34'},beneficioIndicacao50:{status:'pending',percent:50,indicadoUid:'another-friend'}}
+ });
+ const result=await s.invoke('/mercadopago/create-subscription',{planKey:'starter'});
+ assert.equal(result.statusCode,200);assert.equal(result.data.discountPercent,15);assert.equal(result.data.chargeAmount,8.49);
+ assert.equal(s.profile.mpCheckout.promo.type,'indicado15');assert.equal(s.profile.beneficioIndicacao50.status,'pending');
+});
+
+test('approved 15 percent first charge restores the normal recurring amount',async()=>{
+ const s=setup({referrer:{uid:'referrer',data:{codigoIndicacao:'AB12CD34',nome:'Pessoa Indicadora'}}});
+ await s.invoke('/mercadopago/create-subscription',{planKey:'starter',ref:'AB12CD34'});
+ s.sub.external_reference='owner|starter';s.sub.status='authorized';s.sub.next_payment_date=new Date(Date.now()+30*86400000).toISOString();
+ s.sub.auto_recurring={transaction_amount:8.49,currency_id:'BRL'};
+ s.payment.status='approved';s.payment.transaction_amount=8.49;s.payment.date_approved=new Date().toISOString();
+ const result=await s.webhook('payment');
+ assert.equal(result.statusCode,200);assert.equal(s.profile.descontoIndicacaoPrimeiroMes.status,'used');
+ assert.equal(s.sub.auto_recurring.transaction_amount,9.99);
 });
 
 test('each paid plan uses its own server price and leaves access unchanged until approval',async()=>{

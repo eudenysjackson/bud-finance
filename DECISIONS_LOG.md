@@ -746,3 +746,13 @@ A pedido do titular, dentro do app somente assinatura/upgrade calculados do perf
 ## DEC-068 — 01/11/2026 — origem de aquisição não equivale a indicação validada
 
 A resposta “Indicação” do onboarding é dado de origem (`comoConheceu`) e, por si só, não vincula uma conta indicadora nem concede benefício. Atribuição de indicação deve depender de código validado até a assinatura. A auditoria encontrou discrepâncias de valor e propagação, registradas em PEND-REF-001. **Falta decidir** quais benefícios cabem ao indicador e ao indicado, percentual e elegibilidade antes de implementar ou divulgar a regra.
+
+
+### DEC-069 — 01/11/2026 — benefícios do programa de indicação
+
+- **Decisão:** um código válido dá ao novo indicado 15% de desconto somente na primeira cobrança aprovada. O indicador recebe desconto de 50% em uma cobrança futura, uma única vez por conta, liberado após a primeira cobrança do indicado ser aprovada.
+- **Sem acúmulo:** se o indicado também tiver uma recompensa de 50% por ter indicado outra pessoa, primeiro é processada sua cobrança com 15%; o desconto de 50% fica para um ciclo posterior. Uma conta só recebe uma recompensa de indicador; indicações além da primeira não geram novos descontos.
+- **Elegibilidade técnica:** código deve ser validado e atribuído antes do início da assinatura; autoindicação é recusada. A recompensa é vinculada ao primeiro pagamento aprovado e ajusta a cobrança recorrente da mesma assinatura; depois dessa cobrança o backend restaura o valor integral ou o preço do plano vigente.
+- **Consequências:** não criar assinatura duplicada; registrar os estados no Firestore pelo backend; manter a regra nos textos do cadastro, onboarding, vendas e Configurações. Homologar com contas de teste do Mercado Pago antes de publicar.
+- **Quando revisar:** se a oferta, os percentuais ou a regra de uma única recompensa mudarem.
+

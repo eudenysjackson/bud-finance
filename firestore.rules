@@ -10,6 +10,7 @@ service cloud.firestore {
       return ['plano', 'planoExpira', 'planoAtivadoEm', 'planoAtualizadoEm',
         'mpSubscriptionId', 'mpPayerId', 'mpCheckout', 'fcmTokens', 'assinaturaStatus', 'trialFim', 'trialIniciado', 'planoTroca', 'planoTrocaLock',
         'pagamentoPendente', 'pagamentoPendenteDesde', 'pagamentoPendentePagamentoId', 'ultimaCobrancaAprovadaEm', 'emailAssinaturaAvisos',
+        'beneficioIndicacao50', 'descontoIndicacaoPrimeiroMes', 'primeiraCobrancaPagaEm', 'codigoIndicacaoAplicadoEm',
         'role', 'bloqueado', 'status'];
     }
 

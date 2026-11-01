@@ -376,9 +376,14 @@ A partir desta data, Codex, Claude e qualquer IA com acesso devem seguir `AI_WOR
 - **Validação:** o workflow automático de release passou e o deploy do GitHub Pages concluiu. A jornada completa com cadastro novo e clique real no e-mail ainda precisa de validação manual ponta a ponta.
 
 
-## PEND-REF-001 — indicação no onboarding e benefício incompletos (01/11/2026)
+## PEND-REF-001 — programa de indicação (01/11/2026)
 
-- **Status:** 🔴 Pendente de decisão de produto e correção técnica; não prometer benefício por selecionar “Indicação” no onboarding.
-- **Encontrado:** a resposta do onboarding é salva como `comoConheceu` (origem de aquisição). Ela não solicita nem vincula código de indicação. O cadastro tem campo opcional separado; apenas um código válido informado ali preenche `indicadoPor`.
-- **Inconsistências do fluxo existente:** o cadastro grava `descontoIndicacao: 30`, mas o backend calcula 10%; a página comercial pode exibir o preço reduzido, porém seu checkout autenticado envia somente `planKey` e não envia `ref`; a URL `?ref=` não preenche automaticamente o campo no cadastro. Assim, o desconto pode não acompanhar o usuário até o pagamento. O backend registra a indicação do comprador aprovado, mas não concede crédito, dinheiro ou meses grátis ao indicador.
-- **Próximo passo:** definir os benefícios para quem indica e para quem é indicado, percentual, elegibilidade e se “Indicação” no onboarding deve abrir campo opcional de código. Só então alinhar cadastro, URL, checkout/backend, textos de preço e registros Firestore; homologar o caminho inteiro.
+- **Status:** 🟡 Regra comercial decidida; implementação e suíte automatizada passaram em PR. Aguarda homologação do Mercado Pago sandbox, revisão final e publicação.
+- **Decisão aprovada:** novo usuário com código válido recebe 15% de desconto apenas na primeira cobrança aprovada; quem indicou recebe 50% em uma próxima cobrança, uma única vez por conta. Os dois descontos nunca se acumulam no mesmo ciclo. Se o indicado também convidar outra pessoa, sua própria recompensa de 50% fica para uma cobrança posterior à sua cobrança inicial com 15%. Indicações excedentes não geram outra recompensa.
+- **Implementação preparada:** código opcional por link, cadastro e etapa “Indicação” do onboarding; validação server-side antes do primeiro checkout; propagação para checkout autenticado; recompensa concedida somente após pagamento inicial aprovado; atualização e restauração do valor recorrente na assinatura existente; tela de Configurações mostra código e estado do benefício.
+- **Próximo passo:** homologar cada sequência no sandbox (incluindo sem sobreposição e restauração do preço regular), então integrar e confirmar deploy. Nenhuma cobrança real foi executada.
+
+
+## Homologação de indicações concluída — 01/11/2026
+
+PEND-REF-001: etapa de sandbox RESOLVIDA no código 438a21418128f562d965f6d3eb5587afaef83abe. Pagamentos fictícios aprovados de R$ 8,49 (15%) e R$ 5,00 (50%); handlers restauraram R$ 9,99 via API. Indicação em cadeia agendou 50% na próxima competência, sem acúmulo por reenvio ou excedentes. Upgrade confirmou R$ 14,95 e restauração de R$ 29,90 após pagamento futuro emulado. Suíte: 84 aprovados, zero falhas. Sete contratos fictícios cancelados e conferidos. Auth/Firestore representados em memória; entrega pública do webhook e cobrança mensal futura não foram revalidadas nesta etapa. Relatório: RELEASE_HOMOLOGACAO_INDICACOES_2026-11-01.md. PR #5 ainda não integrado/publicado. Próximo passo: revisão final, integração/deploy autorizados e verificação pública. Workspace original preservado.

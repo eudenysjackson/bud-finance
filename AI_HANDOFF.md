@@ -66,3 +66,17 @@ Leia [AI_WORKFLOW.md](AI_WORKFLOW.md), depois consulte [PENDENCIAS.md](PENDENCIA
 - Webhook só registra a conversão em `indicacoes`; não existe crédito, pagamento ou mês grátis para o indicador.
 - Documentado em PEND-REF-001, ERR-070, DEC-068 e ARCHITECTURE_MAP. Não implemente regra promocional até decisão explícita sobre benefício, percentual e elegibilidade.
 - Próximo passo: perguntar ao titular quais benefícios quer para indicador/indicado; então corrigir e homologar atribuição do link/código ao checkout.
+
+
+## Continuidade — programa de indicação 15%/50% (01/11/2026)
+
+- **Decisão aprovada:** DEC-069. O indicado recebe 15% somente na primeira cobrança aprovada. O indicador recebe desconto de 50% em uma cobrança futura, uma vez por conta e somente após a primeira cobrança aprovada do indicado. Não acumular os benefícios no mesmo ciclo; indicação excedente não concede nova recompensa.
+- **Branch de trabalho:** codex/beneficios-indicacao-15-50-20261101. Código e documentos dessa mudança estão apenas nessa branch; não estão publicados.
+- **Preparado:** validação e atribuição do código no backend; onboarding/cadastro/link de venda e configurações; ajuste do valor recorrente via API do Mercado Pago; restauração do preço regular no webhook; estados protegidos nas regras do Firestore. Fixture tests/checkout.test.js alinhado para 15%/50%.
+- **Validação pendente:** quatro regressões foram adicionadas ao checkout. O workflow .github/workflows/validate-pr.yml executou a suíte sem deploy; Actions runs 41341578144, 41341608813 e 41341678748 concluíram com sucesso. A homologação Mercado Pago sandbox segue pendente para validar as cobranças subsequentes, restauração e troca de plano. Não usar cobrança real.
+- **Próximo passo:** homologar em sandbox e então integrar/publicar somente após a revisão final; confirmar deploy. Manter a cópia local codex/ajustes-locais intacta: há alterações preexistentes sem commit e ela diverge da branch remota.
+
+
+## Homologação de indicações concluída — 01/11/2026
+
+PEND-REF-001: etapa de sandbox RESOLVIDA no código 438a21418128f562d965f6d3eb5587afaef83abe. Pagamentos fictícios aprovados de R$ 8,49 (15%) e R$ 5,00 (50%); handlers restauraram R$ 9,99 via API. Indicação em cadeia agendou 50% na próxima competência, sem acúmulo por reenvio ou excedentes. Upgrade confirmou R$ 14,95 e restauração de R$ 29,90 após pagamento futuro emulado. Suíte: 84 aprovados, zero falhas. Sete contratos fictícios cancelados e conferidos. Auth/Firestore representados em memória; entrega pública do webhook e cobrança mensal futura não foram revalidadas nesta etapa. Relatório: RELEASE_HOMOLOGACAO_INDICACOES_2026-11-01.md. PR #5 ainda não integrado/publicado. Próximo passo: revisão final, integração/deploy autorizados e verificação pública. Workspace original preservado.
