@@ -9,6 +9,7 @@ service cloud.firestore {
     function billingFields() {
       return ['plano', 'planoExpira', 'planoAtivadoEm', 'planoAtualizadoEm',
         'mpSubscriptionId', 'mpPayerId', 'mpCheckout', 'fcmTokens', 'assinaturaStatus', 'trialFim', 'trialIniciado', 'planoTroca', 'planoTrocaLock',
+        'pagamentoPendente', 'pagamentoPendenteDesde', 'pagamentoPendentePagamentoId', 'ultimaCobrancaAprovadaEm', 'emailAssinaturaAvisos',
         'role', 'bloqueado', 'status'];
     }
 
@@ -50,3 +51,4 @@ service cloud.firestore {
     }
   }
 }
+
