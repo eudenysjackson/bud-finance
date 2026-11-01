@@ -21,7 +21,7 @@ try {
 
 let _refCode = null; // código de indicação da URL (?ref=XXXXX)
 
-// ── Desconto de indicação (30% off) ───────────────────────
+// ── Desconto de indicação no primeiro mês (15%) ───────────
 function _makeDiscountedPrice(fullInt, fullDec, offInt, offDec) {
   return '<del style="font-size:.78rem;color:#94a3b8;font-weight:500">R$ ' + fullInt + ',' + fullDec + '/mês</del>' +
     '<div style="display:flex;align-items:flex-end;gap:3px;margin-top:2px">' +
