@@ -1,12 +1,12 @@
 # Estado compartilhado e ponto de continuidade
 
-## Correção de confirmação do cadastro — PR #3 (01/11/2026)
+## Correção publicada: confirmação do cadastro e onboarding (01/11/2026)
 
 - **Causa:** o login por link mágico confirmava o e-mail, autenticava a conta e apontava para `dashboard.html`; o guard da dashboard fazia um segundo redirecionamento ao onboarding.
 - **Correção:** `appbudfinance/js/index.js` agora envia o link mágico diretamente a `onboarding.html`. O onboarding continua conduzindo à dashboard somente após conclusão.
-- **Registros atualizados:** PEND-AUTH-086 em `PENDENCIAS.md` (resolvido em código, publicação pendente); ERR-069 em `ERRORS_LOG.md`; DEC-062 em `DECISIONS_LOG.md`; snapshot de fluxo em `ARCHITECTURE_MAP.md`.
-- **Branch/PR:** `codex/fix-confirmation-onboarding-20261101`, [PR #3](https://github.com/eudenysjackson/bud-finance/pull/3), aberta para revisão. Ainda não integrada no `master` nem publicada.
-- **Validação:** código revisado por inspeção; testes não executados. Não alegar confirmação em produção até merge, deploy e navegação real confirmada.
+- **Registros atualizados:** PEND-AUTH-086 em `PENDENCIAS.md` (resolvido e publicado; validação manual ponta a ponta pendente); ERR-069 em `ERRORS_LOG.md`; DEC-062 em `DECISIONS_LOG.md`; fluxo em `ARCHITECTURE_MAP.md`.
+- **Branch/PR:** `codex/fix-confirmation-onboarding-20261101`, [PR #3](https://github.com/eudenysjackson/bud-finance/pull/3), integrada no commit `f3c0453` do `master`; GitHub Pages publicado.
+- **Validação:** GitHub Actions [41338154393](https://github.com/eudenysjackson/bud-finance/actions/runs/41338154393) passou regressões e deploy do GitHub Pages. A navegação real com cadastro novo, link de e-mail e conclusão do onboarding ainda não foi exercitada ponta a ponta.
 
 
 **Atualizado em:** 01/11/2026 (America/Sao_Paulo)  
