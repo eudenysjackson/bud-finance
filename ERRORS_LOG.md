@@ -686,9 +686,9 @@ Cache sem validade e consulta de globais reapresentavam testes antigos para dife
 - **Prevenção:** links que autenticam uma conta recém-criada devem respeitar o fluxo de onboarding antes de encaminhar ao painel.
 
 
-### ERR-070 — origem “Indicação” não vincula código nem benefício de forma confiável
+### ERR-070 — indicação não propagava código nem aplicava benefício corretamente
 - **Data:** 01/11/2026
-- **Sintoma:** escolher “Indicação” no onboarding não abre campo de código e não aplica benefício.
-- **Causa:** `comoConheceu` é apenas origem de aquisição; código é capturado separadamente no cadastro. Além disso, o valor gravado no perfil (30) diverge do desconto do backend (10%), checkout autenticado da página comercial não envia `ref`, e cadastro não pré-preenche o código a partir da URL.
-- **Impacto atual:** seleção da origem, sozinha, não identifica indicador nem concede desconto. Mesmo com código, o desconto não é confiável em todos os percursos. O indicador recebe somente registro da indicação paga; não há crédito/recompensa implementada.
-- **Status:** aberto para decisão de produto e correção. Não considerar sistema de indicação pronto.
+- **Sintoma:** escolher “Indicação” no onboarding não pedia código; código não acompanhava todos os links de venda até o checkout; percentuais divergiam e o indicador não recebia benefício.
+- **Causa raiz:** origem de aquisição comoConheceu era confundida com atribuição; cadastro, onboarding, link comercial, checkout, webhook e Firestore não compartilhavam um único fluxo.
+- **Correção preparada:** captura de código no onboarding e cadastro, pré-preenchimento de ref=, validação autenticada no backend, desconto de 15% na primeira cobrança, recompensa única de 50% numa cobrança futura após aprovação e restauração do preço regular via API de assinatura. Os descontos não se acumulam no mesmo ciclo.
+- **Status:** em revisão e homologação na branch codex/beneficios-indicacao-15-50-20261101. Não afirmar como publicado até CI, sandbox, integração e deploy concluídos.
