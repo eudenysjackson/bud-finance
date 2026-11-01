@@ -741,3 +741,8 @@ A pedido do titular, dentro do app somente assinatura/upgrade calculados do perf
 - **Por quê**: Evitar o salto visual da dashboard para onboarding e preservar a sequência prevista para novas contas.
 - **Consequências**: `appbudfinance/js/index.js` encaminha o login mágico diretamente ao onboarding; a proteção existente do onboarding envia para a dashboard quando `onboardingConcluido === true`. Correção publicada no `master` pelo commit `f3c0453`; workflow `41338154393` concluiu regressões e deploy com sucesso. Validar a jornada real do link mágico em ponta a ponta.
 - **Quando revisar**: Se o cadastro passar a concluir ou pular o onboarding automaticamente.
+
+
+## DEC-068 — 01/11/2026 — origem de aquisição não equivale a indicação validada
+
+A resposta “Indicação” do onboarding é dado de origem (`comoConheceu`) e, por si só, não vincula uma conta indicadora nem concede benefício. Atribuição de indicação deve depender de código validado até a assinatura. A auditoria encontrou discrepâncias de valor e propagação, registradas em PEND-REF-001. **Falta decidir** quais benefícios cabem ao indicador e ao indicado, percentual e elegibilidade antes de implementar ou divulgar a regra.

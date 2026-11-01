@@ -374,3 +374,11 @@ A partir desta data, Codex, Claude e qualquer IA com acesso devem seguir `AI_WOR
 - **Causa:** a confirmação autentica a conta com token customizado e enviava para a dashboard; o guard da dashboard detectava onboarding pendente e redirecionava novamente, causando o salto visível.
 - **Correção:** após validar o link mágico e autenticar, o destino inicial agora é `onboarding.html`. O próprio fluxo do onboarding direciona à dashboard somente quando concluído.
 - **Validação:** o workflow automático de release passou e o deploy do GitHub Pages concluiu. A jornada completa com cadastro novo e clique real no e-mail ainda precisa de validação manual ponta a ponta.
+
+
+## PEND-REF-001 — indicação no onboarding e benefício incompletos (01/11/2026)
+
+- **Status:** 🔴 Pendente de decisão de produto e correção técnica; não prometer benefício por selecionar “Indicação” no onboarding.
+- **Encontrado:** a resposta do onboarding é salva como `comoConheceu` (origem de aquisição). Ela não solicita nem vincula código de indicação. O cadastro tem campo opcional separado; apenas um código válido informado ali preenche `indicadoPor`.
+- **Inconsistências do fluxo existente:** o cadastro grava `descontoIndicacao: 30`, mas o backend calcula 10%; a página comercial pode exibir o preço reduzido, porém seu checkout autenticado envia somente `planKey` e não envia `ref`; a URL `?ref=` não preenche automaticamente o campo no cadastro. Assim, o desconto pode não acompanhar o usuário até o pagamento. O backend registra a indicação do comprador aprovado, mas não concede crédito, dinheiro ou meses grátis ao indicador.
+- **Próximo passo:** definir os benefícios para quem indica e para quem é indicado, percentual, elegibilidade e se “Indicação” no onboarding deve abrir campo opcional de código. Só então alinhar cadastro, URL, checkout/backend, textos de preço e registros Firestore; homologar o caminho inteiro.
