@@ -49,10 +49,13 @@ function createSubscriptionChange({ auth, db, token, plans, emulator = false, fe
         return res.status(409).json({ error: 'A cobrança está em processamento. Tente alterar o plano após a confirmação.' });
       }
       if (planKey === profile.plano && !profile.planoTroca) return res.json({ ok: true, scheduled: false, planKey });
-      const amount = Math.round(plans[planKey].amount * (parts[2] ? 0.9 : 1) * 100) / 100;
+      const reward = profile.beneficioIndicacao50 || {};
+      const rewardApplies = reward.status === 'scheduled' && reward.subscriptionId === subscriptionId;
+      const baseAmount = plans[planKey].amount;
+      const amount = Math.round(baseAmount * (rewardApplies ? 0.5 : 1) * 100) / 100;
       const change = { planKey, amount, effectiveAt: effectiveDate.toISOString(), subscriptionId, status: 'confirming' };
-      // Persist intent before the provider mutation so a retry/webhook can recover it.
-      await ref.update({ planoTroca: change });
+      // Persist the intended plan and the one-cycle referral discount before changing the provider.
+      await ref.update({ planoTroca: change, ...(rewardApplies ? { beneficioIndicacao50: { ...reward, planKey, baseAmount, discountAmount: amount, effectiveAt: effectiveDate.toISOString() } } : {}) });
       if (!local) {
         const response = await providerFetch('https://api.mercadopago.com/preapproval/' + encodeURIComponent(subscriptionId), {
           method: 'PUT', headers, signal: AbortSignal.timeout(10000),
