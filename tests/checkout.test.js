@@ -19,7 +19,7 @@ function setup({providerError=false,lookupError=false}={}){
   _toDate:value=>{if(!value)return null;if(typeof value.toDate==='function')return value.toDate();const parsed=new Date(value);return Number.isNaN(parsed.getTime())?null:parsed;},
   app:{post:(route,...handlers)=>routes.set(route,handlers.at(-1))},express:{json:()=>()=>{}},
   auth:{verifyIdToken:async token=>{assert.equal(token,'test-token');return{uid:'owner',email:'qa@example.test'};}},db,
-  MP_ACCESS_TOKEN:'TEST-fake-token',MP_WEBHOOK_SECRET:'test-secret',MP_WEBHOOK_URL:'https://backend.test/webhook/mercadopago',MP_INDICACAO_DESCONTO:.1,
+  MP_ACCESS_TOKEN:'TEST-fake-token',MP_WEBHOOK_SECRET:'test-secret',MP_WEBHOOK_URL:'https://backend.test/webhook/mercadopago',MP_INDICACAO_DESCONTO:.15,MP_BONUS_INDICADOR:.5,
   MP_PLANS:{starter:{title:'Bud Finance Starter',amount:9.99},pro:{amount:29.90},plus:{amount:49.90}},FRONTEND_URL:'https://budsolucoes.com.br/appbudfinance',
   admin:{firestore:{FieldValue:{delete:()=>'__delete',serverTimestamp:()=>1},Timestamp:{fromDate:date=>date.toISOString()}}},
   process:{env:{BUD_USE_EMULATOR:'true'}},require:name=>{assert.equal(name,'crypto');return crypto;},console:{log(){},warn(){},error(){}},
