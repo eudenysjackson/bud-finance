@@ -644,3 +644,8 @@ bud-notif-inapp.js passou a calcular apenas avisos atuais da assinatura; dashboa
 ## Confirmação de e-mail e onboarding — 01/11/2026
 
 Após a validação do link mágico, `appbudfinance/js/index.js` autentica a conta e direciona diretamente para `onboarding.html`. A dashboard é aberta pelo fluxo de conclusão do onboarding. Correção publicada no `master` no commit `f3c0453`; GitHub Actions `41338154393` confirmou o deploy do GitHub Pages. A jornada real com link recebido por e-mail ainda requer conferência ponta a ponta.
+
+
+## Indicações — estado auditado (01/11/2026)
+
+Onboarding grava `comoConheceu` como origem de aquisição e não solicita código. Cadastro possui entrada manual opcional e valida `codigoIndicacao`, gerando `indicadoPor` e uma indicação em Firestore. Checkout Mercado Pago aplica desconto apenas se recebe `ref`; os caminhos de cadastro → checkout não propagam esse código de modo uniforme. Existe divergência entre `descontoIndicacao: 30` no perfil e desconto backend de 10%. Webhook registra a indicação convertida, mas não implementa recompensa financeira/meses grátis ao indicador. Ver PEND-REF-001 e DEC-068; não considerar indicação funcional ponta a ponta.
