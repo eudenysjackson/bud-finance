@@ -865,7 +865,7 @@ async function carregarPerfil(user) {
       if (copyReferralButton) copyReferralButton.onclick = async function () {
         const code = String(data.codigoIndicacao || '').toUpperCase();
         if (!code) { window.budShowToast('Seu código não está disponível.', 'error'); return; }
-        const link = window.location.origin + '/budfinance/?ref=' + encodeURIComponent(code);
+        const link = 'https://budsolucoes.com.br/budfinance/?ref=' + encodeURIComponent(code);
         try { await navigator.clipboard.writeText(link); window.budShowToast('Link de indicação copiado.', 'success'); }
         catch (_) { window.budShowToast('Não foi possível copiar o link neste navegador.', 'error'); }
       };
