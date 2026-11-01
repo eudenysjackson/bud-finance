@@ -852,6 +852,23 @@ async function carregarPerfil(user) {
       _renderizarSecaoPlano('free', {});
     } else {
       const data = snap.data();
+      const referralCodeEl = document.getElementById('perfilCodigoIndicacao');
+      if (referralCodeEl) referralCodeEl.textContent = String(data.codigoIndicacao || '—').toUpperCase();
+      const referralStatusEl = document.getElementById('indicacaoBeneficioStatus');
+      if (referralStatusEl) {
+        const reward = data.beneficioIndicacao50 || {};
+        referralStatusEl.textContent = ['pending', 'scheduled', 'awaiting_payment'].includes(reward.status)
+          ? (reward.status === 'scheduled' ? 'Seu desconto de 50% está programado para a próxima cobrança.' : 'Seu desconto de 50% ficará disponível na próxima cobrança após uma indicação válida.')
+          : (reward.status === 'used' ? 'Seu benefício de indicação já foi utilizado.' : 'O desconto para quem indica é liberado após a primeira cobrança do amigo ser aprovada.');
+      }
+      const copyReferralButton = document.getElementById('btnCopiarIndicacao');
+      if (copyReferralButton) copyReferralButton.onclick = async function () {
+        const code = String(data.codigoIndicacao || '').toUpperCase();
+        if (!code) { window.budShowToast('Seu código não está disponível.', 'error'); return; }
+        const link = window.location.origin + '/budfinance/?ref=' + encodeURIComponent(code);
+        try { await navigator.clipboard.writeText(link); window.budShowToast('Link de indicação copiado.', 'success'); }
+        catch (_) { window.budShowToast('Não foi possível copiar o link neste navegador.', 'error'); }
+      };
 
       // Avatar — preferir o data:URL salvo no Firestore sobre user.photoURL
       if (data.photoURL) {
