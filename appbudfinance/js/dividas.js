@@ -24,6 +24,8 @@ let dividaAtual        = null;   // usada por editar/excluir/simulador
 let wizardTipo         = '';
 let wizardTipoIcone    = '';
 let wizardFormato      = '';
+let contratoExtraido   = null;
+let blocoContratoAtual = null;
 let dadosIA            = null;
 let valoresOcultos     = false;
 let _unsubs            = [];
@@ -223,6 +225,8 @@ window.iniciarNovaDivida = function() {
   wizardTipoIcone  = '';
   wizardFormato    = '';
   dadosIA          = null;
+  contratoExtraido = null;
+  blocoContratoAtual = null;
   dividaAtual      = null;
 
   // Resetar seleções visuais
@@ -412,7 +416,7 @@ window.processarArquivoIA = async function(inputEl) {
         for (let p = 1; p <= pdfDoc.numPages; p++) {
           const page = await pdfDoc.getPage(p);
           const content = await page.getTextContent();
-          let pageText = content.items.map(i => i.str).join(' ');
+          let pageText = content.items.map(i => i.str + (i.hasEOL ? '\n' : ' ')).join('');
           if (!pageText.trim()) {
             if (!window.Tesseract) throw new Error('O leitor de imagens não carregou. Recarregue a página.');
             pdfOcrWorker = pdfOcrWorker || await window.Tesseract.createWorker('por', 1);
@@ -486,7 +490,14 @@ async function processarTextoExtraido(texto) {
   await new Promise(r => setTimeout(r, 200)); // deixa a UI atualizar
 
   const classif = classificarContrato(texto);
-  const dados   = extrairDadosDoTexto(texto);
+  if (!window.BudContractReader) throw new Error('O leitor de contratos não carregou. Recarregue a página.');
+  contratoExtraido = window.BudContractReader.read(texto);
+  blocoContratoAtual = null;
+  const dados = contratoExtraido ? { ...contratoExtraido.dados } : extrairDadosDoTexto(texto.replace(/[ \t]+/g, ' '));
+  if (contratoExtraido) {
+    classif.tipo = contratoExtraido.tipo;
+    wizardTipo = contratoExtraido.tipo;
+  }
   dados.tipo    = dados.tipo || classif.tipo;
   classif.confianca = calcularConfiancaExtracao(dados);
 
@@ -707,9 +718,15 @@ function mostrarPreviewIA(dados, classif) {
   if (!el) return;
 
   dadosIA = dados;
-
+  const faltantes = window.BudContractReader.missing(dados);
+  const blocos = contratoExtraido?.components || [];
+  const avisos = [...(contratoExtraido?.avisos || [])];
+  if (blocoContratoAtual != null && blocos[blocoContratoAtual]?.aviso) avisos.push(blocos[blocoContratoAtual].aviso);
+  if (faltantes.length) avisos.push('Complete antes de salvar: ' + faltantes.join(', ') + '.');
+  const podeSalvar = faltantes.length === 0 && (!blocos.length || blocoContratoAtual != null);
+  const cabecalhoBlocos = blocos.length ? '<div style="margin-bottom:0.75rem;"><strong>Obrigações identificadas — escolha um bloco</strong>' + blocos.map((b,i) => '<button type="button" onclick="window._selecionarBlocoContrato(' + i + ')" style="display:block;width:100%;text-align:left;padding:0.625rem;margin-top:0.375rem;border:1px solid var(--input-border);border-radius:0.5rem;background:var(--card-bg);color:var(--text-main);cursor:pointer;">' + (blocoContratoAtual === i ? '✓ ' : '') + escapeHTML(b.label) + (b.dados.valorParcela ? ' · ' + b.dados.parcelas + 'x de ' + fmtIA(b.dados.valorParcela) : b.dados.valorTotal ? ' · ' + fmtIA(b.dados.valorTotal) : '') + '</button>').join('') + '</div>' : '';
   const rows = [];
-  if (dados.valorTotal)    rows.push(['Valor Total Financiado', fmtIA(dados.valorTotal)]);
+  if (dados.valorTotal)    rows.push([contratoExtraido?.tipo === 'Aluguel' ? 'Total base dos aluguéis' : contratoExtraido ? 'Total nominal do bloco' : 'Valor Total Financiado', fmtIA(dados.valorTotal)]);
   if (dados.valorParcela)  rows.push(['Parcela Mensal', fmtIA(dados.valorParcela)]);
   if (dados.parcelas)      rows.push(['Total de Parcelas', dados.parcelas + 'x']);
   if (dados.juros)         rows.push(['Juros Mensal', dados.juros.toFixed(2) + '% a.m.']);
@@ -719,6 +736,7 @@ function mostrarPreviewIA(dados, classif) {
   if (dados.seguro)        rows.push(['Seguro', fmtIA(dados.seguro)]);
   if (dados.instituicao)   rows.push(['Instituição', dados.instituicao]);
   if (dados.vencimento)    rows.push(['1ª Parcela', formatDataBR(dados.vencimento)]);
+  if (dados.inicioContrato) rows.push(['Início da locação (não é vencimento)', formatDataBR(dados.inicioContrato)]);
 
   const confiancaCor = classif.confianca >= 70 ? '#16a34a' : classif.confianca >= 40 ? '#d97706' : '#dc2626';
   const parcInit = dados.parcelasPagas ?? 0;
@@ -729,8 +747,10 @@ function mostrarPreviewIA(dados, classif) {
     <div style="background:var(--input-bg);border-radius:0.875rem;padding:1rem;border:1px solid var(--input-border);">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
         <span style="font-size:0.875rem;font-weight:800;color:var(--text-main);">📋 Dados Extraídos</span>
-        <span style="font-size:0.75rem;font-weight:700;color:${confiancaCor};">${classif.confianca}% de confiança</span>
+        <span style="font-size:0.75rem;font-weight:700;color:${confiancaCor};">${4 - faltantes.length} de 4 campos essenciais identificados</span>
       </div>
+      ${cabecalhoBlocos}
+      ${avisos.map(a => '<p style="font-size:0.8125rem;color:#b45309;line-height:1.5;">⚠️ ' + escapeHTML(a) + '</p>').join('')}
       ${rows.length === 0
         ? '<p style="font-size:0.8125rem;color:var(--text-sec);">Nenhum dado identificado. Preencha manualmente.</p>'
         : rows.map(([k,v]) => `
@@ -741,7 +761,7 @@ function mostrarPreviewIA(dados, classif) {
         `).join('')
       }
       <div style="margin-top:0.875rem;padding:0.75rem;background:var(--card-bg);border-radius:0.625rem;border:1.5px solid var(--bud-primary,#2563eb);">
-        <label style="font-size:0.75rem;font-weight:800;color:var(--bud-primary,#2563eb);display:block;margin-bottom:0.375rem;">📆 PARCELAS JÁ PAGAS (ou em atraso)</label>
+        <label style="font-size:0.75rem;font-weight:800;color:var(--bud-primary,#2563eb);display:block;margin-bottom:0.375rem;">📆 PARCELAS JÁ PAGAS</label>
         <div style="display:flex;align-items:center;gap:0.625rem;">
           <input id="iaParcelasPagas" type="number" min="0" max="${dados.parcelas || 9999}" value="${parcInit}"
             style="width:72px;padding:0.375rem 0.5rem;border:1.5px solid var(--input-border);border-radius:0.5rem;background:var(--input-bg);color:var(--text-main);font-size:1rem;font-weight:800;text-align:center;font-family:inherit;"
@@ -749,7 +769,7 @@ function mostrarPreviewIA(dados, classif) {
           <span style="font-size:0.8125rem;color:var(--text-sec);font-weight:600;">${totalParc} — informe 0 se nenhuma foi paga ainda</span>
         </div>
       </div>
-      <button id="btnSalvarIA" onclick="salvarDividaIA()" style="margin-top:0.875rem;width:100%;padding:0.625rem;border:none;border-radius:0.75rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:0.875rem;font-weight:800;cursor:pointer;font-family:inherit;transition:all .2s;">
+      <button id="btnSalvarIA" ${podeSalvar ? '' : 'disabled'} onclick="salvarDividaIA()" style="margin-top:0.875rem;width:100%;padding:0.625rem;border:none;border-radius:0.75rem;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;font-size:0.875rem;font-weight:800;cursor:pointer;font-family:inherit;transition:all .2s;">
         💾 Salvar Dívida
       </button>
       <button onclick="abrirFormManual(null, true)" style="margin-top:0.5rem;width:100%;padding:0.5rem;border:1.5px solid var(--input-border);border-radius:0.75rem;background:var(--input-bg);color:var(--text-sec);font-size:0.8125rem;font-weight:700;cursor:pointer;font-family:inherit;">
@@ -758,6 +778,13 @@ function mostrarPreviewIA(dados, classif) {
     </div>
   `;
 }
+
+window._selecionarBlocoContrato = function(index) {
+  const bloco = contratoExtraido?.components?.[index];
+  if (!bloco) return;
+  blocoContratoAtual = index;
+  mostrarPreviewIA({ ...bloco.dados }, { tipo: contratoExtraido.tipo, confianca: calcularConfiancaExtracao(bloco.dados) });
+};
 
 // Sincroniza o input de parcelas pagas na IA com dadosIA
 window._syncParcelasPagasIA = function(val) {
@@ -770,6 +797,11 @@ window._syncParcelasPagasIA = function(val) {
 // Bug #17: try/catch + botão desabilitado durante save
 window.salvarDividaIA = async function() {
   if (!dadosIA) return;
+  const faltantes = window.BudContractReader.missing(dadosIA);
+  if (faltantes.length || (contratoExtraido?.components?.length && blocoContratoAtual == null)) {
+    window.budShowToast?.('Revise o bloco escolhido e complete: ' + faltantes.join(', '), 'warning');
+    return;
+  }
 
   // Ler parcelas pagas do input antes de salvar
   const inputPP = document.getElementById('iaParcelasPagas');
@@ -779,6 +811,10 @@ window.salvarDividaIA = async function() {
     if (dadosIA.valorParcela) dadosIA.valorPago = pp * dadosIA.valorParcela;
   }
 
+  if (!Number.isInteger(dadosIA.parcelasPagas) || dadosIA.parcelasPagas < 0 || dadosIA.parcelasPagas > dadosIA.parcelas) {
+    window.budShowToast?.('O número de parcelas pagas deve estar entre zero e o total do bloco.', 'warning');
+    return;
+  }
   const btn = document.getElementById('btnSalvarIA');
   if (!btn || btn.disabled) return;
 
@@ -2361,3 +2397,4 @@ window.exportarPDFDividas = function () {
   win.focus();
   setTimeout(() => { try { win.print(); } catch(_) {} }, 600);
 };
+
