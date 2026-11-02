@@ -34,7 +34,7 @@
     if(goal.tipoMeta!=='compra')throw Error('Escolha Meta de compra ao editar este objetivo.');
     if(cents(plan.reserve)>cents(goal.valorAtual||0))throw Error('A reserva mudou. Revise o valor disponível na meta.');
     const accounts=[];for(const part of plan.parts){const r=ref(uid,'carteira',part.accountId),s=await tx.get(r);if(!s.exists()||s.data().ativo===false)throw Error('Uma conta ou cartão não está disponível.');accounts.push({ref:r,...s.data(),id:part.accountId,part});}
-    let charges=[];if(accounts.some(a=>a.tipo==='credito')){const docs=await loadCharges(uid);for(const d of docs){const s=await tx.get(d.ref);if(s.exists())charges.push(s.data());}}
+    let charges=[];if(accounts.some(a=>a.tipo==='credito')){const docs=await loadCharges(uid,accounts.filter(a=>a.tipo==='credito').map(a=>a.id));const snapshots=await Promise.all(docs.map(d=>tx.get(d.ref)));charges=snapshots.filter(s=>s.exists()).map(s=>s.data());}
     const records=[];
     for(const a of accounts){
      const p=a.part;
@@ -83,4 +83,5 @@
  }
  const api={validDate,normalize,schedule,available,createService};if(typeof module==='object'&&module.exports)module.exports=api;else root.BudGoalPurchase=api;
 })(typeof window==='undefined'?globalThis:window);
+
 

@@ -1288,9 +1288,10 @@ let _goalPurchaseBusy=false;
 async function abrirCompraMeta(goalId){
  if(_goalPurchaseBusy||!currentUser)return;_goalPurchaseBusy=true;const uid=currentUser.uid;
  try{const snap=await getDoc(doc(db,'usuarios',uid,'metas',goalId));if(!snap.exists())throw Error('Meta indisponível.');
- const service=window.BudGoalPurchase.createService({db,doc,collection,runTransaction,serverTimestamp,Timestamp,loadCharges:async id=>(await getDocsFromServer(collection(db,'usuarios',id,'transacoes'))).docs});
+ const service=window.BudGoalPurchase.createService({db,doc,collection,runTransaction,serverTimestamp,Timestamp,loadCharges:async (id,cards)=>(await getDocsFromServer(query(collection(db,'usuarios',id,'transacoes'),where('cartaoId','in',cards)))).docs});
  const result=await window.BudGoalPurchaseDialog.open({goal:{id:goalId,...snap.data()},accounts:carteirasGlobal,onSave:(request,confirm)=>service.save({uid,goalId,request,confirm})});
  if(result)window.budShowToast(result.already?'Compra já estava registrada.':result.planned?'Plano salvo, sem movimentar saldo.':'Compra registrada nas contas e faturas.','success');
  }catch(error){window.budShowToast(error.message||'Erro ao abrir compra.','error');}finally{_goalPurchaseBusy=false;}
 }
+
 
