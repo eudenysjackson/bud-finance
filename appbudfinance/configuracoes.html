@@ -587,14 +587,6 @@
             <div class="cfg-value muted" id="perfilCriacao">—</div>
           </div>
 
-          <div class="cfg-field">
-            <div class="cfg-label">Dia de Fechamento do Mês</div>
-            <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
-              <input class="cfg-value" type="number" id="perfilDiaFechamento" min="1" max="28" placeholder="1" style="max-width:80px;cursor:text;" title="Dia do mês que inicia seu período financeiro">
-              <span style="font-size:0.75rem;color:var(--card-text-sec);font-weight:500;line-height:1.4;">Dia do mês em que começa seu período financeiro<br>(ex: dia do salário — entre 1 e 28)</span>
-            </div>
-          </div>
-
           <div style="display:flex;justify-content:flex-end;margin-top:0.25rem;">
             <button class="cfg-btn cfg-btn-primary" id="btnSalvarNome">Salvar Alterações</button>
           </div>
@@ -648,7 +640,7 @@
           <div class="cfg-action-row" style="margin-top:0.75rem;">
             <div class="cfg-action-info">
               <div class="cfg-action-label">Revogar Consentimento de Notificações</div>
-              <div class="cfg-action-desc">Remove sua autorização de notificações push e registra a revogação (LGPD Art. 8)</div>
+              <div class="cfg-action-desc">Interrompe novos envios de push em todos os dispositivos. Para voltar a receber, clique em Ativar. Não cancela a assinatura nem os e-mails.</div>
             </div>
             <button class="cfg-btn cfg-btn-secondary" id="btnRevogarNotificacoes">Revogar</button>
           </div>
@@ -906,10 +898,11 @@
 
   <!-- ═══ Firebase + Config ════════════════════════════════════════ -->
   <script src="js/firebase-config.js"></script>
-  <script src="js/bud-utils.js"></script>
-  <script type="module" src="js/configuracoes.js?v=20261102-push-ui"></script>
+  <script src="js/bud-utils.js?v=20261102-profile"></script>
+  <script type="module" src="js/configuracoes.js?v=20261102-consent"></script>
   <script src="js/tutorial.js"></script>
   <script>BudTutorial.init('configuracoes');</script>
 </body>
 </html>
+
 

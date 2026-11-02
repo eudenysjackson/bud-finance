@@ -38,3 +38,12 @@ test('foreground notification preserves title and body when FCM supplies empty d
  assert.equal(displays[1].title,'Fatura');assert.equal(displays[1].body,'Vence amanhã');assert.equal(displays[1].data.url,'https://example.com/appbudfinance/dashboard.html');
 });
 
+
+test('profile changes update an already open device and old account listeners cannot overwrite it',()=>{
+ const text=fs.readFileSync('appbudfinance/js/profile-sync.js','utf8'),code=text.slice(text.indexOf('export function observeProfile'),text.indexOf('function start()')).replace('export ','');
+ const observe=new Function('console',code+';return observeProfile;')({warn(){}});let authCallback,stopped=0;const subscriptions=[],applied=[];
+ const stop=observe({auth:{},db:{},watchAuth:(_,fn)=>{authCallback=fn;return()=>stopped++;},profileRef:(_,c,id)=>id,watchProfile:(id,fn)=>{subscriptions.push({id,fn});return()=>stopped++;},apply:data=>applied.push(data)});
+ authCallback({uid:'a',displayName:'A'});const first=subscriptions[0];first.fn({exists:()=>true,data:()=>({photoURL:'first-photo',nome:'A'})});first.fn({exists:()=>true,data:()=>({photoURL:'updated-photo',nome:'A'})});assert.equal(applied.at(-1).photoURL,'updated-photo');
+ authCallback({uid:'b',displayName:'B'});first.fn({exists:()=>true,data:()=>({photoURL:'stale-photo'})});assert.equal(applied.at(-1).photoURL,'updated-photo');subscriptions[1].fn({exists:()=>true,data:()=>({nome:'B',pushConsentRevoked:true})});assert.equal(applied.at(-1).photoURL,null);assert.equal(applied.at(-1).revoked,true);stop();assert.equal(stopped,3);
+});
+

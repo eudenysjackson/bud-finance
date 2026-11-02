@@ -2056,7 +2056,7 @@ app.post('/api/alerta-financeiro', async function (req, res) {
 // Rota leve para acordar o servidor no Render free tier.
 // Chamada silenciosa no carregamento de qualquer pÃ¡gina que use o backend.
 app.get('/api/ping', function (_req, res) {
-  res.json({ ok: true, ts: Date.now() });
+  res.json({ ok: true, ts: Date.now(), revision: process.env.RENDER_GIT_COMMIT || null, pushConsentVersion: 1 });
 });
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -3028,14 +3028,15 @@ app.post('/api/push/token', async function (req, res) {
     var registrationRef = db.collection('usuarios').doc(decoded.uid);
     await db.runTransaction(async transaction => {
       const snap=await transaction.get(registrationRef), data=snap.data()||{};
+      if(data.pushConsentRevoked===true && req.body.consent!==true)throw Object.assign(new Error('Consentimento revogado. Clique em Ativar para autorizar novamente.'),{status:403});
       const tokens=[...new Set([...(data.fcmTokens||[]),data.fcmToken,token].filter(Boolean))];
       if(tokens.length>20) throw Object.assign(new Error('Limite de dispositivos atingido.'),{status:409});
-      transaction.update(registrationRef,{fcmToken:token,fcmTokens:tokens,fcmTokenPlatform:platform,fcmTokenAt:admin.firestore.FieldValue.serverTimestamp(),pushEnabled:true});
+      transaction.update(registrationRef,{pushConsentRevoked:false,fcmToken:token,fcmTokens:tokens,fcmTokenPlatform:platform,fcmTokenAt:admin.firestore.FieldValue.serverTimestamp(),pushEnabled:true});
     });
     return res.json({ ok: true });
   } catch (e) {
     console.error('[/api/push/token]', e.message);
-    return res.status(e.status||500).json({ error: e.status===409?e.message:'Erro ao salvar token.' });
+    return res.status(e.status||500).json({ error: [403,409].includes(e.status)?e.message:'Erro ao salvar token.' });
   }
 });
 
@@ -3064,11 +3065,12 @@ app.delete('/api/push/token', async function (req, res) {
       });
       return res.json({ ok: true });
     }
-    await pushRef.update({
-      fcmToken:    admin.firestore.FieldValue.delete(),
-      fcmTokens:   admin.firestore.FieldValue.delete(),
-      pushEnabled: false,
-      fcmTokenAt:  admin.firestore.FieldValue.serverTimestamp()
+    await db.runTransaction(async transaction=>{
+      await transaction.get(pushRef);
+      transaction.update(pushRef,{
+        fcmToken:admin.firestore.FieldValue.delete(),fcmTokens:admin.firestore.FieldValue.delete(),
+        pushEnabled:false,pushConsentRevoked:true,pushConsentRevokedAt:admin.firestore.FieldValue.serverTimestamp()
+      });
     });
     return res.json({ ok: true });
   } catch (e) {
@@ -3581,4 +3583,5 @@ var PORT = process.env.PORT || 3000;
 app.listen(PORT, function () {
   console.log('[Bud Finance Backend] Running on port ' + PORT);
 });
+
 

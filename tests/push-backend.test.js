@@ -38,3 +38,11 @@ test('scheduled dry-run verifies the shared secret and database without sending 
  assert.equal((await call('wrong')).statusCode,401);assert.equal(reads,0);
  const result=await call('test-only');assert.equal(result.statusCode,200);assert.equal(result.data.dryRun,true);assert.equal(result.data.pushRecipientsFound,true);assert.equal(reads,1);
 });
+
+test('global consent revocation clears all devices and cannot be undone by silent refresh',async()=>{
+ const s=setup();await s.invoke('POST','/api/push/token',{token:'phone'});await s.invoke('POST','/api/push/token',{token:'computer'});
+ assert.equal((await s.invoke('DELETE','/api/push/token')).statusCode,200);assert.equal(s.profile.pushConsentRevoked,true);assert.equal(s.profile.pushEnabled,false);assert.equal(s.profile.fcmTokens,undefined);assert.equal(s.profile.fcmToken,undefined);assert.equal(s.profile.pushConsentRevokedAt,1);
+ assert.equal((await s.invoke('POST','/api/push/token',{token:'phone'})).statusCode,403);assert.equal(s.profile.pushEnabled,false);
+ assert.equal((await s.invoke('POST','/api/push/token',{token:'computer',consent:true})).statusCode,200);assert.equal(s.profile.pushConsentRevoked,false);assert.deepEqual(s.profile.fcmTokens,['computer']);
+});
+
