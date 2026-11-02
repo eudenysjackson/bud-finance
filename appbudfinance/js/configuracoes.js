@@ -1,3 +1,4 @@
+import { openAuthenticatedCheckout, validCheckoutURL } from './checkout-client.js?v=20261102-plans';
 // js/configuracoes.js — Bud Finance Configurações
 // Auth guard + perfil + personalização + segurança
 // Modular Firebase SDK v10.8.1
@@ -5,7 +6,7 @@
 import { initializeApp, getApps }                from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut, updateProfile }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
-import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, getDocs, updateDoc, deleteDoc, deleteField, setDoc, collection, query, orderBy, writeBatch }
+import { getFirestore, initializeFirestore, persistentLocalCache, onSnapshot, doc, getDoc, getDocs, updateDoc, deleteDoc, deleteField, setDoc, collection, query, orderBy, writeBatch }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 import { registerPushToken, listenForeground, revokePushToken, showForegroundNotification } from './push.js?v=20261102-consent';
 import { connectEmulators } from './bud-emulator-connect.js';
@@ -18,6 +19,7 @@ connectEmulators(auth, db);
 
 // ─── Estado ─────────────────────────────────────────────────────────────
 let uid = null;
+let planUnsubscribe = null;
 let _skipThemeSync = false;let _userPlano = 'free';
 let _whatsappNumero = null;
 let _hoverOrigTheme = null;
@@ -1012,15 +1014,16 @@ function _renderizarSecaoPlano(plano, data) {
     const btn = document.createElement('button');
     btn.textContent = label;
     btn.style.cssText = 'padding:0.5rem 1rem;background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;border:none;border-radius:0.625rem;font-size:0.8125rem;font-weight:700;cursor:pointer;white-space:nowrap;';
-    btn.onclick = function () {
-      if (data.mpSubscriptionId && PLANOS_PAGOS.includes(plano)) {
-        _confirmarTrocaPlano(planoDest, data);
+    btn.onclick = async function () {
+      if (data.mpSubscriptionId && PLANOS_PAGOS.includes(plano) && status !== 'pending') {
+        const prices={starter:9.99,pro:29.90,plus:49.90};
+        if(prices[planoDest]>prices[plano])_confirmarUpgradeProporcional(planoDest,data);
+        else _confirmarTrocaPlano(planoDest,data);
         return;
       }
-      const dest = planoDest ? '?checkout=' + planoDest : '';
-      // Configurações já está dentro de appbudfinance: volte ao login do app,
-      // não à landing page institucional que leva a um novo cadastro.
-      window.location.href = 'index.html' + dest;
+      btn.disabled=true;btn.textContent='Abrindo checkout…';
+      try {await openAuthenticatedCheckout(auth.currentUser,planoDest);}
+      catch(error){window.budShowToast?.(error.message||'Não foi possível abrir o checkout.','error');btn.disabled=false;btn.textContent=label;}
     };
     return btn;
   }
@@ -1064,11 +1067,35 @@ function _renderizarSecaoPlano(plano, data) {
     elBotoes.appendChild(_btnUpgrade('⬇️ Mudar para Starter', 'starter'));
     elBotoes.appendChild(_btnCancelar());
   }
+  if(data.planoUpgrade && ['quoted','pending','unknown','creating'].includes(data.planoUpgrade.state)){
+    const pending=document.createElement('button');pending.textContent='Cancelar upgrade pendente';pending.className='cfg-btn cfg-btn-secondary';pending.onclick=async()=>{pending.disabled=true;try{await upgradeRequest({action:'cancel',quoteId:data.planoUpgrade.id});const snap=await getDoc(doc(db,'usuarios',uid));_renderizarSecaoPlano(snap.data()?.plano||plano,snap.data()||data);window.budShowToast?.('Upgrade pendente cancelado. Sua assinatura foi mantida.','success');}catch(e){pending.disabled=false;window.budShowToast?.(e.message,'error');}};elBotoes.appendChild(pending);
+  }
   if (data.planoTroca && data.planoTroca.planKey !== plano && PLANOS_PAGOS.includes(plano)) {
     elBotoes.appendChild(_btnUpgrade('Manter plano atual (desfazer troca)', plano));
   }
 }
 
+async function upgradeRequest(body){
+ const user=auth.currentUser;if(!user)throw Error('Entre novamente para continuar.');
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),30000);
+ try {
+  const token=await user.getIdToken();
+  const base=(window.BUD_FUNCTIONS_URL||'https://bud-finance-backend.onrender.com').replace(/\/$/,'');
+  const response=await fetch(base+'/mercadopago/upgrade-subscription',{method:'POST',signal:controller.signal,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const result=await response.json().catch(()=>({}));if(!response.ok)throw Error(result.error||'Não foi possível confirmar. Tente novamente.');return result;
+ } catch(error){if(error.name==='AbortError')throw Error('A confirmação demorou mais que o esperado. Seu plano atual foi mantido; tente novamente.');throw error;}
+ finally {clearTimeout(timeout);}
+}
+function _confirmarUpgradeProporcional(planKey,data){
+ const overlay=document.createElement('div');overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(6px);z-index:10000;display:grid;place-items:center;padding:1rem;';
+ const card=document.createElement('section');card.style.cssText='background:var(--card-bg,#fff);color:var(--card-text,#1e293b);padding:1.5rem;border-radius:24px;max-width:440px;width:100%;box-sizing:border-box;';
+ card.innerHTML='<h3 style="margin:0;font-size:1.1rem;">Upgrade de plano</h3><p data-summary style="line-height:1.6;">Calculando a diferença proporcional…</p><p data-error role="alert" style="color:#dc2626;font-size:.85rem;"></p><div style="display:flex;gap:.75rem;"><button data-back style="padding:.8rem;border-radius:12px;border:1px solid var(--input-border,#dbe3ef);font:inherit;cursor:pointer;">Voltar</button><button data-pay disabled style="padding:.8rem;border-radius:12px;border:0;background:#2563eb;color:white;font:inherit;font-weight:700;cursor:pointer;flex:1;">Aguarde…</button></div>';
+ overlay.appendChild(card);document.body.appendChild(overlay);let quote=null,busy=false;
+ const back=card.querySelector('[data-back]'),pay=card.querySelector('[data-pay]'),error=card.querySelector('[data-error]');
+ back.onclick=async()=>{if(busy)return;if(quote?.state==='quoted')await upgradeRequest({action:'cancel',quoteId:quote.quoteId}).catch(()=>{});overlay.remove();};
+ upgradeRequest({action:'quote',planKey}).then(value=>{if(!overlay.isConnected){if(value.state==='quoted')upgradeRequest({action:'cancel',quoteId:value.quoteId}).catch(()=>{});return;}quote=value;const fmt=v=>Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}),date=new Date(value.cycleEnd).toLocaleDateString('pt-BR');card.querySelector('[data-summary]').textContent='Você paga agora apenas '+fmt(value.amount)+' pela diferença até '+date+'. Após a aprovação, o novo plano será liberado. A assinatura mensal será mantida, com valor padrão de '+fmt(value.monthlyAmount)+' nas próximas cobranças (benefício de indicação, se houver, preservado). Um downgrade agendado será substituído. Confira o valor no checkout.';pay.disabled=false;pay.textContent='Ir ao Mercado Pago';}).catch(e=>{error.textContent=e.message;pay.textContent='Indisponível';});
+ pay.onclick=async()=>{if(busy||!quote)return;busy=true;pay.disabled=true;back.disabled=true;pay.textContent='Abrindo checkout…';try{const result=await upgradeRequest({action:'checkout',quoteId:quote.quoteId});window.location.assign(validCheckoutURL(result.init_point));}catch(e){busy=false;error.textContent=e.message;pay.disabled=false;back.disabled=false;pay.textContent='Tentar novamente';}};
+}
 function _confirmarTrocaPlano(planKey, data) {
   const plans = { starter: ['Starter', 9.99], pro: ['Pro', 29.90], plus: ['Plus', 49.90] };
   if (!plans[planKey]) return;
@@ -1343,6 +1370,7 @@ setupSidebar();
 setupTabs();
 
 onAuthStateChanged(auth, async function (user) {
+  planUnsubscribe?.(); planUnsubscribe = null;
   if (user) {
     try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
   }
@@ -1366,6 +1394,13 @@ onAuthStateChanged(auth, async function (user) {
   } catch (_) { _isAdmin = false; }
 
   await carregarPerfil(user);
+  const observedUid = user.uid;
+  planUnsubscribe = onSnapshot(doc(db, 'usuarios', observedUid), snapshot => {
+    if (auth.currentUser?.uid !== observedUid || !snapshot.exists()) return;
+    const data = snapshot.data();
+    _userPlano = data.plano || 'free';
+    _renderizarSecaoPlano(_userPlano, data);
+  }, () => window.budShowToast?.('Não foi possível atualizar seu plano. Recarregue a página para conferir.', 'error'));
   renderThemeBubbles();
   setupSeguranca();
   setupFotoPerfil();

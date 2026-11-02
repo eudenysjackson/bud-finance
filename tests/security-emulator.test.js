@@ -19,6 +19,10 @@ if(enabled){
   assert.equal((await request('usuarios/'+b,tokenA,'PATCH',{nome:{stringValue:'attacker'}})).status,403);
   assert.equal((await request('usuarios/'+a+'?updateMask.fieldPaths=plano',tokenA,'PATCH',{plano:{stringValue:'plus'}})).status,403);
   assert.equal((await request('admins/'+a,tokenA,'PATCH',{role:{stringValue:'admin'}})).status,403);
+  for(const field of ['planoUpgrade','upgradeCiclo'])assert.equal((await request('usuarios/'+a+'?updateMask.fieldPaths='+field,tokenA,'PATCH',{[field]:{mapValue:{fields:{state:{stringValue:'applied'}}}}})).status,403);
+  await db.doc('usuarios/'+a+'/upgrades-planos/fake-upgrade').set({state:'pending'});
+  assert.equal((await request('usuarios/'+a+'/upgrades-planos/fake-upgrade',tokenA)).status,403);
+  assert.equal((await request('usuarios/'+a+'/upgrades-planos/fake-upgrade',tokenA,'PATCH',{state:{stringValue:'applied'}})).status,403);
   assert.equal((await request('usuarios/'+a+'/_seguranca/test',tokenA)).status,403);
   assert.equal((await request('usuarios/'+a+'/uso-ia/2026-11',tokenA,'PATCH',{total:{integerValue:'0'}})).status,403);
  });

@@ -49,6 +49,8 @@ function createSubscriptionChange({ auth, db, token, plans, emulator = false, fe
         return res.status(409).json({ error: 'A cobrança está em processamento. Tente alterar o plano após a confirmação.' });
       }
       if (planKey === profile.plano && !profile.planoTroca) return res.json({ ok: true, scheduled: false, planKey });
+      if(plans[planKey].amount>plans[profile.plano].amount)return res.status(409).json({code:'UPGRADE_CHECKOUT_REQUIRED',error:'O upgrade exige o checkout da diferença proporcional.'});
+      if(profile.planoUpgrade&&['creating','unknown','pending','applying'].includes(profile.planoUpgrade.state)&&new Date(profile.planoUpgrade.validUntil).getTime()>Date.now())return res.status(409).json({error:'Cancele ou conclua o upgrade pendente antes de agendar outra alteração.'});
       const reward = profile.beneficioIndicacao50 || {};
       const rewardApplies = reward.status === 'scheduled' && reward.subscriptionId === subscriptionId;
       const baseAmount = plans[planKey].amount;

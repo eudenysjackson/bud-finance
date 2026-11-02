@@ -16,7 +16,7 @@ function setup({providerError=false,lookupError=false,referrer=null,initialProfi
  let transactionTail=Promise.resolve();
  const referrerDoc=referrer?{id:referrer.uid,data:()=>referrer.data,ref:{collection:()=>({doc:()=>({})})}}:null;
  const db={collection:name=>({doc:uid=>{assert.equal(name,'usuarios');assert.equal(uid,'owner');return ref;},where:(_field,_op,value)=>({limit:()=>({get:async()=>referrerDoc&&referrer.data.codigoIndicacao===value?{size:1,docs:[referrerDoc]}:{size:0,docs:[]}})})}),runTransaction(fn){const work=transactionTail.then(()=>fn({get:r=>r.get(),update:(_,data)=>update(data)}));transactionTail=work.catch(()=>{});return work;}};
- const context={createSubscriptionChange:require('../backend/subscription-change').createSubscriptionChange,crypto,Buffer,AbortSignal,
+ const context={subscriptionUpgrades:{handler:async()=>{},processPayment:async()=>false},createSubscriptionChange:require('../backend/subscription-change').createSubscriptionChange,crypto,Buffer,AbortSignal,
   _toDate:value=>{if(!value)return null;if(typeof value.toDate==='function')return value.toDate();const parsed=new Date(value);return Number.isNaN(parsed.getTime())?null:parsed;},
   app:{post:(route,...handlers)=>routes.set(route,handlers.at(-1))},express:{json:()=>()=>{}},
   auth:{verifyIdToken:async token=>{assert.equal(token,'test-token');return{uid:'owner',email:'qa@example.test'};}},db,
@@ -35,7 +35,7 @@ function setup({providerError=false,lookupError=false,referrer=null,initialProfi
   const signature=crypto.createHmac('sha256','test-secret').update(`id:${id};request-id:${requestId};ts:${ts};`).digest('hex');
   return invoke('/webhook/mercadopago',{type,data:{id}},{'x-request-id':requestId,'x-signature':`ts=${ts},v1=${valid?signature:'invalid'}`});
  }
- return{profile,sub,payment,invoice,calls,invoke,webhook};
+ return{profile,sub,payment,invoice,calls,invoke,webhook,updateSubscription:context._mpUpdateSubscriptionProfile};
 }
 test('checkout requires authentication and uses server price and identity',async()=>{
  const s=setup();assert.equal((await s.invoke('/mercadopago/create-subscription',{},{})).statusCode,401);assert.equal(s.calls.length,0);
@@ -216,10 +216,10 @@ test('failed renewal does not extend access and later approval restores the same
  assert.equal(s.calls.filter(c=>['POST','PUT'].includes(c.options.method)).length,0);
 });
 
-test('plan upgrade updates the same subscription at server price while retaining current access',async()=>{
- const s=setup();activeSubscription(s);const expiry=s.profile.planoExpira;
+test('downgrade updates the same subscription at server price while retaining current access',async()=>{
+ const s=setup();activeSubscription(s,'plus');const expiry=s.profile.planoExpira;
  const result=await s.invoke('/mercadopago/change-subscription',{planKey:'pro',amount:0,uid:'other'});
- assert.equal(result.statusCode,200);assert.equal(result.data.scheduled,true);assert.equal(s.profile.plano,'starter');assert.equal(s.profile.planoExpira,expiry);
+ assert.equal(result.statusCode,200);assert.equal(result.data.scheduled,true);assert.equal(s.profile.plano,'plus');assert.equal(s.profile.planoExpira,expiry);
  assert.equal(s.profile.mpSubscriptionId,'sub-1');assert.equal(s.profile.planoTroca.planKey,'pro');assert.equal(s.profile.planoTroca.status,'scheduled');
  assert.equal(s.calls.filter(c=>c.options.method==='POST').length,0);
  const change=s.calls.find(c=>c.options.method==='PUT');assert.ok(change.url.endsWith('/sub-1'));assert.equal(JSON.parse(change.options.body).auto_recurring.transaction_amount,29.9);
@@ -232,20 +232,20 @@ test('downgrade preserves Plus until the next approved charge and can be withdra
 });
 
 test('status events and replayed old payments cannot activate a scheduled plan early',async()=>{
- const s=setup();activeSubscription(s);await s.invoke('/mercadopago/change-subscription',{planKey:'pro'});
- await s.webhook();assert.equal(s.profile.plano,'starter');
+ const s=setup();activeSubscription(s,'plus');await s.invoke('/mercadopago/change-subscription',{planKey:'pro'});
+ await s.webhook();assert.equal(s.profile.plano,'plus');
  s.payment.status='approved';s.payment.transaction_amount=29.9;s.payment.date_approved=new Date().toISOString();
- await s.webhook('payment');assert.equal(s.profile.plano,'starter');assert.equal(s.profile.planoTroca.planKey,'pro');
+ await s.webhook('payment');assert.equal(s.profile.plano,'plus');assert.equal(s.profile.planoTroca.planKey,'pro');
  s.payment.date_approved=new Date(Date.now()+31*86400000).toISOString();s.payment.transaction_amount=9.99;
- await s.webhook('payment');assert.equal(s.profile.plano,'starter');
+ await s.webhook('payment');assert.equal(s.profile.plano,'plus');
  s.payment.transaction_amount=29.9;await s.webhook('payment');assert.equal(s.profile.plano,'pro');assert.equal(s.profile.planoTroca,undefined);
  await s.webhook();assert.equal(s.profile.plano,'pro');
 });
 
 test('failed scheduled-plan update retains current plan and recoverable intent',async()=>{
- const s=setup({providerError:true});activeSubscription(s);
+ const s=setup({providerError:true});activeSubscription(s,'plus');
  assert.equal((await s.invoke('/mercadopago/change-subscription',{planKey:'pro'})).statusCode,503);
- assert.equal(s.profile.plano,'starter');assert.equal(s.profile.planoTroca.status,'confirming');assert.equal(s.profile.planoTrocaLock,null);
+ assert.equal(s.profile.plano,'plus');assert.equal(s.profile.planoTroca.status,'confirming');assert.equal(s.profile.planoTrocaLock,null);
 });
 
 test('plan change rejects another owner, a processing charge and concurrent changes',async()=>{
@@ -259,15 +259,19 @@ test('plan change rejects another owner, a processing charge and concurrent chan
 });
 
 test('local plan scheduling uses only emulators and never calls the provider',async()=>{
- const s=setup();activeSubscription(s);s.profile.mpSubscriptionId='LOCAL_TEST_1';
- assert.equal((await s.invoke('/mercadopago/change-subscription',{planKey:'plus'})).statusCode,200);
- assert.equal(s.profile.plano,'starter');assert.equal(s.profile.planoTroca.planKey,'plus');assert.equal(s.calls.length,0);
+ const s=setup();activeSubscription(s,'plus');s.profile.mpSubscriptionId='LOCAL_TEST_1';
+ assert.equal((await s.invoke('/mercadopago/change-subscription',{planKey:'pro'})).statusCode,200);
+ assert.equal(s.profile.plano,'plus');assert.equal(s.profile.planoTroca.planKey,'pro');assert.equal(s.calls.length,0);
 });
 
 test('provider may omit payer email when subscription binding and payer ID identify the owner',async()=>{
- const s=setup();activeSubscription(s);delete s.sub.payer_email;s.sub.payer_id=123;s.profile.mpPayerId='123';
+ const s=setup();activeSubscription(s,'plus');delete s.sub.payer_email;s.sub.payer_id=123;s.profile.mpPayerId='123';
  assert.equal((await s.invoke('/mercadopago/change-subscription',{planKey:'pro'})).statusCode,200);
  s.sub.payer_id=456;
  assert.equal((await s.invoke('/mercadopago/change-subscription',{planKey:'plus'})).statusCode,403);
 });
 
+
+test('an initial checkout from a manually granted plan activates only the plan actually bought after approval',async()=>{const s=setup({initialProfile:{plano:'plus'}});await s.invoke('/mercadopago/create-subscription',{planKey:'starter'});await s.webhook();assert.equal(s.profile.plano,'plus');s.payment.status='approved';s.payment.transaction_amount=9.99;s.payment.date_approved=new Date().toISOString();await s.webhook('payment');assert.equal(s.profile.plano,'starter');assert.equal(s.profile.mpCheckout,undefined);});
+
+test('a subscription status event read before an upgrade cannot overwrite the new plan',async()=>{const s=setup({initialProfile:{plano:'pro',mpSubscriptionId:'sub-1'}});await assert.rejects(s.updateSubscription('owner','sub-1',{plano:'starter'},'starter'),/changed concurrently/);assert.equal(s.profile.plano,'pro');});

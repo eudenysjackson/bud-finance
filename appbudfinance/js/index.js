@@ -1,3 +1,4 @@
+import { openAuthenticatedCheckout } from './checkout-client.js?v=20261102-plans';
 // js/index.js — Bud Finance Login Logic (ES Module)
 // Uses Firebase SDK Modular v10.8.1 — NO compat layer.
 
@@ -20,9 +21,17 @@ connectEmulators(auth, db);
 // Se o usuario ja tem sessao ativa, redireciona sem precisar de login
 let _loginInProgress = false;
 let _magicLoginInProgress = false;
-onAuthStateChanged(auth, function (user) {
-  if (_loginInProgress || _magicLoginInProgress) return;
-  if (user) window.location.href = 'dashboard.html';
+onAuthStateChanged(auth, async function (user) {
+  if (_loginInProgress || _magicLoginInProgress || !user) return;
+  const params=new URLSearchParams(window.location.search),plan=(params.get('checkout')||'').toLowerCase();
+  if(['starter','pro','plus'].includes(plan)){
+    _loginInProgress=true;
+    if(window.BUD_USE_EMULATOR){abrirCheckoutTesteLocal(user,plan);return;}
+    try {await openAuthenticatedCheckout(user,plan,{refCode:params.get('ref')||''});}
+    catch(error){mostrarFalhaCheckout(plan,params.get('ref')||'',error.message);}
+    return;
+  }
+  window.location.href='dashboard.html';
 });
 
 // Acesso direto pelo botão do e-mail. O token é validado no backend e nunca
@@ -395,20 +404,7 @@ function abrirCheckoutTesteLocal(user, planKey) {
   });
 }
 
-async function iniciarCheckoutMercadoPago(user, planKey, refCode) {
-  if (!user) throw new Error('Sua sessão expirou. Entre novamente para continuar.');
-  var idToken = await user.getIdToken();
-  var body = { planKey: planKey };
-  if (refCode) body.ref = refCode;
-  var response = await fetch(
-    (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com') + '/mercadopago/create-subscription',
-    { method: 'POST', headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-  );
-  var data = await response.json().catch(function () { return {}; });
-  if (!response.ok) throw new Error(data.error || 'Não foi possível iniciar o checkout.');
-  if (!data.init_point) throw new Error('O Mercado Pago não retornou um link de pagamento.');
-  window.location.href = data.init_point;
-}
+async function iniciarCheckoutMercadoPago(user,planKey,refCode){return openAuthenticatedCheckout(user,planKey,{refCode});}
 
 function mostrarFalhaCheckout(planKey, refCode, message) {
   var overlay = document.createElement('div');

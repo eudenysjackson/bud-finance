@@ -10,7 +10,7 @@ service cloud.firestore {
       return ['plano', 'planoExpira', 'planoAtivadoEm', 'planoAtualizadoEm',
         'mpSubscriptionId', 'mpPayerId', 'mpCheckout', 'fcmTokens', 'assinaturaStatus', 'trialFim', 'trialIniciado', 'planoTroca', 'planoTrocaLock',
         'pagamentoPendente', 'pagamentoPendenteDesde', 'pagamentoPendentePagamentoId', 'ultimaCobrancaAprovadaEm', 'emailAssinaturaAvisos',
-        'beneficioIndicacao50', 'descontoIndicacaoPrimeiroMes', 'primeiraCobrancaPagaEm', 'codigoIndicacaoAplicadoEm',
+        'planoUpgrade', 'upgradeCiclo', 'beneficioIndicacao50', 'descontoIndicacaoPrimeiroMes', 'primeiraCobrancaPagaEm', 'codigoIndicacaoAplicadoEm',
         '_deletionPending', 'pushConsentRevoked', 'pushConsentRevokedAt', 'role', 'bloqueado', 'status'];
     }
 
@@ -32,7 +32,7 @@ service cloud.firestore {
       }
       // Dados financeiros pertencem somente ao titular; o admin pode operar suporte.
       match /{subcolecao}/{documento} {
-        allow read, write: if (owner(uid) || admin()) && !(subcolecao in ['uso-ia', '_seguranca', '_ai_jobs']);
+        allow read, write: if (owner(uid) || admin()) && !(subcolecao in ['uso-ia', '_seguranca', '_ai_jobs', 'upgrades-planos']);
       }
     }
 
