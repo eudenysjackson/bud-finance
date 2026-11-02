@@ -15,7 +15,7 @@ import {
   onSnapshot,
   serverTimestamp, Timestamp,
   writeBatch,
-  increment
+  increment, runTransaction, getDocsFromServer
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 /* ─────────────────────────────────────────────────────────────────
@@ -294,11 +294,12 @@ function setupListeners() {
    Render — Summary cards
 ───────────────────────────────────────────────────────────────── */
 function renderSummary() {
-  const ativas      = metasGlobal.filter(m => (m.valorAtual || 0) < m.valorAlvo).length;
+  const ativas      = metasGlobal.filter(m => !m.compraRealizada && (m.valorAtual || 0) < m.valorAlvo).length;
   const totalGuard  = metasGlobal.reduce((s, m) => s + (m.valorAtual || 0), 0);
   const totalAlvo   = metasGlobal.reduce((s, m) => s + (m.valorAlvo || 0), 0);
-  const falta       = Math.max(0, totalAlvo - totalGuard);
-  const progresso   = totalAlvo > 0 ? Math.round((totalGuard / totalAlvo) * 100) : 0;
+  const realizado   = metasGlobal.reduce((s,m)=>s+(m.compraRealizada ? Number(m.valorAlvo||0) : Math.min(Number(m.valorAtual||0),Number(m.valorAlvo||0))),0);
+  const falta       = metasGlobal.reduce((s,m)=>s+(m.compraRealizada?0:Math.max(0,Number(m.valorAlvo||0)-Number(m.valorAtual||0))),0);
+  const progresso   = totalAlvo > 0 ? Math.round((realizado / totalAlvo) * 100) : 0;
 
   document.getElementById('summaryAtivas').textContent    = ativas;
   document.getElementById('summaryGuardado').textContent  = formatBRL(totalGuard);
@@ -325,8 +326,8 @@ function renderMetas() {
   empty.style.display = 'none';
 
   // Separar ativas e concluídas
-  const ativas     = metasGlobal.filter(m => ((m.valorAtual||0) / Math.max(1, m.valorAlvo||1)) * 100 < 100);
-  const concluidas = metasGlobal.filter(m => ((m.valorAtual||0) / Math.max(1, m.valorAlvo||1)) * 100 >= 100);
+  const ativas     = metasGlobal.filter(m => !m.compraRealizada && ((m.valorAtual||0) / Math.max(1, m.valorAlvo||1)) * 100 < 100);
+  const concluidas = metasGlobal.filter(m => m.compraRealizada || ((m.valorAtual||0) / Math.max(1, m.valorAlvo||1)) * 100 >= 100);
 
   // Ordenação das ativas
   const sorted = [...ativas];
@@ -366,8 +367,8 @@ function renderMetas() {
 function _renderMetaCard(meta, container, concluida) {
     const valorAtual = meta.valorAtual || 0;
     const valorAlvo  = meta.valorAlvo  || 0;
-    const pct        = valorAlvo > 0 ? Math.min(100, Math.round((valorAtual / valorAlvo) * 100)) : 0;
-    const badge      = getBadge(pct);
+    const pct        = meta.compraRealizada ? 100 : valorAlvo > 0 ? Math.min(100, Math.round((valorAtual / valorAlvo) * 100)) : 0;
+    const badge      = meta.compraRealizada ? {emoji:'🛍️',label:'Compra realizada',bg:'rgba(16,185,129,.12)',color:'#059669'} : getBadge(pct);
     const falta      = Math.max(0, valorAlvo - valorAtual);
     const sugestao   = calcSugestaoAporte(meta.prazo || null, falta);
 
@@ -435,6 +436,7 @@ function _renderMetaCard(meta, container, concluida) {
     btnDel.textContent = '🗑️';
     btnDel.addEventListener('click', () => confirmarExclusao(meta.id, meta.nome || 'Meta'));
 
+    if(meta.compraRealizada){btnEdit.disabled=true;btnDel.disabled=true;btnEdit.title='Compra já registrada';btnDel.title='Histórico da compra preservado';}
     actions.appendChild(btnEdit);
     actions.appendChild(btnDel);
 
@@ -530,7 +532,7 @@ function _renderMetaCard(meta, container, concluida) {
     btnHistorico.title = 'Histórico';
     btnHistorico.addEventListener('click', () => abrirHistorico(meta.id, meta.nome));
 
-    btnsRow.appendChild(btnAportar);
+    if (!concluida) btnsRow.appendChild(btnAportar);
     btnsRow.appendChild(btnHistorico);
 
     // Chips de aporte rápido (só para ativas)
@@ -554,6 +556,13 @@ function _renderMetaCard(meta, container, concluida) {
     if (projecaoEl) card.appendChild(projecaoEl);
     if (sugestaoEl) card.appendChild(sugestaoEl);
     card.appendChild(btnsRow);
+    if (meta.tipoMeta === 'compra' && !meta.compraRealizada) {
+      const buy = document.createElement('button'); buy.className='btn-aportar'; buy.textContent=meta.planoCompra?'🛍️ Revisar compra planejada':'🛍️ Planejar compra';
+      buy.addEventListener('click',()=>abrirCompraMeta(meta.id));card.appendChild(buy);
+      const note=document.createElement('p');note.style.cssText='font-size:.75rem;color:var(--card-text-sec);';
+      note.textContent=meta.planoCompra?'Plano salvo · crédito não é dinheiro guardado e não está reservado.':'Combine reserva, contas e cartões sem movimentar saldo ao planejar.';card.appendChild(note);
+    }
+    if(meta.compraRealizada){const note=document.createElement('p');note.style.cssText='font-size:.8rem;color:var(--card-text-sec);';note.textContent='Compra registrada em '+formatDateBR(meta.compraRealizada.date)+' · '+formatBRL(meta.compraRealizada.total)+'. Parcelas ainda devem ser pagas nas faturas.';card.appendChild(note);}
     if (chipsRow) card.appendChild(chipsRow);
 
     container.appendChild(card);
@@ -763,6 +772,7 @@ function abrirModalEditar(id) {
   document.getElementById('modalMetaTitle').textContent = 'Editar Meta';
   document.getElementById('metaId').value = id;
   document.getElementById('metaNome').value = meta.nome || '';
+  document.getElementById('metaCompra').checked = meta.tipoMeta === 'compra';
   document.getElementById('metaValorAlvo').value = formatBRL(meta.valorAlvo || 0);
   document.getElementById('metaValorAtual').value = formatBRL(meta.valorAtual || 0);
   document.getElementById('metaValorAtual').disabled = true; // DEC — campo bloqueado em edição
@@ -799,6 +809,7 @@ function fecharModalMeta() {
 }
 
 async function handleSubmitMeta(e) {
+  if(metaEditandoId && metasGlobal.find(m=>m.id===metaEditandoId)?.compraRealizada){window.budShowToast("Compra já registrada; consulte o histórico.","warning");return;}
   e.preventDefault();
   const nome = window.budSanitize(document.getElementById('metaNome').value.trim());
   if (!nome) {
@@ -822,14 +833,14 @@ async function handleSubmitMeta(e) {
     if (metaEditandoId) {
       // Editar — valorAtual NÃO é atualizado aqui (apenas via aporte)
       await updateDoc(doc(db, 'usuarios', uid, 'metas', metaEditandoId), {
-        nome, emoji, valorAlvo, prazo,
+        nome, emoji, valorAlvo, prazo, tipoMeta:document.getElementById('metaCompra').checked?'compra':'reserva',
         atualizadoEm: serverTimestamp(),
       });
       window.budShowToast('Meta atualizada!', 'success');
     } else {
       const valorAtual = parseBRL(document.getElementById('metaValorAtual').value);
       await addDoc(collection(db, 'usuarios', uid, 'metas'), {
-        nome, emoji, valorAlvo, valorAtual, prazo,
+        nome, emoji, valorAlvo, valorAtual, prazo, tipoMeta:document.getElementById('metaCompra').checked?'compra':'reserva',
         criadoEm: serverTimestamp(),
         atualizadoEm: serverTimestamp(),
       });
@@ -886,6 +897,8 @@ function setupModalAporte() {
 }
 
 function abrirModalAporte(metaId, metaNome) {
+  const goal=metasGlobal.find(m=>m.id===metaId);
+  if(goal && (goal.compraRealizada || Number(goal.valorAtual||0)>=Number(goal.valorAlvo))){window.budShowToast('Esta meta já foi alcançada.','info');return;}
   metaAportandoId = metaId;
   document.getElementById('aporteMetaId').value  = metaId;
   document.getElementById('modalAporteTitle').textContent = `💰 Depositar — ${metaNome}`;
@@ -967,7 +980,9 @@ function setupCarteiraSelect() {
   });
 }
 
+let _aporteAttempt=null;
 async function handleSubmitAporte(e) {
+  if(document.getElementById('btnConfirmarAporte').disabled)return;
   e.preventDefault();
   const valor = parseBRL(document.getElementById('aporteValor').value);
   if (valor <= 0) {
@@ -987,6 +1002,7 @@ async function handleSubmitAporte(e) {
 
   const meta = metasGlobal.find(m => m.id === metaAportandoId);
   if (!meta) { window.budShowToast('Meta não encontrada.', 'error'); return; }
+  if(meta.compraRealizada || Number(meta.valorAtual||0)>=Number(meta.valorAlvo)){window.budShowToast('Esta meta já foi alcançada.','info');return;}
 
   const btn = document.getElementById('btnConfirmarAporte');
   btn.disabled = true;
@@ -994,52 +1010,15 @@ async function handleSubmitAporte(e) {
 
   try {
     const uid = currentUser.uid;
-    const batch = writeBatch(db);
-
-    // 1. Atualizar valorAtual da meta
-    const metaRef = doc(db, 'usuarios', uid, 'metas', metaAportandoId);
-    const novoValor = (meta.valorAtual || 0) + valor;
-    batch.update(metaRef, {
-      valorAtual: novoValor,
-      atualizadoEm: serverTimestamp(),
-    });
-
-    // 2. Registrar transação vinculada no extrato
-    const txRef = doc(collection(db, 'usuarios', uid, 'transacoes'));
-    const dataTimestamp = Timestamp.fromDate(new Date(dataISO + 'T12:00:00'));
-    batch.set(txRef, {
-      tipo: 'despesa',
-      descricao: `Aporte: ${meta.nome}`.substring(0, 100),
-      valor,
-      data: dataTimestamp,
-      dataReferencia: dataISO,
-      mesReferencia: dataISO.slice(0, 7),
-      carteiraId,
-      origem: 'meta',
-      metaId: metaAportandoId,
-      dataCriacao: serverTimestamp(),
-    });
-
-    // 3. O aporte sai efetivamente da conta de origem. Increment evita perder
-    // atualizações concorrentes feitas por outro lançamento.
-    batch.update(doc(db, 'usuarios', uid, 'carteira', carteiraId), {
-      saldo: increment(-valor),
-    });
-
-    // Commit the goal, balance, transaction and history together.
-    const depositRef = doc(collection(db, 'usuarios', uid, 'metas', metaAportandoId, 'depositos'));
-    batch.set(depositRef, {
-      valor,
-      data: dataISO,
-      carteiraId,
-      dataCriacao: serverTimestamp(),
-    });
-    await batch.commit();
+    const signature=JSON.stringify([metaAportandoId,carteiraId,valor,dataISO]);
+    if(!_aporteAttempt || _aporteAttempt.signature!==signature)_aporteAttempt={signature,id:crypto.randomUUID()};
+    await window.BudGoalPurchase.createService({db,doc,collection,runTransaction,serverTimestamp,Timestamp}).deposit({uid,goalId:metaAportandoId,accountId:carteiraId,value:valor,date:dataISO,operationId:_aporteAttempt.id});
+    _aporteAttempt=null;
 
     window.budShowToast('Depósito registrado! 💰', 'success');
     fecharModalAporte();
-  } catch {
-    window.budShowToast('Erro ao registrar depósito. Verifique sua conexão.', 'error');
+  } catch(error) {
+    window.budShowToast(error.message || 'Erro ao registrar depósito. Verifique sua conexão.', 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Confirmar Aporte';
@@ -1069,11 +1048,16 @@ async function abrirHistorico(metaId, metaNome) {
       )
     );
     const list = document.getElementById('historicoList');
-    if (snap.empty) {
+    const purchase=metasGlobal.find(m=>m.id===metaId)?.compraRealizada;
+    if (snap.empty && !purchase) {
       list.innerHTML = '<p style="text-align:center;color:var(--card-text-sec);font-size:0.875rem;padding:2rem 0;">Nenhum depósito registrado ainda.</p>';
       return;
     }
     list.innerHTML = '';
+    if(purchase){const info=document.createElement('section');info.style.cssText='padding:1rem;border:1px solid var(--input-border);border-radius:12px;margin-bottom:1rem;';
+    const heading=document.createElement('strong');heading.textContent='🛍️ Compra realizada · '+formatBRL(purchase.total)+' · '+formatDateBR(purchase.date);info.appendChild(heading);
+    const reserve=document.createElement('p');reserve.textContent='Reserva utilizada: '+formatBRL(purchase.reserve)+' (já separada; sem novo débito).';info.appendChild(reserve);
+    purchase.parts.forEach(part=>{const line=document.createElement('p');line.style.fontSize='.8rem';line.textContent=part.name+' · '+formatBRL(part.value)+(part.kind==='credito'?' · '+part.installments+'x · primeira fatura '+formatDateBR(part.schedule[0].date):' · debitado da conta');info.appendChild(line);});list.appendChild(info);}
     snap.docs.forEach(d => {
       const dep = d.data();
       const item = document.createElement('div');
@@ -1157,37 +1141,17 @@ function confirmarExclusao(metaId, metaNome) {
 }
 
 async function excluirMeta(metaId) {
-  const uid = currentUser.uid;
-  const batch = writeBatch(db);
-
-  // 1. Excluir todos os depósitos da subcoleção
-  const deposSnap = await getDocs(collection(db, 'usuarios', uid, 'metas', metaId, 'depositos'));
-  deposSnap.docs.forEach(d => batch.delete(d.ref));
-
-  // 2. Excluir transações vinculadas
-  const txSnap = await getDocs(
-    query(collection(db, 'usuarios', uid, 'transacoes'),
-      where('origem', '==', 'meta'),
-      where('metaId', '==', metaId)
-    )
-  );
-  // Devolver os aportes às contas de origem antes de apagar os lançamentos.
-  const estornosPorConta = new Map();
-  txSnap.docs.forEach(d => {
-    const tx = d.data();
-    if (tx.carteiraId && Number(tx.valor)) {
-      estornosPorConta.set(tx.carteiraId, (estornosPorConta.get(tx.carteiraId) || 0) + Number(tx.valor));
-    }
-    batch.delete(d.ref);
-  });
-  estornosPorConta.forEach((valor, carteiraId) => {
-    batch.update(doc(db, 'usuarios', uid, 'carteira', carteiraId), { saldo: increment(valor) });
-  });
-
-  // 3. Excluir o doc da meta
-  batch.delete(doc(db, 'usuarios', uid, 'metas', metaId));
-
-  await batch.commit();
+ const uid=currentUser.uid;
+ await runTransaction(db,async batch=>{
+  const goalRef=doc(db,'usuarios',uid,'metas',metaId),fresh=await batch.get(goalRef);
+  if(!fresh.exists())return;
+  if(fresh.data().compraRealizada)throw Error('Compra já registrada: histórico preservado.');
+  const deps=await getDocsFromServer(collection(db,'usuarios',uid,'metas',metaId,'depositos'));
+  const transactions=await getDocsFromServer(query(collection(db,'usuarios',uid,'transacoes'),where('origem','==','meta'),where('metaId','==',metaId)));
+  const refunds=new Map();transactions.docs.forEach(d=>{const t=d.data();if(t.carteiraId)refunds.set(t.carteiraId,(refunds.get(t.carteiraId)||0)+Number(t.valor||0));});
+  const accounts=[];for(const [id,value]of refunds){const r=doc(db,'usuarios',uid,'carteira',id),a=await batch.get(r);if(!a.exists())throw Error('Conta original indisponível.');accounts.push({r,value,balance:Number(a.data().saldo??a.data().ultimaConfirmacao?.saldo??a.data().saldoInicial??0)});}
+  deps.docs.forEach(d=>batch.delete(d.ref));transactions.docs.forEach(d=>batch.delete(d.ref));accounts.forEach(a=>batch.update(a.r,{saldo:Math.round((a.balance+a.value)*100)/100}));batch.delete(goalRef);
+ });
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -1319,3 +1283,14 @@ document.addEventListener('keydown', (e) => {
 function setupSummaryCards() {
   // já inicializados com valores "0" no HTML — nada a fazer aqui
 }
+
+let _goalPurchaseBusy=false;
+async function abrirCompraMeta(goalId){
+ if(_goalPurchaseBusy||!currentUser)return;_goalPurchaseBusy=true;const uid=currentUser.uid;
+ try{const snap=await getDoc(doc(db,'usuarios',uid,'metas',goalId));if(!snap.exists())throw Error('Meta indisponível.');
+ const service=window.BudGoalPurchase.createService({db,doc,collection,runTransaction,serverTimestamp,Timestamp,loadCharges:async id=>(await getDocsFromServer(collection(db,'usuarios',id,'transacoes'))).docs});
+ const result=await window.BudGoalPurchaseDialog.open({goal:{id:goalId,...snap.data()},accounts:carteirasGlobal,onSave:(request,confirm)=>service.save({uid,goalId,request,confirm})});
+ if(result)window.budShowToast(result.already?'Compra já estava registrada.':result.planned?'Plano salvo, sem movimentar saldo.':'Compra registrada nas contas e faturas.','success');
+ }catch(error){window.budShowToast(error.message||'Erro ao abrir compra.','error');}finally{_goalPurchaseBusy=false;}
+}
+

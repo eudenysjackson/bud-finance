@@ -15,20 +15,10 @@ test('reports load credit cards from the current wallet and ignore debit account
   assert.deepEqual(Array.from(context.cartoesCredito,t=>t.id),['cc']);
 });
 
-test('a goal deposit commits history, transaction and balance as one operation',async()=>{
-  const source=fs.readFileSync('appbudfinance/js/metas.js','utf8');
-  const start=source.indexOf('async function handleSubmitAporte(');
-  const end=source.indexOf('function setupModalHistorico()',start);
-  const code=source.slice(start,end);
-  const writes=[];let committed=false;
-  const context={metasGlobal:[{id:'goal',nome:'QA',valorAtual:0}],metaAportandoId:'goal',currentUser:{uid:'qa'},db:{},
-    parseBRL:()=>10,document:{getElementById:id=>({value:id==='aporteData'?'2026-10-27':id==='aporteCarteiraId'?'account':'10'})},
-    doc:(...parts)=>({path:parts}),collection:(...parts)=>({path:parts}),serverTimestamp:()=>1,increment:value=>({increment:value}),Timestamp:{fromDate:value=>value},
-    writeBatch:()=>({update:(ref,data)=>writes.push({kind:'update',ref,data}),set:(ref,data)=>writes.push({kind:'set',ref,data}),commit:async()=>{committed=true;}}),
-    window:{budShowToast(){}},fecharModalAporte(){}};
-  vm.runInNewContext(code,context);await context.handleSubmitAporte({preventDefault(){}});
-  assert.equal(committed,true);assert.equal(writes.length,4);
-  assert.equal(writes.find(w=>w.data.origem==='meta').data.dataReferencia,'2026-10-27');
-  assert.equal(writes.filter(w=>w.data.valor===10).length,2);
-  assert.equal(writes.find(w=>w.data.saldo).data.saldo.increment,-10);
+test('goal deposit form delegates one dated account operation to the atomic service',async()=>{
+ const source=fs.readFileSync('appbudfinance/js/metas.js','utf8');const start=source.indexOf('let _aporteAttempt='),end=source.indexOf('function setupModalHistorico()',start);const calls=[];
+ const controls={btnConfirmarAporte:{disabled:false},aporteValor:{value:'200'},aporteData:{value:'2026-11-02'},aporteCarteiraId:{value:'account'}};
+ const context={metasGlobal:[{id:'goal',nome:'QA',valorAtual:0,valorAlvo:600}],metaAportandoId:'goal',currentUser:{uid:'qa'},db:{},parseBRL:Number,document:{getElementById:id=>controls[id]},crypto:{randomUUID:()=> 'op'},doc(){},collection(){},runTransaction(){},serverTimestamp(){},Timestamp:{},window:{BudGoalPurchase:{createService:()=>({deposit:async request=>calls.push(request)})},budShowToast(){}},fecharModalAporte(){}};
+ vm.runInNewContext(source.slice(start,end),context);await context.handleSubmitAporte({preventDefault(){}});assert.equal(calls.length,1);assert.equal(calls[0].value,200);assert.equal(calls[0].date,'2026-11-02');assert.equal(calls[0].accountId,'account');assert.equal(calls[0].operationId,'op');
 });
+

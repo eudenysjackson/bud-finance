@@ -626,6 +626,7 @@
         <input type="hidden" id="metaId">
 
         <div class="modal-field">
+          <label style="display:flex;gap:.5rem;align-items:center;margin-bottom:1rem;font-size:.875rem;"><input type="checkbox" id="metaCompra"> Meta de compra (permite planejar com cartões)</label>
           <label class="modal-label" for="metaNome">Nome do objetivo</label>
           <input class="modal-input" type="text" id="metaNome" placeholder="Ex: Viagem para o Japão" maxlength="60" required>
         </div>
@@ -760,8 +761,11 @@
     </div>
   </div>
 
-  <script type="module" src="js/metas.js"></script>
+  <script src="js/goal-purchase.js?v=20261102-purchase"></script>
+  <script src="js/goal-purchase-dialog.js?v=20261102-purchase"></script>
+  <script type="module" src="js/metas.js?v=20261102-purchase"></script>
   <script src="js/tutorial.js"></script>
   <script>BudTutorial.init('metas');</script>
 </body>
 </html>
+

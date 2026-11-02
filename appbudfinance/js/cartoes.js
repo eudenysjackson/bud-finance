@@ -250,7 +250,7 @@ function setupListeners() {
 
   // Transações
   const txRef = collection(db, 'usuarios', uid, 'transacoes');
-  const qTx = query(txRef, orderBy('dataCriacao', 'desc'), limit(5000));
+  const qTx = query(txRef, orderBy('dataCriacao', 'desc')); // Inclui parcelas futuras para calcular o limite comprometido.
   const u2 = onSnapshot(qTx, (snap) => {
     transacoesGlobal = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderizarCartoes();
@@ -364,7 +364,7 @@ function renderizarCartoes() {
     const status  = calcularStatusFatura(c, mesKey, temGastos);
     const limite  = c.limite || 0;
     const reservado = Number(c.limiteReservado) || 0;
-    const dispPct = limite > 0 ? Math.max(0, Math.min(100, ((limite - fatura - reservado) / limite) * 100)) : 100;
+    const dispPct = limite > 0 ? Math.max(0, Math.min(100, (window.BudGoalPurchase.available(c,transacoesGlobal) / limite) * 100)) : 100;
     const gastos  = transacoesGlobal.filter(t =>
       t.cartaoId === c.id &&
       typeof t.dataReferencia === 'string' &&
@@ -401,7 +401,7 @@ function atualizarBanner(dadosCartoes) {
   const totalFat = dadosCartoes.reduce((s, d) => s + d.fatura, 0);
   const totalReservado = dadosCartoes.reduce((s, d) => s + (d.reservado || 0), 0);
   const totalLim = cartoesGlobal.reduce((s, c) => s + (c.limite || 0), 0);
-  const dispTotal = totalLim - totalFat - totalReservado;
+  const dispTotal = cartoesGlobal.reduce((s,c)=>s+window.BudGoalPurchase.available(c,transacoesGlobal),0);
   const mesKey = getMesKey();
   const pagas = cartoesGlobal.filter(c => c.faturasPagas?.[mesKey]).length;
   const comGastos = dadosCartoes.filter(d => d.temGastos).length;
@@ -453,7 +453,7 @@ function buildCartaoEl(cartao, fatura, status, limite, reservado, dispPct, gasto
   const band = BANDEIRA_LABELS[cartao.bandeira] || '••••';
   const lastFour = cartao.id.slice(-4).toUpperCase();
   const nome = (cartao.nome || 'Cartão').toUpperCase();
-  const limiteDisp = Math.max(0, limite - fatura - reservado);
+  const limiteDisp = window.BudGoalPurchase.available(cartao,transacoesGlobal);
   const barCor = dispPct < 20 ? '#ef4444' : dispPct < 50 ? '#f59e0b' : '#10b981';
   const isPago = cartao.faturasPagas?.[mesKey];
   const isParcelada = Boolean(isPago && typeof isPago === 'object' && isPago.parcelada);
@@ -908,6 +908,7 @@ async function handleSubmitCartao(e) {
 // ─── Modal Gasto ─────────────────────────────────────────────────────────────
 
 function abrirModalGasto(cartaoId, gastoObj = null) {
+  if(gastoObj?.origem==='meta_compra'){showToast('Compra vinculada a uma meta: consulte o histórico em Metas.','erro');return;}
   cartaoParaGasto = cartaoId;
   gastoEditandoId = gastoObj ? gastoObj.id : null;
 
@@ -2925,4 +2926,5 @@ function showToast(msg, tipo = 'ok') {
 
   setTimeout(() => t.remove(), 3500);
 }
+
 
