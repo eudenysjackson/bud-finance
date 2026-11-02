@@ -849,3 +849,8 @@ RESOLVIDO E PUBLICADO pelo PR28, commit36822e65fe1bcb9247a74147fb6611e4b218984e.
 117 regressões aprovadas e teste local mobile Edge aprovado; gravação, idempotência e reversão financeira validadas com adaptador transacional em memória, não por escrita real no Firestore. Não afirmar execução de transferência bancária: o app só registra o pagamento informado. Extrato preserva data efetiva, vencimento, valor, conta/modo e desfazer; sem conta não gera despesa geral. O código compartilhado também atende lembretes de dívida da Dashboard. Esta anotação encerra publicação/QA pendentes do registro anterior; Claude/Codex devem preservar estas regras e atualizar os documentos a cada evolução. PDF privado não foi enviado ao Git.
 
 
+
+## Aviso no simulador de quitação — 02/11/2026
+Pedido do titular implementado em appbudfinance/dividas.html: aviso permanente no rodapé do popup, comum a Pagamento Extra e Quitar Tudo. Texto: “Estimativa baseada nos dados informados por você ou extraídos por IA. O valor pode diferir do cobrado pelo credor. Confirme diretamente com ele antes de pagar.” Usa tipografia e cor secundária do tema. Não muda fórmulas nem registros financeiros. Validação visual local e publicação em preparação na branch codex/aviso-simulador-20261102, cópia .tools/debt-simulator-note. Próximo passo: validar layout, publicar e conferir aviso público; atualizar continuidade para Claude/Codex.
+
+
