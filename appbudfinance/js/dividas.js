@@ -225,6 +225,7 @@ function abrirModal(id) {
 // ─────────────────────────────────────────────────────────────────
 window.iniciarNovaDivida = function() {
   if (salvandoBlocos) { window.budShowToast?.('Aguarde a confirmação do cadastro em andamento.', 'info'); return; }
+  if (contratoMensagem && contratoBlocos.some(b => b.selecionado && !b.salvo)) { window._retomarPendenciasContrato(); return; }
   wizardTipo       = '';
   wizardTipoIcone  = '';
   wizardFormato    = '';
@@ -503,6 +504,7 @@ async function processarTextoExtraido(texto) {
   contratoBlocos = [];
   contratoFingerprint = '';
   contratoMensagem = '';
+  atualizarAvisoPendenciasContrato();
   if (contratoExtraido?.components?.length) {
     contratoFingerprint = await window.BudContractReader.fingerprint(texto);
     contratoBlocos = contratoExtraido.components.map(b => ({...b, dados:{...b.dados, parcelasPagas:0}, selecionado:false, salvo:false, edicoes:{}, totalDerivado: b.dados.valorTotal === Math.round(b.dados.valorParcela*b.dados.parcelas*100)/100}));
@@ -794,17 +796,16 @@ function renderBlocosContrato() {
   const el = document.getElementById('iaResultado');
   if (!el) return;
   el.style.display = '';
-  const inputStyle = 'width:100%;box-sizing:border-box;padding:0.5rem;border:1px solid var(--input-border);border-radius:0.5rem;background:var(--input-bg);color:var(--text-main);font-family:inherit;';
   const fields = [ ['nomeCliente','Nome / credor','text'], ['instituicao','Instituição','text'], ['valorTotal','Valor total / base do bloco','text'], ['parcelas','Total de parcelas','number'], ['valorParcela','Valor da parcela','text'], ['vencimento','Data da primeira parcela','text'], ['parcelasPagas','Parcelas já pagas','number'] ];
   const moneyFields = ['valorTotal','valorParcela'];
   el.innerHTML = `<div style="background:var(--input-bg);padding:1rem;border-radius:0.875rem;">
     <strong>Obrigações identificadas — selecione uma ou várias</strong>
     <p style="font-size:0.8125rem;line-height:1.5;">Cada obrigação será cadastrada como uma dívida separada. Complete os campos de cada uma abaixo. As pendentes permanecem nesta revisão. Complete-as antes de trocar de documento, iniciar nova dívida ou atualizar a página. Os valores são base contratual: confira reajustes e encargos nos avisos de cada obrigação.</p>
     ${(contratoExtraido?.avisos || []).map(a=>`<p style="font-size:0.8125rem;color:#b45309;">${escapeHTML(a)}</p>`).join('')}
-    <div style="display:flex;gap:0.375rem;flex-wrap:wrap;margin-bottom:0.75rem;">
-      <button type="button" ${salvandoBlocos?'disabled':''} style="padding:0.375rem 0.625rem;border:1px solid var(--input-border);border-radius:0.5rem;background:var(--card-bg);color:var(--text-main);font-family:inherit;cursor:pointer;" onclick="window._contratoMarcar('todas')">Marcar todas</button>
-      <button type="button" ${salvandoBlocos?'disabled':''} onclick="window._contratoMarcar('completas')">Só completas</button>
-      <button type="button" ${salvandoBlocos?'disabled':''} onclick="window._contratoMarcar('nenhuma')">Desmarcar todas</button>
+    <div class="contrato-actions">
+      <button type="button" class="contrato-action contrato-action-select" ${salvandoBlocos?'disabled':''} onclick="window._contratoMarcar('todas')">Marcar todas</button>
+      <button type="button" class="contrato-action" ${salvandoBlocos?'disabled':''} onclick="window._contratoMarcar('completas')">Só completas</button>
+      <button type="button" class="contrato-action" ${salvandoBlocos?'disabled':''} onclick="window._contratoMarcar('nenhuma')">Desmarcar todas</button>
     </div>
     ${contratoBlocos.map((b,i)=>{
       const disabled = b.salvo || salvandoBlocos;
@@ -813,21 +814,21 @@ function renderBlocosContrato() {
         const value = Object.prototype.hasOwnProperty.call(b.edicoes,key) ? b.edicoes[key]
           : key === 'vencimento' ? (original ? formatDataBR(original) : '')
           : moneyFields.includes(key) ? (Number.isFinite(original) ? Number(original).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '') : (original ?? '');
-        return `<label style="display:block;margin-top:0.5rem;font-size:0.75rem;">${escapeHTML(label)}
-          <input id="contrato_${i}_${key}" aria-label="${escapeHTML(label + ' — ' + b.label)}" type="${type}" ${type==='number'?'min="0" step="1"':''} ${key==='vencimento'?'placeholder="DD/MM/AAAA" maxlength="10"':''} ${moneyFields.includes(key)?'inputmode="decimal"':''} maxlength="150" value="${escapeHTML(value)}" ${disabled?'disabled':''} style="${inputStyle}" oninput="window._contratoEditarCampo(${i}, '${key}', this.value)">
+        return `<label style="display:block;margin-top:0.5rem;font-size:0.75rem;">${key==='vencimento'?'📅 ':''}${escapeHTML(label)}
+          <input id="contrato_${i}_${key}" aria-label="${escapeHTML(label + ' — ' + b.label)}" type="${type}" ${type==='number'?'min="0" step="1"':''} ${key==='vencimento'?'placeholder="DD/MM/AAAA" inputmode="numeric"':''} ${moneyFields.includes(key)?'inputmode="decimal"':''} maxlength="${key==='vencimento'?10:150}" value="${escapeHTML(value)}" ${disabled?'disabled':''} class="modal-input" oninput="window._contratoEditarCampo(${i}, '${key}', this.value)">
         </label>`;
       }).join('');
       return `<div style="padding:0.75rem;border:1px solid var(--input-border);border-radius:0.625rem;margin-bottom:0.625rem;background:var(--card-bg);">
         <label style="display:flex;gap:0.5rem;align-items:center;font-weight:700;font-size:0.8125rem;"><input id="contratoSelecionar_${i}" type="checkbox" aria-label="Selecionar ${escapeHTML(b.label)}" ${b.selecionado?'checked':''} ${disabled?'disabled':''} onchange="window._contratoSelecionar(${i}, this.checked)">${escapeHTML(b.label)}</label>
         <div id="contratoStatus_${i}" style="font-size:0.75rem;margin-top:0.375rem;" aria-live="polite"></div>
-        <details ${b.selecionado&&!b.salvo&&window.BudContractReader.pending(b.dados).length?'open':''}><summary style="cursor:pointer;font-size:0.8125rem;margin-top:0.5rem;">Revisar / completar dados</summary>
+        <details ${b.selecionado&&!b.salvo&&window.BudContractReader.pending(b.dados).length?'open':''}><summary class="contrato-review-toggle">Revisar / completar dados</summary>
           ${b.aviso?`<p style="color:#b45309;font-size:0.75rem;line-height:1.5;">${escapeHTML(b.aviso)}</p>`:''}${inputs}
         </details>
       </div>`;
     }).join('')}
     <p id="contratoResumoSelecao" role="status" style="font-size:0.8125rem;font-weight:700;"></p>
     <p role="status" style="font-size:0.8125rem;color:#15803d;">${escapeHTML(contratoMensagem)}</p>
-    <button id="btnSalvarBlocosContrato" type="button" onclick="window._salvarBlocosContrato()" style="width:100%;padding:0.75rem;border:0;border-radius:0.75rem;background:#2563eb;color:white;font-weight:700;cursor:pointer;">Cadastrar completas</button>
+    <button id="btnSalvarBlocosContrato" type="button" class="wizard-btn-next" onclick="window._salvarBlocosContrato()">Cadastrar completas</button>
   </div>`;
   atualizarResumoBlocosContrato();
 }
@@ -861,6 +862,13 @@ window._contratoMarcar = function(mode) {
 window._contratoEditarCampo = function(index, key, value) {
   const b = contratoBlocos[index];
   if (!b || b.salvo || salvandoBlocos || !['nomeCliente','instituicao','valorTotal','parcelas','valorParcela','vencimento','parcelasPagas'].includes(key)) return;
+  if (key === 'vencimento') {
+    const masked = {value:String(value)};
+    aplicarMascaraData(masked);
+    value = masked.value;
+    const input = document.getElementById('contrato_' + index + '_vencimento');
+    if (input && input.value !== value) input.value = value;
+  }
   b.edicoes[key] = value;
   if (key==='valorTotal' || key==='valorParcela') b.dados[key] = parseMoeda(value);
   else if (key==='parcelas' || key==='parcelasPagas') b.dados[key] = value==='' ? null : Number(value);
@@ -898,7 +906,9 @@ window._salvarBlocosContrato = async function() {
     });
     entries.forEach(e=>{contratoBlocos[e.index].salvo=true;contratoBlocos[e.index].selecionado=false;});
     contratoMensagem = `${created} obrigação(ões) cadastrada(s). ${entries.length-created} já existia(m) e não foi/foram alterada(s). ${plan.incomplete.length?'Complete as pendentes abaixo; seus campos foram preservados.':'Você pode selecionar outras obrigações ou fechar esta revisão.'}`;
-    window.budShowToast?.('Cadastro das obrigações completas concluído.', 'success');
+    fecharTodosModais();
+    atualizarAvisoPendenciasContrato();
+    window.budShowToast?.('Cadastro concluído.' + (plan.incomplete.length ? ' Há pendências disponíveis para revisão na tela de Dívidas.' : ''), 'success');
   } catch(err) {
     (window.budError||console.error)('[Dividas] cadastro conjunto:',err);
     contratoMensagem = '';
@@ -907,6 +917,37 @@ window._salvarBlocosContrato = async function() {
     salvandoBlocos = false;
     renderBlocosContrato();
   }
+};
+
+function atualizarAvisoPendenciasContrato() {
+  const remaining = contratoMensagem ? contratoBlocos.filter(b => b.selecionado && !b.salvo).length : 0;
+  let notice = document.getElementById('avisoPendenciasContrato');
+  if (!remaining) { if (notice) notice.style.display = 'none'; return; }
+  if (!notice) {
+    const list = document.getElementById('listaDividas');
+    if (!list?.parentNode) return;
+    notice = document.createElement('div');
+    notice.id = 'avisoPendenciasContrato';
+    list.parentNode.insertBefore(notice,list);
+  }
+  notice.style.cssText = 'display:block;padding:1rem;margin:0.75rem 0;border:1.5px solid var(--input-border);border-radius:0.875rem;background:var(--card-bg);color:var(--text-main);';
+  notice.innerHTML = `<strong>${remaining} obrigação(ões) pendente(s) de revisão</strong><p style="font-size:0.8125rem;line-height:1.5;">As completas foram confirmadas. Você pode retomar as pendentes abaixo antes de recarregar ou sair desta página. Descartar o rascunho não exclui dívidas cadastradas.</p><div class="contrato-actions"><button class="contrato-action contrato-action-select" type="button" onclick="window._retomarPendenciasContrato()">Revisar pendentes</button><button class="contrato-action" type="button" onclick="window._descartarPendenciasContrato()">Descartar rascunho</button></div>`;
+}
+window._retomarPendenciasContrato = function() {
+  if (salvandoBlocos || !contratoBlocos.length) return;
+  fecharTodosModais();
+  abrirModal('modalImportIA');
+  document.getElementById('iaProcessando').style.display = 'none';
+  renderBlocosContrato();
+};
+window._descartarPendenciasContrato = function() {
+  if (salvandoBlocos) return;
+  contratoBlocos = [];
+  contratoFingerprint = '';
+  contratoExtraido = null;
+  contratoMensagem = '';
+  dadosIA = null;
+  atualizarAvisoPendenciasContrato();
 };
 
 // Sincroniza o input de parcelas pagas na IA com dadosIA
@@ -2521,5 +2562,6 @@ window.exportarPDFDividas = function () {
   win.focus();
   setTimeout(() => { try { win.print(); } catch(_) {} }, 600);
 };
+
 
 

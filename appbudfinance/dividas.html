@@ -213,6 +213,20 @@
     @media(max-width:480px){.cards-grid{grid-template-columns:1fr;}}
     @media(min-width:769px){.sidebar-collapse-btn{display:flex;}}
     @media(min-width:769px) and (max-width:1200px){.cards-grid{grid-template-columns:repeat(3,1fr);}}
+    /* Revisão de contratos: mesmas cores, tipografia e estados dos controles do app. */
+    .contrato-actions{display:flex;flex-wrap:wrap;gap:0.5rem;margin:0.875rem 0;}
+    .contrato-action{flex:1 1 8rem;display:inline-flex;align-items:center;justify-content:center;min-height:2.5rem;padding:0.625rem 0.875rem;border:1.5px solid var(--input-border);border-radius:0.75rem;background:var(--card-bg);color:var(--text-main);font-family:inherit;font-size:0.8125rem;font-weight:700;line-height:1.25;cursor:pointer;transition:background .2s,border-color .2s,transform .2s,box-shadow .2s;}
+    .contrato-action-select{background:var(--sidebar-link-active-bg,rgba(37,99,235,.08));border-color:var(--btn-bg,#2563eb);color:var(--btn-bg,#2563eb);}
+    .contrato-action:hover:not(:disabled){border-color:var(--btn-bg,#2563eb);box-shadow:0 2px 8px rgba(37,99,235,.12);transform:translateY(-1px);}
+    .contrato-action:disabled{opacity:.4;cursor:not-allowed;}
+    .contrato-action:focus-visible,.contrato-review-toggle:focus-visible,#btnSalvarBlocosContrato:focus-visible{outline:3px solid var(--btn-bg,#2563eb);outline-offset:3px;}
+    .contrato-review-toggle{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.625rem .75rem;margin-top:.625rem;border:1.5px solid var(--input-border);border-radius:.75rem;color:var(--btn-bg,#2563eb);background:var(--input-bg);font-family:inherit;font-weight:700;font-size:.8125rem;line-height:1.4;cursor:pointer;list-style:none;}
+    .contrato-review-toggle::-webkit-details-marker{display:none;}
+    .contrato-review-toggle::after{content:'⌄';font-size:1rem;transition:transform .2s;}
+    details[open]>.contrato-review-toggle::after{transform:rotate(180deg);}
+    #iaResultado input[type=checkbox]{width:1rem;height:1rem;accent-color:var(--btn-bg,#2563eb);flex-shrink:0;}
+    @media(max-width:480px){.contrato-action{flex-basis:100%;}}
+
   </style>
 </head>
 <body>
@@ -766,11 +780,12 @@
   <!-- ═ Scripts ════════════════════════════════════════════ -->
   <script src="js/firebase-config.js"></script>
   <script src="js/bud-utils.js"></script>
-  <script src="js/contract-reader.js?v=20261102-contracts-batch"></script>
-  <script type="module" src="js/dividas.js?v=20261102-contracts-batch"></script>
+  <script src="js/contract-reader.js?v=20261102-contracts-design"></script>
+  <script type="module" src="js/dividas.js?v=20261102-contracts-design"></script>
   <script src="js/tutorial.js"></script>
   <script>BudTutorial.init('dividas');</script>
 </body>
 </html>
+
 
 

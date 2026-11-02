@@ -828,3 +828,12 @@ Testes:108 regressões aprovadas. Cobrem seleção múltipla, quatro blocos comp
 Arquivos: contract-reader.js (fingerprint/pendências/plano), dividas.js (UI e transação), dividas.html (cache20261102-contracts-batch), testes contract-reader e import-screens. Sem mudanças de backend ou regras. Nenhuma dívida real cadastrada ou alterada nos testes. Publicação e QA online pendentes nesta anotação. Trabalho isolado em .tools/contracts-batch-fix, branch codex/cadastro-multiplo-contratos-20261102. Claude/Codex: preservar semântica de obrigações separadas, não misturar parcelas bancárias e da construtora, não gravar dados reais sem autorização específica, e manter os registros atualizados.
 
 
+## Identidade visual, data e encerramento do cadastro contratual — 02/11/2026
+
+Pedidos do titular: aplicar IDV aos botões, identificar/formatar data e fechar popup ao concluir o cadastro. Mudanças em dividas.html/dividas.js: ações de seleção uniformes com cores do tema, tipografia herdada, bordas arredondadas, hover/foco/disabled e adaptação mobile; botão de cadastrar reutiliza wizard-btn-next; revisar/completar tem estilo próprio coerente e campos usam modal-input. Data tem ícone de calendário, placeholder DD/MM/AAAA, teclado numérico e máscara aplicarMascaraData já usada no app;10102026 torna-se10/10/2026, validada antes de salvar, sem converter datas inválidas.
+
+Sucesso confirmado da transação fecha o popup, inclusive quando apenas as completas foram cadastradas; falha mantém revisão/campos para nova tentativa. Havendo pendentes selecionadas após sucesso, aviso na lista de Dívidas permite Revisar pendentes ou Descartar rascunho; iniciar Nova dívida retoma a pendência em vez de apagá-la silenciosamente. Descartar limpa apenas memória, nunca documentos salvos. Trocar documento ou recarregar ainda descarta rascunho não salvo, avisado na interface. Esta decisão substitui manter popup aberto após cadastro parcial, descrito no release de lote. Nenhum dado financeiro alterado por estes ajustes de interface.
+
+109 regressões aprovadas: máscara com8 dígitos, validação de data, fechar após sucesso com pendentes, manter aberto em falha, retomar revisão preservada e descartar sem excluir dívidas, além da suíte financeira anterior. Testes de persistência seguem em simulação; não cadastrar dívidas reais para conferir interface. Branch codex/design-e-data-contratos-20261102, cópia .tools/contracts-design-fix. Publicação e conferência visual online pendentes neste registro. Atualizar handoff/pendências após implantação para Claude/Codex.
+
+

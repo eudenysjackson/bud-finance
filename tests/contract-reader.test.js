@@ -38,15 +38,15 @@ test('rental reads base rent and term but never treats tolerance, bank account o
 });
 
 function batchContext() {
- const source=fs.readFileSync('appbudfinance/js/dividas.js','utf8'),nodes=new Map(),ledger=new Map(),stats={transactions:0,failBefore:false,failAfter:false};
+ const source=fs.readFileSync('appbudfinance/js/dividas.js','utf8'),nodes=new Map(),ledger=new Map(),stats={transactions:0,failBefore:false,failAfter:false,closed:0,opened:[]};
  const components=reader.read(sale).components.map(b=>({...b,dados:{...b.dados,parcelasPagas:0},selecionado:false,salvo:false,edicoes:{},totalDerivado:b.dados.valorTotal===Math.round(b.dados.parcelas*b.dados.valorParcela*100)/100}));
  const ctx={window:{BudContractReader:reader,budShowToast:()=>{},budError:()=>{}},contratoExtraido:reader.read(sale),contratoBlocos:components,contratoFingerprint:'a'.repeat(64),contratoMensagem:'',salvandoBlocos:false,dadosIA:null,wizardTipo:'Financiamento',wizardTipoIcone:'🏠',currentUser:{uid:'test'},db:{},
  document:{getElementById:id=>{if(!nodes.has(id))nodes.set(id,{style:{},value:'0',disabled:false});return nodes.get(id);}},
  fmtIA:v=>String(v),formatDataBR:v=>v.split('-').reverse().join('/'),parseDataBR:v=>{const p=v.split('/');if(p.length!==3)return null;const iso=p.reverse().join('-');return reader.missing({valorTotal:1,valorParcela:1,parcelas:1,vencimento:iso}).length?null:iso;},parseMoeda:v=>Number(v.replace(/\./g,'').replace(',','.')),
- escapeHTML:v=>String(v),calcularConfiancaExtracao:()=>50,addDoc:async()=>{throw Error('batch must not use addDoc');},collection:()=>({}),doc:(...args)=>args.slice(1).join('/'),serverTimestamp:()=>null,fecharTodosModais:()=>{},
+ escapeHTML:v=>String(v),calcularConfiancaExtracao:()=>50,addDoc:async()=>{throw Error('batch must not use addDoc');},collection:()=>({}),doc:(...args)=>args.slice(1).join('/'),serverTimestamp:()=>null,fecharTodosModais:()=>{stats.closed++;},abrirModal:id=>stats.opened.push(id),
  runTransaction:async(db,callback)=>{stats.transactions++;const writes=[];const result=await callback({get:async ref=>({exists:()=>ledger.has(ref)}),set:(ref,data)=>writes.push([ref,data])});if(stats.failBefore)throw Error('offline');writes.forEach(([ref,data])=>ledger.set(ref,data));if(stats.failAfter)throw Error('uncertain acknowledgement');return result;}};
  vm.createContext(ctx);
- const a=source.indexOf('function mostrarPreviewIA('),b=source.indexOf('function animarStepsIA(',a);vm.runInContext(source.slice(a,b),ctx);
+ const a=source.indexOf('function mostrarPreviewIA('),b=source.indexOf('function animarStepsIA(',a);const maskStart=source.indexOf('function aplicarMascaraData('),maskEnd=source.indexOf('\nfunction ',maskStart+10);vm.runInContext(source.slice(maskStart,maskEnd)+source.slice(a,b),ctx);
  return {ctx,nodes,ledger,stats,source};
 }
 
@@ -70,7 +70,7 @@ test('multiple selection saves complete obligations atomically, leaving pending 
 
 test('failed commit writes nothing; uncertain response retry does not duplicate or overwrite an existing block',async()=>{
  const {ctx,ledger,stats,nodes}=batchContext();ctx.window._contratoMarcar('completas');stats.failBefore=true;
- await ctx.window._salvarBlocosContrato();assert.equal(ledger.size,0);assert.equal(reader.plan(ctx.contratoBlocos).ready.length,4);assert.equal(ctx.salvandoBlocos,false);assert.equal(nodes.get('btnSalvarBlocosContrato').disabled,false);
+ await ctx.window._salvarBlocosContrato();assert.equal(ledger.size,0);assert.equal(stats.closed,0,'failed save keeps popup available');assert.equal(reader.plan(ctx.contratoBlocos).ready.length,4);assert.equal(ctx.salvandoBlocos,false);assert.equal(nodes.get('btnSalvarBlocosContrato').disabled,false);
  stats.failBefore=false;stats.failAfter=true;await ctx.window._salvarBlocosContrato();assert.equal(ledger.size,4);assert.equal(reader.plan(ctx.contratoBlocos).ready.length,4);
  const first=[...ledger.keys()][0];ledger.get(first).nome='Nome revisado pelo titular';stats.failAfter=false;await ctx.window._salvarBlocosContrato();
  assert.equal(ledger.size,4);assert.equal(ledger.get(first).nome,'Nome revisado pelo titular');assert.equal(reader.plan(ctx.contratoBlocos).ready.length,0);
@@ -81,7 +81,7 @@ test('editing is isolated per block, rejects bad paid counts and updates derived
  ctx.window._contratoEditarCampo(2,'valorParcela','850,00');assert.equal(ctx.contratoBlocos[2].dados.valorTotal,20400);assert.equal(ctx.contratoBlocos[5].dados.valorParcela,90.75);
  ctx.window._contratoEditarCampo(2,'parcelasPagas','25');assert.ok(reader.plan(ctx.contratoBlocos).incomplete.some(x=>x.index===2));
  ctx.window._contratoEditarCampo(2,'parcelasPagas','0');ctx.window._contratoEditarCampo(2,'vencimento','30/02/2027');assert.ok(reader.plan(ctx.contratoBlocos).incomplete.some(x=>x.index===2));
- ctx.window._contratoEditarCampo(2,'vencimento','28/02/2027');ctx.window._contratoEditarCampo(2,'valorTotal','20.000,00');ctx.window._contratoEditarCampo(2,'valorParcela','860,00');assert.equal(ctx.contratoBlocos[2].dados.valorTotal,20000,'manually confirmed principal must not be replaced by parcel sum');
+ ctx.window._contratoEditarCampo(2,'vencimento','28022027');assert.equal(ctx.contratoBlocos[2].edicoes.vencimento,'28/02/2027');assert.equal(ctx.contratoBlocos[2].dados.vencimento,'2027-02-28');assert.equal(ctx.document.getElementById('contrato_2_vencimento').value,'28/02/2027');ctx.window._contratoEditarCampo(2,'valorTotal','20.000,00');ctx.window._contratoEditarCampo(2,'valorParcela','860,00');assert.equal(ctx.contratoBlocos[2].dados.valorTotal,20000,'manually confirmed principal must not be replaced by parcel sum');
  ctx.window._contratoSelecionar(2,false);assert.ok(!reader.plan(ctx.contratoBlocos).ready.some(x=>x.index===2));
 });
 
@@ -100,5 +100,11 @@ test('single rental preview retains manual review and blocks saving without actu
  const {ctx,nodes}=batchContext();ctx.contratoExtraido=reader.read(rental);ctx.contratoBlocos=[];ctx.dadosIA={...ctx.contratoExtraido.dados};
  vm.runInContext('mostrarPreviewIA(dadosIA,{confianca:50})',ctx);assert.match(nodes.get('iaResultado').innerHTML,/id="btnSalvarIA" disabled/);
  await ctx.window.salvarDividaIA();
+});
+
+
+
+test('discarding a pending draft never deletes registered debts',async()=>{
+ const {ctx,ledger,nodes}=batchContext();ctx.window._contratoMarcar('todas');await ctx.window._salvarBlocosContrato();assert.equal(ledger.size,4);ctx.window._descartarPendenciasContrato();assert.equal(ledger.size,4);assert.equal(ctx.contratoBlocos.length,0);assert.equal(nodes.get('avisoPendenciasContrato').style.display,'none');
 });
 
