@@ -88,6 +88,7 @@ test('purchases remain active; explicit refunds reduce the persisted invoice', a
   ctx.rows=[{desc:'Loja',valor:20,_fitIdOFX:'old'},{desc:'Estorno Loja',valor:-20,_fitIdOFX:'old'},{desc:'Loja',valor:20,_fitIdOFX:'new'}];
   vm.runInContext('itensIAExtraidos=processarItensIA(rows)',ctx);
   assert.deepEqual(Array.from(ctx.itensIAExtraidos,x=>x.selecionado),[false,false,true]);
+  assert.deepEqual(Array.from(ctx.itensIAExtraidos,x=>x.refundPair),[1,0,null]);
   await vm.runInContext('salvarTransacoesIA()',ctx);
   assert.equal(saved.length,1);assert.equal(saved[0].valor,20);
   ctx.transacoesGlobal=saved;
@@ -117,7 +118,9 @@ test('reconciliation bar follows selection, catches overbilling and never claims
   vm.createContext(ctx);vm.runInContext(source.slice(start,end)+';_renderConfiabilidadeBadge()',ctx);
   assert.match(badge.innerHTML,/Soma selecionada confere/);assert.match(badge.innerHTML,/role="progressbar"/);
   assert.doesNotMatch(badge.innerHTML,/precisão 100%/);
-  ctx.itensIAExtraidos[1].selecionado=false;vm.runInContext('_renderConfiabilidadeBadge()',ctx);
+  const summaryStart=source.indexOf('function atualizarResumoReviewIA()'),summaryEnd=source.indexOf('\nasync function salvarTransacoesIA',summaryStart);
+  vm.runInContext(source.slice(summaryStart,summaryEnd),ctx);
+  ctx.itensIAExtraidos[1].selecionado=false;vm.runInContext('atualizarResumoReviewIA()',ctx);
   assert.match(badge.innerHTML,/20,00 acima/);
   ctx._importMetaIA.totalAPagar=40.01;vm.runInContext('_renderConfiabilidadeBadge()',ctx);
   assert.match(badge.innerHTML,/0,01 abaixo/);assert.doesNotMatch(badge.innerHTML,/Soma selecionada confere/);
@@ -130,5 +133,14 @@ test('structured invoice payment is excluded while an unmatched refund remains s
   vm.createContext(ctx);vm.runInContext(source.slice(start,end)+'; result=processarItensIA([{desc:"Pagamento recebido",valor:-100},{desc:"Estorno de Loja",valor:-10},{desc:"Loja",valor:20}])',ctx);
   assert.deepEqual(Array.from(ctx.result,x=>x.selecionado),[false,true,true]);
   assert.equal(ctx.result.filter(x=>x.selecionado).reduce((s,x)=>s+x.valor,0),10);
+});
+
+test('checkbox handler changes both identified rows and preserves a new purchase', () => {
+  const vm=require('node:vm'),source=fs.readFileSync('appbudfinance/js/cartoes.js','utf8');
+  const start=source.indexOf('  window._iaToggle ='),end=source.indexOf('  window._iaDescChange',start);
+  let renders=0;const ctx={window:{},itensIAExtraidos:[{selecionado:false,refundPair:1},{selecionado:false,refundPair:0},{selecionado:true,refundPair:null}],document:{getElementById:()=>null},renderListaReviewIA:()=>renders++,atualizarResumoReviewIA:()=>{}};
+  vm.createContext(ctx);vm.runInContext(source.slice(start,end),ctx);
+  ctx.window._iaToggle(0,true);assert.deepEqual(ctx.itensIAExtraidos.map(x=>x.selecionado),[true,true,true]);assert.equal(renders,1);
+  ctx.window._iaToggle(1,false);assert.deepEqual(ctx.itensIAExtraidos.map(x=>x.selecionado),[false,false,true]);
 });
 
