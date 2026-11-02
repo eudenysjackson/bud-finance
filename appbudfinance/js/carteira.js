@@ -1483,6 +1483,8 @@ function mapearTransacoes(rows) {
       descricao: r.descricao,
       valor: r.valor,
       tipo,
+      _tipoOriginal: tipo,
+      formaPagamento: r.formaPagamento || (/\bpix\b/i.test(r.descricao||'')?'PIX':null),
       categoria,
       fitId: r.fitId || null,
       selecionado: !_avisoIgnorar, // desmarca automaticamente movimentos internos/investimentos
@@ -1525,6 +1527,10 @@ function detectarTransferenciasInternas(rows) {
 }
 
 function detectarTipo(desc, tipoOrigem) {
+  // A direção explícita do extrato prevalece sobre palavras na descrição.
+  const origin=String(tipoOrigem||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+  if(['credito','credit','receita','entrada','c','cr'].includes(origin))return 'receita';
+  if(['debito','debit','despesa','saida','d','dr'].includes(origin))return 'despesa';
   if (!desc) return tipoOrigem === 'credito' ? 'receita' : 'despesa';
   const d = desc.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
@@ -1690,28 +1696,10 @@ function closeRowCatDd() {
 }
 
 window.toggleRowCatDd = function(idx, btn) {
-  if (_rowCatDdTargetIdx === idx) { closeRowCatDd(); return; }
-  closeRowCatDd();
-  _rowCatDdTargetIdx = idx;
-  _rowCatDdBtn = btn;
-  btn.classList.add('open');
-
-  const p = window.BUD_CATEGORIAS_PADRAO || { despesa: [], receita: [] };
-  const all = [...(p.despesa || []), ...(p.receita || [])];
-  const currentCat = parsedRows[idx] ? parsedRows[idx].categoria : '';
-
-  let html = '<div class="row-cat-option" onclick="selectRowCat(' + idx + ', \'\')">＋ Categoria</div>';
-  all.forEach(function(c) {
-    const active = c.nome === currentCat ? ' active' : '';
-    html += '<div class="row-cat-option' + active + '" onclick="selectRowCat(' + idx + ', \'' + escapeHtml(c.nome).replace(/'/g, '\\\'') + '\')">' + (c.emoji ? c.emoji + ' ' : '') + escapeHtml(c.nome) + '</div>';
-  });
-
-  const dd = document.getElementById('rowCatSharedDd');
-  dd.innerHTML = html;
-  dd.style.display = 'block';
-  const rect = btn.getBoundingClientRect();
-  dd.style.top = (rect.bottom + 4) + 'px';
-  dd.style.left = rect.left + 'px';
+ const row=parsedRows[idx];if(!row)return;
+ const defaults=window.BUD_CATEGORIAS_PADRAO||{};
+ const items=(defaults[row.tipo]||[]).map(c=>({...c,tipo:row.tipo}));
+ window.BudCategoryUI?.openChoices(btn,{items,selected:row.categoria,onSelect:value=>window.selectRowCat(idx,value)});
 };
 
 window.selectRowCat = function(idx, val) {
@@ -1745,7 +1733,8 @@ function renderPreview() {
   tbody.innerHTML = pageRows.map((r, i) => {
     const globalIdx = start + i;
     const tipoClass = r.tipo === 'receita' ? 'tipo-pill-receita' : 'tipo-pill-despesa';
-    const tipoLabel = r.tipo === 'receita' ? '↑ Receita' : '↓ Despesa';
+    const tipoLabel = r.tipo === 'receita' ? '↓ Receita · entrada' : '↑ Despesa · saída';
+    const pixLabel=/\bpix\b/i.test(r.descricao||'')?(r.tipo==='receita'?'Pix recebido':'Pix enviado'):'';
     const rowOpacity = (r.duplicata || r._avisoIgnorar) ? 'style="opacity:0.55;"' : (r.duplicataPossivel ? 'style="opacity:0.8;"' : '');
     const dupBadge = r.duplicata
       ? '<span title="Transação já existe no período — desmarcada automaticamente" style="font-size:0.6rem;background:#fef9c3;color:#854d0e;padding:0.1rem 0.3rem;border-radius:3px;font-weight:700;margin-left:4px;cursor:help;">DUP ⚠️</span>'
@@ -1761,7 +1750,7 @@ function renderPreview() {
       <td><input type="checkbox" data-idx="${globalIdx}" ${r.selecionado ? 'checked' : ''} onchange="toggleRowSelect(${globalIdx}, this.checked)"></td>
       <td style="white-space:nowrap;font-size:0.75rem;">${r.data}</td>
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(r.descricao)}">${escapeHtml(r.descricao)}${dupBadge}${dupPossBadge}${ignorarBadge}</td>
-      <td><button class="tipo-pill ${tipoClass}" onclick="toggleRowTipo(${globalIdx})">${tipoLabel}</button></td>
+      <td><button class="tipo-pill ${tipoClass}" onclick="toggleRowTipo(${globalIdx})">${tipoLabel}</button>${pixLabel ? `<div style="font-size:11px;font-weight:700;margin-top:4px;">${pixLabel}</div>` : ''}</td>
       <td style="text-align:right;font-weight:700;white-space:nowrap;color:${r.tipo === 'receita' ? '#16a34a' : '#dc2626'};">${fmtBRL(r.valor)}</td>
       <td><button class="row-cat-btn" id="rowcatbtn-${globalIdx}" onclick="toggleRowCatDd(${globalIdx}, this)">${getCatDisplay(r.categoria)}</button></td>
     </tr>`;
@@ -1867,7 +1856,7 @@ window.setGlobalTipo = function(t) {
     parsedRows.forEach(r => { r.tipo = t; });
   } else {
     // re-detectar
-    parsedRows.forEach(r => { r.tipo = detectarTipo(r.descricao, r.valor < 0 ? 'debito' : 'credito'); });
+    parsedRows.forEach(r => { r.tipo = r._tipoOriginal || detectarTipo(r.descricao, null); });
   }
   renderPreview();
 };
@@ -1879,7 +1868,7 @@ function initGlobalCatSelect() {
 
   // Construir opções com emojis via BUD_CATEGORIAS_PADRAO
   const padroes = window.BUD_CATEGORIAS_PADRAO || { despesa: [], receita: [] };
-  const allCats = [...padroes.despesa, ...padroes.receita];
+  const allCats = [...padroes.despesa, ...padroes.receita].sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'}));
   dd.innerHTML =
     `<div class="custom-select-option" style="font-size:0.8125rem;" data-value="">🔍 Auto-detectar</div>` +
     allCats.map(c =>
@@ -1934,6 +1923,7 @@ async function confirmarImport() {
         const txRef = doc(txCol);
         batch.set(txRef, {
           tipo: r.tipo,                          // 'receita' | 'despesa' — NUNCA 'Transferência'
+          ...(r.formaPagamento ? {formaPagamento:r.formaPagamento} : {}),
           valor: r.valor,
           descricao: budSanitize(r.descricao.substring(0, 200)),
           categoria: budSanitize(r.categoria || 'Outros'),

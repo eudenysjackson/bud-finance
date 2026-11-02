@@ -769,3 +769,7 @@ Revisão automática bloqueou o primeiro deploy por falta de autorização expl�
 
 ## Troca de plano com ajuste proporcional — 02/11/2026
 checkout-client.js reutiliza sessão Firebase nas configurações e na entrada index?checkout, sem passagem pela dashboard. subscription-upgrade.js calcula cotação15min, cria preferência avulsa de pagamento e aplica o upgrade na mesma preapproval; renovação não muda. Ledger usuarios/uid/upgrades-planos e campos planoUpgrade/upgradeCiclo são de escrita exclusiva do backend e protegidos pelas regras. Reprocessamento e restituição de pagamento duplicado/fora do ciclo usam identidades estáveis. Configurações observa perfil em tempo real para refletir confirmação assíncrona.
+
+
+## Mobile, rotas limpas e categorias — 02/11/2026
+app-shell.js carregado no início das páginas normaliza URL e preenche data/mês locais. BUD_PAGE_FILE mantém identidade da tela para featureflags. category-picker.js compartilhado usa opções/handlers existentes, centraliza busca/foco/acessibilidade sem gravar dados. profile-sync.js inicia sem aguardar imagens e mostra Auth atual antes do documento; Dashboard carrega Chart.js async e renderiza ao ficar pronto. Carteira preserva _tipoOriginal na prévia e formaPagamentoPIX no registro novo.

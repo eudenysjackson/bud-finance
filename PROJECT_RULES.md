@@ -137,3 +137,7 @@ O projeto usa **CSS custom properties** (`var(--nome)`) para todas as cores din�
 9. **NUNCA usar `type="email"` no campo de identificação do login** — Aceita matrícula (texto).
 10. **NUNCA remover `rel="noopener noreferrer"` de links `target="_blank"`** — Segurança obrigatória.
 11. **NUNCA usar `<select>` nativo em nenhuma tela** — Selects nativos quebram a identidade visual e não respeitam o design system. Todo campo de seleção OBRIGATORIAMENTE usa o padrão custom dropdown: `<div class="custom-select">` com trigger `.custom-select-trigger`, dropdown `.custom-select-dropdown` com opções `.custom-select-option`, e `<input type="hidden">` para o valor. O dropdown deve implementar smart positioning (`open-up` quando o espaço abaixo for insuficiente) usando `getBoundingClientRect()`. O padrão de referência está em `dashboard.html` (campo Categoria / campo Conta/Cartão).
+
+
+## Mobile, rotas limpas e categorias — 02/11/2026
+Exceção solicitada pelo titular à regra11: seletores de CATEGORIA abrem diálogo customizado centralizado e responsivo, com busca, ordem alfabética pt-BR pelo nome e identificação Receita/Despesa. Demais seletores mantêm padrão custom com posicionamento inteligente. Nunca usar select nativo. Rotas do app sem.html preservam parâmetros/hash e compatibilidade com links antigos; não adicionar barra final às telas.

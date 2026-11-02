@@ -103,8 +103,8 @@
     keys.forEach(function (key) {
       if (window.budFeatureEnabled(key)) return;
       (FEATURE_ROUTES[key] || []).forEach(function (page) {
-        selectors.push('a[href="' + page + '"]', 'a[href$="/' + page + '"]');
-        if (location.pathname.split('/').pop().toLowerCase() === page) {
+        selectors.push('a[href="' + page + '"]', 'a[href$="/' + page + '"]', 'a[href$="/' + page.replace(/\.html$/, '') + '"]');
+        if ((window.BUD_PAGE_FILE || location.pathname.split('/').pop()).toLowerCase() === page) {
           location.replace('dashboard.html?recurso_indisponivel=' + encodeURIComponent(key));
         }
       });
@@ -727,5 +727,4 @@ import('./push-foreground.js?v=20261031').catch(function () {});
 
 
 
-import('./profile-sync.js?v=20261102-live').catch(function(){console.warn('[Perfil] Sincronização indisponível.');});
-
+import('./profile-sync.js?v=20261102-mobile').catch(function(){console.warn('[Perfil] Sincronização indisponível.');});

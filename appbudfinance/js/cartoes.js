@@ -483,7 +483,7 @@ function buildCartaoEl(cartao, fatura, status, limite, reservado, dispPct, gasto
         <div class="gasto-item" style="${riscado ? 'opacity:0.6;' : ''}">
           <div class="gasto-desc">
             <div class="gasto-desc-text" style="${riscado ? 'text-decoration:line-through;' : ''}">${badgeHTML}${escHtml(g.descricao || '—')}</div>
-            <div class="gasto-desc-cat">${escHtml(g.categoria || 'Outros')} · ${formatData(g.dataReferencia)}</div>
+            <div class="gasto-desc-cat">${escHtml(g.categoria || 'Outros')} · ${formatData(g.dataReferencia)} · ${escHtml(window.BudCategoryUI?.presentation(g).label || 'Despesa')}${/\bpix\b/i.test(g.descricao||'') ? ' · Pix no crédito' : ''}</div>
           </div>
           <div style="display:flex;align-items:center;gap:0.25rem;">
             <span class="gasto-valor" style="${riscado ? 'text-decoration:line-through;color:var(--card-text-sec);' : ''}">${formatBRL(g.valor || 0)}</span>
@@ -1641,7 +1641,7 @@ function atualizarDropdownCategorias() {
     .map(c => ({ nome: c.nome || c.id, emoji: c.emoji || '🏷️' }))
     .filter(c => c.nome && !padraoNomes.includes(c.nome));
 
-  const todas = [...padraoItens, ...personalizadas];
+  const todas = [...padraoItens, ...personalizadas].sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'}));
 
   dropdown.innerHTML = todas.map(cat => `
     <div class="custom-select-option" role="option" data-value="${escHtml(cat.nome)}">${cat.emoji ? escHtml(cat.emoji) + ' ' : ''}${escHtml(cat.nome)}</div>
@@ -2436,7 +2436,7 @@ function renderListaReviewIA() {
   });
   const _nomesPadrao = _catsPadrao.map(c => c.nome || c).filter(Boolean);
   const _nomesUser   = categoriasGlobal.map(c => c.nome || c.id).filter(Boolean);
-  const CATS_IA = [...new Set([..._nomesPadrao, ..._nomesUser])];
+  const CATS_IA = [...new Set([..._nomesPadrao, ..._nomesUser])].sort((a,b)=>a.localeCompare(b,'pt-BR',{sensitivity:'base'}));
 
   const qtdEncargos = itensIAExtraidos.filter(i => i.status === 'encargo').length;
   const notaEncargosHTML = qtdEncargos > 0
@@ -2929,6 +2929,3 @@ function showToast(msg, tipo = 'ok') {
 
   setTimeout(() => t.remove(), 3500);
 }
-
-
-

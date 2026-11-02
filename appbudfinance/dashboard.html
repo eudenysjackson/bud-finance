@@ -2,6 +2,8 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
+  <script src="js/app-shell.js?v=20261102-mobile"></script>
+  <script defer src="js/category-picker.js?v=20261102-mobile"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3b82f6">
   <meta name="description" content="Bud Finance — Dashboard financeiro">
@@ -1269,14 +1271,14 @@
   </div>
 
   <!-- ═══ Firebase + Config ════════════════════════════════════════ -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script async src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js" onload="window.dispatchEvent(new Event('bud-chart-ready'))" onerror="window.dispatchEvent(new Event('bud-chart-error'))"></script>
   <script src="js/firebase-config.js"></script>
-  <script src="js/bud-utils.js?v=20261102-profile"></script>
+  <script src="js/bud-utils.js?v=20261102-mobile"></script>
   <script src="js/categorias-padrao.js"></script>
   <script src="js/bud-notif-inapp.js"></script>
   <script src="js/debt-payments.js?v=20261102-payment"></script>
   <script src="js/debt-payment-dialog.js?v=20261102-payment"></script>
-  <script type="module" src="js/dashboard.js?v=20261102-payment"></script>
+  <script type="module" src="js/dashboard.js?v=20261102-mobile"></script>
 
   <!-- Splash dismiss -->
   <script>

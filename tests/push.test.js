@@ -44,6 +44,6 @@ test('profile changes update an already open device and old account listeners ca
  const observe=new Function('console',code+';return observeProfile;')({warn(){}});let authCallback,stopped=0;const subscriptions=[],applied=[];
  const stop=observe({auth:{},db:{},watchAuth:(_,fn)=>{authCallback=fn;return()=>stopped++;},profileRef:(_,c,id)=>id,watchProfile:(id,fn)=>{subscriptions.push({id,fn});return()=>stopped++;},apply:data=>applied.push(data)});
  authCallback({uid:'a',displayName:'A'});const first=subscriptions[0];first.fn({exists:()=>true,data:()=>({photoURL:'first-photo',nome:'A'})});first.fn({exists:()=>true,data:()=>({photoURL:'updated-photo',nome:'A'})});assert.equal(applied.at(-1).photoURL,'updated-photo');
- authCallback({uid:'b',displayName:'B'});first.fn({exists:()=>true,data:()=>({photoURL:'stale-photo'})});assert.equal(applied.at(-1).photoURL,'updated-photo');subscriptions[1].fn({exists:()=>true,data:()=>({nome:'B',pushConsentRevoked:true})});assert.equal(applied.at(-1).photoURL,null);assert.equal(applied.at(-1).revoked,true);stop();assert.equal(stopped,3);
+ authCallback({uid:'b',displayName:'B'});first.fn({exists:()=>true,data:()=>({photoURL:'stale-photo'})});assert.equal(applied.at(-1).nome,'B');assert.equal(applied.at(-1).pending,true);subscriptions[1].fn({exists:()=>true,data:()=>({nome:'B',pushConsentRevoked:true})});assert.equal(applied.at(-1).photoURL,null);assert.equal(applied.at(-1).revoked,true);stop();assert.equal(stopped,3);
 });
 

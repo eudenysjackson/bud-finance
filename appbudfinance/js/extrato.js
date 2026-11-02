@@ -320,7 +320,7 @@ function popularCatFiltroDropdown() {
   const dd = document.getElementById('catFiltroDropdown');
   if (!dd) return;
   // Categorias usadas no mês atual
-  const usadas = [...new Set(transacoesGlobais.map(t => t.categoria).filter(Boolean))].sort();
+  const usadas = [...new Set(transacoesGlobais.map(t => t.categoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR',{sensitivity:'base'}));
   dd.innerHTML = `<div class="cat-filter-option${catFiltroAtual === '' ? ' selected' : ''}" data-valor="" onclick="setCatFiltro('','Categoria')">Todas</div>`;
   usadas.forEach(nome => {
     const emoji = getEmoji(nome);
@@ -591,7 +591,7 @@ function renderizarExtrato() {
     // Linhas de transação
     txsDia.forEach(t => {
       const emoji = getEmoji(t.categoria || '');
-      const isRec = t.tipo === 'receita';
+      const isRec = (t.tipo === 'receita' ? 1 : -1) * Number(t.valor || 0) >= 0;
 
       const row = document.createElement('div');
       row.className = 'tx-row ' + (isRec ? 'tx-row-receita' : 'tx-row-despesa');
@@ -613,6 +613,8 @@ function renderizarExtrato() {
       meta.textContent = (t.categoria || (t.origem==='meta'?'Metas':'Sem categoria')) + ' · ' + formatDataLabel(t._date);
       info.appendChild(desc);
       info.appendChild(meta);
+      const kind=window.BudCategoryUI?.presentation(t);
+      if(kind){const badge=document.createElement('span');badge.textContent=kind.label+(kind.method?' · '+kind.method:'');badge.style.cssText='display:inline-block;margin-top:5px;font-size:11px;font-weight:700;color:'+kind.color+';';info.appendChild(badge);}
       row.appendChild(info);
 
       // Valor + ações
@@ -621,7 +623,7 @@ function renderizarExtrato() {
 
       const valor = document.createElement('span');
       valor.className = isRec ? 'tx-valor tx-valor-pos' : 'tx-valor tx-valor-neg';
-      valor.textContent = (isRec ? '+' : '-') + fmtBRL(t.valor || 0);
+      valor.textContent = (isRec ? '+' : '-') + fmtBRL(Math.abs(t.valor || 0));
       valCol.appendChild(valor);
 
       const actions = document.createElement('div');
@@ -902,7 +904,7 @@ function preencherCatDropdownModal(tipo, catAtual) {
     .filter(c => c.tipo === tipo)
     .filter(c => !padraoNomes.includes(c.nome))
     .map(c => ({ nome: c.nome, emoji: c.emoji || '🏷️' }));
-  const todas = [...padrao, ...personalizadas];
+  const todas = [...padrao, ...personalizadas].sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR',{sensitivity:'base'}));
 
   dd.innerHTML = '';
   let labelAtual = 'Selecione...';
@@ -912,6 +914,7 @@ function preencherCatDropdownModal(tipo, catAtual) {
     opt.className = 'custom-select-option' + (cat.nome === catAtual ? ' selected' : '');
     opt.setAttribute('role', 'option');
     opt.setAttribute('data-value', cat.nome);
+    opt.dataset.tipo=tipo;
     const label = (cat.emoji ? cat.emoji + ' ' : '') + cat.nome;
     opt.textContent = label;
     if (cat.nome === catAtual) { labelAtual = label; }
@@ -1271,6 +1274,7 @@ function subscribeTransacoes(uid) {
   }, function(err) {
     (window.budError||console.error)('[extrato] onSnapshot transações:', err);
     hideSplash();
+    const title=document.querySelector('#listaExtrato .empty-state-title');if(title)title.textContent='Não foi possível carregar os lançamentos. Recarregue para tentar novamente.';
     if (window.budShowToast) window.budShowToast('Erro ao carregar transações.', 'error');
   });
 
@@ -1304,7 +1308,11 @@ function subscribeAll(uid) {
     _dadosCarregados.categorias = true;
     // Re-renderiza apenas se transações já chegaram
     if (_dadosCarregados.transacoes) renderizarExtrato();
-  }, function(_err) {});
+  }, function(_err) {
+    _dadosCarregados.categorias=true;
+    if(_dadosCarregados.transacoes)renderizarExtrato();
+    window.budShowToast?.('Não foi possível atualizar suas categorias. Exibindo os lançamentos disponíveis.','warning');
+  });
 
   subscribeTransacoes(uid);
 }

@@ -23,7 +23,7 @@ let planUnsubscribe = null;
 let _skipThemeSync = false;let _userPlano = 'free';
 let _whatsappNumero = null;
 let _hoverOrigTheme = null;
-let _isAdmin = false;
+
 let _pushSetupDone = false;
 let _pushAtivo = false;
 
@@ -918,8 +918,11 @@ async function carregarPerfil(user) {
       }
     }
   } catch (_) {
-    // Firestore indisponível — exibe dados do Auth apenas + renderiza plano como free
-    _renderizarSecaoPlano('free', {});
+    // Falha de rede não significa plano gratuito: não oferecer nova cobrança sem confirmar.
+    const name=document.getElementById('planoNome'),description=document.getElementById('planoDesc');
+    if(name)name.textContent='Indisponível';if(description)description.textContent='Não foi possível consultar seu plano. Recarregue para tentar novamente.';
+    document.getElementById('planoBotoes')?.replaceChildren();
+    const code=document.getElementById('perfilCodigoIndicacao');if(code)code.textContent='Indisponível';
   }
 }
 
@@ -1386,12 +1389,6 @@ onAuthStateChanged(auth, async function (user) {
   }
 
   uid = user.uid;
-
-  // Verificar role admin (restringe botão Testar Push a admins)
-  try {
-    const adminSnap = await getDoc(doc(db, 'admins', uid));
-    _isAdmin = adminSnap.exists() && adminSnap.data().role === 'admin';
-  } catch (_) { _isAdmin = false; }
 
   await carregarPerfil(user);
   const observedUid = user.uid;
