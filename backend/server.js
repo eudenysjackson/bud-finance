@@ -14,7 +14,8 @@ const { createReader, readPDF } = require('./ai-reader');
 const { createJobs, currentJob } = require('./ai-jobs');
 const { createFirestoreJobStore } = require('./ai-job-store');
 const { readNubankInvoice } = require('./invoice-reader');
-const { createDeleteAccount } = require('./account-lifecycle');
+const { createAccountLifecycle } = require('./account-lifecycle');
+const { createSecurityGuard, pruneSecurityLimits } = require('./security-guard');
 const { createSubscriptionChange } = require('./subscription-change');
 const { financialNotices, subscriptionDunningStage, subscriptionPushNotices, sendFinancialPush } = require('./financial-notifications');
 
@@ -107,6 +108,8 @@ const MP_BONUS_INDICADOR = 0.50; // 50% em uma próxima cobrança, uma vez por c
 
 // â”€â”€â”€ Express setup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const app = express();
+app.disable('x-powered-by');
+app.use((_req,res,next)=>{res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');next();});
 app.use(express.json({ limit: '200kb' })); // aumentado para suportar mensagens com extratos/planilhas do Assistente IA
 
 // A3 fix: CORS allowlist split por NODE_ENV (dev permite localhost; prod sÃ³ domÃ­nios pÃºblicos).
@@ -167,6 +170,10 @@ app.use(cors({
   methods: ['POST', 'GET', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Bud-Async']
 }));
+
+app.use(createSecurityGuard({auth,db,secret:process.env.RATE_LIMIT_SECRET||EMAIL_VERIFICATION_SECRET}));
+// WhatsApp is outside the launch scope. Do not accept public integration traffic.
+app.use(['/webhook/whatsapp','/webhook/evolution','/api/whatsapp'],(_req,res)=>res.sendStatus(404));
 
 // â”€â”€â”€ Rate limiting (simple in-memory) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // LIMITAÃ‡ÃƒO CONHECIDA (C4): este mapa vive em memÃ³ria do processo.
@@ -250,7 +257,7 @@ async function getBearerUser(req, res) {
   var header = req.headers.authorization || '';
   var token = header.startsWith('Bearer ') ? header.slice(7) : '';
   if (!token) { res.status(401).json({ ok: false, error: 'Token ausente.' }); return null; }
-  try { return await auth.verifyIdToken(token); }
+  try { return await auth.verifyIdToken(token,true); }
   catch (_) { res.status(401).json({ ok: false, error: 'Token inválido.' }); return null; }
 }
 
@@ -412,7 +419,7 @@ app.post('/api/boas-vindas', async function (req, res) {
     var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
     if (!idToken) return res.status(401).json({ success: false, message: 'Token ausente.' });
     var decoded;
-    try { decoded = await auth.verifyIdToken(idToken); }
+    try { decoded = await auth.verifyIdToken(idToken,true); }
     catch (_authErr) { return res.status(401).json({ success: false, message: 'Token inválido.' }); }
 
     var email     = (req.body.email    || '').trim().toLowerCase();
@@ -465,7 +472,7 @@ app.post('/api/iniciar-trial', express.json(), async function (req, res) {
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!idToken) return res.status(401).json({ ok: false, error: 'Token ausente.' });
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_e) { return res.status(401).json({ ok: false, error: 'Token invÃ¡lido.' }); }
   var uid = decoded.uid;
   try {
@@ -502,7 +509,7 @@ app.post('/api/expirar-trial', express.json(), async function (req, res) {
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!idToken) return res.status(401).json({ ok: false, error: 'Token ausente.' });
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_e) { return res.status(401).json({ ok: false, error: 'Token invÃ¡lido.' }); }
   var uid = decoded.uid;
   try {
@@ -610,7 +617,7 @@ app.get('/', function (_req, res) {
 // â”€â”€â”€ Multer: upload de arquivo (PDF / imagem) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 16, fieldSize: 65536, parts: 17, headerPairs: 100 }, // 10 MB
   fileFilter: function (_req, file, cb) {
     const ok = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
     if (ok.includes(file.mimetype)) return cb(null, true);
@@ -730,7 +737,11 @@ async function requireAuthenticatedUser(req, res, next) {
   next();
 }
 app.get('/api/ia/jobs/:id', aiJobs.poll);
-app.delete('/api/account', createDeleteAccount({ authenticate: getBearerUser, auth, db, emulator: process.env.BUD_USE_EMULATOR === 'true' }));
+const accountLifecycle=createAccountLifecycle({authenticate:getBearerUser,auth,db,fieldValue:admin.firestore.FieldValue,emulator:process.env.BUD_USE_EMULATOR==='true'});
+app.delete('/api/account',accountLifecycle.handler);
+let securityMaintenanceRunning=false;
+async function maintainSecurity(){if(!db||securityMaintenanceRunning)return;securityMaintenanceRunning=true;try{const result=await accountLifecycle.resume();await pruneSecurityLimits(db);if(result.failures)console.warn('[Segurança] Exclusão pendente será retomada.');}catch(_){console.warn('[Segurança] Manutenção pendente será retomada.');}finally{securityMaintenanceRunning=false;}}
+const securityTimer=setInterval(maintainSecurity,60_000);securityTimer.unref?.();setImmediate(maintainSecurity);
 app.post('/api/extrair-fatura', requireAuthenticatedUser, upload.single('arquivo'), aiJobs.wrap(async function (req, res) {
   try {
     try {
@@ -988,7 +999,7 @@ function normalizeCupomResult(parsed) {
 
 var uploadCupom = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024, files: 3 }, // Same upload limit advertised by Compras.
+  limits: { fileSize: 8 * 1024 * 1024, files: 3, fields: 16, fieldSize: 65536, parts: 19, headerPairs: 100 }, // Same upload limit advertised by Compras.
   fileFilter: function (_req, file, cb) {
     var ok = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
     if (ok.includes(file.mimetype)) return cb(null, true);
@@ -1302,7 +1313,7 @@ app.post('/api/processar-recorrentes', async function (req, res) {
 
   var decoded;
   try {
-    decoded = await auth.verifyIdToken(idToken);
+    decoded = await auth.verifyIdToken(idToken,true);
   } catch (_e) {
     return res.status(401).json({ error: 'Token invÃ¡lido ou expirado.' });
   }
@@ -1480,7 +1491,7 @@ app.post('/api/chat', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token de autenticaÃ§Ã£o ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido ou expirado.' }); }
 
   var uid = decoded.uid;
@@ -1747,7 +1758,7 @@ app.post('/api/chamado', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token de autenticaÃ§Ã£o ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido ou expirado.' }); }
 
   var uid = decoded.uid;
@@ -1821,7 +1832,7 @@ app.get('/api/chamados', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   // Verificar role admin
@@ -1857,7 +1868,7 @@ app.patch('/api/chamados/:id', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   try {
@@ -1899,7 +1910,7 @@ app.get('/api/meus-chamados', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   try {
@@ -1940,7 +1951,7 @@ app.post('/api/alerta-financeiro', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   var uid = decoded.uid;
@@ -2056,7 +2067,7 @@ app.post('/api/alerta-financeiro', async function (req, res) {
 // Rota leve para acordar o servidor no Render free tier.
 // Chamada silenciosa no carregamento de qualquer pÃ¡gina que use o backend.
 app.get('/api/ping', function (_req, res) {
-  res.json({ ok: true, ts: Date.now(), revision: process.env.RENDER_GIT_COMMIT || null, pushConsentVersion: 1 });
+  res.json({ ok: true, ts: Date.now(), revision: process.env.RENDER_GIT_COMMIT || null, pushConsentVersion: 1, accountDeletionVersion: 2, securityGuardVersion: 1 });
 });
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -2146,7 +2157,7 @@ async function processarMensagemWA(jid, texto) {
     'â€¢ Tirar foto de cupom e eu registro automaticamente\n\n' +
     'Pode comeÃ§ar! ðŸš€'
   );
-  console.log('[WA] nÃºmero vinculado:', numero, 'â†’ uid:', userDoc.id);
+  console.log('[WA] Vínculo confirmado.');
 }
 
 // â”€â”€â”€ GET /webhook/whatsapp â”€â”€â”€ verificaÃ§Ã£o Meta â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -2196,7 +2207,7 @@ app.post('/webhook/evolution', async function (req, res) {
   res.sendStatus(200); // responder rÃ¡pido
   // Log completo apenas para messages.upsert (debug @lid)
   if (req.body?.event === 'messages.upsert') {
-    console.log('[EVO-DEBUG] messages.upsert FULL:', JSON.stringify(req.body));
+    // Never log message contents or customer identifiers.
   }
 
   try {
@@ -2235,7 +2246,7 @@ app.post('/api/whatsapp/gerar-token', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   // Verificar plano
@@ -2277,7 +2288,7 @@ app.get('/api/whatsapp/status', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   try {
@@ -2300,7 +2311,7 @@ app.post('/api/whatsapp/desvincular', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   try {
@@ -2328,7 +2339,7 @@ app.post('/api/indicacao/aplicar', async function (req, res) {
   var idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!idToken) return res.status(401).json({ error: 'Faça login novamente.' });
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_) { return res.status(401).json({ error: 'Sessão inválida.' }); }
   var code = String(req.body.codigo || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32);
   if (!/^[A-Z0-9]{8}$/.test(code)) return res.status(400).json({ error: 'Informe um código de indicação válido com 8 caracteres.' });
@@ -2387,7 +2398,7 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   var uid   = decoded.uid;
@@ -2455,7 +2466,7 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
   try {
     await db.runTransaction(async transaction => {
       const snapshot = await transaction.get(checkoutRef), profile = snapshot.data();
-      if (!snapshot.exists || (profile.mpSubscriptionId && !['cancelled', 'canceled'].includes(profile.assinaturaStatus)) || ['creating', 'unknown'].includes(profile.mpCheckout?.state)) {
+      if (!snapshot.exists || profile._deletionPending || (profile.mpSubscriptionId && !['cancelled', 'canceled'].includes(profile.assinaturaStatus)) || ['creating', 'unknown'].includes(profile.mpCheckout?.state)) {
         throw Object.assign(new Error('A contratação anterior está sendo conferida. Aguarde ou contate o suporte antes de iniciar outra.'), { status: 409 });
       }
       transaction.update(checkoutRef, { mpCheckout: { state: 'creating', planKey, nonce: checkoutNonce, createdAt: Date.now(), promo } });
@@ -2886,7 +2897,7 @@ app.post('/mercadopago/sandbox-activate', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   var uid     = decoded.uid;
@@ -2920,7 +2931,7 @@ app.post('/mercadopago/local-test-payment', express.json(), async function (req,
   var authHeader = req.headers.authorization || '';
   if (!authHeader.startsWith('Bearer ')) return res.status(401).json({ error: 'Autenticacao necessaria.' });
   var decoded;
-  try { decoded = await auth.verifyIdToken(authHeader.slice(7)); }
+  try { decoded = await auth.verifyIdToken(authHeader.slice(7),true); }
   catch (_) { return res.status(401).json({ error: 'Sessao invalida.' }); }
 
   var planKey = String((req.body || {}).planKey || '').toLowerCase();
@@ -2952,7 +2963,7 @@ app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req
   if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   var uid = decoded.uid;
@@ -3016,7 +3027,7 @@ app.post('/api/push/token', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   var token    = sanitizeStr(String(req.body.token    || '')).substring(0, 500);
@@ -3050,7 +3061,7 @@ app.delete('/api/push/token', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_) { return res.status(401).json({ error: 'Token invalido.' }); }
 
   try {
@@ -3087,7 +3098,7 @@ app.post('/api/push/test', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   try {
@@ -3138,7 +3149,7 @@ app.post('/api/push/admin-broadcast', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken); }
+  try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   // Verificar se Ã© admin
@@ -3583,5 +3594,6 @@ var PORT = process.env.PORT || 3000;
 app.listen(PORT, function () {
   console.log('[Bud Finance Backend] Running on port ' + PORT);
 });
+
 
 

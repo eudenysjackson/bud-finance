@@ -4,22 +4,71 @@
       "collectionGroup": "transacoes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "mesReferencia", "order": "ASCENDING" },
-        { "fieldPath": "dataCriacao",   "order": "DESCENDING" }
+        {
+          "fieldPath": "mesReferencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dataCriacao",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "transacoes",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "mesReferencia", "order": "ASCENDING" },
-        { "fieldPath": "origem",        "order": "ASCENDING" }
+        {
+          "fieldPath": "mesReferencia",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "origem",
+          "order": "ASCENDING"
+        }
       ]
     }
   ],
   "fieldOverrides": [
-    { "collectionGroup": "_ai_jobs", "fieldPath": "expiresAt", "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION" }, { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }] },
-    { "collectionGroup": "_ai_job_chunks", "fieldPath": "expiresAt", "indexes": [{ "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" }] },
-    { "collectionGroup": "_ai_job_chunks", "fieldPath": "bytes", "indexes": [] }
+    {
+      "collectionGroup": "_ai_jobs",
+      "fieldPath": "expiresAt",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "_ai_job_chunks",
+      "fieldPath": "expiresAt",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "_ai_job_chunks",
+      "fieldPath": "bytes",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "indicacoes",
+      "fieldPath": "indicadoUid",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    }
   ]
 }
+

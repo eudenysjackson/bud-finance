@@ -18,7 +18,8 @@
     "deploy:firestore-rules": "firebase deploy --only firestore:rules",
     "seed:homologacao": "node scripts/seed-homologacao.js",
     "seed:responsividade": "node scripts/reconstruir-base-responsividade.js",
-    "clonar:homologacao": "node scripts/clonar-conta-producao.js"
+    "clonar:homologacao": "node scripts/clonar-conta-producao.js",
+    "test:security:emulated": "node --test tests/security-emulator.test.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.44.0",

@@ -718,7 +718,7 @@ async function confirmarExcluirConta() {
     await signOut(auth);
 
     fecharModalExcluirConta();
-    window.location.href = 'index.html';
+    window.location.href = 'index.html?conta_excluida=' + (result.cleanup === 'pending' ? 'pendente' : 'concluida');
 
   } catch (err) {
     if (err.code === 'auth/requires-recent-login') {
@@ -1533,6 +1533,7 @@ onAuthStateChanged(auth, async function (user) {
 
   } // end !_pushSetupDone
 });
+
 
 
 
