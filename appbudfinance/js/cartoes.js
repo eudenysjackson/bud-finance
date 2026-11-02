@@ -1747,18 +1747,6 @@ function _renderConfiabilidadeBadge() {
   const labelFonte = fonte === 'pdf' ? 'PDF' : fonte === 'imagem' ? 'Imagem' : fonte === 'ofx' ? 'OFX' : 'Fatura';
   const iconeFonte = fonte === 'imagem' ? '🖼️' : fonte === 'ofx' ? '📋' : '📄';
 
-  // OFX é dado estruturado — precisão garantida, sem necessidade de validação
-  if (fonte === 'ofx') {
-    document.getElementById('iaFaturaTotalPdf')?.style?.setProperty('display', 'none');
-    const totalOFX = itensIAExtraidos.length;
-    const ativosOFX = itensIAExtraidos.filter(i => i.status === 'ativa').length;
-    const estornosOFX = itensIAExtraidos.filter(i => i.status === 'estornado').length;
-    const detOFX = estornosOFX > 0 ? ` · ${estornosOFX} estorno${estornosOFX > 1 ? 's' : ''}` : '';
-    badge.style.cssText = 'display:block;font-size:0.7rem;font-weight:700;padding:0.35rem 0.75rem;border-radius:8px;white-space:normal;line-height:1.5;background:#dcfce7;color:#15803d;margin-bottom:0.75rem;';
-    badge.textContent = `✅ OFX — ${totalOFX} transações lidas (${ativosOFX} ativas${detOFX}) · dados estruturados, precisão 100%`;
-    return;
-  }
-
   // 1) Exibe linha de referência do total declarado na fatura
   const refBox   = document.getElementById('iaFaturaTotalPdf');
   const refVal   = document.getElementById('iaFaturaTotalPdfValor');
@@ -1785,46 +1773,19 @@ function _renderConfiabilidadeBadge() {
     }
   }
 
-  let badgeBg, badgeColor, badgeText;
-
-  if (alvoPdf !== null && alvoPdf > 0) {
-    // Soma TODOS os itens ativos extraídos (independente de seleção)
-    // para mostrar quanto a IA capturou vs o total declarado no PDF
-    const somaAtivos = itensIAExtraidos
-      .filter(i => i.status === 'ativa' || i.status === 'credito')
-      .reduce((s, i) => s + i.valor, 0);
-    const pct    = somaAtivos / alvoPdf;
-    const pctStr = Math.round(pct * 100) + '%';
-    const diff   = somaAtivos - alvoPdf;
-    const diffStr = (diff >= 0 ? '+' : '−') + fmt(Math.abs(diff));
-    const det    = `IA: ${fmt(somaAtivos)} · ${labelFonte}: ${fmt(alvoPdf)} · dif ${diffStr}`;
-
-    if (meta?.requiresReview) {
-      badgeBg = '#fff7ed'; badgeColor = '#c2410c';
-      badgeText = `⚠️ Revise antes de salvar: a soma das linhas do PDF difere do total declarado em ${fmt(Math.abs(meta.differenceCents) / 100)}. Os valores originais foram preservados.`;
-    } else if (pct < 0.70) {
-      badgeBg = '#fee2e2'; badgeColor = '#b91c1c';
-      badgeText = `❌ Resultado NÃO confiável — ${pctStr} capturado · ${det}`;
-    } else if (pct < 0.95 || pct > 1.05) {
-      badgeBg = '#fff7ed'; badgeColor = '#c2410c';
-      badgeText = `⚠️ Precisão parcial — ${pctStr} · ${det} · revise antes de salvar`;
-    } else {
-      badgeBg = '#dcfce7'; badgeColor = '#15803d';
-      badgeText = `✅ Valores batem com a fatura — ${pctStr} · ${det}`;
-    }
-  } else {
-    // Sem total de referência — mostra contagem real extraída
-    const totalSemMeta = itensIAExtraidos.length;
-    const ativosSemMeta = itensIAExtraidos.filter(i => i.status === 'ativa').length;
-    const somaExtraida = itensIAExtraidos
-      .filter(i => i.status === 'ativa')
-      .reduce((s, i) => s + i.valor, 0);
-    badgeBg = '#fef3c7'; badgeColor = '#92400e';
-    badgeText = `⚠️ ${labelFonte} — ${ativosSemMeta} de ${totalSemMeta} itens ativos · total extraído: ${fmt(somaExtraida)} · sem total de fatura para validar automaticamente`;
-  }
-
-  badge.style.cssText = `display:block;font-size:0.7rem;font-weight:700;padding:0.35rem 0.75rem;border-radius:8px;white-space:normal;line-height:1.5;background:${badgeBg};color:${badgeColor};margin-bottom:0.75rem;`;
-  badge.textContent = badgeText;
+  const selected = itensIAExtraidos.filter(i => i.selecionado && !['estornado','cancelado'].includes(i.status));
+  const cents = selected.reduce((sum,i) => sum + Math.round(Number(i.valor)*100),0);
+  const target = alvoPdf == null ? null : Math.round(alvoPdf*100);
+  const diff = target == null ? null : cents-target;
+  const exact = diff === 0;
+  const color = exact ? '#15803d' : diff != null && Math.abs(diff)<=1 ? '#c2410c' : '#b91c1c';
+  const text = target == null
+    ? 'Sem total de referência: não foi possível conferir a soma automaticamente.'
+    : exact ? 'Soma selecionada confere com o total da fatura.'
+      : `Diferença da seleção: ${fmt(Math.abs(diff)/100)} ${diff>0?'acima':'abaixo'} do total da fatura. Revise antes de salvar.`;
+  const coverage = target == null || target === 0 ? null : Math.max(0, Math.min(100, (1-Math.abs(diff)/Math.abs(target))*100));
+  badge.style.cssText = `display:block;font-size:0.75rem;padding:0.625rem;border:1px solid ${color};border-radius:8px;white-space:normal;line-height:1.5;color:${color};margin-bottom:0.75rem;`;
+  badge.innerHTML = `<strong>Conferência da leitura e seleção</strong><br>${text}${coverage == null ? '' : `<div role="progressbar" aria-label="Conciliação dos valores selecionados" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${coverage.toFixed(2)}" style="height:8px;background:#e2e8f0;border-radius:4px;margin:8px 0;overflow:hidden;"><div style="height:100%;width:${coverage}%;background:${color};"></div></div>`}<small>A barra compara valores; não garante a identificação de cada compra. Compras menos devoluções compõem o total.</small>`;
 }
 
 function abrirModalImportIA(cartaoId, manterArquivo = false) {
@@ -2224,7 +2185,8 @@ function _addMesesData(dateStr, n) {
 }
 
 function processarItensIA(itens) {
-  const signedStatuses = _importMetaIA?.signedAmounts ? window.BudInvoiceRefunds.classify(itens) : null;
+  const signedStatuses = (_importMetaIA?.signedAmounts || _importMetaIA?.fonte === 'ofx') ? window.BudInvoiceRefunds.classify(itens) : null;
+  const refundPairs = signedStatuses ? window.BudInvoiceRefunds.pairs(itens) : {};
   // No OFX do Nubank, compra e estorno compartilham o mesmo FITID. Quando há
   // esse par, ambos devem sair da fatura; somente desmarcar o crédito mantém
   // a compra original e infla o total.
@@ -2353,7 +2315,7 @@ function processarItensIA(itens) {
       expandirParcelas: false,
       // Em faturas, juros/multas/IOF detalhados também compõem o total devido.
       // Mantemos o selo de encargo para transparência, mas já os incluímos.
-      selecionado: status === 'ativa' || status === 'credito' || (_importMetaIA?.fonte === 'pdf' && status === 'encargo'),
+      selecionado: refundPairs[itemIdx] == null && (status === 'ativa' || status === 'credito' || (_importMetaIA?.fonte === 'pdf' && status === 'encargo')),
     };
   }).filter(item => item.valor !== 0 || item.status !== 'ativa'); // signed PDF credits remain individual rows
 
@@ -2476,7 +2438,7 @@ function renderListaReviewIA() {
     <span style="font-size:0.75rem;font-weight:700;color:var(--card-text-sec);align-self:center;margin-right:0.25rem;">Seleção:</span>
     <button type="button" onclick="window._iaSelAll(true)" style="padding:0.3125rem 0.625rem;border:1.5px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.6875rem;font-weight:700;cursor:pointer;font-family:inherit;">✓ Todos</button>
     <button type="button" onclick="window._iaSelAll(false)" style="padding:0.3125rem 0.625rem;border:1.5px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.6875rem;font-weight:700;cursor:pointer;font-family:inherit;">✕ Nenhum</button>
-    <button type="button" onclick="window._iaSelCompras()" style="padding:0.3125rem 0.625rem;border:1.5px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.6875rem;font-weight:700;cursor:pointer;font-family:inherit;">🛒 Apenas compras</button>
+    <button type="button" onclick="window._iaSelCompras()" style="padding:0.3125rem 0.625rem;border:1.5px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.6875rem;font-weight:700;cursor:pointer;font-family:inherit;">🛒 Compras e abatimentos</button>
     <button type="button" onclick="window._iaSelInv()" style="padding:0.3125rem 0.625rem;border:1.5px solid var(--card-border);border-radius:0.5rem;background:var(--card-bg);color:var(--card-text);font-size:0.6875rem;font-weight:700;cursor:pointer;font-family:inherit;">⇄ Inverter</button>
   </div>`;
 
@@ -2486,7 +2448,8 @@ function renderListaReviewIA() {
     const isEncargo  = item.status === 'encargo';
 
     let badgesHTML = '';
-    if (item.status === 'credito') badgesHTML += `<span style="font-size:0.6875rem;color:#15803d;">Estorno / devolução — abate o total da fatura</span>`;
+    if (item.refundPair != null) badgesHTML += '<span style="font-size:0.6875rem;color:#b45309;">Compra e devolução vinculadas pelo banco — seleção conjunta, saldo zero</span>';
+    if (item.status === 'credito') badgesHTML += `<span style="font-size:0.6875rem;color:#15803d;">Estorno / devolução — abate o total; confira a compra correspondente</span>`;
     if (isEstornado) badgesHTML += `<span style="font-size:0.6875rem;font-weight:700;background:rgba(245,158,11,0.15);color:#d97706;border-radius:0.375rem;padding:0.125rem 0.375rem;">Estorno</span>`;
     if (isCancelado) badgesHTML += `<span style="font-size:0.6875rem;font-weight:700;background:rgba(239,68,68,0.13);color:#dc2626;border-radius:0.375rem;padding:0.125rem 0.375rem;">Cancelado</span>`;
     if (isEncargo)   badgesHTML += `<span style="font-size:0.6875rem;font-weight:700;background:rgba(107,114,128,0.12);color:#6b7280;border-radius:0.375rem;padding:0.125rem 0.375rem;">Encargo</span>`;
@@ -2549,7 +2512,7 @@ function renderListaReviewIA() {
   window._iaCatChange  = (i, val) => { itensIAExtraidos[i].categoria = val; };
   window._iaValorChange = (i, val) => {
     const v = parseBRL(val);
-    if (v > 0) itensIAExtraidos[i].valor = v;
+    if (Number.isFinite(v) && v !== 0) itensIAExtraidos[i].valor = itensIAExtraidos[i].valor < 0 ? -Math.abs(v) : Math.abs(v);
     atualizarResumoReviewIA();
   };
   // Custom select de categoria (sem <select> nativo)
@@ -2602,7 +2565,7 @@ function renderListaReviewIA() {
     renderListaReviewIA();
   };
   window._iaSelCompras = () => {
-    itensIAExtraidos.forEach(it => { it.selecionado = (it.status === 'ativa'); });
+    itensIAExtraidos.forEach(it => { it.selecionado = it.refundPair == null && (it.status === 'ativa' || it.status === 'credito'); });
     renderListaReviewIA();
   };
   window._iaSelInv = () => {
@@ -2645,6 +2608,10 @@ async function salvarTransacoesIA() {
   if (!mesEl?.value || !anoEl?.value) { showToast('Informe o mês e ano da fatura.', 'erro'); return; }
 
   const anoMes = `${anoEl.value}-${mesEl.value}`;
+  if (itensIAExtraidos.some(i => i.refundPair != null && (!itensIAExtraidos[i.refundPair] || i.selecionado !== itensIAExtraidos[i.refundPair].selecionado || Math.round(i.valor*100)+Math.round(itensIAExtraidos[i.refundPair].valor*100) !== 0))) {
+    showToast('Confira o par de compra e devolução: a seleção deve ser conjunta e os valores devem se anular.', 'erro');
+    return;
+  }
   const itensSelecionados = itensIAExtraidos.filter(i => i.selecionado && !['estornado','cancelado'].includes(i.status));
 
   if (!itensSelecionados.length) { showToast('Selecione ao menos uma transação.', 'erro'); return; }
@@ -2947,3 +2914,4 @@ function showToast(msg, tipo = 'ok') {
 
   setTimeout(() => t.remove(), 3500);
 }
+

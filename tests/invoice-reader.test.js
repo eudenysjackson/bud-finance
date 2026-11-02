@@ -84,6 +84,15 @@ test('purchases remain active; explicit refunds reduce the persisted invoice', a
   saved.length=0;ctx._importMetaIA={signedAmounts:true,totalAPagar:40};ctx.itensIAExtraidos=[{valor:50,selecionado:true,status:'ativa'}];
   await vm.runInContext('salvarTransacoesIA()',ctx);
   assert.equal(saved.length,0,'mismatched selection must not be persisted');
+  ctx._importMetaIA={signedAmounts:true,totalAPagar:20};
+  ctx.rows=[{desc:'Loja',valor:20,_fitIdOFX:'old'},{desc:'Estorno Loja',valor:-20,_fitIdOFX:'old'},{desc:'Loja',valor:20,_fitIdOFX:'new'}];
+  vm.runInContext('itensIAExtraidos=processarItensIA(rows)',ctx);
+  assert.deepEqual(Array.from(ctx.itensIAExtraidos,x=>x.selecionado),[false,false,true]);
+  await vm.runInContext('salvarTransacoesIA()',ctx);
+  assert.equal(saved.length,1);assert.equal(saved[0].valor,20);
+  ctx.transacoesGlobal=saved;
+  assert.equal(vm.runInContext('calcularFatura("card","2026-11")',ctx),20);
+
 });
 
 test('refund amount alone or ambiguous purchases never identify a cancelled pair', () => {
@@ -91,3 +100,26 @@ test('refund amount alone or ambiguous purchases never identify a cancelled pair
   assert.deepEqual(classify([{desc:'A',valor:20,data:'2026-10-01'},{desc:'Estorno de B',valor:-20,data:'2026-10-01'}]),['ativa','credito']);
   assert.deepEqual(classify([{desc:'A',valor:20,data:'2026-10-01'},{desc:'A',valor:20,data:'2026-10-01'},{desc:'Estorno de A',valor:-20,data:'2026-10-01'}]),['ativa','ativa','credito']);
 });
+
+test('source identifier excludes only the original pair, preserving a repeat purchase', () => {
+  const {pairs}=require('../appbudfinance/js/invoice-refunds');
+  const rows=[{desc:'Loja',valor:20,_fitIdOFX:'original'},{desc:'Estorno Loja',valor:-20,_fitIdOFX:'original'},{desc:'Loja',valor:20,_fitIdOFX:'new'}];
+  assert.deepEqual(pairs(rows),{0:1,1:0});
+  assert.deepEqual(pairs(rows.map(x=>({...x,_fitIdOFX:'ambiguous'}))),{});
+  assert.deepEqual(pairs([{valor:20,_fitIdOFX:'a'},{valor:-10,_fitIdOFX:'a'}]),{});
+});
+
+test('reconciliation bar follows selection, catches overbilling and never claims accuracy', () => {
+  const vm=require('node:vm'),source=fs.readFileSync('appbudfinance/js/cartoes.js','utf8');
+  const start=source.indexOf('function _renderConfiabilidadeBadge()'),end=source.indexOf('\nfunction ',start+10);
+  const badge={style:{},innerHTML:''},els={iaConfiabilidadeBadge:badge,iaFaturaTotalPdf:{style:{}},iaFaturaTotalPdfValor:{},iaFaturaTotalPdfLabel:{}};
+  const ctx={document:{getElementById:id=>els[id]},_importMetaIA:{fonte:'pdf',totalAPagar:20},itensIAExtraidos:[{valor:40,status:'ativa',selecionado:true},{valor:-20,status:'credito',selecionado:true}]};
+  vm.createContext(ctx);vm.runInContext(source.slice(start,end)+';_renderConfiabilidadeBadge()',ctx);
+  assert.match(badge.innerHTML,/Soma selecionada confere/);assert.match(badge.innerHTML,/role="progressbar"/);
+  assert.doesNotMatch(badge.innerHTML,/precisão 100%/);
+  ctx.itensIAExtraidos[1].selecionado=false;vm.runInContext('_renderConfiabilidadeBadge()',ctx);
+  assert.match(badge.innerHTML,/20,00 acima/);
+  ctx._importMetaIA.totalAPagar=40.01;vm.runInContext('_renderConfiabilidadeBadge()',ctx);
+  assert.match(badge.innerHTML,/0,01 abaixo/);assert.doesNotMatch(badge.innerHTML,/Soma selecionada confere/);
+});
+
