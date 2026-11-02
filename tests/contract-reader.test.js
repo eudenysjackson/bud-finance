@@ -45,7 +45,7 @@ test('preview requires block selection, save rejects missing essentials and pers
  vm.createContext(ctx);
  const a=source.indexOf('function mostrarPreviewIA('),b=source.indexOf('function animarStepsIA(',a);
  vm.runInContext(source.slice(a,b),ctx);
- vm.runInContext('mostrarPreviewIA({}, {confianca:0})',ctx);assert.match(nodes.get('iaResultado').innerHTML,/id="btnSalvarIA" disabled/);
+ vm.runInContext('mostrarPreviewIA({}, {confianca:0})',ctx);assert.match(nodes.get('iaResultado').innerHTML,/id="btnSalvarIA" disabled/);assert.match(nodes.get('iaResultado').innerHTML,/obrigações identificadas/);assert.doesNotMatch(nodes.get('iaResultado').innerHTML,/Nenhum dado identificado/);
  await ctx.window.salvarDividaIA();assert.equal(saved.length,0);
  ctx.window._selecionarBlocoContrato(2);assert.equal(ctx.dadosIA.valorParcela,800.5);assert.doesNotMatch(nodes.get('iaResultado').innerHTML,/id="btnSalvarIA" disabled/);
  await ctx.window.salvarDividaIA();assert.equal(saved.length,1);assert.equal(saved[0].valorTotal,19212);assert.equal(saved[0].parcelas,24);assert.equal(saved[0].instituicao,'Tenda');
