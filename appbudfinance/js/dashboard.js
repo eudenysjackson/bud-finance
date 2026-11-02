@@ -313,7 +313,12 @@ function getChartCores() {
   return CHART_CORES;
 }
 
+let pendingChartRows = [];
+window.addEventListener('bud-chart-ready',()=>renderizarGraficos(pendingChartRows));
+window.addEventListener('bud-chart-error',()=>{const el=document.getElementById('graficoCategorias');if(el){el.style.display='';el.textContent='Não foi possível carregar o gráfico. Recarregue para tentar novamente.';}});
 function renderizarGraficos(transacoesDoMes) {
+  pendingChartRows=transacoesDoMes;
+  if(typeof Chart==='undefined')return;
   var empty     = document.getElementById('graficoCategorias');
   var container = document.getElementById('graficoContainer');
   var canvas    = document.getElementById('chartCategorias');
@@ -2803,7 +2808,10 @@ function setupTransacoesListener(uid) {
       return Object.assign({}, d.data(), { id: d.id });
     });
     renderizarDashboard();
-  }, function () {});
+  }, function () {
+    for(const id of ['saudeDesc','dicaDiaTexto']){const el=document.getElementById(id);if(el)el.textContent='Não foi possível atualizar os dados. Recarregue para tentar novamente.';}
+    window.budShowToast?.('Não foi possível carregar os lançamentos.','error');
+  });
 }
 
 // ─── Setup listeners Firestore ──────────────────────────────────────────

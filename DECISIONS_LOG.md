@@ -898,3 +898,7 @@ Revisão automática bloqueou o primeiro deploy por falta de autorização expl�
 
 ## Troca de plano com ajuste proporcional — 02/11/2026
 Decisão expressa do titular: upgrade cobra somente (preço do destino menos preço atual) multiplicado pela fração restante do ciclo efetivamente pago. Usa datas reais, não30dias fixos; mantém assinatura e data mensal de renovação. Checkout avulso de ajuste não cria segunda assinatura. Libera plano apenas após pagamento aprovado consultado no Mercado Pago pelo webhook autenticado. Desconto de indicação vigente no ciclo é preservado na proporção; benefício futuro permanece na próxima renovação. Downgrade continua na renovação após cobrança aprovada; agendamento anterior de upgrade é substituído pela nova regra para novos pedidos.
+
+
+## Mobile, rotas limpas e categorias — 02/11/2026
+Decisão do titular: todas as telas do app sem.html na URL; categorias sempre alfabéticas e popup central. Usar rotas extensionless já atendidas pelo GitHub Pages, sem barra final, mantendo arquivos/links legados e parâmetros de autenticação. Não fingir dados ou plano gratuitos para encerrar loading. Antecipar dados não financeiros da própria sessão sem remover validação de sessão. Pix continua meio de pagamento e mantém tipoReceita/Despesa conforme direção explícita do extrato.

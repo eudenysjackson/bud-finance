@@ -865,3 +865,7 @@ Revisão automática bloqueou o primeiro deploy por falta de autorização expl�
 
 ## Troca de plano com ajuste proporcional — 02/11/2026
 Causa: index redirecionava sessão já autenticada à dashboard sem tratar checkout; configurações enviava a essa entrada. CORRIGIDO NO CANDIDATO: checkout autenticado direto e guard preserva intenção e indicação. Troca superior deixa de usar agendamento de downgrade e abre cotação proporcional. Corrigido também cadastro com plano manual sem assinatura: contratação efetiva só substitui o plano após aprovação, sem conceder mudança por mero status autorizado.
+
+
+## Mobile, rotas limpas e categorias — 02/11/2026
+CORRIGIDO NO CANDIDATO: perfil aguardava load; consulta admin sem uso bloqueava Configurações; falha de categoria em Extrato mantinha loading; falha de plano era mostrada comoFree; popup no canto e categorias sem ordenação unificada; voltar tipoAutomático inferia direção de valor já absoluto; tiposReceita/Despesa vindos do backend não eram normalizados como crédito/débito.153 regressões aprovadas e UI móvel local conferida. Publicação/QA online pendentes nesta anotação.
