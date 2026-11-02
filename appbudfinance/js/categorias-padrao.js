@@ -16,7 +16,7 @@
 
   window.BUD_CATEGORIAS_PADRAO = {
 
-    /* ── Despesas (52 categorias) ─────────────────────────────────────── */
+    /* ── Despesas (53 categorias) ─────────────────────────────────────── */
     despesa: [
       // Moradia
       { nome: 'Aluguel',              emoji: '🏠' },
@@ -71,6 +71,7 @@
       { nome: 'Casa/Móveis',          emoji: '🛏️' },
       { nome: 'Compras Online',       emoji: '🛍️' },
       // Financeiro
+      { nome: 'Estorno / devolução',   emoji: '↩️' },
       { nome: 'Impostos/IRPF',        emoji: '🏛️' },
       { nome: 'Taxas Bancárias',      emoji: '💸' },
       { nome: 'Pix no Crédito',       emoji: '⚡' },
