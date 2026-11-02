@@ -7,7 +7,7 @@ import { getAuth, onAuthStateChanged, signOut, updateProfile }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, getDocs, updateDoc, deleteDoc, deleteField, setDoc, collection, query, orderBy, writeBatch }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
-import { registerPushToken, listenForeground, revokePushToken, showForegroundNotification } from './push.js?v=20261031';
+import { registerPushToken, listenForeground, revokePushToken, showForegroundNotification } from './push.js?v=20261102-content';
 import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
@@ -1449,25 +1449,21 @@ onAuthStateChanged(auth, async function (user) {
   if (!_pushSetupDone && (!window.budFeatureEnabled || window.budFeatureEnabled('push_notifications'))) {
   _pushSetupDone = true;
   const btnAtivarPush = document.getElementById('btnAtivarPush');
-  const btnTestarPush = document.getElementById('btnTestarPush');
   const pushDesc      = document.getElementById('pushStatusDesc');
 
   function _mostrarBotaoAtivado() {
     _pushAtivo = true;
     if (btnAtivarPush) { btnAtivarPush.textContent = '🔕 Desativar'; btnAtivarPush.disabled = false; btnAtivarPush.style.background = '#64748b'; }
-    if (btnTestarPush) btnTestarPush.style.display = '';
     if (pushDesc) pushDesc.textContent = 'Os alertas estão ativados neste dispositivo.';
   }
 
   function _mostrarBotaoAtivar() {
     _pushAtivo = false;
     if (btnAtivarPush) { btnAtivarPush.textContent = 'Ativar'; btnAtivarPush.disabled = false; btnAtivarPush.style.background = 'linear-gradient(135deg,#2563eb,#4f46e5)'; }
-    if (btnTestarPush) btnTestarPush.style.display = 'none';
     if (pushDesc) pushDesc.textContent = 'Receba alertas de vencimentos e metas.';
   }
 
-  // alias para compatibilidade com chamadas existentes
-  function _mostrarBotaoTestar() { _mostrarBotaoAtivado(); }
+
 
   if (btnAtivarPush) {
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
@@ -1553,54 +1549,7 @@ onAuthStateChanged(auth, async function (user) {
     });
   }
 
-  if (btnTestarPush) {
-    btnTestarPush.addEventListener('click', async function () {
-      btnTestarPush.textContent = '⏳ Enviando...';
-      btnTestarPush.disabled = true;
-      try {
-        // Garantir token sempre presente: re-registra antes de testar.
-        // Idempotente — se já tiver, só revalida; se não, cria.
-        console.log('[Push Test] Iniciando registro de token...');
-        let pushToken;
-        try {
-          pushToken = await registerPushToken(app, user);
-          console.log('[Push Test] Registro concluído:', !!pushToken);
-        } catch (regErr) {
-          console.error('[Push Test] Falha ao registrar:', regErr);
-          btnTestarPush.textContent = 'Testar';
-          alert('Não foi possível registrar o token de notificação:\n\n' + (regErr && regErr.message ? regErr.message : 'erro desconhecido'));
-          return;
-        }
-
-        console.log('[Push Test] Chamando /api/push/test...');
-        const idToken = await user.getIdToken();
-        const baseUrl = window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com';
-        const resp = await fetch(baseUrl + '/api/push/test', {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: pushToken })
-        });
-        const data = await resp.json().catch(function () { return {}; });
-        console.log('[Push Test] Resposta:', resp.status, data);
-        if (resp.ok) {
-          btnTestarPush.textContent = '✅ Enviado!';
-          if (pushDesc) pushDesc.textContent = 'Notificação de teste enviada — verifique sua bandeja de notificações.';
-        } else if (resp.status === 410) {
-          btnTestarPush.textContent = 'Testar';
-          if (window.budShowToast) window.budShowToast('Token renovado. Clique em Testar novamente.', 'info');
-        } else {
-          btnTestarPush.textContent = 'Testar';
-          alert('Erro do backend (' + resp.status + '): ' + (data.error || JSON.stringify(data)));
-        }
-      } catch (e) {
-        console.error('[Push Test] Erro inesperado:', e);
-        btnTestarPush.textContent = 'Testar';
-        alert('Erro de rede: ' + e.message);
-      } finally {
-        setTimeout(function () { btnTestarPush.disabled = false; if (btnTestarPush.textContent === '✅ Enviado!') btnTestarPush.textContent = 'Testar'; }, 3000);
-      }
-    });
-  }
   } // end !_pushSetupDone
 });
+
 

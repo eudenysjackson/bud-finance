@@ -27,3 +27,14 @@ test('foreground push listener is replaced instead of displaying the same alert 
   ctx.api.listenForeground(ctx.app, () => {});ctx.api.listenForeground(ctx.app, () => {});
   assert.deepEqual(ctx.counters(), { unsubscribed: 0, listeners: 2, removed: 1, saved: 0 });
 });
+
+test('foreground notification preserves title and body when FCM supplies empty data',async()=>{
+ const displays=[];const registration={showNotification:async(title,options)=>displays.push({title,...options})};
+ const text=fs.readFileSync('appbudfinance/js/push.js','utf8');const fn=text.slice(text.indexOf('export async function showForegroundNotification'),text.indexOf('export function listenForeground')).replace('export ','');
+ const show=new Function('window','navigator','Notification','URL','console',fn+';return showForegroundNotification;')({location:{href:'https://example.com/appbudfinance/configuracoes.html'}},{serviceWorker:{getRegistration:async()=>registration}},{permission:'granted'},URL,{info(){}});
+ await show({data:{},notification:{title:'Teste do Bud Finance',body:'Mensagem completa'}});
+ assert.equal(displays[0].title,'Teste do Bud Finance');assert.equal(displays[0].body,'Mensagem completa');
+ await show({data:{title:'Fatura',body:'Vence amanhã',url:'https://untrusted.example/'},notification:{title:'Fallback',body:'Fallback'}});
+ assert.equal(displays[1].title,'Fatura');assert.equal(displays[1].body,'Vence amanhã');assert.equal(displays[1].data.url,'https://example.com/appbudfinance/dashboard.html');
+});
+
