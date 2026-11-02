@@ -37,6 +37,8 @@ const db   = (() => { try { return initializeFirestore(app, { localCache: persis
 connectEmulators(auth, db);
 
 // ─── Estado ────────────────────────────────────────────────────────────────
+const contaExtratoId=new URLSearchParams(window.location.search).get('contaId');
+function pertenceContaExtrato(t){return !contaExtratoId || (!t.cartaoId && (t.carteiraId===contaExtratoId || t.contaId===contaExtratoId));}
 let usuarioAtualId     = null;
 let transacoesGlobais  = [];   // transações do mês atual
 let transacoesMesAnterior = []; // transações do mês anterior (para variação)
@@ -608,7 +610,7 @@ function renderizarExtrato() {
       desc.textContent = t.descricao || '—';
       const meta = document.createElement('div');
       meta.className = 'tx-meta';
-      meta.textContent = (t.categoria || 'Sem categoria') + ' · ' + formatDataLabel(t._date);
+      meta.textContent = (t.categoria || (t.origem==='meta'?'Metas':'Sem categoria')) + ' · ' + formatDataLabel(t._date);
       info.appendChild(desc);
       info.appendChild(meta);
       row.appendChild(info);
@@ -795,6 +797,7 @@ function renderBreakdown() {
 
 // ─── Exclusão ────────────────────────────────────────────────────────────────
 function pedirExclusao(id) {
+  if(['meta','meta_compra'].includes(transacoesGlobais.find(t=>t.id===id)?.origem)){window.budShowToast('Registro vinculado a uma meta. Consulte o histórico em Metas.','info');return;}
   _excluirId = id;
   document.getElementById('modalExcluir')?.classList.add('open');
 }
@@ -825,6 +828,7 @@ window.confirmarExclusao = async function() {
 window.abrirModalEditar = function(id) {
   const t = transacoesGlobais.find(tx => tx.id === id);
   if (!t) return;
+  if(['meta','meta_compra'].includes(t.origem)){window.budShowToast('Registro vinculado a uma meta. Consulte o histórico em Metas.','info');return;}
   document.getElementById('editId').value = id;
 
   // Tipo
@@ -1233,6 +1237,8 @@ window.exportarPDF = function() {
 
 // ─── Subscriptions ─────────────────────────────────────────────────────────
 function subscribeTransacoes(uid) {
+  if(contaExtratoId){const title=document.querySelector('#dashMain h1');if(title)title.textContent='📋 Extrato da conta';}
+
   // Cancela listener anterior (BUG 2 — sem limit(5000))
   if (_unsubTransacoes) { _unsubTransacoes(); _unsubTransacoes = null; }
   if (_unsubMesAnt)     { _unsubMesAnt();     _unsubMesAnt = null; }
@@ -1258,7 +1264,7 @@ function subscribeTransacoes(uid) {
   );
 
   _unsubTransacoes = onSnapshot(q, function(snap) {
-    transacoesGlobais = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    transacoesGlobais = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(pertenceContaExtrato);
     _dadosCarregados.transacoes = true;
     hideSplash();
     if (_dadosCarregados.categorias) renderizarExtrato();
@@ -1280,7 +1286,7 @@ function subscribeTransacoes(uid) {
     where('data', '<=', fimAnt)
   );
   _unsubMesAnt = onSnapshot(qAnt, function(snap) {
-    transacoesMesAnterior = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    transacoesMesAnterior = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(pertenceContaExtrato);
     _dadosCarregados.mesAnterior = true;
     if (_dadosCarregados.transacoes && _dadosCarregados.categorias) renderizarExtrato();
   }, function() {
@@ -1406,3 +1412,4 @@ onAuthStateChanged(auth, async function(user) {
 
   subscribeAll(user.uid);
 });
+

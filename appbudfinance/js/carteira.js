@@ -577,7 +577,7 @@ function buildContaCard(conta) {
       ${confirmacaoHtml}
       <div class="conta-btns-grid">
         ${conta.tipo !== 'dinheiro' ? `<button class="conta-import-btn" id="btnImport_${conta.id}" style="${btnStyle}">📥 Importar</button>` : ''}
-        <a href="extrato.html" class="conta-import-btn" style="text-decoration:none;text-align:center;${btnStyle}">📋 Extrato</a>
+        <a href="extrato.html?contaId=${encodeURIComponent(conta.id)}" class="conta-import-btn" style="text-decoration:none;text-align:center;${btnStyle}">📋 Extrato</a>
       </div>
     </div>`;
 }
@@ -2378,4 +2378,5 @@ function parseBankStatementTextLocal(rawText) {
 
   return results;
 }
+
 
