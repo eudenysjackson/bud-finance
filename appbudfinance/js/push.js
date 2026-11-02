@@ -123,7 +123,7 @@ const foregroundListeners = new WeakMap();
 export async function showForegroundNotification(payload) {
   console.info('[Push] Mensagem recebida neste navegador.');
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-  const data = payload.data || payload.notification || {};
+  const data = { ...(payload.notification || {}), ...(payload.data || {}) };
   const registration = await navigator.serviceWorker.getRegistration(new URL('firebase-messaging-sw.js', window.location.href).href);
   if (!registration) return;
   const base = new URL('./', window.location.href);
@@ -184,3 +184,4 @@ export async function revokePushToken(app, user) {
     // Revogação não é crítica — não impede logout
   }
 }
+

@@ -1,7 +1,7 @@
 // Alertas do sistema também quando outra tela do app está aberta.
 import { getApps } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
-import { listenForeground, showForegroundNotification } from './push.js?v=20261031';
+import { listenForeground, showForegroundNotification } from './push.js?v=20261102-content';
 function start() {
   const app = getApps()[0];
   if (!app || typeof Notification === 'undefined') return;
@@ -11,3 +11,4 @@ function start() {
 }
 if (document.readyState === 'complete') start();
 else window.addEventListener('load', start, { once: true });
+

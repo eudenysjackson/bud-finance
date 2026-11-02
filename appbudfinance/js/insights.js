@@ -1,4 +1,4 @@
-﻿/**
+/**
  * js/insights.js — Bud Finance · Insights e Análises (Fase 2 · Item 5)
  * Firebase SDK Modular v10.8.1 — sem compat layer.
  *
@@ -27,7 +27,7 @@ import {
   collection, query, where, orderBy,
   getDocs, getDoc, doc, updateDoc, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
-// firebase-messaging importado de forma dinâmica em ativarNotifPush() para não bloquear o módulo em file://
+
 
 // ─── Firebase ─────────────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
@@ -235,7 +235,7 @@ function renderTudo() {
   renderScore(doMes, doMesPrev);
   renderInsights(doMes, doMesPrev);
   renderSimulador(doMes);
-  renderPushStatus();
+
   popularDropdownsComp();
 
   const now = new Date();
@@ -757,59 +757,6 @@ window.atualizarSimulador = function() {
   sem.innerHTML = linhas.join('<br>');
 };
 
-// ─── Push Notifications ────────────────────────────────────────────────────
-function renderPushStatus() {
-  const elStatus = document.getElementById('notifStatus');
-  const btnPush  = document.getElementById('btnPush');
-  if (!elStatus) return;
-
-  // Sem VAPID_KEY: feature não configurada no backend — oculta botão
-  const VAPID = window.BUD_FIREBASE_CONFIG && window.BUD_FIREBASE_CONFIG.VAPID_KEY;
-  if (!VAPID) {
-    elStatus.textContent = 'Em breve';
-    if (btnPush) btnPush.style.display = 'none';
-    return;
-  }
-
-  if (!('Notification' in window)) {
-    elStatus.textContent = 'Não suportado neste navegador';
-    if (btnPush) btnPush.style.display = 'none';
-    return;
-  }
-  if (Notification.permission === 'granted') {
-    elStatus.textContent = '✅ Ativo';
-    if (btnPush) btnPush.textContent = 'Reativar';
-  } else if (Notification.permission === 'denied') {
-    elStatus.textContent = '🚫 Bloqueado pelo navegador';
-    if (btnPush) btnPush.style.display = 'none';
-  } else {
-    elStatus.textContent = 'Não ativado';
-  }
-}
-
-window.ativarNotifPush = async function() {
-  const elStatus = document.getElementById('notifStatus');
-  const VAPID    = window.BUD_FIREBASE_CONFIG && window.BUD_FIREBASE_CONFIG.VAPID_KEY;
-
-  if (!VAPID) {
-    showToast('Push não configurado (sem VAPID_KEY)', 'erro');
-    return;
-  }
-
-  try {
-    const { getMessaging, getToken } = await import('https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js');
-    const messaging = getMessaging(app);
-    const token = await getToken(messaging, { vapidKey: VAPID });
-    if (token) {
-      if (elStatus) elStatus.textContent = '✅ Ativo';
-      showToast('Notificações push ativadas!');
-    }
-  } catch (err) {
-    console.error('Push error:', err);
-    showToast('Erro ao ativar notificações.', 'erro');
-  }
-};
-
 // ─── Comparativo ──────────────────────────────────────────────────────────
 function popularDropdownsComp() {
   const agora = new Date();
@@ -1105,3 +1052,4 @@ onAuthStateChanged(auth, async user => {
 // ─── Init ──────────────────────────────────────────────────────────────────
 initSidebar();
 initLogout();
+

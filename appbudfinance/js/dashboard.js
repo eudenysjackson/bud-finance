@@ -9,7 +9,7 @@ import {
   addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, increment, runTransaction
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 import { getMessaging, getToken, onMessage, deleteToken } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
-import { registerPushToken, listenForeground, showForegroundNotification } from './push.js?v=20261031';
+import { registerPushToken, listenForeground, showForegroundNotification } from './push.js?v=20261102-content';
 import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
@@ -3395,4 +3395,5 @@ async function confirmarParcelaDividaDashboard(lembrete) {
   } catch(error) { window.budShowToast?.(error.message||'Não foi possível registrar o pagamento.','error'); }
   finally { _debtDashboardBusy=false; }
 }
+
 
