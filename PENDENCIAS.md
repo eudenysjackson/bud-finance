@@ -615,3 +615,9 @@ RESOLVIDO E PUBLICADO no PR38, commit71d45ca0b9738068b458334c3ac95b85b1bd2e07. C
 Emuladores demo locais encerrados após testes; nenhuma massa fictícia foi exportada para produção. Exclui-se imediatamente o conteúdo persistente mapeado sob controle do app; referência técnica mínima e varreduras têm janela de65min e retries em indisponibilidade. Dados de outros clientes, benefícios ganhos e registros dos prestadores não são apagados indiscriminadamente. Não declarar eliminação física instantânea de backups/logs/e-mails/MP de terceiros nem sistema invulnerável. MFA Google confirmado; IAM lido sem mudanças de papéis/chaves; backups/PITR exibem exigência de upgrade no Spark, sem prova de ausência de exportações históricas. App Check/WAF e revisão especializada continuam evoluções possíveis, não controles que este release tenha ativado.
 Esta anotação encerra os estados de publicação/validação pendentes anteriores. Documentação e decisões devem continuar atualizadas por Claude/Codex.
 
+## PEND-SEG-REVISAO — Revisão complementar de segurança (02/11/2026)
+PENDENTE por pedido do titular: retornar à auditoria especializada, monitoramento, App Check/WAF e revisão contínua de IAM, retenção e recuperação. Não prometer sistema invulnerável. Correções do PR38 estão publicadas e não devem ser desfeitas. Prioridade atual passa à troca de planos/checkout.
+
+
+## Troca de plano com ajuste proporcional — 02/11/2026
+EM VALIDAÇÃO FINAL: fluxo checkout e regra proporcional implementados,147 regressões aprovadas. Publicação e comprovação de deploy ainda pendentes. Revisão complementar de segurança continua PENDENTE.

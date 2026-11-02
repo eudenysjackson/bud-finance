@@ -17,6 +17,7 @@ const { readNubankInvoice } = require('./invoice-reader');
 const { createAccountLifecycle } = require('./account-lifecycle');
 const { createSecurityGuard, pruneSecurityLimits } = require('./security-guard');
 const { createSubscriptionChange } = require('./subscription-change');
+const { createSubscriptionUpgrade } = require('./subscription-upgrade');
 const { financialNotices, subscriptionDunningStage, subscriptionPushNotices, sendFinancialPush } = require('./financial-notifications');
 
 // Modelo multimodal configurável; validado na API da Groq em 24/10/2026.
@@ -105,6 +106,8 @@ const MP_PLANS = {
 };
 const MP_INDICACAO_DESCONTO = 0.15; // 15% somente na primeira cobrança do indicado
 const MP_BONUS_INDICADOR = 0.50; // 50% em uma próxima cobrança, uma vez por conta
+
+const subscriptionUpgrades=createSubscriptionUpgrade({auth,db,token:MP_ACCESS_TOKEN,plans:MP_PLANS,frontend:FRONTEND_URL,webhook:MP_WEBHOOK_URL,fieldValue:admin.firestore.FieldValue,onApplied:_mpAgendarBeneficioIndicacao50});
 
 // â”€â”€â”€ Express setup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const app = express();
@@ -2067,7 +2070,7 @@ app.post('/api/alerta-financeiro', async function (req, res) {
 // Rota leve para acordar o servidor no Render free tier.
 // Chamada silenciosa no carregamento de qualquer pÃ¡gina que use o backend.
 app.get('/api/ping', function (_req, res) {
-  res.json({ ok: true, ts: Date.now(), revision: process.env.RENDER_GIT_COMMIT || null, pushConsentVersion: 1, accountDeletionVersion: 2, securityGuardVersion: 1 });
+  res.json({ ok: true, ts: Date.now(), revision: process.env.RENDER_GIT_COMMIT || null, pushConsentVersion: 1, accountDeletionVersion: 2, securityGuardVersion: 1, proratedUpgradeVersion: 1 });
 });
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -2559,6 +2562,7 @@ app.post('/webhook/mercadopago', async function (req, res) {
   }
 });
 
+app.post('/mercadopago/upgrade-subscription',subscriptionUpgrades.handler);
 app.post('/mercadopago/change-subscription', createSubscriptionChange({ auth, db, token: MP_ACCESS_TOKEN, plans: MP_PLANS, emulator: process.env.BUD_USE_EMULATOR === 'true', fetch }));
 
 function _mpSubscriptionEventMatches(profile, subscriptionId) {
@@ -2570,12 +2574,13 @@ function _mpSubscriptionEventMatches(profile, subscriptionId) {
   return !profile.mpSubscriptionId || profile.mpSubscriptionId === subscriptionId;
 }
 
-async function _mpUpdateSubscriptionProfile(uid, subscriptionId, data) {
+async function _mpUpdateSubscriptionProfile(uid, subscriptionId, data, expectedPlan) {
   var ref = db.collection('usuarios').doc(uid);
   return db.runTransaction(async transaction => {
     var snapshot = await transaction.get(ref);
     if (!snapshot.exists) throw new Error('MP account profile not found');
     if (!_mpSubscriptionEventMatches(snapshot.data(), subscriptionId)) return false;
+    if (expectedPlan !== undefined && snapshot.data().plano !== expectedPlan) throw new Error('MP plan changed concurrently; retry event');
     transaction.update(ref, data);
     return true;
   });
@@ -2688,7 +2693,9 @@ async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
     if (currentProfile.pagamentoPendente && !paymentConfirmed) return;
     // external_reference keeps the original plan; the paid profile is authoritative
     // after a scheduled change, until a matching new-cycle payment is approved.
-    if (currentProfile.mpSubscriptionId === preapprovalId && MP_PLANS[currentProfile.plano]) planKey = currentProfile.plano;
+    var initialCheckout = currentProfile.mpCheckout?.subscriptionId === preapprovalId && currentProfile.mpCheckout?.state === 'pending';
+    if(initialCheckout && !paymentConfirmed)return;
+    if (!initialCheckout && currentProfile.mpSubscriptionId === preapprovalId && MP_PLANS[currentProfile.plano]) planKey = currentProfile.plano;
     var scheduledChange = currentProfile.planoTroca;
     var applyScheduledChange = false;
     if (scheduledChange && scheduledChange.subscriptionId === preapprovalId && MP_PLANS[scheduledChange.planKey] && paymentConfirmed && typeof paymentConfirmed === 'object') {
@@ -2753,9 +2760,10 @@ async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
       ...(promoToRestore && promoToRestore.type === 'indicado15' ? { descontoIndicacaoPrimeiroMes: { status: 'used', subscriptionId: preapprovalId, baseAmount: promoToRestore.baseAmount, usadoEm: admin.firestore.FieldValue.serverTimestamp() }, descontoIndicacaoUsado: true } : {}),
       ...(promoToRestore && promoToRestore.type === 'indicador50' ? { beneficioIndicacao50: { ...currentProfile.beneficioIndicacao50, status: 'used', usadoEm: admin.firestore.FieldValue.serverTimestamp() } } : {}),
       erroAssinatura:    admin.firestore.FieldValue.delete(),
+      ...(initialCheckout && paymentConfirmed ? { mpCheckout: admin.firestore.FieldValue.delete() } : {}),
       ...(applyScheduledChange ? { planoTroca: admin.firestore.FieldValue.delete() } : {}),
       planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp()
-    });
+    }, currentProfile.plano);
     if (!activated) return;
     console.log('[MP webhook] Plano ativado:', uid, planKey);
     if (refCode && paymentConfirmed) await _mpCreditarIndicacao(refCode, uid, planKey);
@@ -2785,6 +2793,7 @@ async function _mpHandlePayment(paymentId, relatedSubscriptionId) {
   });
   if (!mpRes.ok) throw new Error('MP payment HTTP ' + mpRes.status);
   var payment = await mpRes.json();
+  if(await subscriptionUpgrades.processPayment(payment))return;
   // Subscription checkout payments can carry their link only in transaction_data.
   // Use provider-confirmed fields, never the caller's external_reference as a plan grant.
   var transactionSubscriptionId = payment.point_of_interaction && payment.point_of_interaction.transaction_data && payment.point_of_interaction.transaction_data.subscription_id;
