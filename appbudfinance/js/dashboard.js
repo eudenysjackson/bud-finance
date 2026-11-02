@@ -6,7 +6,7 @@ import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/fi
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
   doc, getDoc, getDocs, collection, query, where, orderBy, limit, onSnapshot,
-  addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, increment
+  addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, increment, runTransaction
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 import { getMessaging, getToken, onMessage, deleteToken } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
 import { registerPushToken, listenForeground, showForegroundNotification } from './push.js?v=20261031';
@@ -1136,6 +1136,7 @@ function atualizarLembretes7Dias() {
 
 // ─── Marcar lembrete como pago ────────────────────────────────────────────
 function marcarLembretePago(lembrete) {
+  if (lembrete.dividaId) { confirmarParcelaDividaDashboard(lembrete); return; }
   var existente = document.getElementById('overlayMarcarPago');
   if (existente) existente.remove();
 
@@ -3376,3 +3377,22 @@ document.addEventListener('bud:themechange', function (e) {
     return d.getMonth() === mesVisualizado && d.getFullYear() === anoVisualizado;
   }));
 });
+
+
+let _debtDashboardBusy = false;
+async function confirmarParcelaDividaDashboard(lembrete) {
+  if (_debtDashboardBusy || !usuarioAtualId) return;
+  _debtDashboardBusy = true;
+  const uid=usuarioAtualId;
+  try {
+    const snapshot=await getDoc(doc(db,'usuarios',uid,'dividas',lembrete.dividaId));
+    if (!snapshot.exists()) throw new Error('Dívida indisponível.');
+    const debt=snapshot.data(),index=Number(debt.parcelasPagas||0);
+    if(index>=Number(debt.parcelas))return;
+    const service=window.BudDebtPayments.createService({db,doc,collection,runTransaction,Timestamp,serverTimestamp});
+    const result=await window.BudDebtPaymentDialog.open({debt,index,accounts:carteiraGlobal,onConfirm:options=>service.confirm({uid,debtId:lembrete.dividaId,index,...options})});
+    if(result)window.budShowToast?.(result.already?'Parcela já confirmada.':'Pagamento registrado no extrato da dívida.','success');
+  } catch(error) { window.budShowToast?.(error.message||'Não foi possível registrar o pagamento.','error'); }
+  finally { _debtDashboardBusy=false; }
+}
+

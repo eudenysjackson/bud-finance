@@ -7,7 +7,7 @@ import { connectEmulators } from './bud-emulator-connect.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
-  collection, query, orderBy, limit,
+  collection, query, where, orderBy, limit,
   onSnapshot, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, writeBatch, increment, runTransaction,
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
@@ -1361,6 +1361,8 @@ window.trocarTab = function(tab) {
   document.getElementById('tabResumo').style.display   = tab === 'resumo'   ? '' : 'none';
   document.getElementById('tabParcelas').style.display = tab === 'parcelas' ? '' : 'none';
   if (tab === 'parcelas' && dividaAtual) renderizarParcelas(dividaAtual);
+  document.getElementById('tabExtratoDivida').style.display = tab === 'extrato' ? '' : 'none';
+  if (tab === 'extrato' && dividaAtual) carregarExtratoDivida(dividaAtual.id);
 };
 
 window.abrirDetalhes = function(id, tabInicial) {
@@ -1480,6 +1482,7 @@ function renderizarParcelas(d) {
             ${vencida ? '<span style="font-size:0.625rem;font-weight:800;color:#fff;background:#dc2626;padding:0.125rem 0.375rem;border-radius:9999px;">VENCIDA</span>' : ''}
           </div>
           <div style="font-size:0.6875rem;font-weight:500;color:var(--text-sec);">${subInfo}</div>
+          ${paga && d.parcelasPagamentos?.[String(i)] ? `<div style="font-size:.6875rem;color:var(--text-sec);">Pago em ${escapeHTML(formatDataBR(d.parcelasPagamentos[String(i)].dataPagamento))} · ${escapeHTML(d.parcelasPagamentos[String(i)].modo === 'conta' ? d.parcelasPagamentos[String(i)].contaNome || 'Conta registrada' : 'Apenas marcado como pago')}</div>` : ''}
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:0.5rem;">
@@ -1495,180 +1498,73 @@ function renderizarParcelas(d) {
   }
 }
 
-// Bug #8: marcar parcela paga — permite fora de ordem com confirmação
-window.marcarParcelaPaga = async function(id, indice) {
-  const d = dividas.find(x => x.id === id);
-  if (!d) return;
-
-  // A confirmação precisa identificar a conta paga. Para dívidas antigas sem
-  // vínculo, o lembrete da Dashboard pede essa escolha antes de lançar.
-  if (!d.contaId) {
-    window.budShowToast?.('Confirme esta parcela pelo lembrete da Dashboard e escolha a conta usada.', 'warning');
-    return;
-  }
-
-  // Verificar se é fora de ordem
-  if (indice !== (d.parcelasPagas || 0)) {
-    const ok = await confirmarAcao(
-      'Parcela fora de ordem',
-      `Você está marcando a parcela #${indice + 1}, mas a #${(d.parcelasPagas || 0) + 1} ainda está pendente. Confirmar mesmo assim?`,
-      'Confirmar mesmo assim',
-      '#d97706'
-    );
-    if (!ok) return;
-  }
-
-  const novasParcelasPagas = Math.max((d.parcelasPagas || 0) + 1, indice + 1);
-  const taxaMensal = (d.juros || 0) / 100;
-  const n          = d.parcelas || 1;
-  const pmt        = d.valorParcela || calcPMT(d.valorTotal || 0, taxaMensal, n);
-
-  // Recalcular totais por Tabela Price
-  let saldo = d.valorTotal || 0;
-  let jurosPagosCalc = 0;
-  for (let i = 0; i < novasParcelasPagas; i++) {
-    const j = saldo * taxaMensal;
-    jurosPagosCalc += j;
-    saldo = Math.max(0, saldo - (pmt - j));
-  }
-
-  const novoValorPago = Math.min(d.valorTotal || 0, pmt * novasParcelasPagas);
-
+function servicoPagamentoDivida() {
+  if (!window.BudDebtPayments) throw new Error('O leitor de pagamentos não carregou. Recarregue a página.');
+  return window.BudDebtPayments.createService({db,doc,collection,runTransaction,Timestamp,serverTimestamp});
+}
+let _abrindoPagamentoDivida = false;
+window.marcarParcelaPaga = async function(id,indice) {
+  if (_abrindoPagamentoDivida || !currentUser) return;
+  const debt = dividas.find(d=>d.id===id);
+  if (!debt) return;
+  _abrindoPagamentoDivida = true;
+  const uid=currentUser.uid;
   try {
-    const batch = writeBatch(db);
-    const dividaRef = doc(db, 'usuarios', currentUser.uid, 'dividas', id);
-
-    // Criar transações para cada parcela recém-paga
-    const novosIds = Object.assign({}, d.transacoesParcelas || {});
-    const dataBase = d.vencimento ? new Date(d.vencimento + 'T12:00:00') : new Date();
-    for (let i = (d.parcelasPagas || 0); i < novasParcelasPagas; i++) {
-      if (novosIds[String(i)]) continue; // já tem txId (evitar duplicata)
-      const dataParcela = addMonthsSafe(dataBase, i);
-      const txRef = doc(collection(db, 'usuarios', currentUser.uid, 'transacoes'));
-      const dataStr = dataParcela.getFullYear() + '-' + String(dataParcela.getMonth() + 1).padStart(2, '0') + '-' + String(dataParcela.getDate()).padStart(2, '0');
-      const dataPagamento = new Date();
-      batch.set(txRef, {
-        tipo: 'despesa',
-        descricao: 'Parcela ' + (i + 1) + '/' + (d.parcelas || 1) + ' — ' + (d.nome || 'Dívida'),
-        valor: parseFloat(pmt.toFixed(2)),
-        data: Timestamp.fromDate(dataPagamento),
-        dataReferencia: dataStr,
-        categoria: d.categoria || 'Dívidas',
-        origem: 'divida_parcela',
-        dividaId: id,
-        carteiraId: d.contaId,
-        contaId: d.contaId,
-        parcelaIndice: i,
-        status: 'ativa',
-        dataCriacao: serverTimestamp(),
-      });
-      novosIds[String(i)] = txRef.id;
+    const plan=window.BudDebtPayments.model(debt,indice);
+    if(!plan.count){window.budShowToast?.('Esta parcela já está confirmada.','info');return;}
+    const snapshot=await getDocs(collection(db,'usuarios',uid,'carteira'));
+    const accounts=snapshot.docs.map(d=>({id:d.id,...d.data()}));
+    const service=servicoPagamentoDivida();
+    const result=await window.BudDebtPaymentDialog.open({debt,index:indice,accounts,onConfirm:options=>service.confirm({uid,debtId:id,index:indice,...options})});
+    if(result){
+      const fresh=await getDoc(doc(db,'usuarios',uid,'dividas',id));
+      if(fresh.exists()){const value={id,...fresh.data()};dividas=dividas.map(d=>d.id===id?value:d);}
+      window.abrirDetalhes(id,'parcelas');
+      window.budShowToast?.(result.already?'A parcela já estava confirmada; nenhum lançamento foi duplicado.':'Registro salvo. Consulte a aba Extrato da dívida.','success');
     }
-
-    // PEND-037: registrar data real de pagamento por parcela
-    const novasDatas = Object.assign({}, d.parcelasDatas || {});
-    for (let i = (d.parcelasPagas || 0); i < novasParcelasPagas; i++) {
-      if (!novasDatas[String(i)]) novasDatas[String(i)] = new Date().toISOString();
-    }
-
-    batch.update(dividaRef, {
-      parcelasPagas: novasParcelasPagas,
-      valorPago:     novoValorPago,
-      jurosPagos:    jurosPagosCalc,
-      atualizadoEm:  serverTimestamp(),
-      transacoesParcelas: novosIds,
-      parcelasDatas: novasDatas,
-    });
-    batch.update(doc(db, 'usuarios', currentUser.uid, 'carteira', d.contaId), {
-      saldo: increment(-parseFloat((pmt * (novasParcelasPagas - (d.parcelasPagas || 0))).toFixed(2))),
-    });
-    // Parcelamento de fatura mantém o limite comprometido. A cada parcela
-    // confirmada, a mesma fração volta a ficar disponível no cartão.
-    if (d.tipo === 'parcelamento_fatura' && d.cartaoId) {
-      batch.update(doc(db, 'usuarios', currentUser.uid, 'carteira', d.cartaoId), {
-        limiteReservado: increment(-parseFloat((pmt * (novasParcelasPagas - (d.parcelasPagas || 0))).toFixed(2))),
-      });
-    }
-    await batch.commit();
-    // Bug #24: reabrir na aba parcelas
-    setTimeout(() => window.abrirDetalhes(id, 'parcelas'), 300);
-  } catch (err) {
-    (window.budError||console.error)('[Dividas] marcarParcelaPaga:', err);
-    window.budShowToast?.('Erro ao marcar parcela.', 'error');
-  }
+  } catch(error){window.budShowToast?.(error.message||'Não foi possível abrir o pagamento.','error');}
+  finally{_abrindoPagamentoDivida=false;}
 };
-
-window.desmarcarParcela = async function(id, indice) {
-  const d = dividas.find(x => x.id === id);
-  if (!d) return;
-
-  // Só permite desmarcar a última paga (para não deixar saldo inconsistente)
-  if (indice !== (d.parcelasPagas || 0) - 1) {
-    window.budShowToast?.('Só é possível desmarcar a última parcela paga.', 'warning');
-    return;
-  }
-
-  const ok = await confirmarAcao(
-    'Desmarcar parcela?',
-    `A parcela #${indice + 1} voltará ao status pendente e os valores serão recalculados.`,
-    'Desmarcar',
-    '#dc2626'
-  );
-  if (!ok) return;
-
-  const novasParcelasPagas = Math.max(0, (d.parcelasPagas || 0) - 1);
-  const taxaMensal = (d.juros || 0) / 100;
-  const n          = d.parcelas || 1;
-  const pmt        = d.valorParcela || calcPMT(d.valorTotal || 0, taxaMensal, n);
-
-  let saldo = d.valorTotal || 0;
-  let jurosPagosCalc = 0;
-  for (let i = 0; i < novasParcelasPagas; i++) {
-    const j = saldo * taxaMensal;
-    jurosPagosCalc += j;
-    saldo = Math.max(0, saldo - (pmt - j));
-  }
-
-  const novoValorPago = Math.max(0, pmt * novasParcelasPagas);
-
-  try {
-    const batch = writeBatch(db);
-    const dividaRef = doc(db, 'usuarios', currentUser.uid, 'dividas', id);
-
-    // Deletar transação da parcela desmarcada (se existir)
-    const novosIds = Object.assign({}, d.transacoesParcelas || {});
-    const txId = novosIds[String(indice)];
-    if (txId) {
-      batch.delete(doc(db, 'usuarios', currentUser.uid, 'transacoes', txId));
-      delete novosIds[String(indice)];
-    }
-    if (d.contaId) {
-      batch.update(doc(db, 'usuarios', currentUser.uid, 'carteira', d.contaId), { saldo: increment(pmt) });
-    }
-    // Ao desfazer a confirmação, o limite comprometido volta ao estado anterior.
-    if (d.tipo === 'parcelamento_fatura' && d.cartaoId) {
-      batch.update(doc(db, 'usuarios', currentUser.uid, 'carteira', d.cartaoId), { limiteReservado: increment(pmt) });
-    }
-
-    // PEND-037: remover data de pagamento da parcela desmarcada
-    const novasDatasD = Object.assign({}, d.parcelasDatas || {});
-    delete novasDatasD[String(indice)];
-
-    batch.update(dividaRef, {
-      parcelasPagas: novasParcelasPagas,
-      valorPago:     novoValorPago,
-      jurosPagos:    jurosPagosCalc,
-      atualizadoEm:  serverTimestamp(),
-      transacoesParcelas: novosIds,
-      parcelasDatas: novasDatasD,
-    });
-    await batch.commit();
-    setTimeout(() => window.abrirDetalhes(id, 'parcelas'), 300);
-  } catch (err) {
-    (window.budError||console.error)('[Dividas] desmarcarParcela:', err);
-    window.budShowToast?.('Erro ao desmarcar parcela.', 'error');
-  }
+window.desmarcarParcela = async function(id,indice) {
+  if(_abrindoPagamentoDivida || !currentUser)return;
+  const debt=dividas.find(d=>d.id===id);if(!debt)return;
+  if(indice!==(debt.parcelasPagas||0)-1){window.budShowToast?.('Só é possível desmarcar a última parcela paga.','warning');return;}
+  _abrindoPagamentoDivida=true;const uid=currentUser.uid;
+  try{
+    const ok=await confirmarAcao('Desmarcar parcela?',`A parcela #${indice+1} voltará a ficar pendente. Quando o registro identifica uma conta, o valor será devolvido ao saldo original. O histórico desta ação será mantido.`, 'Desmarcar','#dc2626');
+    if(!ok)return;
+    await servicoPagamentoDivida().reverse({uid,debtId:id,index:indice});
+    const fresh=await getDoc(doc(db,'usuarios',uid,'dividas',id));
+    if(fresh.exists())dividas=dividas.map(d=>d.id===id?{id,...fresh.data()}:d);
+    window.abrirDetalhes(id,'parcelas');window.budShowToast?.('Parcela desmarcada. Histórico preservado no extrato da dívida.','success');
+  }catch(error){window.budShowToast?.(error.message||'Não foi possível desmarcar.','error');}
+  finally{_abrindoPagamentoDivida=false;}
 };
+let _extratoDividaRequest=0;
+async function carregarExtratoDivida(id) {
+  const el=document.getElementById('extratoDividaLista');if(!el || !currentUser)return;
+  const version=++_extratoDividaRequest,uid=currentUser.uid;
+  el.textContent='Carregando registros…';
+  try{
+    const snapshot=await getDocs(query(collection(db,'usuarios',uid,'pagamentos-dividas'),where('dividaId','==',id)));
+    if(version!==_extratoDividaRequest || currentUser?.uid!==uid || dividaAtual?.id!==id)return;
+    const debt=dividas.find(d=>d.id===id),rows=snapshot.docs.map(d=>({id:d.id,...d.data()}));
+    const covered=new Set(rows.filter(r=>r.acao==='pagamento').map(r=>r.parcelaIndice));
+    for(let i=0;i<(debt?.parcelasPagas||0);i++)if(!covered.has(i)){
+      const record=debt.parcelasPagamentos?.[String(i)];
+      rows.push(record?{...record,acao:'pagamento'}:{acao:'legado',parcelaIndice:i,valor:null,dataPagamento:debt.parcelasDatas?.[String(i)]?.slice(0,10)||null,modo:'legado'});
+    }
+    rows.sort((a,b)=>((b.criadoEm?.toMillis?.()||b.criadoEm?.seconds*1000||0)-(a.criadoEm?.toMillis?.()||a.criadoEm?.seconds*1000||0)) || b.parcelaIndice-a.parcelaIndice);
+    if(!rows.length){el.textContent='Nenhum pagamento registrado nesta dívida.';return;}
+    el.innerHTML=rows.map(row=>{
+      const title=row.acao==='desmarcado'?'Pagamento desmarcado':row.acao==='legado'?'Pagamento antigo — dados incompletos':'Pagamento confirmado';
+      const source=row.modo==='conta'?'Conta: '+(row.contaNome||'conta registrada'):row.modo==='sem_conta'?'Apenas marcado como pago — sem movimentar conta':'Conta não informada no registro antigo';
+      const date=row.dataPagamento?formatDataBR(row.dataPagamento):'Data não informada';
+      return `<article style="padding:.875rem;margin-bottom:.625rem;border:1px solid var(--input-border);border-radius:.75rem;background:var(--input-bg);"><strong style="font-size:.8125rem;color:${row.acao==='desmarcado'?'#dc2626':'var(--text-main)'};">${escapeHTML(title)} · Parcela ${row.parcelaIndice+1}</strong><div style="font-size:.875rem;font-weight:800;margin-top:.375rem;">${row.valor==null?'Valor não informado no histórico':fmtIA(row.valor)}</div><div style="font-size:.75rem;margin-top:.375rem;">📅 ${escapeHTML(date)}<br>${escapeHTML(source)}${row.vencimento?'<br>Vencimento: '+escapeHTML(formatDataBR(row.vencimento)):''}</div></article>`;
+    }).join('');
+  }catch(error){if(version===_extratoDividaRequest)el.textContent='Não foi possível carregar o extrato. Feche e abra esta aba para tentar novamente.';}
+}
+
 
 // ─────────────────────────────────────────────────────────────────
 //  EXCLUIR
@@ -2249,6 +2145,7 @@ async function migrarTransacoesDividas(uid) {
       const dataBase   = d.vencimento ? new Date(d.vencimento + 'T12:00:00') : null;
       let criou = false;
       for (let i = 0; i < np; i++) {
+        if (d.parcelasPagamentos?.[String(i)]?.modo === 'sem_conta') continue;
         if (ids[String(i)]) continue; // já tem txId
         if (!dataBase) continue;
         const dataParcela = addMonthsSafe(dataBase, i);
@@ -2562,6 +2459,7 @@ window.exportarPDFDividas = function () {
   win.focus();
   setTimeout(() => { try { win.print(); } catch(_) {} }, 600);
 };
+
 
 
 
