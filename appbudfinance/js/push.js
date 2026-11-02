@@ -30,7 +30,7 @@ const LS_KEY = 'bud_push_asked'; // 'granted' | 'denied' | ausente
  * @returns {Promise<string>} token FCM registrado
  * @throws {Error} com mensagem descritiva em caso de falha
  */
-export async function registerPushToken(app, user) {
+export async function registerPushToken(app, user, options = {}) {
   const vapidKey = window.BUD_FCM_VAPID_KEY;
 
   // Guard: VAPID key precisa estar configurada
@@ -97,7 +97,7 @@ export async function registerPushToken(app, user) {
       'Content-Type':  'application/json',
       'Authorization': 'Bearer ' + idToken
     },
-    body: JSON.stringify({ token, platform: 'web' })
+    body: JSON.stringify({ token, platform: 'web', consent: options.consent === true })
   });
 
   if (!res.ok) {
@@ -122,6 +122,7 @@ export async function registerPushToken(app, user) {
 const foregroundListeners = new WeakMap();
 export async function showForegroundNotification(payload) {
   console.info('[Push] Mensagem recebida neste navegador.');
+  if (window.BUD_PUSH_CONSENT_REVOKED === true) return;
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
   const data = { ...(payload.notification || {}), ...(payload.data || {}) };
   const registration = await navigator.serviceWorker.getRegistration(new URL('firebase-messaging-sw.js', window.location.href).href);
@@ -184,4 +185,5 @@ export async function revokePushToken(app, user) {
     // Revogação não é crítica — não impede logout
   }
 }
+
 

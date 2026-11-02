@@ -726,3 +726,6 @@
 import('./push-foreground.js?v=20261031').catch(function () {});
 
 
+
+import('./profile-sync.js?v=20261102-live').catch(function(){console.warn('[Perfil] Sincronização indisponível.');});
+

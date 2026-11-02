@@ -7,7 +7,7 @@ import { getAuth, onAuthStateChanged, signOut, updateProfile }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, getDocs, updateDoc, deleteDoc, deleteField, setDoc, collection, query, orderBy, writeBatch }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
-import { registerPushToken, listenForeground, revokePushToken, showForegroundNotification } from './push.js?v=20261102-content';
+import { registerPushToken, listenForeground, revokePushToken, showForegroundNotification } from './push.js?v=20261102-consent';
 import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
@@ -27,9 +27,9 @@ let _pushAtivo = false;
 
 // ─── Push token (necessário para o botão Ativar funcionar nesta página) ──
 // ─── Push token (necessário para o botão Ativar funcionar nesta página) ──
-window._budRequestPushToken = async function (user) {
+window._budRequestPushToken = async function (user, silent) {
   try {
-    await registerPushToken(app, user);
+    await registerPushToken(app, user, { consent: silent !== true });
     listenForeground(app, showForegroundNotification);
     if (window.budShowToast) window.budShowToast('Notificações ativadas neste dispositivo. 🔔', 'success');
   } catch (err) {
@@ -342,14 +342,12 @@ async function salvarNome() {
     return;
   }
 
-  const diaInput = document.getElementById('perfilDiaFechamento');
-  const diaFechamento = diaInput ? Math.min(28, Math.max(1, parseInt(diaInput.value) || 1)) : 1;
 
   btn.disabled = true;
   btn.textContent = 'Salvando...';
   try {
     await updateProfile(user, { displayName: novoNome });
-    await updateDoc(doc(db, 'usuarios', user.uid), { nome: novoNome, diaFechamento: diaFechamento });
+    await updateDoc(doc(db, 'usuarios', user.uid), { nome: novoNome });
 
     // Atualiza sidebar imediatamente
     const avatar = document.getElementById('sidebarAvatar');
@@ -588,13 +586,16 @@ async function revogarConsentimentoNotificacoes() {
   const btn = document.getElementById('btnRevogarNotificacoes');
   if (btn) { btn.disabled = true; btn.textContent = 'Revogando...'; }
   try {
-    // Limpa fcmToken do doc raiz do usuário (campo que o backend lê)
-    await updateDoc(doc(db, 'usuarios', uid), {
-      fcmToken: null,
-      fcmTokenAt: null,
-      pushEnabled: false
-    });
-    localStorage.removeItem('bud_push_asked');
+    const user=auth.currentUser;
+    const idToken=await user.getIdToken();
+    const response=await fetch((window.BUD_FUNCTIONS_URL||'').replace(/\/$/,'')+'/api/push/token',{method:'DELETE',headers:{Authorization:'Bearer '+idToken}});
+    if(!response.ok)throw Error('Falha ao revogar consentimento.');
+    window.BUD_PUSH_CONSENT_REVOKED=true;
+    localStorage.setItem('bud_push_asked','denied');
+    await revokePushToken(app,user);
+    _pushAtivo=false;
+    const activate=document.getElementById('btnAtivarPush');if(activate){activate.textContent='Ativar';activate.style.background='linear-gradient(135deg,#2563eb,#4f46e5)';}
+    const desc=document.getElementById('pushStatusDesc');if(desc)desc.textContent='Consentimento revogado. Ative para voltar a receber neste dispositivo.';
     if (window.budShowToast) window.budShowToast('Consentimento de notificações revogado.', 'success');
   } catch (_) {
     if (window.budShowToast) window.budShowToast('Erro ao revogar. Tente novamente.', 'error');
@@ -891,14 +892,6 @@ async function carregarPerfil(user) {
       _userPlano = plano.toLowerCase();
       _whatsappNumero = data.whatsappVinculado || null;
       carregarWhatsApp();
-
-      // Dia de fechamento do mês
-      const diaFechamento = data.diaFechamento || 1;
-      const inputDia = document.getElementById('perfilDiaFechamento');
-      if (inputDia) {
-        inputDia.value = diaFechamento;
-        inputDia.dataset.diaOriginal = diaFechamento;
-      }
 
       // Ocultar saldo — sincronizar Firestore → localStorage → UI
       if (typeof data.ocultarSaldo === 'boolean') {
@@ -1515,7 +1508,8 @@ onAuthStateChanged(auth, async function (user) {
       // Permissão já concedida (ex: após revogar token e re-ativar) → registrar direto
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         try {
-          await registerPushToken(app, user);
+          await registerPushToken(app, user, { consent: true });
+          window.BUD_PUSH_CONSENT_REVOKED = false;
           listenForeground(app, showForegroundNotification);
           localStorage.setItem('bud_push_asked', 'granted');
           _mostrarBotaoAtivado();
@@ -1526,30 +1520,19 @@ onAuthStateChanged(auth, async function (user) {
         }
         return;
       }
-      if (window.BudPush) {
-        // _budRequestPushToken não está disponível em configuracoes (só em dashboard.js).
-        // Definir localmente para que bud-utils.js consiga registrar o token.
-        window._budRequestPushToken = async function (u) {
-          try {
-            await registerPushToken(app, u);
-            listenForeground(app, showForegroundNotification);
-            _mostrarBotaoAtivado();
-            if (window.budShowToast) window.budShowToast('Notificações ativadas neste dispositivo. 🔔', 'success');
-          } catch (err) {
-            if (window.budWarn) window.budWarn(err.message);
-            else alert('Erro ao ativar notificações:\n' + (err && err.message ? err.message : err));
-          }
-        };
-        localStorage.removeItem('bud_push_asked');
-        window.BudPush.requestIfNeeded(user);
-        setTimeout(function () {
-          // O registro confirmado chama _mostrarBotaoAtivado; a preferência local não prova entrega.
-        }, 2000);
-      }
+      try {
+        await registerPushToken(app, user, { consent: true });
+        window.BUD_PUSH_CONSENT_REVOKED = false;
+        listenForeground(app, showForegroundNotification);
+        _mostrarBotaoAtivado();
+        window.budShowToast?.('Notificações ativadas neste dispositivo.','success');
+      } catch(error) { window.budShowToast?.(error.message||'Não foi possível ativar notificações.','error'); }
+
     });
   }
 
   } // end !_pushSetupDone
 });
+
 
 

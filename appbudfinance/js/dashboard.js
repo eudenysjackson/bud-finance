@@ -9,7 +9,7 @@ import {
   addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, increment, runTransaction
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 import { getMessaging, getToken, onMessage, deleteToken } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
-import { registerPushToken, listenForeground, showForegroundNotification } from './push.js?v=20261102-content';
+import { registerPushToken, listenForeground, showForegroundNotification } from './push.js?v=20261102-consent';
 import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Firebase init ──────────────────────────────────────────────────────
@@ -22,7 +22,7 @@ connectEmulators(auth, db);
 // dashboard.js é a página principal — aqui ficam o registro e o listener.
 window._budRequestPushToken = async function (user, silent) {
   try {
-    await registerPushToken(app, user);
+    await registerPushToken(app, user, { consent: silent !== true });
     listenForeground(app, showForegroundNotification);
     if (!silent && window.budShowToast) window.budShowToast('Notificações ativadas neste dispositivo. 🔔', 'success');
   } catch (err) {
@@ -3257,7 +3257,7 @@ document.querySelectorAll('.filtro-atividades').forEach(function (btn) {
     e.stopPropagation();
     var novoFiltro = btn.getAttribute('data-filtro');
     if (novoFiltro === filtroAtividadeAtual) return;
-    
+
     // Atualizar estado do botão ativo
     document.querySelectorAll('.filtro-atividades').forEach(function (b) {
       b.classList.remove('active');
@@ -3269,7 +3269,7 @@ document.querySelectorAll('.filtro-atividades').forEach(function (btn) {
     btn.style.background = 'var(--btn-bg)';
     btn.style.color = 'var(--btn-text)';
     btn.style.borderColor = 'transparent';
-    
+
     filtroAtividadeAtual = novoFiltro;
     // Re-renderiza apenas a lista de atividades (evita blink no gráfico)
     var transDoMes = transacoesGlobais.filter(function (t) {
@@ -3395,5 +3395,6 @@ async function confirmarParcelaDividaDashboard(lembrete) {
   } catch(error) { window.budShowToast?.(error.message||'Não foi possível registrar o pagamento.','error'); }
   finally { _debtDashboardBusy=false; }
 }
+
 
 
