@@ -2303,7 +2303,8 @@ function processarItensIA(itens) {
       // A payment settles the previous invoice; it is not a current-period refund.
       if (/PAGAMENTO RECEBIDO|PAGTO RECEBIDO|PAYMENT RECEIVED|PAGAMENTO DE FATURA|PGTO FATURA|^PAGAMENTO\s+EM\s+\d/.test(descUpper)) status = 'estornado';
     }
-    const cat = detectarCategoriaIA(desc);
+    const ehDevolucao = status === 'credito' || /\bESTORNO\b|DEVOLUC|REEMBOLSO|CHARGEBACK|RESSARCIMENTO/.test(descUpper);
+    const cat = ehDevolucao ? 'Estorno / devolução' : detectarCategoriaIA(desc);
 
     return {
       desc,
