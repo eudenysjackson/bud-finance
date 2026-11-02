@@ -10,7 +10,8 @@ const publicFiles = files(stage).map(file => {
   if(relative !== '.nojekyll') assert.equal(digest(file), digest(path.join(root, relative)), relative);
   return { path: relative, sha256: digest(file), bytes: fs.statSync(file).size };
 }).sort((a,b) => a.path.localeCompare(b.path));
-const backend = ['backend/server.js','backend/account-lifecycle.js','backend/ai-reader.js','backend/ai-jobs.js','backend/ai-job-store.js','backend/invoice-reader.js','backend/subscription-change.js','backend/financial-notifications.js','backend/package.json','backend/package-lock.json','firestore.rules','firestore.indexes.json'].map(relative => ({ path: relative, sha256: digest(path.join(root, relative)) }));
+const backend = ['backend/server.js','backend/account-lifecycle.js','backend/security-guard.js','backend/ai-reader.js','backend/ai-jobs.js','backend/ai-job-store.js','backend/invoice-reader.js','backend/subscription-change.js','backend/financial-notifications.js','backend/package.json','backend/package-lock.json','firestore.rules','firestore.indexes.json'].map(relative => ({ path: relative, sha256: digest(path.join(root, relative)) }));
 const manifest = { createdAt: new Date().toISOString(), published: false, publicFiles, backend };
 fs.writeFileSync(path.join(root,'dist/release-manifest.json'), JSON.stringify(manifest,null,2)+'\n');
 console.log(JSON.stringify({ verified: true, publicFiles: publicFiles.length, publicBytes: publicFiles.reduce((sum,file)=>sum+file.bytes,0), backendFiles: backend.length, manifest: 'dist/release-manifest.json' }));
+

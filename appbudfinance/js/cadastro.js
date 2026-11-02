@@ -254,7 +254,7 @@ form.addEventListener('submit', async function (e) {
       funcionalidades: {},
       lgpdConsentimento: true,
       lgpdConsentimentoData: serverTimestamp(),
-      lgpdVersaoPolitica: '2026-11-01-v1.6',
+      lgpdVersaoPolitica: '2026-11-02-v1.7',
       codigoIndicacao: codigoIndicacaoGerado,
       emailVerificationRequired: true
     };
@@ -360,4 +360,5 @@ form.addEventListener('submit', async function (e) {
     }
   }
 });
+
 

@@ -4,7 +4,7 @@ function createSubscriptionChange({ auth, db, token, plans, emulator = false, fe
   return async function changeSubscription(req, res) {
     if (!auth || !db) return res.status(503).json({ error: 'Serviço indisponível.' });
     let user;
-    try { user = await auth.verifyIdToken(String(req.headers.authorization || '').replace(/^Bearer /, '')); }
+    try { user = await auth.verifyIdToken(String(req.headers.authorization || '').replace(/^Bearer /, ''),true); }
     catch (_) { return res.status(401).json({ error: 'Faça login novamente.' }); }
     const planKey = String(req.body?.planKey || '').toLowerCase();
     if (!plans[planKey]) return res.status(400).json({ error: 'Plano inválido.' });
@@ -87,3 +87,4 @@ function createSubscriptionChange({ auth, db, token, plans, emulator = false, fe
 }
 
 module.exports = { createSubscriptionChange };
+

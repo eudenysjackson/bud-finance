@@ -437,3 +437,12 @@ function mostrarFalhaCheckout(planKey, refCode, message) {
   };
   overlay.querySelector('[data-dashboard]').onclick = function () { window.location.href = 'dashboard.html'; };
 }
+
+// Fixed text only; the URL never supplies HTML or customer details.
+const deletionResult = new URLSearchParams(window.location.search).get('conta_excluida');
+if (['pendente','concluida'].includes(deletionResult)) {
+ const notice=document.createElement('p');notice.setAttribute('role','status');notice.style.cssText='padding:1rem;border-radius:12px;background:#ecfdf5;color:#065f46;line-height:1.5;';
+ notice.textContent=deletionResult==='pendente'?'Sua conta foi bloqueada. A exclusão dos dados será retomada automaticamente.':'Sua conta e os dados vinculados foram removidos. A rotina de segurança finalizará a limpeza técnica automaticamente.';
+ const form=document.querySelector('form');if(form)form.before(notice);else document.body.prepend(notice);
+}
+
