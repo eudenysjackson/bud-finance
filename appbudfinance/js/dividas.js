@@ -722,7 +722,7 @@ function mostrarPreviewIA(dados, classif) {
   const blocos = contratoExtraido?.components || [];
   const avisos = [...(contratoExtraido?.avisos || [])];
   if (blocoContratoAtual != null && blocos[blocoContratoAtual]?.aviso) avisos.push(blocos[blocoContratoAtual].aviso);
-  if (faltantes.length) avisos.push('Complete antes de salvar: ' + faltantes.join(', ') + '.');
+  if (faltantes.length && (!blocos.length || blocoContratoAtual != null)) avisos.push('Complete antes de salvar: ' + faltantes.join(', ') + '.');
   const podeSalvar = faltantes.length === 0 && (!blocos.length || blocoContratoAtual != null);
   const cabecalhoBlocos = blocos.length ? '<div style="margin-bottom:0.75rem;"><strong>Obrigações identificadas — escolha um bloco</strong>' + blocos.map((b,i) => '<button type="button" onclick="window._selecionarBlocoContrato(' + i + ')" style="display:block;width:100%;text-align:left;padding:0.625rem;margin-top:0.375rem;border:1px solid var(--input-border);border-radius:0.5rem;background:var(--card-bg);color:var(--text-main);cursor:pointer;">' + (blocoContratoAtual === i ? '✓ ' : '') + escapeHTML(b.label) + (b.dados.valorParcela ? ' · ' + b.dados.parcelas + 'x de ' + fmtIA(b.dados.valorParcela) : b.dados.valorTotal ? ' · ' + fmtIA(b.dados.valorTotal) : '') + '</button>').join('') + '</div>' : '';
   const rows = [];
@@ -747,12 +747,12 @@ function mostrarPreviewIA(dados, classif) {
     <div style="background:var(--input-bg);border-radius:0.875rem;padding:1rem;border:1px solid var(--input-border);">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
         <span style="font-size:0.875rem;font-weight:800;color:var(--text-main);">📋 Dados Extraídos</span>
-        <span style="font-size:0.75rem;font-weight:700;color:${confiancaCor};">${4 - faltantes.length} de 4 campos essenciais identificados</span>
+        <span style="font-size:0.75rem;font-weight:700;color:${confiancaCor};">${blocos.length && blocoContratoAtual == null ? blocos.length + ' obrigações identificadas' : (4 - faltantes.length) + ' de 4 campos essenciais identificados'}</span>
       </div>
       ${cabecalhoBlocos}
       ${avisos.map(a => '<p style="font-size:0.8125rem;color:#b45309;line-height:1.5;">⚠️ ' + escapeHTML(a) + '</p>').join('')}
       ${rows.length === 0
-        ? '<p style="font-size:0.8125rem;color:var(--text-sec);">Nenhum dado identificado. Preencha manualmente.</p>'
+        ? '<p style="font-size:0.8125rem;color:var(--text-sec);">' + (blocos.length ? 'Selecione acima a obrigação que deseja revisar.' : 'Nenhum dado identificado. Preencha manualmente.') + '</p>'
         : rows.map(([k,v]) => `
           <div style="display:flex;justify-content:space-between;padding:0.3125rem 0;border-bottom:1px solid var(--input-border);font-size:0.8125rem;">
             <span style="color:var(--text-sec);font-weight:600;">${escapeHTML(k)}</span>
