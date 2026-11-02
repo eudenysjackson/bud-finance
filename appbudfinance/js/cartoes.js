@@ -2298,7 +2298,11 @@ function processarItensIA(itens) {
     }
 
     // The validated PDF reader already supplies signed, individually identified rows.
-    if (signedStatuses) { valor = valorOriginal; status = signedStatuses[itemIdx]; }
+    if (signedStatuses) {
+      valor = valorOriginal; status = signedStatuses[itemIdx];
+      // A payment settles the previous invoice; it is not a current-period refund.
+      if (/PAGAMENTO RECEBIDO|PAGTO RECEBIDO|PAYMENT RECEIVED|PAGAMENTO DE FATURA|PGTO FATURA|^PAGAMENTO\s+EM\s+\d/.test(descUpper)) status = 'estornado';
+    }
     const cat = detectarCategoriaIA(desc);
 
     return {

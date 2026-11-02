@@ -123,3 +123,12 @@ test('reconciliation bar follows selection, catches overbilling and never claims
   assert.match(badge.innerHTML,/0,01 abaixo/);assert.doesNotMatch(badge.innerHTML,/Soma selecionada confere/);
 });
 
+test('structured invoice payment is excluded while an unmatched refund remains signed', () => {
+  const vm=require('node:vm'),source=fs.readFileSync('appbudfinance/js/cartoes.js','utf8');
+  const start=source.indexOf('function processarItensIA(itens)'),end=source.indexOf('\nfunction ',start+10);
+  const ctx={_importMetaIA:{fonte:'ofx'},window:{BudInvoiceRefunds:require('../appbudfinance/js/invoice-refunds')},detectarCategoriaIA:()=> 'Outros'};
+  vm.createContext(ctx);vm.runInContext(source.slice(start,end)+'; result=processarItensIA([{desc:"Pagamento recebido",valor:-100},{desc:"Estorno de Loja",valor:-10},{desc:"Loja",valor:20}])',ctx);
+  assert.deepEqual(Array.from(ctx.result,x=>x.selecionado),[false,true,true]);
+  assert.equal(ctx.result.filter(x=>x.selecionado).reduce((s,x)=>s+x.valor,0),10);
+});
+
