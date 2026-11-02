@@ -561,3 +561,11 @@ Metas alcançadas não exibem Depositar; abrir formulário e confirmar validam c
 Aviso do simulador publicado pelo PR30, commitec60b19a31679e469a25c680ace3c967fca52ab7; Pages41491108722 aprovado e HTTP200 confirmou avisoEstimativaQuitacao. Layout mobile nas duas abas conferido localmente. A anotação final remota da sessão anterior foi impedida por limite de uso da revisão automática; esta atualização registra a evidência sem repetir publicação do código.
 
 
+## Estado de publicação — metas — 02/11/2026
+PR31 integrado em bf123935aa7542248a93ac05b5c5d8e2be9985b8; CI41518480035/41518472096 e Pages41518619911 aprovados. HTTP200 confirmou metaCompra, versão20261102-purchase e serviço público. Navegador autenticado mostrou a meta alcançada sem botão Depositar e o cadastro com opção Meta de compra. Nenhuma meta real foi criada/convertida, compra registrada ou saldo alterado. Compra completa e gravação foram homologadas em simulação pelos129 testes; interação mobile de confirmação/retry testada localmente, não por compra real em produção. Valores acima do alvo já existentes foram preservados, sem correção de dados do titular. Pendente nesta anotação apenas finalizar conferência do extrato individual e registrar seu resultado.
+
+
+## Conferência online das metas concluída — 02/11/2026
+RESOLVIDO E PUBLICADO no PR31 (bf123935aa7542248a93ac05b5c5d8e2be9985b8; Pages41518619911 aprovado). Conferência final: link Extrato do cartão de conta em Contas carregou URL com contaId; página exibiu Extrato da conta, aportes existentes com rótulo Metas e sem as compras do cartão de crédito. Sem erro visível e sem recriar movimentos. A meta alcançada não oferece Depositar; nova meta apresenta opção Meta de compra, formulário cancelado sem salvar. Nenhum saldo, conta ou meta real foi alterado. Encerrada a pendência de QA/publicação dos registros anteriores. A funcionalidade completa de compra foi validada em simulação (129 testes e UI mobile), sem registrar compra real do titular. Para usar em meta existente: editar e marcar Meta de compra, depois Planejar compra. Preservar esses limites de evidência nas próximas sessões Claude/Codex.
+
+
