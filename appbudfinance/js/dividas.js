@@ -8,7 +8,7 @@ import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/fi
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
   collection, query, orderBy, limit,
-  onSnapshot, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, writeBatch, increment,
+  onSnapshot, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, writeBatch, increment, runTransaction,
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
 
 // ─── Firebase init ───────────────────────────────────────────────
@@ -25,7 +25,10 @@ let wizardTipo         = '';
 let wizardTipoIcone    = '';
 let wizardFormato      = '';
 let contratoExtraido   = null;
-let blocoContratoAtual = null;
+let contratoBlocos = [];
+let contratoFingerprint = '';
+let salvandoBlocos = false;
+let contratoMensagem = '';
 let dadosIA            = null;
 let valoresOcultos     = false;
 let _unsubs            = [];
@@ -221,12 +224,15 @@ function abrirModal(id) {
 //  WIZARD — Passo 1: Tipo
 // ─────────────────────────────────────────────────────────────────
 window.iniciarNovaDivida = function() {
+  if (salvandoBlocos) { window.budShowToast?.('Aguarde a confirmação do cadastro em andamento.', 'info'); return; }
   wizardTipo       = '';
   wizardTipoIcone  = '';
   wizardFormato    = '';
   dadosIA          = null;
   contratoExtraido = null;
-  blocoContratoAtual = null;
+  contratoBlocos = [];
+  contratoFingerprint = '';
+  contratoMensagem = '';
   dividaAtual      = null;
 
   // Resetar seleções visuais
@@ -374,6 +380,7 @@ window.limparArquivoIA = function() {
 };
 
 window.processarArquivoIA = async function(inputEl) {
+  if (salvandoBlocos) { window.budShowToast?.('Aguarde a confirmação do cadastro em andamento.', 'info'); return; }
   const file = inputEl.files[0];
   if (!file) return;
 
@@ -468,6 +475,7 @@ window.processarArquivoIA = async function(inputEl) {
 };
 
 window.processarTextoIA = async function() {
+  if (salvandoBlocos) { window.budShowToast?.('Aguarde a confirmação do cadastro em andamento.', 'info'); return; }
   const texto = document.getElementById('iaTextoColar').value.trim();
   if (!texto) { window.budShowToast?.('Cole um texto para analisar.', 'warning'); return; }
 
@@ -492,7 +500,13 @@ async function processarTextoExtraido(texto) {
   const classif = classificarContrato(texto);
   if (!window.BudContractReader) throw new Error('O leitor de contratos não carregou. Recarregue a página.');
   contratoExtraido = window.BudContractReader.read(texto);
-  blocoContratoAtual = null;
+  contratoBlocos = [];
+  contratoFingerprint = '';
+  contratoMensagem = '';
+  if (contratoExtraido?.components?.length) {
+    contratoFingerprint = await window.BudContractReader.fingerprint(texto);
+    contratoBlocos = contratoExtraido.components.map(b => ({...b, dados:{...b.dados, parcelasPagas:0}, selecionado:false, salvo:false, edicoes:{}, totalDerivado: b.dados.valorTotal === Math.round(b.dados.valorParcela*b.dados.parcelas*100)/100}));
+  }
   const dados = contratoExtraido ? { ...contratoExtraido.dados } : extrairDadosDoTexto(texto.replace(/[ \t]+/g, ' '));
   if (contratoExtraido) {
     classif.tipo = contratoExtraido.tipo;
@@ -717,14 +731,12 @@ function mostrarPreviewIA(dados, classif) {
   const el = document.getElementById('iaResultado');
   if (!el) return;
 
+  if (contratoBlocos.length) { renderBlocosContrato(); return; }
   dadosIA = dados;
   const faltantes = window.BudContractReader.missing(dados);
-  const blocos = contratoExtraido?.components || [];
   const avisos = [...(contratoExtraido?.avisos || [])];
-  if (blocoContratoAtual != null && blocos[blocoContratoAtual]?.aviso) avisos.push(blocos[blocoContratoAtual].aviso);
-  if (faltantes.length && (!blocos.length || blocoContratoAtual != null)) avisos.push('Complete antes de salvar: ' + faltantes.join(', ') + '.');
-  const podeSalvar = faltantes.length === 0 && (!blocos.length || blocoContratoAtual != null);
-  const cabecalhoBlocos = blocos.length ? '<div style="margin-bottom:0.75rem;"><strong>Obrigações identificadas — escolha um bloco</strong>' + blocos.map((b,i) => '<button type="button" onclick="window._selecionarBlocoContrato(' + i + ')" style="display:block;width:100%;text-align:left;padding:0.625rem;margin-top:0.375rem;border:1px solid var(--input-border);border-radius:0.5rem;background:var(--card-bg);color:var(--text-main);cursor:pointer;">' + (blocoContratoAtual === i ? '✓ ' : '') + escapeHTML(b.label) + (b.dados.valorParcela ? ' · ' + b.dados.parcelas + 'x de ' + fmtIA(b.dados.valorParcela) : b.dados.valorTotal ? ' · ' + fmtIA(b.dados.valorTotal) : '') + '</button>').join('') + '</div>' : '';
+  if (faltantes.length) avisos.push('Complete antes de salvar: ' + faltantes.join(', ') + '.');
+  const podeSalvar = faltantes.length === 0;
   const rows = [];
   if (dados.valorTotal)    rows.push([contratoExtraido?.tipo === 'Aluguel' ? 'Total base dos aluguéis' : contratoExtraido ? 'Total nominal do bloco' : 'Valor Total Financiado', fmtIA(dados.valorTotal)]);
   if (dados.valorParcela)  rows.push(['Parcela Mensal', fmtIA(dados.valorParcela)]);
@@ -747,12 +759,11 @@ function mostrarPreviewIA(dados, classif) {
     <div style="background:var(--input-bg);border-radius:0.875rem;padding:1rem;border:1px solid var(--input-border);">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
         <span style="font-size:0.875rem;font-weight:800;color:var(--text-main);">📋 Dados Extraídos</span>
-        <span style="font-size:0.75rem;font-weight:700;color:${confiancaCor};">${blocos.length && blocoContratoAtual == null ? blocos.length + ' obrigações identificadas' : (4 - faltantes.length) + ' de 4 campos essenciais identificados'}</span>
+        <span style="font-size:0.75rem;font-weight:700;color:${confiancaCor};">${4 - faltantes.length} de 4 campos essenciais identificados</span>
       </div>
-      ${cabecalhoBlocos}
       ${avisos.map(a => '<p style="font-size:0.8125rem;color:#b45309;line-height:1.5;">⚠️ ' + escapeHTML(a) + '</p>').join('')}
       ${rows.length === 0
-        ? '<p style="font-size:0.8125rem;color:var(--text-sec);">' + (blocos.length ? 'Selecione acima a obrigação que deseja revisar.' : 'Nenhum dado identificado. Preencha manualmente.') + '</p>'
+        ? '<p style="font-size:0.8125rem;color:var(--text-sec);">Nenhum dado identificado. Preencha manualmente.</p>'
         : rows.map(([k,v]) => `
           <div style="display:flex;justify-content:space-between;padding:0.3125rem 0;border-bottom:1px solid var(--input-border);font-size:0.8125rem;">
             <span style="color:var(--text-sec);font-weight:600;">${escapeHTML(k)}</span>
@@ -779,11 +790,123 @@ function mostrarPreviewIA(dados, classif) {
   `;
 }
 
-window._selecionarBlocoContrato = function(index) {
-  const bloco = contratoExtraido?.components?.[index];
-  if (!bloco) return;
-  blocoContratoAtual = index;
-  mostrarPreviewIA({ ...bloco.dados }, { tipo: contratoExtraido.tipo, confianca: calcularConfiancaExtracao(bloco.dados) });
+function renderBlocosContrato() {
+  const el = document.getElementById('iaResultado');
+  if (!el) return;
+  el.style.display = '';
+  const inputStyle = 'width:100%;box-sizing:border-box;padding:0.5rem;border:1px solid var(--input-border);border-radius:0.5rem;background:var(--input-bg);color:var(--text-main);font-family:inherit;';
+  const fields = [ ['nomeCliente','Nome / credor','text'], ['instituicao','Instituição','text'], ['valorTotal','Valor total / base do bloco','text'], ['parcelas','Total de parcelas','number'], ['valorParcela','Valor da parcela','text'], ['vencimento','Data da primeira parcela','text'], ['parcelasPagas','Parcelas já pagas','number'] ];
+  const moneyFields = ['valorTotal','valorParcela'];
+  el.innerHTML = `<div style="background:var(--input-bg);padding:1rem;border-radius:0.875rem;">
+    <strong>Obrigações identificadas — selecione uma ou várias</strong>
+    <p style="font-size:0.8125rem;line-height:1.5;">Cada obrigação será cadastrada como uma dívida separada. Complete os campos de cada uma abaixo. As pendentes permanecem nesta revisão. Complete-as antes de trocar de documento, iniciar nova dívida ou atualizar a página. Os valores são base contratual: confira reajustes e encargos nos avisos de cada obrigação.</p>
+    ${(contratoExtraido?.avisos || []).map(a=>`<p style="font-size:0.8125rem;color:#b45309;">${escapeHTML(a)}</p>`).join('')}
+    <div style="display:flex;gap:0.375rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+      <button type="button" ${salvandoBlocos?'disabled':''} style="padding:0.375rem 0.625rem;border:1px solid var(--input-border);border-radius:0.5rem;background:var(--card-bg);color:var(--text-main);font-family:inherit;cursor:pointer;" onclick="window._contratoMarcar('todas')">Marcar todas</button>
+      <button type="button" ${salvandoBlocos?'disabled':''} onclick="window._contratoMarcar('completas')">Só completas</button>
+      <button type="button" ${salvandoBlocos?'disabled':''} onclick="window._contratoMarcar('nenhuma')">Desmarcar todas</button>
+    </div>
+    ${contratoBlocos.map((b,i)=>{
+      const disabled = b.salvo || salvandoBlocos;
+      const inputs = fields.map(([key,label,type])=>{
+        const original = b.dados[key];
+        const value = Object.prototype.hasOwnProperty.call(b.edicoes,key) ? b.edicoes[key]
+          : key === 'vencimento' ? (original ? formatDataBR(original) : '')
+          : moneyFields.includes(key) ? (Number.isFinite(original) ? Number(original).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '') : (original ?? '');
+        return `<label style="display:block;margin-top:0.5rem;font-size:0.75rem;">${escapeHTML(label)}
+          <input id="contrato_${i}_${key}" aria-label="${escapeHTML(label + ' — ' + b.label)}" type="${type}" ${type==='number'?'min="0" step="1"':''} ${key==='vencimento'?'placeholder="DD/MM/AAAA" maxlength="10"':''} ${moneyFields.includes(key)?'inputmode="decimal"':''} maxlength="150" value="${escapeHTML(value)}" ${disabled?'disabled':''} style="${inputStyle}" oninput="window._contratoEditarCampo(${i}, '${key}', this.value)">
+        </label>`;
+      }).join('');
+      return `<div style="padding:0.75rem;border:1px solid var(--input-border);border-radius:0.625rem;margin-bottom:0.625rem;background:var(--card-bg);">
+        <label style="display:flex;gap:0.5rem;align-items:center;font-weight:700;font-size:0.8125rem;"><input id="contratoSelecionar_${i}" type="checkbox" aria-label="Selecionar ${escapeHTML(b.label)}" ${b.selecionado?'checked':''} ${disabled?'disabled':''} onchange="window._contratoSelecionar(${i}, this.checked)">${escapeHTML(b.label)}</label>
+        <div id="contratoStatus_${i}" style="font-size:0.75rem;margin-top:0.375rem;" aria-live="polite"></div>
+        <details ${b.selecionado&&!b.salvo&&window.BudContractReader.pending(b.dados).length?'open':''}><summary style="cursor:pointer;font-size:0.8125rem;margin-top:0.5rem;">Revisar / completar dados</summary>
+          ${b.aviso?`<p style="color:#b45309;font-size:0.75rem;line-height:1.5;">${escapeHTML(b.aviso)}</p>`:''}${inputs}
+        </details>
+      </div>`;
+    }).join('')}
+    <p id="contratoResumoSelecao" role="status" style="font-size:0.8125rem;font-weight:700;"></p>
+    <p role="status" style="font-size:0.8125rem;color:#15803d;">${escapeHTML(contratoMensagem)}</p>
+    <button id="btnSalvarBlocosContrato" type="button" onclick="window._salvarBlocosContrato()" style="width:100%;padding:0.75rem;border:0;border-radius:0.75rem;background:#2563eb;color:white;font-weight:700;cursor:pointer;">Cadastrar completas</button>
+  </div>`;
+  atualizarResumoBlocosContrato();
+}
+
+function atualizarResumoBlocosContrato() {
+  const plan = window.BudContractReader.plan(contratoBlocos);
+  contratoBlocos.forEach((b,i)=>{
+    const el = document.getElementById('contratoStatus_'+i);
+    if (!el) return;
+    const fields = window.BudContractReader.pending(b.dados);
+    el.textContent = b.salvo ? 'Já cadastrada — não será duplicada.' : fields.length ? 'Pendente: '+fields.join(', ')+'.' : 'Completa — ' + b.dados.parcelas + 'x de ' + fmtIA(b.dados.valorParcela) + ', a partir de ' + formatDataBR(b.dados.vencimento) + '.';
+    el.style.color = b.salvo || !fields.length ? '#15803d' : '#b45309';
+  });
+  const summary = document.getElementById('contratoResumoSelecao');
+  if (summary) summary.textContent = `${plan.ready.length} selecionada(s) completa(s) · ${plan.incomplete.length} selecionada(s) pendente(s). ${plan.incomplete.length?'Só as completas serão cadastradas; as pendentes permanecem nesta revisão.':''}`;
+  const button = document.getElementById('btnSalvarBlocosContrato');
+  if (button) { button.disabled = salvandoBlocos || !plan.ready.length; button.textContent = salvandoBlocos ? 'Cadastrando…' : `Cadastrar ${plan.ready.length} obrigação(ões) completa(s)`; }
+}
+
+window._contratoSelecionar = function(index, selected) {
+  const item = contratoBlocos[index];
+  if (!item || item.salvo || salvandoBlocos) return;
+  item.selecionado = !!selected;
+  renderBlocosContrato();
+};
+window._contratoMarcar = function(mode) {
+  if (salvandoBlocos) return;
+  contratoBlocos.forEach(b=>{if(!b.salvo)b.selecionado = mode==='todas' || (mode==='completas' && !window.BudContractReader.pending(b.dados).length);});
+  renderBlocosContrato();
+};
+window._contratoEditarCampo = function(index, key, value) {
+  const b = contratoBlocos[index];
+  if (!b || b.salvo || salvandoBlocos || !['nomeCliente','instituicao','valorTotal','parcelas','valorParcela','vencimento','parcelasPagas'].includes(key)) return;
+  b.edicoes[key] = value;
+  if (key==='valorTotal' || key==='valorParcela') b.dados[key] = parseMoeda(value);
+  else if (key==='parcelas' || key==='parcelasPagas') b.dados[key] = value==='' ? null : Number(value);
+  else if (key==='vencimento') b.dados[key] = parseDataBR(value);
+  else b.dados[key] = String(value).slice(0,150);
+  if (key==='valorTotal') b.totalDerivado = false;
+  if (b.totalDerivado && ['parcelas','valorParcela'].includes(key)) {
+    b.dados.valorTotal = Math.round((b.dados.parcelas||0)*(b.dados.valorParcela||0)*100)/100;
+    delete b.edicoes.valorTotal;
+    const total = document.getElementById(`contrato_${index}_valorTotal`);
+    if (total) total.value = b.dados.valorTotal.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+  atualizarResumoBlocosContrato();
+};
+
+window._salvarBlocosContrato = async function() {
+  if (salvandoBlocos || !currentUser || !/^[a-f0-9]{64}$/.test(contratoFingerprint)) return;
+  const plan = window.BudContractReader.plan(contratoBlocos);
+  if (!plan.ready.length) { atualizarResumoBlocosContrato(); return; }
+  salvandoBlocos = true;
+  renderBlocosContrato();
+  try {
+    const entries = plan.ready.map(({index,dados:d})=>({index,ref:doc(db,'usuarios',currentUser.uid,'dividas',`contrato_${contratoFingerprint}_${index}`),data:{
+      nome:escapeHTML(d.nomeCliente || contratoBlocos[index].label),tipoIcone:wizardTipoIcone || '📄',tipo:d.tipo || wizardTipo || 'Outro',instituicao:escapeHTML(d.instituicao||''),formato:'ia',
+      valorTotal:d.valorTotal,valorParcela:d.valorParcela,parcelas:d.parcelas,parcelasPagas:d.parcelasPagas||0,valorPago:Math.round((d.parcelasPagas||0)*d.valorParcela*100)/100,
+      jurosPagos:0,juros:d.juros||0,cet:d.cet||0,iof:d.iof||0,seguro:d.seguro||0,vencimento:d.vencimento,importadoPorIA:true,
+      importacaoContrato:contratoFingerprint,blocoContrato:index,observacoesImportacao:contratoBlocos[index].aviso||'',criadoEm:serverTimestamp(),atualizadoEm:serverTimestamp()
+    }}));
+    // Read before writing: retries and a repeated upload never overwrite an existing block.
+    const created = await runTransaction(db, async transaction=>{
+      const snapshots = await Promise.all(entries.map(e=>transaction.get(e.ref)));
+      let count=0;
+      entries.forEach((entry,i)=>{if(!snapshots[i].exists()){transaction.set(entry.ref,entry.data);count++;}});
+      return count;
+    });
+    entries.forEach(e=>{contratoBlocos[e.index].salvo=true;contratoBlocos[e.index].selecionado=false;});
+    contratoMensagem = `${created} obrigação(ões) cadastrada(s). ${entries.length-created} já existia(m) e não foi/foram alterada(s). ${plan.incomplete.length?'Complete as pendentes abaixo; seus campos foram preservados.':'Você pode selecionar outras obrigações ou fechar esta revisão.'}`;
+    window.budShowToast?.('Cadastro das obrigações completas concluído.', 'success');
+  } catch(err) {
+    (window.budError||console.error)('[Dividas] cadastro conjunto:',err);
+    contratoMensagem = '';
+    window.budShowToast?.('Não foi possível confirmar o cadastro. Os dados foram preservados; tente novamente para conferir sem duplicar.', 'error');
+  } finally {
+    salvandoBlocos = false;
+    renderBlocosContrato();
+  }
 };
 
 // Sincroniza o input de parcelas pagas na IA com dadosIA
@@ -796,9 +919,10 @@ window._syncParcelasPagasIA = function(val) {
 
 // Bug #17: try/catch + botão desabilitado durante save
 window.salvarDividaIA = async function() {
+  if (contratoBlocos.length) return window._salvarBlocosContrato();
   if (!dadosIA) return;
   const faltantes = window.BudContractReader.missing(dadosIA);
-  if (faltantes.length || (contratoExtraido?.components?.length && blocoContratoAtual == null)) {
+  if (faltantes.length) {
     window.budShowToast?.('Revise o bloco escolhido e complete: ' + faltantes.join(', '), 'warning');
     return;
   }
@@ -2397,4 +2521,5 @@ window.exportarPDFDividas = function () {
   win.focus();
   setTimeout(() => { try { win.print(); } catch(_) {} }, 600);
 };
+
 
