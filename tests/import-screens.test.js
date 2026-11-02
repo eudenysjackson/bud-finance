@@ -22,7 +22,7 @@ test('Dívidas reads all six PDF pages and destroys the PDF document', async () 
   const pages = []; let destroyed = false; let extracted;
   const pdfDoc = { numPages:6, getPage: async p => { pages.push(p); return { getTextContent: async () => ({items:[{str:p===6?'Valor total financiado R$ 1.200,00':'Página '+p}]}), cleanup(){} }; }, destroy:async()=>{destroyed=true;} };
   const nodes = new Map();
-  const context = { window: { pdfjsLib:{GlobalWorkerOptions:{},getDocument:()=>({promise:Promise.resolve(pdfDoc)})} },
+  const context = { salvandoBlocos:false, window: { pdfjsLib:{GlobalWorkerOptions:{},getDocument:()=>({promise:Promise.resolve(pdfDoc)})} },
     document:{getElementById:id=>{if(!nodes.has(id))nodes.set(id,{style:{}});return nodes.get(id);}}, animarStepsIA(){},
     processarTextoExtraido:async text=>{extracted=text;}, mostrarErroIA:message=>{throw Error(message);} };
   vm.runInNewContext(code,context);
@@ -31,3 +31,4 @@ test('Dívidas reads all six PDF pages and destroys the PDF document', async () 
   assert.match(extracted,/Valor total financiado/);
   assert.equal(destroyed,true);
 });
+

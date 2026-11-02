@@ -36,20 +36,69 @@ test('rental reads base rent and term but never treats tolerance, bank account o
  assert.equal(reader.read('Documento sem condições financeiras.'),null);
  assert.ok(reader.missing({valorTotal:Infinity,parcelas:2,valorParcela:10,vencimento:'2026-02-30'}).includes('data da primeira parcela'));
 });
-test('preview requires block selection, save rejects missing essentials and persists only the chosen block',async()=>{
- const source=fs.readFileSync('appbudfinance/js/dividas.js','utf8'), nodes=new Map(),saved=[];
- const ctx={window:{BudContractReader:reader,budShowToast:()=>{}},contratoExtraido:reader.read(sale),blocoContratoAtual:null,dadosIA:null,wizardTipo:'Financiamento',wizardTipoIcone:'🏠',currentUser:{uid:'test'},db:{},
+
+function batchContext() {
+ const source=fs.readFileSync('appbudfinance/js/dividas.js','utf8'),nodes=new Map(),ledger=new Map(),stats={transactions:0,failBefore:false,failAfter:false};
+ const components=reader.read(sale).components.map(b=>({...b,dados:{...b.dados,parcelasPagas:0},selecionado:false,salvo:false,edicoes:{},totalDerivado:b.dados.valorTotal===Math.round(b.dados.parcelas*b.dados.valorParcela*100)/100}));
+ const ctx={window:{BudContractReader:reader,budShowToast:()=>{},budError:()=>{}},contratoExtraido:reader.read(sale),contratoBlocos:components,contratoFingerprint:'a'.repeat(64),contratoMensagem:'',salvandoBlocos:false,dadosIA:null,wizardTipo:'Financiamento',wizardTipoIcone:'🏠',currentUser:{uid:'test'},db:{},
  document:{getElementById:id=>{if(!nodes.has(id))nodes.set(id,{style:{},value:'0',disabled:false});return nodes.get(id);}},
- fmtIA:v=>String(v),formatDataBR:v=>v,escapeHTML:v=>String(v),calcularConfiancaExtracao:()=>50,
- addDoc:async(ref,data)=>saved.push(data),collection:()=>({}),serverTimestamp:()=>null,fecharTodosModais:()=>{}};
+ fmtIA:v=>String(v),formatDataBR:v=>v.split('-').reverse().join('/'),parseDataBR:v=>{const p=v.split('/');if(p.length!==3)return null;const iso=p.reverse().join('-');return reader.missing({valorTotal:1,valorParcela:1,parcelas:1,vencimento:iso}).length?null:iso;},parseMoeda:v=>Number(v.replace(/\./g,'').replace(',','.')),
+ escapeHTML:v=>String(v),calcularConfiancaExtracao:()=>50,addDoc:async()=>{throw Error('batch must not use addDoc');},collection:()=>({}),doc:(...args)=>args.slice(1).join('/'),serverTimestamp:()=>null,fecharTodosModais:()=>{},
+ runTransaction:async(db,callback)=>{stats.transactions++;const writes=[];const result=await callback({get:async ref=>({exists:()=>ledger.has(ref)}),set:(ref,data)=>writes.push([ref,data])});if(stats.failBefore)throw Error('offline');writes.forEach(([ref,data])=>ledger.set(ref,data));if(stats.failAfter)throw Error('uncertain acknowledgement');return result;}};
  vm.createContext(ctx);
- const a=source.indexOf('function mostrarPreviewIA('),b=source.indexOf('function animarStepsIA(',a);
- vm.runInContext(source.slice(a,b),ctx);
- vm.runInContext('mostrarPreviewIA({}, {confianca:0})',ctx);assert.match(nodes.get('iaResultado').innerHTML,/id="btnSalvarIA" disabled/);assert.match(nodes.get('iaResultado').innerHTML,/obrigações identificadas/);assert.doesNotMatch(nodes.get('iaResultado').innerHTML,/Nenhum dado identificado/);
- await ctx.window.salvarDividaIA();assert.equal(saved.length,0);
- ctx.window._selecionarBlocoContrato(2);assert.equal(ctx.dadosIA.valorParcela,800.5);assert.doesNotMatch(nodes.get('iaResultado').innerHTML,/id="btnSalvarIA" disabled/);
- await ctx.window.salvarDividaIA();assert.equal(saved.length,1);assert.equal(saved[0].valorTotal,19212);assert.equal(saved[0].parcelas,24);assert.equal(saved[0].instituicao,'Tenda');
- ctx.window._selecionarBlocoContrato(1);await ctx.window.salvarDividaIA();assert.equal(saved.length,1,'bank terms missing must not save zeros');
- ctx.contratoExtraido=reader.read(rental);ctx.blocoContratoAtual=null;ctx.dadosIA={...ctx.contratoExtraido.dados};await ctx.window.salvarDividaIA();assert.equal(saved.length,1,'rental requires actual first due date');
+ const a=source.indexOf('function mostrarPreviewIA('),b=source.indexOf('function animarStepsIA(',a);vm.runInContext(source.slice(a,b),ctx);
+ return {ctx,nodes,ledger,stats,source};
+}
+
+test('multiple selection saves complete obligations atomically, leaving pending edits selected',async()=>{
+ const {ctx,nodes,ledger,stats}=batchContext();vm.runInContext('mostrarPreviewIA({}, {confianca:0})',ctx);
+ assert.match(nodes.get('iaResultado').innerHTML,/selecione uma ou várias/);assert.equal(nodes.get('btnSalvarBlocosContrato').disabled,true);
+ ctx.window._contratoMarcar('todas');assert.equal(reader.plan(ctx.contratoBlocos).ready.length,4);assert.equal(reader.plan(ctx.contratoBlocos).incomplete.length,2);
+ ctx.window._contratoEditarCampo(1,'parcelas','120');
+ await Promise.all([ctx.window._salvarBlocosContrato(),ctx.window._salvarBlocosContrato()]);
+ assert.equal(stats.transactions,1);assert.equal(ledger.size,4);
+ assert.deepEqual([...ledger.values()].map(x=>x.parcelas),[24,1,1,84]);
+ assert.deepEqual([...ledger.values()].map(x=>x.valorTotal),[19212,2000,3000,7623]);
+ assert.ok([...ledger.values()].every(x=>x.importacaoContrato==='a'.repeat(64)));
+ assert.equal(ctx.contratoBlocos[1].dados.parcelas,120);assert.equal(ctx.contratoBlocos[1].edicoes.parcelas,'120');assert.equal(ctx.contratoBlocos[1].selecionado,true);assert.equal(ctx.contratoBlocos[1].salvo,false);
+ assert.equal(ctx.contratoBlocos[2].salvo,true);assert.equal(nodes.get('btnSalvarBlocosContrato').disabled,true);
+ ctx.window._contratoEditarCampo(0,'vencimento','02/01/2027');ctx.window._contratoEditarCampo(0,'parcelasPagas','1');
+ await ctx.window._salvarBlocosContrato();assert.equal(ledger.size,5);assert.equal([...ledger.values()].find(x=>x.blocoContrato===0).valorPago,600);
+ ctx.window._contratoEditarCampo(1,'valorParcela','900,00');ctx.window._contratoEditarCampo(1,'vencimento','05/02/2027');
+ await ctx.window._salvarBlocosContrato();assert.equal(ledger.size,6);assert.equal(reader.plan(ctx.contratoBlocos).ready.length,0);
+});
+
+test('failed commit writes nothing; uncertain response retry does not duplicate or overwrite an existing block',async()=>{
+ const {ctx,ledger,stats,nodes}=batchContext();ctx.window._contratoMarcar('completas');stats.failBefore=true;
+ await ctx.window._salvarBlocosContrato();assert.equal(ledger.size,0);assert.equal(reader.plan(ctx.contratoBlocos).ready.length,4);assert.equal(ctx.salvandoBlocos,false);assert.equal(nodes.get('btnSalvarBlocosContrato').disabled,false);
+ stats.failBefore=false;stats.failAfter=true;await ctx.window._salvarBlocosContrato();assert.equal(ledger.size,4);assert.equal(reader.plan(ctx.contratoBlocos).ready.length,4);
+ const first=[...ledger.keys()][0];ledger.get(first).nome='Nome revisado pelo titular';stats.failAfter=false;await ctx.window._salvarBlocosContrato();
+ assert.equal(ledger.size,4);assert.equal(ledger.get(first).nome,'Nome revisado pelo titular');assert.equal(reader.plan(ctx.contratoBlocos).ready.length,0);
+});
+
+test('editing is isolated per block, rejects bad paid counts and updates derived totals',()=>{
+ const {ctx}=batchContext();ctx.window._contratoMarcar('completas');
+ ctx.window._contratoEditarCampo(2,'valorParcela','850,00');assert.equal(ctx.contratoBlocos[2].dados.valorTotal,20400);assert.equal(ctx.contratoBlocos[5].dados.valorParcela,90.75);
+ ctx.window._contratoEditarCampo(2,'parcelasPagas','25');assert.ok(reader.plan(ctx.contratoBlocos).incomplete.some(x=>x.index===2));
+ ctx.window._contratoEditarCampo(2,'parcelasPagas','0');ctx.window._contratoEditarCampo(2,'vencimento','30/02/2027');assert.ok(reader.plan(ctx.contratoBlocos).incomplete.some(x=>x.index===2));
+ ctx.window._contratoEditarCampo(2,'vencimento','28/02/2027');ctx.window._contratoEditarCampo(2,'valorTotal','20.000,00');ctx.window._contratoEditarCampo(2,'valorParcela','860,00');assert.equal(ctx.contratoBlocos[2].dados.valorTotal,20000,'manually confirmed principal must not be replaced by parcel sum');
+ ctx.window._contratoSelecionar(2,false);assert.ok(!reader.plan(ctx.contratoBlocos).ready.some(x=>x.index===2));
+});
+
+test('normalised document fingerprint is stable across whitespace, distinct for other contracts',async()=>{
+ const a=await reader.fingerprint(sale),b=await reader.fingerprint(sale.replace(/ /g,'  '));assert.equal(a,b);assert.match(a,/^[a-f0-9]{64}$/);assert.notEqual(a,await reader.fingerprint(rental));
+});
+
+test('processing a new document resets batch state and does not leak it into a rental import',async()=>{
+ const {ctx,source}=batchContext();ctx.animarStepsIA=()=>{};ctx.setTimeout=cb=>cb();ctx.classificarContrato=()=>({tipo:'Outro'});ctx.extrairDadosDoTexto=()=>({});ctx.mostrarPreviewIA=()=>{};
+ const start=source.indexOf('async function processarTextoExtraido('),end=source.indexOf('// Classificação',start);vm.runInContext(source.slice(start,end),ctx);
+ ctx.text=sale;await vm.runInContext('processarTextoExtraido(text)',ctx);assert.equal(ctx.contratoBlocos.length,6);assert.match(ctx.contratoFingerprint,/^[a-f0-9]{64}$/);
+ ctx.text=rental;await vm.runInContext('processarTextoExtraido(text)',ctx);assert.equal(ctx.contratoBlocos.length,0);assert.equal(ctx.contratoFingerprint,'');assert.equal(ctx.wizardTipo,'Aluguel');
+});
+
+test('single rental preview retains manual review and blocks saving without actual first due date',async()=>{
+ const {ctx,nodes}=batchContext();ctx.contratoExtraido=reader.read(rental);ctx.contratoBlocos=[];ctx.dadosIA={...ctx.contratoExtraido.dados};
+ vm.runInContext('mostrarPreviewIA(dadosIA,{confianca:50})',ctx);assert.match(nodes.get('iaResultado').innerHTML,/id="btnSalvarIA" disabled/);
+ await ctx.window.salvarDividaIA();
 });
 

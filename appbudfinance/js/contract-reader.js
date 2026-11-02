@@ -73,9 +73,30 @@
     }
     return null;
   }
-  const api = {read,missing,normalize};
+  async function fingerprint(text) {
+    const bytes = await root.crypto.subtle.digest('SHA-256', new TextEncoder().encode(normalize(text)));
+    return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2,'0')).join('');
+  }
+  function pending(data) {
+    const fields = missing(data);
+    const paid = data.parcelasPagas ?? 0;
+    if (!Number.isInteger(paid) || paid < 0 || paid > data.parcelas) fields.push('parcelas já pagas válidas');
+    return fields;
+  }
+  function plan(items) {
+    const ready = [], incomplete = [];
+    items.forEach((item,index) => {
+      if (!item.selecionado || item.salvo) return;
+      const fields = pending(item.dados);
+      if (fields.length) incomplete.push({index,fields});
+      else ready.push({index,dados:{...item.dados}});
+    });
+    return {ready,incomplete};
+  }
+  const api = {read,missing,normalize,fingerprint,pending,plan};
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.BudContractReader = api;
 })(typeof window === 'undefined'?globalThis:window);
+
 
 
