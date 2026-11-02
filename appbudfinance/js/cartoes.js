@@ -2308,6 +2308,7 @@ function processarItensIA(itens) {
     return {
       desc,
       valor,
+      refundPair: refundPairs[itemIdx] ?? null,
       dataRaw,
       status,
       categoria: cat,
@@ -2510,7 +2511,11 @@ function renderListaReviewIA() {
     itensIAExtraidos[i].selecionado = checked;
     const el = document.getElementById(`ia-item-${i}`);
     if (el) el.style.opacity = checked ? '1' : '0.55';
-    atualizarResumoReviewIA();
+    const pair = itensIAExtraidos[i].refundPair;
+    if (pair != null) {
+      itensIAExtraidos[pair].selecionado = checked;
+      renderListaReviewIA();
+    } else atualizarResumoReviewIA();
   };
   window._iaDescChange = (i, val) => { itensIAExtraidos[i].desc = val; };
   window._iaCatChange  = (i, val) => { itensIAExtraidos[i].categoria = val; };
@@ -2602,6 +2607,7 @@ function atualizarResumoReviewIA() {
     // não a soma calculada das transações (que pode divergir por detecção imprecisa de estornos)
     totalEl.textContent = `Total selecionado: ${formatBRL(total)}`;
   }
+  _renderConfiabilidadeBadge();
 }
 
 async function salvarTransacoesIA() {

@@ -765,3 +765,7 @@ Conta do titular: Plus concedido por autorização expressa e precondição Fire
 Continuidade Claude/Codex: workspace original tem alterações preexistentes; preservá-las. Trabalho isolado em .tools/invoice-reconciliation-ui, branch codex/revisao-estornos-conciliacao-20261101. Próximo passo: conferir CI/publicação e a barra no app online. Nenhum dado financeiro privado incluído no Git; nenhum registro do usuário recriado ou salvo nesta entrega.
 
 
+## Complemento da validação real — 01/11/2026
+PR16 integrado em 00dcd47; CI41365013209/41365000333 e Pages41365083232 passaram. PDF real abriu revisão online com barra e aviso de um centavo, sem salvar. Ao desmarcar um abatimento, o total mudou mas o badge não atualizou: a inspeção real detectou integração ausente entre resumo e badge, causada por substituição que não correspondeu aos finais de linha CRLF. Corrigido com chamada explícita no resumo e teste que executa esse caminho real, em vez de chamar apenas o badge. Propriedade refundPair e handler conjunto também integrados e cobertos por teste de clique; recompra preservada. PR17 a92b1e1 preserva pagamento recebido fora dos abatimentos OFX. Suite final: 99 testes aprovados, incluindo pagamento anterior, par seguro, recompra, persistência e recálculo, seleção e atualização da barra. Nova publicação em preparação; não declarar o clique online corrigido até validá-lo após deploy. Nenhum lançamento do titular gravado.
+
+
