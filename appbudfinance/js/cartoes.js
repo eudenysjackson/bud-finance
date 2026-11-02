@@ -454,6 +454,8 @@ function buildCartaoEl(cartao, fatura, status, limite, reservado, dispPct, gasto
   const lastFour = cartao.id.slice(-4).toUpperCase();
   const nome = (cartao.nome || 'Cartão').toUpperCase();
   const limiteDisp = window.BudGoalPurchase.available(cartao,transacoesGlobal);
+  const futuras=transacoesGlobal.filter(t=>t.cartaoId===cartao.id && t.origem==='meta_compra' && !['cancelado','estornado'].includes(t.status) && String(t.dataReferencia||'').slice(0,7)>mesKey).sort((a,b)=>String(a.dataReferencia).localeCompare(String(b.dataReferencia)));
+  const futurasHTML=futuras.length?'<details style="margin:.75rem 0;font-size:.8rem;color:var(--card-text-sec);"><summary>Parcelas futuras de metas · '+formatBRL(futuras.reduce((n,t)=>n+Number(t.valor||0),0))+'</summary>'+futuras.map(t=>'<div style="padding:.4rem 0;">'+escHtml(t.descricao||'Compra da meta')+' · '+formatData(t.dataReferencia)+' · <strong>'+formatBRL(t.valor||0)+'</strong></div>').join('')+'</details>':'';
   const barCor = dispPct < 20 ? '#ef4444' : dispPct < 50 ? '#f59e0b' : '#10b981';
   const isPago = cartao.faturasPagas?.[mesKey];
   const isParcelada = Boolean(isPago && typeof isPago === 'object' && isPago.parcelada);
@@ -539,11 +541,12 @@ function buildCartaoEl(cartao, fatura, status, limite, reservado, dispPct, gasto
           <div class="limite-bar-fill" style="width:${(100 - dispPct).toFixed(1)}%;background:${barCor};"></div>
         </div>
         <div class="limite-labels">
-          <span class="limite-label">${formatBRL(fatura + reservado)} usado de ${formatBRL(limite)}${reservado > 0 ? ' · ' + formatBRL(reservado) + ' parcelado' : ''}</span>
+          <span class="limite-label">${formatBRL(Math.max(0,limite-limiteDisp))} usado de ${formatBRL(limite)}${reservado > 0 ? ' · ' + formatBRL(reservado) + ' parcelado' : ''}</span>
           <span class="limite-label" style="color:${barCor};font-weight:700;">${(100 - dispPct).toFixed(0)}%</span>
         </div>
       </div>
 
+      ${futurasHTML}
       <!-- Botões de ação -->
       <div class="cartao-actions">
         <button class="cartao-btn" data-add-gasto="${cartao.id}">+ Gasto</button>
@@ -2926,5 +2929,6 @@ function showToast(msg, tipo = 'ok') {
 
   setTimeout(() => t.remove(), 3500);
 }
+
 
 
