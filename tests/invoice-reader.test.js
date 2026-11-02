@@ -144,3 +144,17 @@ test('checkbox handler changes both identified rows and preserves a new purchase
   ctx.window._iaToggle(1,false);assert.deepEqual(ctx.itensIAExtraidos.map(x=>x.selecionado),[false,false,true]);
 });
 
+
+
+test('refunds use the default expense category without becoming income or changing signs', () => {
+  const vm=require('node:vm'),source=fs.readFileSync('appbudfinance/js/cartoes.js','utf8');
+  const categories={window:{}};vm.runInNewContext(fs.readFileSync('appbudfinance/js/categorias-padrao.js','utf8'),categories);
+  assert.equal(categories.window.BUD_CATEGORIAS_PADRAO.despesa.filter(x=>x.nome==='Estorno / devolução').length,1);
+  assert.ok(!categories.window.BUD_CATEGORIAS_PADRAO.receita.some(x=>x.nome==='Estorno / devolução'));
+  const start=source.indexOf('function processarItensIA(itens)'),end=source.indexOf('\nfunction ',start+10);
+  const ctx={_importMetaIA:{signedAmounts:true},window:{BudInvoiceRefunds:require('../appbudfinance/js/invoice-refunds')},detectarCategoriaIA:()=> 'Outros'};
+  vm.createContext(ctx);vm.runInContext(source.slice(start,end)+'; result=processarItensIA([{desc:"Estorno de Loja",valor:-20},{desc:"Loja",valor:20},{desc:"Devolução",valor:-7}])',ctx);
+  assert.deepEqual(Array.from(ctx.result,x=>x.categoria),['Estorno / devolução','Outros','Estorno / devolução']);
+  assert.deepEqual(Array.from(ctx.result,x=>x.valor),[-20,20,-7]);
+  assert.equal(ctx.result[0].status,'credito');
+});

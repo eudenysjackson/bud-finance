@@ -798,3 +798,7 @@ Conta do titular: Plus concedido por autorização expressa e precondição Fire
 Continuidade Claude/Codex: workspace original tem alterações preexistentes; preservá-las. Trabalho isolado em .tools/invoice-reconciliation-ui, branch codex/revisao-estornos-conciliacao-20261101. Próximo passo: conferir CI/publicação e a barra no app online. Nenhum dado financeiro privado incluído no Git; nenhum registro do usuário recriado ou salvo nesta entrega.
 
 
+
+
+## Categoria padrão de estorno — 02/11/2026
+A pedido do titular, Estorno / devolução incluída exclusivamente nas categorias padrão de despesa (categorias-padrao.js). A revisão de faturas (cartoes.js) prioriza esta categoria para status credito e descrições explícitas de estorno/devolução/reembolso; não usa Outros nem a categoria do estabelecimento para esses itens. Preserva valores negativos, seleção, pares, conciliação e persistência como despesa; não cria receita. Compras normais e pagamentos de fatura mantêm a classificação anterior. Não migra registros existentes. Teste específico cobre categoria padrão presente uma vez em despesas e ausente em receitas, classificação e sinais; 13 testes de fatura aprovados. Publicação em preparação na branch codex/categoria-estorno-padrao-20261102. Claude/Codex: preservar a regra de abatimento, sem inflar renda.
