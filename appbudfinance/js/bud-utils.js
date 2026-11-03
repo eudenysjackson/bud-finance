@@ -1,3 +1,24 @@
+/* Prepare only the internal destination the user is about to open. */
+(function () {
+  var prepared = new Set();
+  function prepare(event) {
+    var anchor = event.target.closest?.('.sidebar-nav a[href]');
+    if (!anchor || anchor.target || anchor.hasAttribute('download')) return;
+    var url = new URL(anchor.href);
+    if (url.origin !== location.origin || !url.pathname.startsWith('/appbudfinance/') ||
+        url.search || url.hash || url.pathname === location.pathname || prepared.has(url.href)) return;
+    if (navigator.connection?.saveData) return;
+    var hint = document.createElement('link');
+    hint.rel = 'prefetch';
+    hint.href = url.href;
+    prepared.add(url.href);
+    document.head.appendChild(hint);
+  }
+  document.addEventListener('pointerover', prepare, { passive: true });
+  document.addEventListener('pointerdown', prepare, { passive: true });
+  document.addEventListener('focusin', prepare);
+})();
+
 // bud-utils.js — Bud Finance global utilities
 // Exposes: window.budShowToast(message, type)
 
@@ -728,24 +749,3 @@ import('./push-foreground.js?v=20261031').catch(function () {});
 
 
 import('./profile-sync.js?v=20261102-mobile').catch(function(){console.warn('[Perfil] Sincronização indisponível.');});
-
-/* Prepare only the internal destination the user is about to open. */
-(function () {
-  var prepared = new Set();
-  function prepare(event) {
-    var anchor = event.target.closest?.('.sidebar-nav a[href]');
-    if (!anchor || anchor.target || anchor.hasAttribute('download')) return;
-    var url = new URL(anchor.href);
-    if (url.origin !== location.origin || !url.pathname.startsWith('/appbudfinance/') ||
-        url.search || url.hash || url.pathname === location.pathname || prepared.has(url.href)) return;
-    if (navigator.connection?.saveData) return;
-    var hint = document.createElement('link');
-    hint.rel = 'prefetch';
-    hint.href = url.href;
-    prepared.add(url.href);
-    document.head.appendChild(hint);
-  }
-  document.addEventListener('pointerover', prepare, { passive: true });
-  document.addEventListener('pointerdown', prepare, { passive: true });
-  document.addEventListener('focusin', prepare);
-})();
