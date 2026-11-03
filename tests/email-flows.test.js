@@ -55,3 +55,36 @@ test('old reset links without mode still open the reset flow; explicit unknown m
     vm.runInNewContext(parameters,context);await vm.runInNewContext(routing,context);assert.equal(actual,expected);
   }
 });
+
+test('subscription email resumes a pending checkout, manages active billing, or asks for a new plan', async () => {
+  const fs = require('node:fs');
+  const source = fs.readFileSync('appbudfinance/js/index.js', 'utf8');
+  const code = source.slice(source.indexOf('async function continuarEmail('));
+  for (const state of ['trial', 'pending', 'authorized', 'cancelled']) {
+    const profile = state === 'trial' ? {} : {
+      mpSubscriptionId: 'test-id',
+      assinaturaStatus: state,
+      mpCheckout: { subscriptionId: 'test-id', planKey: 'starter' }
+    };
+    const status = {}, plans = { children: [], append(button) { this.children.push(button); } };
+    const dialog = { style: {}, setAttribute() {}, addEventListener() {}, showModal() {},
+      querySelector: selector => selector === '[role=status]' ? status : plans };
+    plans.style = {};
+    const calls = [], user = { uid: 'test-user' };
+    const resume = new Function('document', 'location', 'getDocFromServer', 'doc', 'db', 'auth', 'openAuthenticatedCheckout',
+      code + ';return continuarEmail;')(
+      { createElement: tag => tag === 'dialog' ? dialog : { style: {} }, body: { append() {} } },
+      { assign: url => calls.push(url) }, async () => ({ exists: () => true, data: () => profile }),
+      () => ({}), {}, { currentUser: user }, async (_, plan) => calls.push(plan)
+    );
+    await resume(user, new URLSearchParams('email_destino=assinatura'));
+    if (state === 'pending') assert.deepEqual(calls, ['starter']);
+    else if (state === 'authorized') assert.deepEqual(calls, ['https://www.mercadopago.com.br/subscriptions/detail/test-id']);
+    else {
+      assert.equal(plans.children.length, 3);
+      assert.deepEqual(calls, []);
+      await plans.children[1].onclick();
+      assert.deepEqual(calls, ['pro']);
+    }
+  }
+});
