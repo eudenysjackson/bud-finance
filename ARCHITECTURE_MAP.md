@@ -773,3 +773,7 @@ checkout-client.js reutiliza sessão Firebase nas configurações e na entrada i
 
 ## Mobile, rotas limpas e categorias — 02/11/2026
 app-shell.js carregado no início das páginas normaliza URL e preenche data/mês locais. BUD_PAGE_FILE mantém identidade da tela para featureflags. category-picker.js compartilhado usa opções/handlers existentes, centraliza busca/foco/acessibilidade sem gravar dados. profile-sync.js inicia sem aguardar imagens e mostra Auth atual antes do documento; Dashboard carrega Chart.js async e renderiza ao ficar pronto. Carteira preserva _tipoOriginal na prévia e formaPagamentoPIX no registro novo.
+
+## Site institucional — 03/11/2026
+
+Na candidata codex/site-institucional-20261103, a raiz apresenta a agência Bud Soluções. Serviços, Sobre, Produtos, Bud Finance e Contato são páginas HTML independentes em /servicos/, /sobre/, /produtos/, /produtos/bud-finance/ e /contato/. O CSS comum fica em /site-assets/institucional.css. As páginas e o sitemap integram o pacote público do GitHub Pages. /budfinance/ é a página de vendas e /appbudfinance/ é a entrada do aplicativo. Publicação pendente.

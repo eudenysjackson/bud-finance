@@ -15,12 +15,12 @@ function copy(relative) {
     }
     return;
   }
-  if (!extensions.has(path.extname(relative)) && relative !== 'CNAME') return;
+  if (!extensions.has(path.extname(relative)) && !['CNAME', 'robots.txt', 'sitemap.xml'].includes(relative)) return;
   if (/\.example\.|preview-temas\.html$|gerar-icones\.html$/.test(relative)) return;
   const target = path.join(output, relative);
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.copyFileSync(source, target);
 }
-for (const relative of ['index.html','logo.png','CNAME','appbudfinance','budfinance']) copy(relative);
+for (const relative of ['index.html','logo.png','CNAME','robots.txt','sitemap.xml','appbudfinance','budfinance','site-assets','servicos','sobre','produtos','contato']) copy(relative);
 fs.writeFileSync(path.join(output, '.nojekyll'), '');
 console.log('Public artifact ready: dist/site (frontend only).');
