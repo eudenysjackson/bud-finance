@@ -375,3 +375,6 @@ O institucional apresenta a agência na home e tem páginas estáticas próprias
 Validação local. 155 regressões passaram. As seis páginas foram verificadas no Edge com 320, 390, 768 e 1440 px. Navegação, imagens, contatos, links internos e sitemap passaram. O pacote público contém 103 arquivos e o verificador confirmou que arquivos privados ficaram fora. Prévia aberta no navegador interno em http://127.0.0.1:13105/. Capturas locais em .tools/site-institucional-1440.png e .tools/site-institucional-390.png. O titular autorizou publicar após a validação do cabeçalho.
 
 Para retomar a missão de cobrança, consulte .tools/profile-plans-release/AI_HANDOFF.md. A mudança de site é independente da homologação da oferta de retorno e da expiração no Mercado Pago.
+
+## Interface de checkout e navegação
+Entrega parcial: textos da tentativa pendente e pré-carregamento dos destinos do menu. Expiração automática e estorno seguem pendentes.
