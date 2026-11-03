@@ -467,6 +467,29 @@ async function continuarEmail(user, params) {
   dialog.showModal();
   const status = dialog.querySelector('[role=status]');
   try {
+    const proof = params.get('aviso');
+    if (!proof) throw new Error('Este aviso antigo não está vinculado a uma conta. Use a área de assinatura no app.');
+    const token = await user.getIdToken();
+    const base = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\/$/, '');
+    const validation = await fetch(base + '/api/assinatura/validar-aviso', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ proof }),
+      signal: AbortSignal.timeout(12000)
+    });
+    if (validation.status === 403) {
+      status.textContent = 'Este aviso foi enviado a outra conta. Entre com a conta que recebeu o e-mail.';
+      const switchAccount = document.createElement('button');
+      switchAccount.type = 'button';
+      switchAccount.textContent = 'Trocar de conta';
+      switchAccount.onclick = async () => {
+        await signOut(auth);
+        location.reload();
+      };
+      dialog.querySelector('[data-plans]').append(switchAccount);
+      return true;
+    }
+    if (!validation.ok) throw new Error('Não foi possível validar o aviso. Recarregue para tentar novamente.');
     const snap = await getDocFromServer(doc(db, 'usuarios', user.uid));
     if (!snap.exists() || auth.currentUser?.uid !== user.uid) throw new Error('Não foi possível confirmar sua conta.');
     const profile = snap.data();

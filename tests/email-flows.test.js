@@ -60,7 +60,7 @@ test('subscription email resumes a pending checkout, manages active billing, or 
   const fs = require('node:fs');
   const source = fs.readFileSync('appbudfinance/js/index.js', 'utf8');
   const code = source.slice(source.indexOf('async function continuarEmail('));
-  for (const state of ['trial', 'pending', 'authorized', 'cancelled']) {
+  for (const state of ['trial', 'pending', 'authorized', 'cancelled', 'wrong-account', 'legacy']) {
     const profile = state === 'trial' ? {} : {
       mpSubscriptionId: 'test-id',
       assinaturaStatus: state,
@@ -70,14 +70,20 @@ test('subscription email resumes a pending checkout, manages active billing, or 
     const dialog = { style: {}, setAttribute() {}, addEventListener() {}, showModal() {},
       querySelector: selector => selector === '[role=status]' ? status : plans };
     plans.style = {};
-    const calls = [], user = { uid: 'test-user' };
-    const resume = new Function('document', 'location', 'getDocFromServer', 'doc', 'db', 'auth', 'openAuthenticatedCheckout',
+    const calls = [], user = { uid: 'test-user', getIdToken: async () => 'fake' };
+    const resume = new Function('document', 'location', 'getDocFromServer', 'doc', 'db', 'auth', 'openAuthenticatedCheckout', 'fetch', 'window',
       code + ';return continuarEmail;')(
       { createElement: tag => tag === 'dialog' ? dialog : { style: {} }, body: { append() {} } },
       { assign: url => calls.push(url) }, async () => ({ exists: () => true, data: () => profile }),
-      () => ({}), {}, { currentUser: user }, async (_, plan) => calls.push(plan)
+      () => ({}), {}, { currentUser: user }, async (_, plan) => calls.push(plan),
+      async () => ({ status: state === 'wrong-account' ? 403 : 204, ok: state !== 'wrong-account' }), {}
     );
-    await resume(user, new URLSearchParams('email_destino=assinatura'));
+    await resume(user, new URLSearchParams('email_destino=assinatura' + (state === 'legacy' ? '' : '&aviso=fake')));
+    if (state === 'wrong-account' || state === 'legacy') {
+      assert.deepEqual(calls, []);
+      assert.match(status.textContent, state === 'legacy' ? /aviso antigo/ : /outra conta/);
+      continue;
+    }
     if (state === 'pending') assert.deepEqual(calls, ['starter']);
     else if (state === 'authorized') assert.deepEqual(calls, ['https://www.mercadopago.com.br/subscriptions/detail/test-id']);
     else {

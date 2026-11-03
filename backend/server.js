@@ -264,6 +264,23 @@ async function getBearerUser(req, res) {
   catch (_) { res.status(401).json({ ok: false, error: 'Token inválido.' }); return null; }
 }
 
+function subscriptionEmailProof(uid, email) {
+  if (!EMAIL_VERIFICATION_SECRET) throw new Error('Assinatura de links indisponível.');
+  return crypto.createHmac('sha256', EMAIL_VERIFICATION_SECRET)
+    .update(JSON.stringify(['subscription-email-v1', uid, String(email || '').trim().toLowerCase()]))
+    .digest('hex');
+}
+
+app.post('/api/assinatura/validar-aviso', async (req, res) => {
+  const user = await getBearerUser(req, res);
+  if (!user) return;
+  if (!EMAIL_VERIFICATION_SECRET) return res.sendStatus(503);
+  const proof = req.body?.proof;
+  if (!user.email_verified || !user.email || typeof proof !== 'string' || !/^[a-f0-9]{64}$/.test(proof) ||
+      !safeSecretEquals(proof, subscriptionEmailProof(user.uid, user.email))) return res.sendStatus(403);
+  return res.sendStatus(204);
+});
+
 function safeSecretEquals(value, expected) {
   var received = Buffer.from(String(value || ''), 'utf8');
   var configured = Buffer.from(String(expected || ''), 'utf8');
@@ -3354,7 +3371,7 @@ async function enviarLembretesDeAssinatura(hoje) {
         email_preheader: 'Aviso sobre sua assinatura do App Bud Finance.',
         email_body: mensagem,
         action_label: pendente ? 'Regularizar assinatura' : isTrial ? 'Escolher plano' : 'Gerenciar renovação',
-        action_url: FRONTEND_URL + '/?email_destino=assinatura'
+        action_url: FRONTEND_URL + '/?email_destino=assinatura&aviso=' + subscriptionEmailProof(userDoc.id, email)
       });
       await userDoc.ref.update({ ['emailAssinaturaAvisos.' + tipoAviso]: hojeKey });
       sent++;
