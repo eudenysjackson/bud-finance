@@ -358,3 +358,7 @@ Correção preparada em codex/email-cta. Os novos avisos passam pelo login com d
 ## Publicação dos avisos de assinatura
 PR 45 integrado em dfd76cfb1beed346806853cf94bb125925064d08, CI 41551466719 aprovado. A página pública respondeu HTTP 200 com a versão do novo fluxo e o ping confirmou a mesma revisão no Render. O provedor aceitou HTTP 200 para um único reenvio de teste autorizado. Recebimento e clique aguardam conferência do titular.
 Avisos de assinatura agora usam prova HMAC vinculada ao UID e e-mail verificado da pessoa destinatária. Link antigo sem prova não abre checkout. Conta diferente pode trocar de sessão no mesmo link. 155 testes locais passaram. Navegação entre telas fora do escopo.
+
+## Avisos de cancelamento pelo app — 03/11/2026
+
+PR #47 separa os destinatários após cancelamento confirmado no app. O assinante recebe a confirmação no e-mail verificado da conta com os contatos de suporte da Bud. A equipe recebe um aviso separado em budsolucoes@gmail.com. Falhas de envio são registradas separadamente, sem desfazer o cancelamento. Simulação confirmou os destinatários e o isolamento de falha. O titular informou que atualizou o e-mail da conta vendedora no Mercado Pago. A entrega real dos avisos da Bud e o contato exibido pelo Mercado Pago devem ser conferidos no próximo cancelamento legítimo. Nenhuma assinatura real ou e-mail de cliente foi usado para testar.
