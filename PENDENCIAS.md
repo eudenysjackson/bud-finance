@@ -631,3 +631,8 @@ Esta anotação encerra publicação e QA pendentes dos registros acima. Revisã
 
 ## Mobile, rotas limpas e categorias — 02/11/2026
 EM PUBLICAÇÃO: carregamento inicial, rotas sem.html, categorias centrais ordenadas e identificação de receitas/despesas/Pix.153 regressões e UI local375px aprovados. Conferência autenticada após deploy pendente. Revisão complementar de segurança permanece pendente.
+
+
+## Conferência publicada de mobile e categorias — 02/11/2026
+PR42 publicado em652e074a92adb3fb1cf83e12aacfb7cbfd57418f. CI41549174764 e Pages41549239091 aprovados.153 regressões aprovadas. Navegador autenticado confirmou Cartões.html→/cartoes e Extrato.html→/extrato preservando inicio/fim; perfil/data/mês e lançamentos carregados. Popup real em Cartões e Extrato ficou central, com busca e ordem alfabética; escolhaMercado aplicada só ao formulário e formulário cancelado sem salvar. Extrato mostrou rótulos de saída/estorno e sinal visual correto; zero erros de console nesta conferência. /mercado continua redirecionando a /dashboard?recurso_indisponivel=compras, preservando recurso futuro desativado. Nenhum lançamento ou saldo real modificado.
+Complemento da conferência: rótuloPix também deve considerar categoriaPix no Crédito em registros antigos que não mencionamPix na descrição. Ajustado e coberto por regressão; arquivo atualizado usa versão mobile2 para evitar cache antigo. Publicação do complemento em preparação na branch codex/qa-mobile-categorias-20261102. Não altera categoria, valor ou direção persistidos, apenas apresentação.

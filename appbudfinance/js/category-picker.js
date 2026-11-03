@@ -5,8 +5,8 @@
  function presentation(tx){
   const income=(tx.tipo==='receita'?1:-1)*Number(tx.valor||0)>=0;
   const refund=income&&(Number(tx.valor)<0||normalize(tx.categoria)==='estorno');
-  const pix=/\bpix\b/i.test([tx.formaPagamento,tx.metodoPagamento,tx.descricao].filter(Boolean).join(' '));
-  return {label:refund?'Estorno / devolução':tx.transferencia?'Transferência · '+(income?'entrada':'saída'):income?'Receita · entrada':'Despesa · saída',method:pix?(income?'Pix recebido':'Pix enviado'):(tx.formaPagamento||''),color:income?'#059669':'#dc2626',income};
+  const pix=/\bpix\b/i.test([tx.formaPagamento,tx.metodoPagamento,tx.descricao,tx.categoria].filter(Boolean).join(' '));
+  return {label:refund?'Estorno / devolução':tx.transferencia?'Transferência · '+(income?'entrada':'saída'):income?'Receita · entrada':'Despesa · saída',method:pix?(tx.cartaoId||/credito/.test(normalize(tx.formaPagamento))||/pix no credito/.test(normalize(tx.categoria))?'Pix no crédito':income?'Pix recebido':'Pix enviado'):(tx.formaPagamento||''),color:income?'#059669':'#dc2626',income};
  }
  window.BudCategoryUI={compare,presentation,openChoices(trigger,{items,selected,onSelect}){const dd=document.createElement('div');for(const item of items){const o=document.createElement('div');o.className='custom-select-option'+(item.nome===selected?' selected':'');o.dataset.value=item.nome;o.dataset.tipo=item.tipo||'';o.textContent=(item.emoji?item.emoji+' ':'')+item.nome;o.onclick=()=>onSelect(item.nome);dd.appendChild(o);}openPicker(trigger,dd);}};
  const selectors={'triggerCatGasto':'dropdownCatGasto','editCatBtn':'editCatDropdown','globalCatBtn':'globalCatDropdown','categoriaBtn':'categoriaDropdown'};
