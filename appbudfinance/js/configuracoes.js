@@ -994,7 +994,7 @@ function _renderizarSecaoPlano(plano, data) {
   const status = (data.assinaturaStatus || (data.assinatura && data.assinatura.status) || '').toLowerCase();
   if (elBanner) {
     if (status === 'pending') {
-      elBanner.textContent = data.mpCheckout?.state === 'pending' ? '⏳ Contratação pendente. Continue o checkout ou cancele antes de escolher outro plano.' : '⏳ Pagamento em análise — sua assinatura será ativada em breve.';
+      elBanner.textContent = data.mpCheckout?.state === 'pending' ? '⏳ Checkout iniciado. Seu plano atual continua ativo. Você pode retomar ou encerrar a tentativa.' : '⏳ Pagamento em análise — sua assinatura será ativada em breve.';
       elBanner.style.cssText = 'display:block;background:#fef9c3;border:1px solid #fde047;color:#854d0e;border-radius:0.75rem;padding:0.75rem 1rem;margin-top:0.875rem;font-size:0.8125rem;font-weight:600;';
     } else if (status === 'past_due') {
       const toleranciaAtiva = fimTolerancia && fimTolerancia > new Date();
@@ -1031,17 +1031,17 @@ function _renderizarSecaoPlano(plano, data) {
     return btn;
   }
 
-  function _btnCancelar() {
+  function _btnCancelar(pendente = false) {
     const btn = document.createElement('button');
-    btn.textContent = 'Cancelar assinatura';
+    btn.textContent = pendente ? 'Encerrar tentativa' : 'Cancelar assinatura';
     btn.style.cssText = 'padding:0.5rem 1rem;background:transparent;color:#dc2626;border:1.5px solid #fca5a5;border-radius:0.625rem;font-size:0.8125rem;font-weight:600;cursor:pointer;white-space:nowrap;margin-top:0.125rem;';
-    btn.onclick = _confirmarCancelamento;
+    btn.onclick = () => _confirmarCancelamento(pendente);
     return btn;
   }
 
   if (status === 'pending' && data.mpSubscriptionId && data.mpCheckout?.state === 'pending') {
     elBotoes.appendChild(_btnUpgrade('Continuar contratação', data.mpCheckout.planKey));
-    elBotoes.appendChild(_btnCancelar());
+    elBotoes.appendChild(_btnCancelar(true));
     return;
   }
   if (plano === 'free' || plano === 'trial') {
@@ -1145,7 +1145,7 @@ function _confirmarTrocaPlano(planKey, data) {
   document.body.appendChild(overlay);
 }
 
-async function _confirmarCancelamento() {
+async function _confirmarCancelamento(pendente = false) {
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(4px);z-index:300;display:flex;align-items:center;justify-content:center;padding:1rem;';
   ov.innerHTML =
@@ -1158,6 +1158,13 @@ async function _confirmarCancelamento() {
     + '<button id="_cfgCancelBtn" style="flex:1;padding:.625rem;background:var(--input-bg,#f1f5f9);color:var(--card-text,#1e293b);border:none;border-radius:.625rem;font-size:.875rem;font-weight:600;cursor:pointer;">Manter plano</button>'
     + '<button id="_cfgConfirmBtn" style="flex:1;padding:.625rem;background:#dc2626;color:#fff;border:none;border-radius:.625rem;font-size:.875rem;font-weight:700;cursor:pointer;">Sim, cancelar</button>'
     + '</div></div>';
+  if (pendente) {
+    ov.querySelector('h3').textContent = 'Encerrar tentativa de contratação?';
+    ov.querySelector('p').textContent = 'Use esta opção se você abandonou o checkout. Se já enviou o pagamento, aguarde a confirmação.';
+    ov.querySelector('p + div').remove();
+    ov.querySelector('#_cfgCancelBtn').textContent = 'Voltar';
+    ov.querySelector('#_cfgConfirmBtn').textContent = 'Encerrar tentativa';
+  }
   document.body.appendChild(ov);
 
   document.getElementById('_cfgCancelBtn').onclick = function () { ov.remove(); };
@@ -1175,7 +1182,7 @@ async function _confirmarCancelamento() {
       const json = await res.json();
       ov.remove();
       if (json.ok) {
-        if (window.budShowToast) window.budShowToast('Assinatura cancelada. Plano rebaixado para Gratuito.', 'success');
+        if (window.budShowToast) window.budShowToast(pendente ? 'Tentativa encerrada.' : 'Assinatura cancelada. Plano rebaixado para Gratuito.', 'success');
       } else {
         if (window.budShowToast) window.budShowToast('Erro: ' + (json.error || 'Tente novamente.'), 'error');
       }
