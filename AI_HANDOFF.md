@@ -365,3 +365,13 @@ PR #47 separa os destinatários após cancelamento confirmado no app. O assinant
 
 ## Perfil mobile e escolha de plano (03/11/2026)
 Sessões verificadas iniciam sem aguardar novo reload. Cancelamento confirmado atualiza pelo listener. Gratuito e Trial escolhem Starter, Pro ou Plus antes do checkout. Validar no celular após cancelamento legítimo.
+
+## Site institucional da Bud Soluções — 03/11/2026
+
+A branch codex/site-institucional-20261103, na cópia isolada .tools/site-institucional, contém a versão clara do site institucional. A base é o master 0128a91. O pedido substitui o rascunho escuro da raiz do workspace. As mudanças locais preexistentes e a candidata de cobrança em .tools/profile-plans-release foram preservadas.
+
+O institucional apresenta a agência na home e tem páginas estáticas próprias para Serviços, Sobre, Produtos, Bud Finance e Contato. A interface compartilha CSS e as cores do app. A página institucional do produto aponta para /budfinance/ e /budfinance/#pricing, login em /appbudfinance/, WhatsApp e e-mail de suporte. A página de vendas, o app e o fluxo de cobrança não foram alterados. O pacote do GitHub Pages inclui os diretórios institucionais, o CSS, robots.txt e sitemap.xml. Cada página institucional tem título, descrição e URL canônica próprios.
+
+Validação local. 155 regressões passaram. As seis páginas foram verificadas no Edge com 320, 390, 768 e 1440 px. Navegação, imagens, contatos, links internos e sitemap passaram. O pacote público contém 103 arquivos e o verificador confirmou que arquivos privados ficaram fora. Prévia aberta no navegador interno em http://127.0.0.1:13105/. Capturas locais em .tools/site-institucional-1440.png e .tools/site-institucional-390.png. O titular autorizou publicar após a validação do cabeçalho.
+
+Para retomar a missão de cobrança, consulte .tools/profile-plans-release/AI_HANDOFF.md. A mudança de site é independente da homologação da oferta de retorno e da expiração no Mercado Pago.

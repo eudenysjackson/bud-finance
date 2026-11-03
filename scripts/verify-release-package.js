@@ -6,7 +6,7 @@ function files(dir) { return fs.readdirSync(dir, { withFileTypes: true }).flatMa
 const publicFiles = files(stage).map(file => {
   const relative = path.relative(stage, file).replaceAll('\\', '/');
   assert.ok(!/(^|\/)(?:\.tools|\.env[^/]*|backend|node_modules|email-templates|test-results|tests|\.firebase)(\/|$)/i.test(relative), relative);
-  assert.ok(['index.html','logo.png','CNAME','.nojekyll'].includes(relative) || /^(appbudfinance|budfinance)\//.test(relative), relative);
+  assert.ok(['index.html','logo.png','CNAME','.nojekyll','robots.txt','sitemap.xml'].includes(relative) || /^(appbudfinance|budfinance|site-assets|servicos|sobre|produtos|contato)\//.test(relative), relative);
   if(relative !== '.nojekyll') assert.equal(digest(file), digest(path.join(root, relative)), relative);
   return { path: relative, sha256: digest(file), bytes: fs.statSync(file).size };
 }).sort((a,b) => a.path.localeCompare(b.path));
@@ -14,4 +14,3 @@ const backend = ['backend/server.js','backend/account-lifecycle.js','backend/sec
 const manifest = { createdAt: new Date().toISOString(), published: false, publicFiles, backend };
 fs.writeFileSync(path.join(root,'dist/release-manifest.json'), JSON.stringify(manifest,null,2)+'\n');
 console.log(JSON.stringify({ verified: true, publicFiles: publicFiles.length, publicBytes: publicFiles.reduce((sum,file)=>sum+file.bytes,0), backendFiles: backend.length, manifest: 'dist/release-manifest.json' }));
-
