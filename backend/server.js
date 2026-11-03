@@ -2994,7 +2994,7 @@ async function enviarConfirmacoesCancelamento(clienteEmail, plano) {
     action_label: 'Abrir painel administrativo',
     action_url: FRONTEND_URL + '/?email_destino=admin'
   }];
-  if (clienteEmail) avisos.push({
+  if (clienteEmail) avisos.unshift({
     to_email: clienteEmail,
     to_name: 'Cliente Bud Finance',
     email_subject: '[Bud Finance] Sua assinatura foi cancelada',
@@ -3004,12 +3004,17 @@ async function enviarConfirmacoesCancelamento(clienteEmail, plano) {
     action_url: whatsapp,
     reply_to: suporte
   });
-  const resultados = await Promise.allSettled(avisos.map(aviso => sendCommunicationEmail(aviso)));
-  resultados.forEach((resultado, indice) => {
-    if (resultado.status === 'rejected') {
-      console.error('[cancelamento] Falha no aviso para ' + (indice === 0 ? 'a equipe' : 'o cliente'));
+  for (const aviso of avisos) {
+    try {
+      await sendCommunicationEmail(aviso);
+    } catch {
+      console.error('[cancelamento] Falha no envio do aviso:', aviso.email_title);
     }
-  });
+    // O EmailJS aceita uma solicitação por segundo.
+    if (aviso === avisos[0] && avisos.length > 1) {
+      await new Promise(resolve => setTimeout(resolve, 1100));
+    }
+  }
 }
 
 app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req, res) {
