@@ -362,3 +362,6 @@ Avisos de assinatura agora usam prova HMAC vinculada ao UID e e-mail verificado 
 ## Avisos de cancelamento pelo app — 03/11/2026
 
 PR #47 separa os destinatários após cancelamento confirmado no app. O assinante recebe a confirmação no e-mail verificado da conta com os contatos de suporte da Bud. A equipe recebe um aviso separado em budsolucoes@gmail.com. Falhas de envio são registradas separadamente, sem desfazer o cancelamento. Simulação confirmou os destinatários e o isolamento de falha. O titular informou que atualizou o e-mail da conta vendedora no Mercado Pago. A entrega real dos avisos da Bud e o contato exibido pelo Mercado Pago devem ser conferidos no próximo cancelamento legítimo. Nenhuma assinatura real ou e-mail de cliente foi usado para testar.
+
+## Perfil mobile e escolha de plano (03/11/2026)
+Sessões verificadas iniciam sem aguardar novo reload. Cancelamento confirmado atualiza pelo listener. Gratuito e Trial escolhem Starter, Pro ou Plus antes do checkout. Validar no celular após cancelamento legítimo.
