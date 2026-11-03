@@ -2981,6 +2981,37 @@ app.post('/mercadopago/local-test-payment', express.json(), async function (req,
   return res.json({ ok: true, status: status, planKey: planKey });
 });
 
+async function enviarConfirmacoesCancelamento(clienteEmail, plano) {
+  const suporte = 'budsolucoes@gmail.com';
+  const whatsapp = 'https://wa.me/5521983554954';
+  const nomePlano = MP_PLANS[plano]?.title || 'Bud Finance';
+  const avisos = [{
+    to_email: suporte,
+    to_name: 'Equipe Bud Soluções',
+    email_subject: '[Bud Finance] Cancelamento de assinatura',
+    email_title: 'Assinatura cancelada',
+    email_body: 'Plano: ' + nomePlano + '\nConta: ' + (clienteEmail || 'e-mail indisponível'),
+    action_label: 'Abrir painel administrativo',
+    action_url: FRONTEND_URL + '/?email_destino=admin'
+  }];
+  if (clienteEmail) avisos.push({
+    to_email: clienteEmail,
+    to_name: 'Cliente Bud Finance',
+    email_subject: '[Bud Finance] Sua assinatura foi cancelada',
+    email_title: 'Cancelamento confirmado',
+    email_body: 'Sua assinatura ' + nomePlano + ' foi cancelada. Para falar com o suporte da Bud, escreva para ' + suporte + ' ou use o botão de WhatsApp abaixo.',
+    action_label: 'Falar com o suporte pelo WhatsApp',
+    action_url: whatsapp,
+    reply_to: suporte
+  });
+  const resultados = await Promise.allSettled(avisos.map(aviso => sendCommunicationEmail(aviso)));
+  resultados.forEach((resultado, indice) => {
+    if (resultado.status === 'rejected') {
+      console.error('[cancelamento] Falha no aviso para ' + (indice === 0 ? 'a equipe' : 'o cliente'));
+    }
+  });
+}
+
 app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req, res) {
   if (!auth || !db) return res.status(503).json({ error: 'Firebase nÃ£o inicializado.' });
 
@@ -3035,6 +3066,9 @@ app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req
       canceladoEm:       admin.firestore.FieldValue.serverTimestamp()
     });
 
+    if (process.env.BUD_USE_EMULATOR !== 'true') {
+      await enviarConfirmacoesCancelamento(decoded.email_verified ? decoded.email : null, userData.plano);
+    }
     console.log('[cancelar-assinatura] Assinatura cancelada:', uid, subId);
     return res.json({ ok: true });
   } catch (e) {
