@@ -1814,7 +1814,7 @@ app.post('/api/chamado', async function (req, res) {
       email_preheader: 'Mensagem enviada pelo aplicativo Bud Finance.',
       email_body: 'Enviado por ' + nomeUsuario + ' (' + (decoded.email || 'e-mail não informado') + ').\n\n' + descricao,
       action_label: 'Abrir painel administrativo',
-      action_url: FRONTEND_URL + '/admin.html'
+      action_url: FRONTEND_URL + '/?email_destino=admin'
     }).catch(function () { /* ignora falha de email */ });
 
     return res.json({ success: true });
@@ -2009,7 +2009,7 @@ app.post('/api/alerta-financeiro', async function (req, res) {
       email_preheader: 'Encontramos pontos de atenção nas suas finanças.',
       email_body: 'O Bud identificou estes pontos de atenção:\n\n' + alertasTexto + '\n\nAbra o app para ver os detalhes.',
       action_label: 'Ver meus alertas',
-      action_url: FRONTEND_URL + '/assistente-ia.html'
+      action_url: FRONTEND_URL + '/?email_destino=insights'
     }).catch(function () { /* ignora falha */ });
   }
 
@@ -3353,8 +3353,8 @@ async function enviarLembretesDeAssinatura(hoje) {
         email_title: titulo,
         email_preheader: 'Aviso sobre sua assinatura do App Bud Finance.',
         email_body: mensagem,
-        action_label: pendente ? 'Regularizar assinatura' : 'Ver planos',
-        action_url: FRONTEND_URL + '/configuracoes.html'
+        action_label: pendente ? 'Regularizar assinatura' : isTrial ? 'Escolher plano' : 'Gerenciar renovação',
+        action_url: FRONTEND_URL + '/?email_destino=assinatura'
       });
       await userDoc.ref.update({ ['emailAssinaturaAvisos.' + tipoAviso]: hojeKey });
       sent++;

@@ -6,7 +6,7 @@ import { initializeApp, getApps }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signInWithCustomToken, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, collection, query, where, getDocs }
+import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, getDocFromServer, collection, query, where, getDocs }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { connectEmulators } from "./bud-emulator-connect.js";
 
@@ -24,6 +24,10 @@ let _magicLoginInProgress = false;
 onAuthStateChanged(auth, async function (user) {
   if (_loginInProgress || _magicLoginInProgress || !user) return;
   const params=new URLSearchParams(window.location.search),plan=(params.get('checkout')||'').toLowerCase();
+  if (params.has('email_destino') && user.emailVerified) {
+    _loginInProgress = true;
+    if (await continuarEmail(user, params)) return;
+  }
   if(['starter','pro','plus'].includes(plan)){
     _loginInProgress=true;
     if(window.BUD_USE_EMULATOR){abrirCheckoutTesteLocal(user,plan);return;}
@@ -346,6 +350,9 @@ formLogin.addEventListener('submit', async function (e) {
       return;
     }
 
+    if (new URLSearchParams(location.search).has('email_destino') &&
+        await continuarEmail(user, new URLSearchParams(location.search))) return;
+
     // 8b. Auto-checkout: vindo de cadastro.html com ?checkout=plano
     var _checkoutParams = new URLSearchParams(window.location.search);
     var _checkoutPlano  = (_checkoutParams.get('checkout') || '').toLowerCase().trim();
@@ -442,3 +449,61 @@ if (['pendente','concluida'].includes(deletionResult)) {
  const form=document.querySelector('form');if(form)form.before(notice);else document.body.prepend(notice);
 }
 
+
+async function continuarEmail(user, params) {
+  const destino = params.get('email_destino');
+  if (destino === 'admin' || destino === 'insights') {
+    location.assign(destino);
+    return true;
+  }
+  if (destino !== 'assinatura') return false;
+
+  const dialog = document.createElement('dialog');
+  dialog.style.cssText = 'width:min(90%,420px);padding:24px;border:1px solid #e2e8f0;border-radius:20px;background:white;color:#1e293b';
+  dialog.innerHTML = '<h2>Assinatura Bud Finance</h2><p role="status">Consultando sua assinatura…</p><div data-plans></div><p><a href="dashboard">Voltar ao app</a></p>';
+  dialog.setAttribute('aria-label', 'Assinatura Bud Finance');
+  dialog.addEventListener('cancel', event => { event.preventDefault(); location.assign('dashboard'); });
+  document.body.append(dialog);
+  dialog.showModal();
+  const status = dialog.querySelector('[role=status]');
+  try {
+    const snap = await getDocFromServer(doc(db, 'usuarios', user.uid));
+    if (!snap.exists() || auth.currentUser?.uid !== user.uid) throw new Error('Não foi possível confirmar sua conta.');
+    const profile = snap.data();
+    const linked = profile.mpSubscriptionId && !['cancelled', 'canceled'].includes(profile.assinaturaStatus);
+    const checkout = profile.mpCheckout;
+    if (linked && profile.assinaturaStatus === 'pending' && checkout?.subscriptionId === profile.mpSubscriptionId) {
+      await openAuthenticatedCheckout(user, checkout.planKey);
+      return true;
+    }
+    if (linked) {
+      if (!/^[a-zA-Z0-9_-]+$/.test(profile.mpSubscriptionId)) throw new Error('Identificador de assinatura inválido.');
+      location.assign('https://www.mercadopago.com.br/subscriptions/detail/' + profile.mpSubscriptionId);
+      return true;
+    }
+    status.textContent = 'Escolha um plano para continuar ao Mercado Pago.';
+    const plans = dialog.querySelector('[data-plans]');
+    plans.style.cssText = 'display:grid;gap:8px';
+    for (const [key, label] of [['starter', 'Starter · R$ 9,99/mês'], ['pro', 'Pro · R$ 29,90/mês'], ['plus', 'Plus · R$ 49,90/mês']]) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      button.style.cssText = 'padding:12px;background:#2563eb;color:white;border:0;border-radius:10px';
+      button.onclick = async () => {
+        for (const option of plans.children) option.disabled = true;
+        status.textContent = 'Abrindo o checkout…';
+        try {
+          if (auth.currentUser?.uid !== user.uid) throw new Error('Entre novamente para continuar.');
+          await openAuthenticatedCheckout(user, key);
+        } catch (error) {
+          status.textContent = error.message;
+          for (const option of plans.children) option.disabled = false;
+        }
+      };
+      plans.append(button);
+    }
+  } catch (error) {
+    status.textContent = error.message || 'Não foi possível consultar sua assinatura.';
+  }
+  return true;
+}
