@@ -354,3 +354,7 @@ RESOLVIDO E PUBLICADO: PR42 652e074a92adb3fb1cf83e12aacfb7cbfd57418f (CI41549174
 
 ## Botões dos e-mails de assinatura
 Correção preparada em codex/email-cta. Os novos avisos passam pelo login com destino permitido e retomam o fluxo após autenticação. Sem assinatura vinculada, o usuário escolhe o plano e abre o checkout existente. Checkout pendente é retomado pelo backend. Assinatura vinculada abre seus detalhes no Mercado Pago para gerenciar cobrança e evitar duplicidade. Alertas financeiros agora levam a Insights e avisos de suporte retomam o painel administrativo após login. Links de e-mails já entregues conservam o destino original. Testes locais sem envios e sem cobranças. Publicação pendente de autorização para esta entrega.
+
+## Publicação dos avisos de assinatura
+PR 45 integrado em dfd76cfb1beed346806853cf94bb125925064d08, CI 41551466719 aprovado. A página pública respondeu HTTP 200 com a versão do novo fluxo e o ping confirmou a mesma revisão no Render. O provedor aceitou HTTP 200 para um único reenvio de teste autorizado. Recebimento e clique aguardam conferência do titular.
+Avisos de assinatura agora usam prova HMAC vinculada ao UID e e-mail verificado da pessoa destinatária. Link antigo sem prova não abre checkout. Conta diferente pode trocar de sessão no mesmo link. 155 testes locais passaram. Navegação entre telas fora do escopo.

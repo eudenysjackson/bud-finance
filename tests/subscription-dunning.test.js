@@ -27,7 +27,7 @@ test('subscription reminder emails send once at each configured milestone',async
  const begin=server.indexOf('async function enviarLembretesDeAssinatura('),end=server.indexOf('async function cancelarAssinaturasForaDaTolerancia(');
  const code=server.slice(begin,end);
  const context={db,EMAILJS_TEMPLATE_COMUNICACAO:'template',EMAILJS_PUBLIC_KEY:'public',EMAILJS_SERVICE_ID:'service',FRONTEND_URL:'https://budsolucoes.com.br/appbudfinance',
-  _toDate:toDate,_dateKeyBR:keyBR,_formatDateBR:formatBR,subscriptionDunningStage,sendCommunicationEmail:async params=>sent.push(params),sanitizeStr:value=>value,console:{error(...args){process.stderr.write(args.map(String).join(' ')+'\n');}}};
+  _toDate:toDate,_dateKeyBR:keyBR,_formatDateBR:formatBR,subscriptionDunningStage,subscriptionEmailProof: (uid,email) => { assert.equal(uid,"owner"); assert.equal(email,"qa@example.test"); return "proof"; },sendCommunicationEmail:async params=>sent.push(params),sanitizeStr:value=>value,console:{error(...args){process.stderr.write(args.map(String).join(' ')+'\n');}}};
  vm.runInNewContext(code,context);
  for(const day of [0,3,7,10]){
   const now=new Date(start.getTime()+day*86400000);
@@ -36,6 +36,7 @@ test('subscription reminder emails send once at each configured milestone',async
   assert.equal((await context.enviarLembretesDeAssinatura(now)).sent,0,'same milestone must not resend');
  }
  assert.equal(sent.length,4);
+ assert.equal(new URL(sent[0].action_url).searchParams.get("aviso"), "proof");
  assert.deepEqual(sent.map(mail=>mail.action_label),Array(4).fill('Regularizar assinatura'));
  assert.match(sent[0].email_body,/tolerância de 10 dias/);
  assert.match(sent[3].email_body,/retornará ao plano Gratuito/);
@@ -81,3 +82,30 @@ test('after grace, a still-rejected same subscription is cancelled and downgrade
  assert.deepEqual(s.calls.map(call=>call.method),['GET','GET','GET','PUT','GET']);
 });
 
+
+test('subscription notice proof requires the original UID and verified recipient email', async () => {
+  const crypto = require('node:crypto');
+  const code = server.slice(server.indexOf('function subscriptionEmailProof('), server.indexOf('function safeSecretEquals('));
+  let route;
+  let user = { uid: 'recipient', email: 'recipient@example.test', email_verified: true };
+  const context = { crypto, EMAIL_VERIFICATION_SECRET: 'test-only',
+    app: {post: (_, handler) => { route = handler; }},
+    getBearerUser: async () => user,
+    safeSecretEquals: (a,b) => a === b };
+  vm.runInNewContext(code, context);
+  const proof = context.subscriptionEmailProof(user.uid, user.email);
+  const validate = async () => {
+    let code;
+    await route({body:{proof}}, {sendStatus: status => { code = status; }});
+    return code;
+  };
+  assert.equal(await validate(), 204);
+  user.uid = 'other';
+  assert.equal(await validate(), 403);
+  user.uid = 'recipient';
+  user.email = 'changed@example.test';
+  assert.equal(await validate(), 403);
+  user.email = 'recipient@example.test';
+  user.email_verified = false;
+  assert.equal(await validate(), 403);
+});
