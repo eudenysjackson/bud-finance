@@ -1044,10 +1044,7 @@ function _renderizarSecaoPlano(plano, data) {
     elBotoes.appendChild(_btnCancelar());
     return;
   }
-  if (plano === 'free') {
-    elBotoes.appendChild(_btnUpgrade('🚀 Fazer Upgrade', 'pro'));
-  } else if (plano === 'trial') {
-    // PEND-085: trial → 3 opções de plano
+  if (plano === 'free' || plano === 'trial') {
     const title = document.createElement('div');
     title.style.cssText = 'font-size:0.75rem;font-weight:700;color:var(--card-text-sec);margin-bottom:0.375rem;width:100%;';
     title.textContent = 'Escolha seu plano:';
@@ -1179,7 +1176,6 @@ async function _confirmarCancelamento() {
       ov.remove();
       if (json.ok) {
         if (window.budShowToast) window.budShowToast('Assinatura cancelada. Plano rebaixado para Gratuito.', 'success');
-        setTimeout(function () { location.reload(); }, 1500);
       } else {
         if (window.budShowToast) window.budShowToast('Erro: ' + (json.error || 'Tente novamente.'), 'error');
       }
@@ -1374,7 +1370,7 @@ setupTabs();
 
 onAuthStateChanged(auth, async function (user) {
   planUnsubscribe?.(); planUnsubscribe = null;
-  if (user) {
+  if (user && !user.emailVerified) {
     try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
   }
   if (!user || !user.emailVerified) {

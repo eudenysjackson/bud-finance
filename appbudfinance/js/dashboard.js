@@ -2905,7 +2905,7 @@ function cleanupListeners() {
 onAuthStateChanged(auth, async function (user) {
   // Atualiza o estado do Auth antes de validar: a confirmação de e-mail pode
   // ter ocorrido em outra aba ou acabado de ser concluída pelo código.
-  if (user) {
+  if (user && !user.emailVerified) {
     try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
   }
   if (!user || !user.emailVerified) {
