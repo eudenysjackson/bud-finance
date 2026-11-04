@@ -7,7 +7,7 @@ import {
   getFirestore, initializeFirestore, persistentLocalCache,
   doc, getDoc, getDocs, collection, query, where, orderBy, limit, onSnapshot,
   addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, increment, runTransaction
-} from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+} from './financial-firestore.js';
 import { getMessaging, getToken, onMessage, deleteToken } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js';
 import { registerPushToken, listenForeground, showForegroundNotification } from './push.js?v=20261102-consent';
 import { connectEmulators } from './bud-emulator-connect.js';
@@ -2995,7 +2995,8 @@ onAuthStateChanged(auth, async function (user) {
     }
 
     // ── Guardar plano para bloqueio no modal ────────────────────────
-    planoAtual = userData.plano || 'free';
+    planoAtual = window.BudPlanos.resolvePlan(userData).effectivePlan;
+    trialExpirado = false;
     if (planoAtual === 'trial' && userData.trialFim) {
       var fimDate = userData.trialFim.toDate ? userData.trialFim.toDate() : new Date(userData.trialFim);
       trialExpirado = fimDate < new Date();

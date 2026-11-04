@@ -11,7 +11,7 @@ import {
   getFirestore, initializeFirestore, persistentLocalCache,
   collection, query, orderBy, limit, onSnapshot,
   addDoc, updateDoc, deleteDoc, getDocs, getDoc, where, doc, writeBatch, serverTimestamp, Timestamp
-} from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+} from './financial-firestore.js';
 import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
@@ -102,7 +102,8 @@ let unsubs = [];
       try {
         const _ud = await getDoc(doc(db, 'usuarios', uid));
         const _udData = _ud.data() || {};
-        window._cartoesUserPlano = _udData.plano || null;
+        window._cartoesUserData = _udData;
+        window._cartoesUserPlano = window.BudPlanos.resolvePlan(_udData).effectivePlan;
         window._cartoesUserPhotoURL = _udData.photoURL || null;
         window._cartoesUserNome = _udData.nome || null;
       } catch (_) { window._cartoesUserPlano = null; }
@@ -385,7 +386,13 @@ function renderizarCartoes() {
     ? dadosCartoes.filter(d => d.cartao.id === _filtroCartaoId)
     : dadosCartoes;
   exibidos.forEach(({ cartao, fatura, status, limite, reservado, dispPct, gastos }, idx) => {
-    grid.appendChild(buildCartaoEl(cartao, fatura, status, limite, reservado, dispPct, gastos, mesKey, idx));
+    const cardEl = buildCartaoEl(cartao, fatura, status, limite, reservado, dispPct, gastos, mesKey, idx);
+    const allowed = window.BudPlanos.activeResourceIds(cartoesGlobal, window._cartoesUserData || {}, 'credito');
+    if (!allowed.has(cartao.id)) {
+      cardEl.querySelectorAll('button,input').forEach(el => { el.disabled = true; });
+      const note = document.createElement('p'); note.textContent = '🔒 Cartão bloqueado pelo limite do plano. Os dados foram preservados.'; note.style.cssText='padding:12px;color:#64748b'; cardEl.prepend(note);
+    }
+    grid.appendChild(cardEl);
   });
 
   // Badge de mês histórico (G)
@@ -873,7 +880,7 @@ async function handleSubmitCartao(e) {
 
     // Verificar limite de plano
     if (!cartaoEditandoId && window.BudPlanos) {
-      const perfilPlano = window._cartoesUserPlano || null;
+      const perfilPlano = window._cartoesUserData || {};
       const limiteCartoes = window.BudPlanos.getCardsLimit?.(perfilPlano);
       if (Number.isFinite(limiteCartoes) && cartoesGlobal.length >= limiteCartoes) {
         showToast(`Limite de ${limiteCartoes} cartão(ões) atingido no plano atual.`, 'erro');
@@ -1052,9 +1059,10 @@ async function handleSubmitGasto(e) {
       dataCriacao: serverTimestamp(),
     };
 
+    const expenseBatch = writeBatch(db);
     if (nParcelas === 1) {
       const [_sy, _sm, _sd] = dataRef.split('-').map(Number);
-      await addDoc(collection(db, 'usuarios', uid, 'transacoes'), {
+      expenseBatch.set(doc(collection(db, 'usuarios', uid, 'transacoes')), {
         ...baseData,
         valor,
         dataReferencia: dataRef,
@@ -1070,7 +1078,7 @@ async function handleSubmitGasto(e) {
         // Ajuste de centavos na primeira parcela
         const valorParc = i === 0 ? parseFloat((valor - valorParcela * (nParcelas - 1)).toFixed(2)) : valorParcela;
 
-        await addDoc(collection(db, 'usuarios', uid, 'transacoes'), {
+        expenseBatch.set(doc(collection(db, 'usuarios', uid, 'transacoes')), {
           ...baseData,
           valor: valorParc,
           dataReferencia: dataParc,
@@ -1082,6 +1090,8 @@ async function handleSubmitGasto(e) {
         });
       }
     }
+
+    await expenseBatch.commit();
 
     showToast(nParcelas > 1 ? `${nParcelas} parcelas registradas!` : 'Gasto registrado!', 'ok');
     fecharModalGasto();
@@ -1793,6 +1803,10 @@ function _renderConfiabilidadeBadge() {
 }
 
 function abrirModalImportIA(cartaoId, manterArquivo = false) {
+  if (window.BudPlanos.getMonthlyImportLimit(window._cartoesUserData || {}) === 0) {
+    showToast('Importações disponíveis no Pro e Plus. Escolha seu plano em Configurações → Dados.', 'erro');
+    return;
+  }
   if (window.budFeatureEnabled && !window.budFeatureEnabled('importacao_ia')) {
     if (window.budShowToast) window.budShowToast('Importação por IA indisponível.', 'warning');
     return;
@@ -2692,6 +2706,7 @@ async function salvarTransacoesIA() {
       }
     }
 
+    const importacaoId = crypto.randomUUID();
     for (let ci = 0; ci < itensExpandidos.length; ci += CHUNK) {
       const chunk = itensExpandidos.slice(ci, ci + CHUNK);
       const batch = writeBatch(db);
@@ -2708,7 +2723,7 @@ async function salvarTransacoesIA() {
           data: Timestamp.fromDate(new Date(_iy, _im - 1, _id, 12, 0, 0)),
           formaPagamento: 'Crédito',
           pagamentoFatura: false,
-          origem: 'importacao_ia',
+          origem: 'importacao_ia', importacaoId,
           status: item.status || 'ativa',
           dataCriacao: serverTimestamp(),
         };

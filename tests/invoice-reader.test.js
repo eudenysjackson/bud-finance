@@ -58,7 +58,7 @@ test('purchases remain active; explicit refunds reduce the persisted invoice', a
   const source=fs.readFileSync('appbudfinance/js/cartoes.js','utf8');
   const extract=start=>{const i=source.indexOf(start);return source.slice(i,source.indexOf('\nfunction ',i+start.length));};
   const saved=[];
-  const ctx={window:{BudInvoiceRefunds:refunds},_importMetaIA:{signedAmounts:true,totalAPagar:40},detectarCategoriaIA:()=> 'Outros',
+  const ctx={crypto:require('node:crypto'),window:{BudInvoiceRefunds:refunds},_importMetaIA:{signedAmounts:true,totalAPagar:40},detectarCategoriaIA:()=> 'Outros',
     document:{getElementById:id=>id==='iaMes'?{value:'11'}:id==='iaAno'?{value:'2026'}:{}},uid:'test',cartaoImportIA:'card',db:{},
     collection:()=>({}),doc:()=>({}),writeBatch:()=>({set:(ref,data)=>saved.push(data),commit:async()=>{}}),
     budSanitize:x=>x,Timestamp:{fromDate:d=>d},serverTimestamp:()=>null,showToast:()=>{},fecharModalReviewIA:()=>{},

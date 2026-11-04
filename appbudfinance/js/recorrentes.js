@@ -19,7 +19,7 @@ import {
   collection, query, orderBy, limit,
   onSnapshot, doc, getDoc, addDoc, updateDoc, deleteDoc,
   serverTimestamp, Timestamp
-} from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+} from './financial-firestore.js';
 import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Firebase ──────────────────────────────────────────────────────────────
@@ -794,7 +794,7 @@ onAuthStateChanged(auth, async (user) => {
   if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(userData.photoURL || null, userData.nome || user.displayName || '');
 
   // feature gate: verificar plano
-  const plano = (userData.plano || 'free').toLowerCase();
+  const plano = window.BudPlanos.resolvePlan(userData).effectivePlan;
   const temAcesso = PLANOS_PERMITIDOS.includes(plano);
 
   const btnNova     = document.getElementById('btnNovaRec');

@@ -61,11 +61,11 @@
   // Fonte única dos limites de planos no navegador. A aplicação de cotas
   // acontece também no backend, portanto o cliente não é fonte de autoridade.
   var PLAN_LIMITS = {
-    free: { cards: 1, accounts: 1, transactions: 30, imports: 0 },
-    starter: { cards: 2, accounts: 3, transactions: 100, imports: 3 },
-    pro: { cards: 5, accounts: 5, transactions: 200, imports: 10 },
+    free: { cards: 1, accounts: 1, transactions: 5, imports: 0 },
+    starter: { cards: 1, accounts: 1, transactions: 10, imports: 0 },
+    pro: { cards: 2, accounts: 2, transactions: 15, imports: 5 },
     plus: { cards: Infinity, accounts: Infinity, transactions: Infinity, imports: Infinity },
-    trial: { cards: 5, accounts: 5, transactions: 200, imports: 10 }
+    trial: { cards: Infinity, accounts: Infinity, transactions: Infinity, imports: Infinity }
   };
   var PAID_FEATURES = {
     advancedDashboard: true, monthlyComparative: true,
@@ -76,7 +76,7 @@
     var data = userData || {};
     var plan = String(data.plano || window.BUD_USER_PLAN || 'free').toLowerCase();
     if (!PLAN_LIMITS[plan]) plan = 'free';
-    var rawExpiry = data.planoExpira || data.planoExpiracao || data.trialFim;
+    var rawExpiry = plan === 'trial' ? data.trialFim : data.planoExpira || data.planoExpiracao || data.assinaturaExpira;
     var expiry = rawExpiry && typeof rawExpiry.toDate === 'function' ? rawExpiry.toDate().getTime() : new Date(rawExpiry || 0).getTime();
     var pendingSince = data.pagamentoPendenteDesde && typeof data.pagamentoPendenteDesde.toDate === 'function'
       ? data.pagamentoPendenteDesde.toDate().getTime() : new Date(data.pagamentoPendenteDesde || 0).getTime();
@@ -84,13 +84,23 @@
       var graceEnd = pendingSince + 10 * 86400000;
       if (!Number.isFinite(expiry) || graceEnd > expiry) expiry = graceEnd;
     }
-    var expired = Number.isFinite(expiry) && expiry > 0 && expiry < Date.now();
+    var expired = (plan === 'trial' && !(expiry > Date.now())) || (Number.isFinite(expiry) && expiry > 0 && expiry <= Date.now());
     return { effectivePlan: expired ? 'free' : plan, shouldDowngrade: expired && plan !== 'free' };
   }
   window.BudPlanos = {
+    activeResourceIds: function (items, userData, type) {
+      var cap = PLAN_LIMITS[resolveBudPlan(userData).effectivePlan][type === 'credito' ? 'cards' : 'accounts'];
+      var time = function (item) { return item.criadaEm?.toMillis?.() || item.dataCriacao?.toMillis?.() || 0; };
+      return new Set(items.filter(function (item) { return (item.tipo === 'credito') === (type === 'credito'); })
+        .sort(function (a,b) { return time(a)-time(b) || a.id.localeCompare(b.id); }).slice(0,cap).map(function (item) { return item.id; }));
+    },
     resolvePlan: resolveBudPlan,
     shouldDowngrade: function (userData) { return resolveBudPlan(userData).shouldDowngrade; },
-    canUseFeature: function (userData, feature) { return !PAID_FEATURES[feature] || resolveBudPlan(userData).effectivePlan !== 'free'; },
+    canUseFeature: function (userData, feature) {
+      var plan = resolveBudPlan(userData).effectivePlan;
+      if (feature === 'customCategories') return plan !== 'free';
+      return !PAID_FEATURES[feature] || ['pro','plus','trial'].includes(plan);
+    },
     getCardsLimit: function (userData) { return PLAN_LIMITS[resolveBudPlan(userData).effectivePlan].cards; },
     getAccountsLimit: function (userData) { return PLAN_LIMITS[resolveBudPlan(userData).effectivePlan].accounts; },
     getMonthlyTransactionLimit: function (userData) { return PLAN_LIMITS[resolveBudPlan(userData).effectivePlan].transactions; },
@@ -110,7 +120,10 @@
     if (!window.budFeatureEnabled(key)) return false;
     var rule = window.BUD_FEATURE_RULES[key];
     var plans = rule && Array.isArray(rule.planos) ? rule.planos.map(function (p) { return String(p).toLowerCase(); }) : [];
-    return !plans.length || plans.indexOf(String(plan || window.BUD_USER_PLAN || 'free').toLowerCase()) !== -1;
+    if (['plus','trial'].includes(String(plan || window.BUD_USER_PLAN))) return true;
+    if (key === 'cartoes_credito') return true;
+    if (key === 'importacao_ia') return String(plan || window.BUD_USER_PLAN) === 'pro';
+    return !plans.length || plans.indexOf(String(plan || window.BUD_USER_PLAN || 'free').toLowerCase()) !== -1 || (String(plan || window.BUD_USER_PLAN).toLowerCase() === 'trial' && plans.includes('plus'));
   };
 
   function applyFeatureFlags() {
@@ -201,7 +214,26 @@
             if (user) {
               try {
                 var userSnap = await fs.getDoc(fs.doc(fs.getFirestore(app), 'usuarios', user.uid));
-                window.BUD_USER_PLAN = userSnap.exists() ? String(userSnap.data().plano || 'free').toLowerCase() : 'free';
+                var applyProfilePlan = function (snap) {
+                  var data = snap.exists() ? snap.data() : {};
+                  window.BUD_USER_PLAN = resolveBudPlan(data).effectivePlan;
+                  window.BUD_USER_PROFILE = data;
+                  var page = (window.BUD_PAGE_FILE || location.pathname.split('/').pop()).replace('.html','');
+                  var premium = ['metas','dividas','investimentos','recorrentes','relatorios','comparativo','balanco-mensal','insights','graficos'];
+                  var blocked = premium.includes(page) && !['pro','plus','trial'].includes(window.BUD_USER_PLAN);
+                  if (page === 'limites' && window.BUD_USER_PLAN === 'free') blocked = true;
+                  document.getElementById('bud-plan-access')?.remove();
+                  if (blocked) {
+                    var overlay = document.createElement('div'); overlay.id = 'bud-plan-access'; overlay.setAttribute('role','dialog'); overlay.setAttribute('aria-modal','true');
+                    overlay.style.cssText = 'position:fixed;inset:0;z-index:99998;background:var(--bg-primary,#f0f5fa);display:grid;place-items:center;padding:24px';
+                    overlay.innerHTML = '<section style="max-width:440px;padding:32px;border:1px solid #dbeafe;border-radius:24px;background:var(--card-bg,#fff);text-align:center"><h2>🔒 Recurso do plano pago</h2><p>Seus dados continuam guardados. Escolha um plano compatível para voltar a usar este recurso.</p><a href="configuracoes?aba=dados" style="display:inline-block;background:#2563eb;color:white;padding:14px 20px;border-radius:12px">Conhecer os planos</a><p><a href="dashboard">Voltar ao início</a></p></section>';
+                    document.body.appendChild(overlay);
+                  }
+                };
+                applyProfilePlan(userSnap);
+                fs.onSnapshot(fs.doc(fs.getFirestore(app),'usuarios',user.uid), applyProfilePlan);
+                // Expiry also applies while the page remains open.
+                setInterval(function () { applyProfilePlan({exists:()=>true,data:()=>window.BUD_USER_PROFILE || {}}); }, 30000);
               } catch (_) { window.BUD_USER_PLAN = 'free'; }
             }
             var firstSnapshot = true;

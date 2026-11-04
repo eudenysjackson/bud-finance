@@ -21,7 +21,7 @@ function createAccountLifecycle({authenticate,auth,db,fieldValue,emulator=false,
    try{await auth.updateUser(uid,{disabled:true});await auth.revokeRefreshTokens(uid);}catch(e){if(e.code!=='auth/user-not-found')throw e;}
    await purge(uid);
    try{await auth.deleteUser(uid);}catch(e){if(e.code!=='auth/user-not-found')throw e;}
-   if(time>=task.expiresAt){await ref.delete();return;}
+   if(time>=task.expiresAt){await db.collection('_session_revocations').doc(uid).delete();await ref.delete();return;}
    await ref.update({status:'draining',leaseUntil:0,nextRunAt:time<task.settleAt?task.settleAt:task.expiresAt});
   }catch(e){await ref.update({status:'pending',leaseUntil:0,nextRunAt:now()+60_000});throw e;}
  }

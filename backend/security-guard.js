@@ -3,12 +3,14 @@ function createSecurityGuard({auth,db,secret,now=Date.now,maxRequests=300}){
  return async(req,res,next)=>{
   if(req.path==='/api/ping')return next();
   if(!req.path.startsWith('/api/')&&!req.path.startsWith('/mercadopago/')&&!['/reset-senha','/admin-register'].includes(req.path))return next();
-  if(!auth||!db)return next();
+  if(!auth||!db)return res.status(503).json({error:'Proteção temporariamente indisponível.'});
   try{
    const header=String(req.headers.authorization||'');
    if(header.startsWith('Bearer ')){
     const user=await auth.verifyIdToken(header.slice(7),true);
     if((await db.collection('_account_deletions').doc(user.uid).get()).exists)return res.status(403).json({error:'Conta em encerramento.'});
+    const revocation=await db.collection('_session_revocations').doc(user.uid).get();
+    if(revocation.exists && Number(user.auth_time||0)<=revocation.data().revokedAt)return res.status(401).json({error:'Sessão encerrada. Entre novamente.'});
     req.budUser=user;
    }
   }catch(_){return res.status(401).json({error:'Sessão inválida. Entre novamente.'});}

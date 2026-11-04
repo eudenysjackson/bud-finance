@@ -39,4 +39,5 @@ repomix-output*.xml
 
 # Private local audit output, login metadata and emulator overrides
 *.local.*
+*.budbackup
 

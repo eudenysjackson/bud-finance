@@ -7,7 +7,7 @@ import { initializeApp, getApps }                from 'https://www.gstatic.com/f
 import { getAuth, onAuthStateChanged, signOut, updateProfile }
                                         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import { getFirestore, initializeFirestore, persistentLocalCache, onSnapshot, doc, getDoc, getDocs, updateDoc, deleteDoc, deleteField, setDoc, collection, query, orderBy, writeBatch }
-                                        from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+                                        from './financial-firestore.js';
 import { registerPushToken, listenForeground, revokePushToken, showForegroundNotification } from './push.js?v=20261102-consent';
 import { connectEmulators } from './bud-emulator-connect.js';
 
@@ -123,6 +123,9 @@ function setupTabs() {
       });
     });
   });
+  if (new URLSearchParams(location.search).get('aba') === 'dados') {
+    document.getElementById('tabBtnDados')?.click();
+  }
 }
 
 // ─── Renderizar bubbles de tema na aba Personalização ───────────────────
@@ -879,7 +882,7 @@ async function carregarPerfil(user) {
       }
 
       const matricula  = data.matricula  || '—';
-      const plano      = data.plano      || 'free';
+      const plano      = window.BudPlanos.resolvePlan(data).effectivePlan;
       const tema       = data.temaEscolhido;
 
       const elMatricula = document.getElementById('perfilMatricula');
@@ -955,9 +958,9 @@ function _renderizarSecaoPlano(plano, data) {
     const descs = {
       free:    'Plano gratuito — acesso às funcionalidades básicas.',
       starter: 'Plano Starter ativo — funcionalidades essenciais.',
-      pro:     'Plano Pro ativo — acesso completo ao Bud Finance.',
+      pro:     'Plano Pro — 2 contas, 2 cartões, 15 lançamentos, 5 importações e 5 serviços de IA por mês.',
       plus:    'Plano Plus ativo — contas, cartões e importações ilimitados.',
-      trial:   'Período de testes ativo — todas as funcionalidades Pro.'
+      trial:   'Período de testes ativo — acesso aos recursos Plus por três dias.'
     };
     elDesc.textContent = descs[plano] || 'Plano ativo.';
     if (data.planoTroca && LABELS[data.planoTroca.planKey]) {
@@ -1238,10 +1241,7 @@ async function executarReset() {
     // Marcar onboarding como não concluído e limpar foto de perfil
     await updateDoc(doc(db, 'usuarios', uid), {
       onboardingConcluido: false,
-      photoURL: deleteField(),
-      fcmToken: deleteField(),
-      fcmTokenAt: deleteField(),
-      pushEnabled: false
+      photoURL: deleteField()
     });
     // Limpar foto do Firebase Auth
     try {
@@ -1292,6 +1292,23 @@ function reiniciarTutorial() {
 
 // ─── Segurança ───────────────────────────────────────────────────────────
 function setupSeguranca() {
+  const revoke = document.getElementById('btnRevokeSessions');
+  revoke?.addEventListener('click', async () => {
+    if (!auth.currentUser || !window.confirm('Encerrar o acesso e os avisos push em todos os dispositivos? Você precisará entrar novamente.')) return;
+    revoke.disabled = true;
+    try {
+      const base = (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com').replace(/\/$/, '');
+      const response = await fetch(base + '/api/security/revoke-sessions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + await auth.currentUser.getIdToken() },
+        body: JSON.stringify({ confirmation: 'ENCERRAR' }), signal: AbortSignal.timeout(30000)
+      });
+      const result = await response.json();
+      if (!response.ok) throw Error(result.error || 'Não foi possível encerrar as sessões.');
+      await signOut(auth);
+      window.location.href = 'index.html';
+    } catch (error) { window.budShowToast?.(error.message || 'Tente novamente.', 'error', 6000); }
+    finally { revoke.disabled = false; }
+  });
   const btnReset = document.getElementById('btnResetSenha');
   if (btnReset) {
     btnReset.addEventListener('click', async function () {
@@ -1374,6 +1391,41 @@ document.addEventListener('bud:themechange', function (e) {
 // ─── Auth guard ─────────────────────────────────────────────────────────
 setupSidebar();
 setupTabs();
+const comparison = document.getElementById('cfgPlanComparison');
+if (comparison && window.BudPlanos) {
+  for (const [plano, nome, preco] of [
+    ['free', 'Gratuito', 'R$ 0'],
+    ['starter', 'Starter', 'R$ 9,99/mês'],
+    ['pro', 'Pro', 'R$ 29,90/mês'],
+    ['plus', 'Plus', 'R$ 49,90/mês']
+  ]) {
+    const plans = window.BudPlanos;
+    const profile = { plano };
+    const card = document.createElement('article');
+    card.className = 'cfg-card cfg-plan-option';
+    const heading = document.createElement('strong');
+    heading.textContent = nome + ' · ' + preco;
+    const list = document.createElement('div'); list.className='cfg-benefits-grid';
+    for (const [label, limit, suffix] of [
+      ['Contas bancárias', plans.getAccountsLimit(profile), ''],
+      ['Cartões', plans.getCardsLimit(profile), ''],
+      ['Lançamentos', plans.getMonthlyTransactionLimit(profile), '/mês'],
+      ['Importações', plans.getMonthlyImportLimit(profile), '/mês'],
+      ['Processamentos por IA', plano === 'pro' ? 5 : plano === 'plus' ? Infinity : 0, '/mês'],
+      ['Lançamentos recorrentes', Number(plans.canUseFeature(profile, 'recurringTransactions')), ''],
+      ['Categorias personalizadas', Number(plans.canUseFeature(profile, 'customCategories')), '']
+    ]) {
+      const row = document.createElement('div'); row.className='cfg-benefit';
+      const icon=document.createElement('span');icon.textContent=({'Contas bancárias':'🏦','Cartões':'💳','Lançamentos':'🧾','Importações':'📥','Processamentos por IA':'✨','Lançamentos recorrentes':'🔁','Categorias personalizadas':'🏷️'})[label];icon.setAttribute('aria-hidden','true');
+      const name=document.createElement('span');name.textContent=label;
+      const value=document.createElement('b');value.textContent=limit===Infinity?'Ilimitado':limit===0?'Não incluído':(label==='Lançamentos recorrentes'||label==='Categorias personalizadas')?'Incluído':limit+suffix;
+      row.append(icon,name,value);
+      list.appendChild(row);
+    }
+    card.append(heading, list);
+    comparison.appendChild(card);
+  }
+}
 
 onAuthStateChanged(auth, async function (user) {
   planUnsubscribe?.(); planUnsubscribe = null;
@@ -1398,7 +1450,7 @@ onAuthStateChanged(auth, async function (user) {
   planUnsubscribe = onSnapshot(doc(db, 'usuarios', observedUid), snapshot => {
     if (auth.currentUser?.uid !== observedUid || !snapshot.exists()) return;
     const data = snapshot.data();
-    _userPlano = data.plano || 'free';
+    _userPlano = window.BudPlanos.resolvePlan(data).effectivePlan;
     _renderizarSecaoPlano(_userPlano, data);
   }, () => window.budShowToast?.('Não foi possível atualizar seu plano. Recarregue a página para conferir.', 'error'));
   renderThemeBubbles();

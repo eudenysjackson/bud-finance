@@ -58,10 +58,27 @@ jobs:
       - name: Package public files only
         run: node scripts/package-release.js
 
+      - name: Verify public artifact and block private credentials
+        run: |
+          node scripts/verify-release-package.js
+          node scripts/scan-public-artifact.cjs
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist/site
+
+      - name: Wait for matching backend revision
+        env:
+          EXPECTED_REVISION: ${{ github.sha }}
+        run: |
+          for attempt in $(seq 1 60); do
+            revision=$(curl --max-time 15 -fsS https://bud-finance-backend.onrender.com/api/ping | node -e "let s='';process.stdin.on('data',x=>s+=x).on('end',()=>{try{console.log(JSON.parse(s).revision||'')}catch{}})" || true)
+            if [ "$revision" = "$EXPECTED_REVISION" ]; then exit 0; fi
+            sleep 10
+          done
+          echo 'Backend revision was not confirmed; frontend deployment stopped.'
+          exit 1
 
       - name: Deploy to GitHub Pages
         id: deployment
