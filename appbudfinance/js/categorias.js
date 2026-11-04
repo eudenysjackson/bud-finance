@@ -28,7 +28,7 @@ import {
   onSnapshot,
   serverTimestamp,
   writeBatch
-} from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+} from './financial-firestore.js';
 
 /* ─────────────────────────────────────────────────────────────────
    Firebase

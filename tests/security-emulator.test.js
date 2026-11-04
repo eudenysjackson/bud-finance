@@ -69,6 +69,30 @@ if(enabled){
   const multer=require('../backend/node_modules/multer');const app=express();const upload=multer({storage:multer.memoryStorage(),limits:{files:1,fields:16,parts:17,fileSize:1024}});app.post('/file',upload.single('arquivo'),(req,res)=>res.json({size:req.file.buffer.length}));app.use((e,req,res,next)=>res.status(400).json({code:e.code||'invalid-upload'}));const local=app.listen(0,'127.0.0.1');await new Promise(r=>local.once('listening',r));
   try{const url='http://127.0.0.1:'+local.address().port+'/file',form=new FormData();form.append('arquivo',new Blob(['fictitious PDF'],{type:'application/pdf'}),'test.pdf');const ok=await fetch(url,{method:'POST',body:form});assert.equal(ok.status,200);assert.equal((await ok.json()).size,14);const bad=new FormData();bad.append('arquivo',new Blob(['a']),'a.pdf');bad.append('arquivo',new Blob(['b']),'b.pdf');assert.equal((await fetch(url,{method:'POST',body:bad})).status,400);}finally{await new Promise(r=>local.close(r));}
  });
+ test('revoked sessions immediately lose Firestore access and private event queues cannot be forged', async()=>{
+  const uid='sessions-'+tag,token=await login(uid);await db.doc('usuarios/'+uid).set({plano:'free',pushEnabled:true});
+  for(const path of ['usuarios/'+uid+'/_owner_events/fake','_session_revocations/'+uid]){
+   assert.equal((await request(path,token)).status,403);
+   assert.equal((await request(path,token,'PATCH',{state:{stringValue:'pending'}})).status,403);
+  }
+  assert.equal((await request('usuarios/'+uid+'?updateMask.fieldPaths=fcmToken',token,'PATCH',{fcmToken:{stringValue:'forged-device'}})).status,403);
+  const {revokeSessions}=require('../backend/security-controls');const decoded=await auth.verifyIdToken(token);
+  const result={status(n){this.code=n;return this;},json(v){this.data=v;return this;}};
+  await revokeSessions({auth,db})({budUser:decoded,body:{confirmation:'ENCERRAR'}},result);assert.equal(result.data.ok,true);
+  assert.equal((await request('usuarios/'+uid,token)).status,403);
+  assert.equal((await db.doc('usuarios/'+uid).get()).data().pushEnabled,false);
+ });
+ test('encrypted financial archive restores only to isolated empty demo data and preserves amounts', async()=>{
+  const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),crypto=require('node:crypto'),{spawnSync}=require('node:child_process');
+  const {sealArchive,encode}=require('../backend/recovery-archive');const uid='recovery-'+tag,key=crypto.randomBytes(32).toString('base64'),file=path.join(os.tmpdir(),'bud-recovery-'+tag+'.budbackup');
+  const value={valor:747.79,data:admin.firestore.Timestamp.fromMillis(1793750400000)};
+  fs.writeFileSync(file,sealArchive({version:1,scope:'financial-only',uid,documents:[{path:'transacoes/example',data:encode(value)}]},key));
+  try{
+   const run=()=>spawnSync(process.execPath,['scripts/financial-recovery.cjs','restore-demo',file,uid],{env:{...process.env,BACKUP_KEY:key},encoding:'utf8',timeout:30000});
+   assert.equal(run().status,0);const saved=(await db.doc('usuarios/'+uid+'/transacoes/example').get()).data();assert.equal(saved.valor,747.79);assert.equal(saved.data.toMillis(),value.data.toMillis());
+   assert.equal(run().status,1,'never overwrite an existing target');assert.equal((await db.doc('admins/'+uid).get()).exists,false);
+  }finally{fs.unlinkSync(file);}
+ });
  after(async()=>{if(server)await new Promise(r=>server.close(r));await db.terminate();await admin.app().delete();});
 }else test('emulated security suite requires explicit local demo environment',{skip:true},()=>{});
 

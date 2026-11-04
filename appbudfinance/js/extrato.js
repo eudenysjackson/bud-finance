@@ -25,7 +25,7 @@ import {
   getFirestore, initializeFirestore, persistentLocalCache,
   collection, query, where, orderBy,
   onSnapshot, doc, getDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, increment
-} from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+} from './financial-firestore.js';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL }
   from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js'; // PEND-028
 import { connectEmulators } from './bud-emulator-connect.js';

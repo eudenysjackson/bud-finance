@@ -272,7 +272,7 @@ form.addEventListener('submit', async function (e) {
     // 10. Write user doc
     await setDoc(doc(db, 'usuarios', user.uid), docData);
 
-    // 10b. Ativar trial Pro de 3 dias (fire-and-forget — não bloqueia cadastro)
+    // 10b. Ativar trial Plus de 3 dias (fire-and-forget — não bloqueia cadastro)
     user.getIdToken().then(function (token) {
       return fetch(
         (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com') + '/api/iniciar-trial',

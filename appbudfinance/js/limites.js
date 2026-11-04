@@ -28,7 +28,7 @@ import {
   collection, query, where, orderBy, limit,
   onSnapshot, doc, getDoc, addDoc, updateDoc, deleteDoc,
   serverTimestamp, Timestamp
-} from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+} from './financial-firestore.js';
 
 // ─── Firebase ──────────────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
@@ -839,7 +839,7 @@ onAuthStateChanged(auth, async user => {
     if (snap.exists()) {
       const d = snap.data();
       if (d.primeiroLogin) { window.location.href = 'trocar-senha.html'; return; }
-      _userPlano = (d.plano || 'free').toLowerCase();
+      _userPlano = window.BudPlanos.resolvePlan(d).effectivePlan;
       const nome = d.nome || user.email || '';
       const mat  = d.matricula || '';
       const iniciais = nome.trim().split(/\s+/).map(p => p[0]).join('').slice(0,2).toUpperCase() || '?';

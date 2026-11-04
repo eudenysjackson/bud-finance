@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null && !exists(/databases/$(database)/documents/_account_deletions/$(request.auth.uid)) &&
+      (!exists(/databases/$(database)/documents/_session_revocations/$(request.auth.uid)) ||
+        request.auth.token.auth_time > get(/databases/$(database)/documents/_session_revocations/$(request.auth.uid)).data.revokedAt); }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    function admin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    function billingFields() {
+      return ['plano', 'planoExpira', 'planoAtivadoEm', 'planoAtualizadoEm',
+        'mpSubscriptionId', 'mpPayerId', 'mpCheckout', 'fcmTokens', 'fcmToken', 'pushEnabled', 'assinaturaStatus', 'trialFim', 'trialIniciado', 'planoTroca', 'planoTrocaLock',
+        'pagamentoPendente', 'pagamentoPendenteDesde', 'pagamentoPendentePagamentoId', 'ultimaCobrancaAprovadaEm', 'emailAssinaturaAvisos',
+        'planoUpgrade', 'upgradeCiclo', 'beneficioIndicacao50', 'descontoIndicacaoPrimeiroMes', 'primeiraCobrancaPagaEm', 'codigoIndicacaoAplicadoEm',
+        '_deletionPending', 'pushConsentRevoked', 'pushConsentRevokedAt', 'role', 'bloqueado', 'status'];
+    }
+
+    match /usuarios/{uid} {
+      allow read: if owner(uid) || admin();
+      // Cadastro cria somente o perfil básico; plano/trial são atribuídos no backend.
+      allow create: if owner(uid) && !request.resource.data.keys().hasAny(billingFields());
+      allow update: if admin() || (owner(uid) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(billingFields()));
+      allow delete: if admin();
+
+      // A cota de IA só é escrita pelo Admin SDK no backend.
+      match /uso-ia/{periodo} {
+        allow read: if owner(uid) || admin();
+        allow write: if false;
+      }
+      match /metas/{metaId}/depositos/{depositoId} {
+        allow read: if owner(uid) || admin();
+        allow write: if admin();
+      }
+      // Dados financeiros pertencem somente ao titular; o admin pode operar suporte.
+      match /{subcolecao}/{documento} {
+        allow read: if (owner(uid) || admin()) && !(subcolecao in ['_owner_events', '_plan_usage', '_plan_operations', '_plan_imports', 'uso-ia', '_seguranca', '_ai_jobs', 'upgrades-planos']);
+        // Financial writes are validated atomically by the authenticated backend.
+        allow write: if (owner(uid) || admin()) && !(subcolecao in ['_owner_events', '_plan_usage', '_plan_operations', '_plan_imports', 'uso-ia', '_seguranca', '_ai_jobs', 'upgrades-planos']) &&
+          (admin() || !(subcolecao in ['carteira','transacoes','importacoes','metas','compras-metas','pagamentos-dividas','dividas','investimentos','recorrentes','limites','categorias']));
+      }
+    }
+
+    // A lista pode ser lida por usuários autenticados para aplicar recursos;
+    // apenas administradores já existentes podem alterá-la.
+    match /featureFlags/{id} {
+      allow read: if signedIn();
+      allow write: if admin();
+    }
+    match /notificacoes-globais/{id} { allow read: if signedIn(); allow write: if admin(); }
+    match /promocoes/{id} { allow read: if signedIn(); allow write: if admin(); }
+    match /admin/{id} { allow read, write: if admin(); }
+    // Nenhum usuário pode se promover a admin pelo navegador.
+    match /admins/{uid} {
+      allow read: if owner(uid) || admin();
+      allow write: if false;
+    }
+  }
+}
+
+

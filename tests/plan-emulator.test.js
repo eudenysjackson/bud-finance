@@ -1,0 +1,25 @@
+const {test,after}=require('node:test'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+const enabled=process.env.RUN_PLAN_EMULATOR==='1';
+test('real Firestore transactions enforce quotas, isolated ownership and direct-write denial',{skip:!enabled},async()=>{
+ if(process.env.GCLOUD_PROJECT!=='demo-bud-security'||process.env.FIRESTORE_EMULATOR_HOST!=='127.0.0.1:18080'||process.env.FIREBASE_AUTH_EMULATOR_HOST!=='127.0.0.1:19199')throw Error('Demo emulators only');
+ const admin=require('../backend/node_modules/firebase-admin');admin.initializeApp({projectId:'demo-bud-security'});
+ const db=admin.firestore(),uid='plan-'+Date.now(),user=db.doc('usuarios/'+uid);
+ const {createFinancialWrite}=require('../backend/financial-write');const handler=createFinancialWrite({db,admin});
+ await user.set({plano:'free'});
+ const op=(id,data={})=>({type:'set',path:`usuarios/${uid}/transacoes/${id}`,data:{dataReferencia:'2027-01-10',...data}});
+ const save=async operations=>{const res={code:200,status(n){this.code=n;return this;},json(data){this.data=data;return this;}};await handler({budUser:{uid},body:{operationId:crypto.randomUUID(),operations}},res);return res;};
+ assert.equal((await save([op('a'),op('b'),op('c'),op('d')])).code,200);
+ const concurrent=await Promise.all([save([op('e')]),save([op('f')])]);
+ assert.deepEqual(concurrent.map(r=>r.code).sort(),[200,403]);
+ assert.equal((await user.collection('transacoes').get()).size,5);
+ assert.equal((await save([op('g',{dataReferencia:'2027-02-10'}),op('h')])).code,403);
+ assert.equal((await user.collection('transacoes').doc('g').get()).exists,false);
+ await user.update({plano:'trial',trialFim:admin.firestore.Timestamp.fromMillis(Date.now()-1000)});
+ assert.equal((await save([{type:'set',path:`usuarios/${uid}/metas/g`,data:{nome:'Meta'}}])).code,403);
+ const email=uid+'@example.invalid',password='Fictitious-Test-123!';await admin.auth().createUser({uid,email,password,emailVerified:true});
+ const login=await fetch('http://127.0.0.1:19199/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,returnSecureToken:true})});
+ const token=(await login.json()).idToken;
+ const url=`http://127.0.0.1:18080/v1/projects/demo-bud-security/databases/(default)/documents/usuarios/${uid}/transacoes/bypass`;
+ assert.equal((await fetch(url,{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({fields:{valor:{integerValue:'1'}}})})).status,403);
+ await db.recursiveDelete(user);await admin.auth().deleteUser(uid);await admin.app().delete();
+});

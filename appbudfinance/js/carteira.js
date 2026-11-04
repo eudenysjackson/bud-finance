@@ -11,7 +11,7 @@ import {
   collection, query, where, orderBy, getDocs, limit,
   getDoc, addDoc, updateDoc, deleteDoc, doc, writeBatch,
   serverTimestamp, Timestamp, increment
-} from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+} from './financial-firestore.js';
 import { connectEmulators } from './bud-emulator-connect.js';
 
 // ── Init Firebase ─────────────────────────────────────────
@@ -508,6 +508,12 @@ function renderContas() {
     const btnDel     = document.getElementById(`btnDel_${conta.id}`);
     const btnConfirm = document.getElementById(`btnConfirm_${conta.id}`);
     const btnTransf  = document.getElementById(`btnTransf_${conta.id}`);
+    const allowed = window.BudPlanos.activeResourceIds(contasGlobal, userData, 'conta');
+    if (!allowed.has(conta.id)) {
+      [btnEdit,btnImport,btnConfirm,btnTransf].filter(Boolean).forEach(el => { el.disabled=true; el.title='Conta bloqueada pelo limite do plano. Seus dados foram preservados.'; });
+      if (btnEdit) btnEdit.insertAdjacentHTML('beforebegin','<p style="color:#64748b;font-size:12px">🔒 Bloqueada pelo plano</p>');
+    }
+    if (window.BudPlanos.getMonthlyImportLimit(userData) === 0 && btnImport) { btnImport.disabled=true; btnImport.title='Importações disponíveis no Pro e Plus'; }
     if (btnEdit)    btnEdit.addEventListener('click', () => abrirModalConta(conta.id));
     if (btnImport)  btnImport.addEventListener('click', () => abrirModalImport(conta.id));
     if (btnDel)     btnDel.addEventListener('click', () => abrirModalExcluir(conta.id));
@@ -1913,6 +1919,7 @@ async function confirmarImport() {
   try {
     const uid = currentUser.uid;
     const txCol = collection(db, 'usuarios', uid, 'transacoes');
+    const importacaoId = _importFileHash || crypto.randomUUID();
 
     // Salvar em batches de 400 (Firestore max 500, usamos 400 com margem)
     let salvos = 0;
@@ -1933,7 +1940,7 @@ async function confirmarImport() {
           dataReferencia: r.data,
           data: (function(s) { const [y,m,d] = s.split('-').map(Number); return Timestamp.fromDate(new Date(y, m-1, d, 12, 0, 0)); })(r.data),
           dataCriacao: serverTimestamp(),
-          origem: 'importacao',                  // BUG #4: não soma ao saldo calculado
+          origem: 'importacao', importacaoId,                  // BUG #4: não soma ao saldo calculado
           importacaoHistorica: _importarSomenteHistorico,
           pago: true,
           confirmado: true,
@@ -1972,7 +1979,7 @@ async function confirmarImport() {
       const periodoInicio = selecionados.map(r => r.data).sort()[0] || null;
       const periodoFim    = selecionados.map(r => r.data).sort().reverse()[0] || null;
       await addDoc(collection(db, 'usuarios', uid, 'importacoes'), {
-        contaId:         currentCarteiraId,
+        importacaoId, contaId:         currentCarteiraId,
         contaNome:       budSanitize(currentContaObj.nome || ''),
         nomeArquivo:     budSanitize(_importFileName || 'arquivo'),
         origem:          _importSourceType || 'desconhecido',

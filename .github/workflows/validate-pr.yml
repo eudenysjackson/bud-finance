@@ -26,3 +26,8 @@ jobs:
         run: npm ci --prefix backend
       - name: Run release regression suite
         run: npm run test:release
+      - name: Check public package for private files and credentials
+        run: |
+          node scripts/package-release.js
+          node scripts/verify-release-package.js
+          node scripts/scan-public-artifact.cjs

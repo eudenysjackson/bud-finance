@@ -26,7 +26,7 @@ import {
   collection, query, orderBy, limit,
   onSnapshot, doc, addDoc, updateDoc, deleteDoc,
   serverTimestamp
-} from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+} from './financial-firestore.js';
 
 // ─── Firebase ─────────────────────────────────────────────────────────────────────────────
 const app  = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);

@@ -9,7 +9,7 @@ import {
   getFirestore, initializeFirestore, persistentLocalCache,
   collection, query, where, orderBy, limit,
   onSnapshot, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp, writeBatch, increment, runTransaction,
-} from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+} from './financial-firestore.js';
 
 // ─── Firebase init ───────────────────────────────────────────────
 const app = getApps().length ? getApps()[0] : initializeApp(window.BUD_FIREBASE_CONFIG);
