@@ -974,7 +974,16 @@
         </button>
       </div>
 
-      <!-- Banner: Recorrências Pendentes de Confirmação -->
+      <!-- Confirmações financeiras permanecem visíveis até o recebimento/pagamento real. -->
+      <section id="secPrioridadesHoje" class="dash-section" style="display:none;" aria-labelledby="tituloPrioridades">
+        <h2 id="tituloPrioridades" class="dash-section-title">📥 Recebimentos e pagamentos a confirmar</h2>
+        <p style="font-size:.8125rem;color:var(--card-text-sec);margin:.5rem 0 1rem;">Já recebeu ou pagou? Confira o valor real e a conta para atualizar seu saldo.</p>
+        <div id="listaPrioridadesHoje" style="display:flex;flex-direction:column;gap:.75rem;"></div>
+      </section>
+      <section id="secLembretes7Dias" class="dash-section" style="display:none;">
+        <h2 class="dash-section-title">📅 Próximos vencimentos</h2>
+        <div id="listaLembretes7Dias" style="display:flex;flex-direction:column;gap:.75rem;"></div>
+      </section>
       
 
       <!-- Comparativo vs Mês Anterior -->
@@ -1278,7 +1287,7 @@
   <script src="js/bud-notif-inapp.js?v=20261104-planos"></script>
   <script src="js/debt-payments.js?v=20261102-payment"></script>
   <script src="js/debt-payment-dialog.js?v=20261102-payment"></script>
-  <script type="module" src="js/dashboard.js?v=20261104-planos"></script>
+  <script type="module" src="js/dashboard.js?v=20261109-recebimentos"></script>
 
   <!-- Splash dismiss -->
   <script>

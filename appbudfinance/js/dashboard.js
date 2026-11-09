@@ -34,6 +34,7 @@ window._budRequestPushToken = async function (user, silent) {
 // ─── State ──────────────────────────────────────────────────────────────
 let usuarioAtualId = null;
 let transacoesGlobais = [];
+let pendenciasRecorrentes = [];
 let valoresOcultos = localStorage.getItem('bud_valores_ocultos') === 'true';
 let mesVisualizado = new Date().getMonth();   // 0-based (0 = Jan)
 let anoVisualizado = new Date().getFullYear();
@@ -1348,32 +1349,12 @@ function atualizarPrioridadesHoje() {
   var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   var prioridades = [];
 
-  recorrentesGlobaisDash.forEach(function (r) {
-    if (r.ativa === false || r.ativo === false) return;
-    var dia = parseInt(r.diaVencimento, 10);
-    if (!dia) return;
-
-    var vencimento = new Date(hoje.getFullYear(), hoje.getMonth(), dia);
-    vencimento.setHours(0, 0, 0, 0);
-    if (vencimento > hoje) return;
-
-    var competencia = vencimento.getFullYear() + '-' + String(vencimento.getMonth() + 1).padStart(2, '0');
-    var jaLancado = transacoesGlobais.some(function (t) {
-      if (!t.recorrenteId || t.recorrenteId !== r.id) return false;
-      if (t.mesRecorrencia === competencia) return true;
-      var dt = t.data && t.data.toDate ? t.data.toDate() : new Date(t.data || 0);
-      return dt.getMonth() === vencimento.getMonth() && dt.getFullYear() === vencimento.getFullYear();
-    });
-    if (jaLancado) return;
-
-    prioridades.push({
-      tipo: 'recorrente', nome: r.nome || r.descricao || 'Recorrente',
-      valor: r.valorPrevisto != null ? r.valorPrevisto : r.valor,
-      dataVenc: vencimento, diffDias: Math.round((vencimento - hoje) / 86400000),
-      tipoTrans: r.tipo || 'despesa', recorrenteId: r.id,
-      categoria: r.categoria || 'Outros', formaPagamento: r.formaPagamento || 'Débito',
-      contaId: r.contaId || null
-    });
+  pendenciasRecorrentes.filter(function(t) { return t.pendenteConfirmacao === true && t.confirmado === false; }).forEach(function(t) {
+    var date = t.data && t.data.toDate ? t.data.toDate() : new Date(t.data || Date.now());
+    date.setHours(0,0,0,0);
+    if (date > hoje) return;
+    prioridades.push({tipo:'recorrente', nome:t.descricao || 'Recorrência', valor:t.valorPrevisto ?? t.valor,
+      dataVenc:date, diffDias:Math.round((date-hoje)/86400000), tipoTrans:t.tipo, pendencia:t});
   });
 
   prioridades.sort(function (a, b) { return a.dataVenc - b.dataVenc; });
@@ -1403,7 +1384,7 @@ function atualizarPrioridadesHoje() {
       if (!btn) return;
       var item = btn.parentElement;
       while (item && !item._lembrete) item = item.parentElement;
-      if (item && item._lembrete) marcarLembretePago(item._lembrete);
+      if (item && item._lembrete) abrirConfirmacaoPendente(item._lembrete.pendencia);
     });
     lista._prioridadesBound = true;
   }
@@ -1472,18 +1453,33 @@ function abrirConfirmacaoPendente(tx) {
     var data = dataSelecionada;
     var contaId = contaSelecionada || null;
     if (!(valor > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(data)) { if (window.budShowToast) window.budShowToast('Informe um valor e uma data válidos.', 'error'); return; }
+    if (!contaId) { window.budShowToast('Escolha a conta do recebimento ou pagamento.', 'error'); return; }
     if (!pagamentoPodeSerConfirmado(contaId, tx.tipo, valor)) return;
     btn.disabled = true; btn.textContent = 'Salvando…';
     try {
       var conta = carteiraGlobal.find(function (c) { return c.id === contaId; });
       var dataObj = new Date(data + 'T12:00:00');
-      await updateDoc(doc(db, 'usuarios', usuarioAtualId, 'transacoes', tx.id), {
-        valor: valor, valorPrevisto: previsto, diferencaPrevisto: valor - previsto,
-        data: Timestamp.fromDate(dataObj), dataReferencia: data, mesReferencia: data.slice(0, 7),
-        carteiraId: contaId, contaId: contaId, contaNome: conta ? (conta.nome || conta.banco || '') : '',
-        confirmado: true, pago: true, pendenteConfirmacao: false, confirmadoEm: serverTimestamp()
+      await runTransaction(db, async function(transaction) {
+        var txRef = doc(db, 'usuarios', usuarioAtualId, 'transacoes', tx.id);
+        var contaRef = doc(db, 'usuarios', usuarioAtualId, 'carteira', contaId);
+        var original = await transaction.get(txRef);
+        var wallet = await transaction.get(contaRef);
+        if (!original.exists()) throw new Error('Lançamento indisponível.');
+        var atual = original.data();
+        if (atual.confirmado === true && atual.pendenteConfirmacao !== true) return;
+        if (atual.pendenteConfirmacao !== true || atual.confirmado !== false) throw new Error('Atualize a pendência.');
+        if (!wallet.exists() || wallet.data().tipo === 'credito') throw new Error('Escolha uma conta válida.');
+        var dadosConta = wallet.data();
+        var saldo = Number(dadosConta.saldo ?? dadosConta.ultimaConfirmacao?.saldo ?? dadosConta.saldoInicial ?? 0);
+        transaction.update(txRef, {
+          valor:valor, valorPrevisto:previsto, diferencaPrevisto:valor-previsto,
+          data:Timestamp.fromDate(dataObj), dataReferencia:data, mesReferencia:data.slice(0,7),
+          mesRecorrencia:atual.mesRecorrencia || atual.mesReferencia || data.slice(0,7),
+          carteiraId:contaId, contaId:contaId, contaNome:dadosConta.nome || dadosConta.banco || '',
+          confirmado:true, pago:true, pendenteConfirmacao:false, confirmadoEm:serverTimestamp()
+        });
+        transaction.update(contaRef, {saldo:saldo + (atual.tipo === 'receita' ? valor : -valor)});
       });
-      await ajustarSaldoDaConta(contaId, tx.tipo, valor, 1);
       overlay.remove();
       if (window.budShowToast) window.budShowToast(tx.tipo === 'receita' ? 'Recebimento confirmado!' : 'Pagamento confirmado!', 'success');
     } catch (_e) { btn.disabled = false; btn.textContent = 'Tentar novamente'; if (window.budShowToast) window.budShowToast('Não foi possível confirmar. Tente novamente.', 'error'); }
@@ -1548,8 +1544,8 @@ function _dispararNotifRecorrentesUrgentes() {
 var _dashCurrentUser = null;
 async function _autoProcessarRecorrentesHoje() {
   if (!_dashCurrentUser) return;
-  var chave = 'bud_cron_' + new Date().toISOString().slice(0, 10);
-  if (localStorage.getItem(chave)) return; // já rodou hoje neste browser
+  
+  // Reprocessar ao abrir permite incluir recorrências cadastradas hoje; servidor evita duplicidade.
   try {
     var token = await _dashCurrentUser.getIdToken(false);
     var backendUrl = window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com';
@@ -1557,13 +1553,6 @@ async function _autoProcessarRecorrentesHoje() {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
     });
-    if (resp.ok) {
-      localStorage.setItem(chave, '1');
-      // Limpar chaves antigas (> 3 dias)
-      Object.keys(localStorage)
-        .filter(function (k) { return k.startsWith('bud_cron_') && k < 'bud_cron_' + new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10); })
-        .forEach(function (k) { localStorage.removeItem(k); });
-    }
   } catch (_e) { /* silencioso */ }
 }
 
@@ -2832,6 +2821,11 @@ function setupListeners(uid) {
 
   // Transações — listener com filtro de data (setupTransacoesListener)
   setupTransacoesListener(uid);
+  _unsubs.push(onSnapshot(query(collection(db,'usuarios',uid,'transacoes'), where('pendenteConfirmacao','==',true), limit(500)), function(snapshot) {
+    pendenciasRecorrentes = snapshot.docs.map(function(d) { return Object.assign({},d.data(),{id:d.id}); });
+    atualizarPrioridadesHoje();
+  }));
+  _autoProcessarRecorrentesHoje();
 
   // Dívidas — widget "Dívidas em Atraso"
   var dividasRef = query(collection(db, 'usuarios', uid, 'dividas'), limit(500));
