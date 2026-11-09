@@ -1544,7 +1544,7 @@ function _dispararNotifRecorrentesUrgentes() {
 var _dashCurrentUser = null;
 async function _autoProcessarRecorrentesHoje() {
   if (!_dashCurrentUser) return;
-  
+
   // Reprocessar ao abrir permite incluir recorrências cadastradas hoje; servidor evita duplicidade.
   try {
     var token = await _dashCurrentUser.getIdToken(false);
