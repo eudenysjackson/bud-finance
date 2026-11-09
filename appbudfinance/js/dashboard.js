@@ -1143,146 +1143,31 @@ function atualizarLembretes7Dias() {
 // ─── Marcar lembrete como pago ────────────────────────────────────────────
 function marcarLembretePago(lembrete) {
   if (lembrete.dividaId) { confirmarParcelaDividaDashboard(lembrete); return; }
-  var existente = document.getElementById('overlayMarcarPago');
-  if (existente) existente.remove();
-
-  var contas = carteiraGlobal.filter(function (c) { return c.tipo !== 'credito'; });
-
-  var overlay = document.createElement('div');
-  overlay.id = 'overlayMarcarPago';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.55);backdrop-filter:blur(4px);z-index:80;display:flex;align-items:center;justify-content:center;padding:1rem;';
-
-  var card = document.createElement('div');
-  card.style.cssText = 'background:var(--card-bg);border:1px solid var(--card-border);border-radius:1.25rem;padding:1.5rem;max-width:360px;width:100%;box-shadow:0 20px 60px -10px rgba(0,0,0,0.25);';
-
-  var icone = lembrete.tipo === 'divida' ? '💸' : (lembrete.tipoTrans === 'receita' ? '📥' : '✅');
-  var nomeEsc = lembrete.nome.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  var valorNum = parseFloat(lembrete.valor) || 0;
-  var subtituloTipo = lembrete.tipo === 'divida' ? 'Parcela de dívida' : (lembrete.tipoTrans === 'receita' ? 'Receita recorrente' : 'Despesa recorrente');
-  var dataPadraoObj = lembrete.dataVenc instanceof Date ? lembrete.dataVenc : new Date();
-  var dataPadrao = dataPadraoObj.getFullYear() + '-' + String(dataPadraoObj.getMonth() + 1).padStart(2, '0') + '-' + String(dataPadraoObj.getDate()).padStart(2, '0');
-
-  var optionsHtml = '<option value="">Nenhuma (sem conta vinculada)</option>';
-  contas.forEach(function (c) {
-    var nomeC = (c.nome || c.banco || 'Conta').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    optionsHtml += '<option value="' + c.id + '"' + (c.id === lembrete.contaId ? ' selected' : '') + '>' + nomeC + '</option>';
-  });
-
-  card.innerHTML = ''
-    + '<div style="font-size:1rem;font-weight:800;color:var(--card-text);margin-bottom:0.2rem;">' + icone + ' ' + nomeEsc + '</div>'
-    + '<div style="font-size:0.75rem;font-weight:600;color:#94a3b8;margin-bottom:0.625rem;">' + subtituloTipo + '</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.625rem;margin-bottom:0.875rem;">'
-    + '<label style="font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.05em;">Valor real<input id="pmgValorReal" type="number" min="0.01" step="0.01" value="' + valorNum.toFixed(2) + '" style="display:block;width:100%;margin-top:0.375rem;padding:0.5rem 0.625rem;border:1.5px solid var(--input-border);border-radius:0.75rem;background:var(--input-bg);color:var(--card-text);font:600 0.875rem inherit;box-sizing:border-box;"></label>'
-    + '<label style="font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.05em;">Data real<input id="pmgDataReal" type="date" value="' + dataPadrao + '" style="display:block;width:100%;margin-top:0.375rem;padding:0.5rem 0.625rem;border:1.5px solid var(--input-border);border-radius:0.75rem;background:var(--input-bg);color:var(--card-text);font:600 0.875rem inherit;box-sizing:border-box;"></label>'
-    + '</div>'
-    + '<div style="margin-bottom:1.125rem;">'
-    + '<div style="font-size:0.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.375rem;">' + (lembrete.tipoTrans === 'receita' ? 'Conta creditada' : 'Conta debitada') + '</div>'
-    + '<select id="pmgContaSel" style="width:100%;padding:0.5rem 0.75rem;border:1.5px solid var(--input-border);border-radius:0.75rem;background:var(--input-bg);font-size:0.875rem;font-weight:600;color:var(--card-text);font-family:inherit;">' + optionsHtml + '</select>'
-    + '</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.625rem;">'
-    + '<button id="pmgBtnCancelar" style="padding:0.625rem;border:1.5px solid var(--input-border);border-radius:0.75rem;background:var(--input-bg);font-size:0.875rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--card-text-sec);">Cancelar</button>'
-    + '<button id="pmgBtnConfirmar" style="padding:0.625rem;border:none;border-radius:0.75rem;background:#16a34a;color:#fff;font-size:0.875rem;font-weight:800;cursor:pointer;font-family:inherit;">Confirmar ✓</button>'
-    + '</div>';
-
-  overlay.appendChild(card);
-  document.body.appendChild(overlay);
-
-  document.getElementById('pmgBtnCancelar').addEventListener('click', function () { overlay.remove(); });
-  setTimeout(function () { var c = document.getElementById('pmgBtnCancelar'); if (c) c.focus(); }, 60);
-
-  document.getElementById('pmgBtnConfirmar').addEventListener('click', async function () {
-    var btn = this;
-    btn.disabled = true;
-    btn.textContent = 'Salvando…';
-
-    var valorReal = parseFloat(document.getElementById('pmgValorReal').value);
-    var dataReal  = document.getElementById('pmgDataReal').value;
-    if (!Number.isFinite(valorReal) || valorReal <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(dataReal)) {
-      btn.disabled = false;
-      btn.textContent = 'Confirmar ✓';
-      if (window.budShowToast) window.budShowToast('Informe um valor e uma data válidos.', 'error');
+  if (lembrete.recorrenteId) {
+    conferirRecorrencia(lembrete).catch(function(error) {
+      window.budShowToast(error.message || 'Não foi possível carregar a confirmação. Tente novamente.', 'error');
+    });
+  }
+}
+async function conferirRecorrencia(lembrete) {
+  var botao = document.querySelector('#listaLembretes7Dias .pmg-btn:focus');
+  if (botao) botao.disabled = true;
+  try {
+    await _autoProcessarRecorrentesHoje(true);
+    var result = await getDocs(query(collection(db,'usuarios',usuarioAtualId,'transacoes'),where('recorrenteId','==',lembrete.recorrenteId)));
+    var venc = lembrete.dataVenc;
+    var competencia = venc.getFullYear()+'-'+String(venc.getMonth()+1).padStart(2,'0');
+    var candidatos = result.docs.map(function(d){return Object.assign({},d.data(),{id:d.id});}).filter(function(t){
+      return (t.mesRecorrencia || t.mesReferencia || '') === competencia;
+    });
+    if (candidatos.some(function(t){return t.confirmado === true;})) {
+      window.budShowToast('Este recebimento ou pagamento já foi confirmado.','success');
       return;
     }
-    var contaId   = document.getElementById('pmgContaSel').value || null;
-    var contaNome = null;
-    if (contaId) {
-      var contaObj = carteiraGlobal.find(function (c) { return c.id === contaId; });
-      if (contaObj) contaNome = contaObj.nome || contaObj.banco || null;
-    }
-
-    if (!pagamentoPodeSerConfirmado(contaId, lembrete.tipoTrans || 'despesa', valorReal)) {
-      btn.disabled = false;
-      btn.textContent = 'Confirmar ✓';
-      return;
-    }
-
-    try {
-      var hoje2 = new Date(dataReal + 'T12:00:00');
-      var mes2    = hoje2.getMonth() + 1;
-      var mesRef2 = hoje2.getFullYear() + '-' + String(mes2).padStart(2, '0');
-      var dataRef2 = mesRef2 + '-' + String(hoje2.getDate()).padStart(2, '0');
-      var venc = lembrete.dataVenc instanceof Date ? lembrete.dataVenc : hoje2;
-      var mesRecorrencia = venc.getFullYear() + '-' + String(venc.getMonth() + 1).padStart(2, '0');
-
-      var nomeDesc = window.budSanitize ? window.budSanitize(lembrete.nome) : lembrete.nome;
-
-      var tx = {
-        tipo:           lembrete.tipoTrans || 'despesa',
-        descricao:      nomeDesc,
-        valor:          valorReal,
-        valorPrevisto:  valorNum,
-        diferencaPrevisto: valorReal - valorNum,
-        categoria:      lembrete.categoria || (lembrete.tipo === 'divida' ? 'Dívidas' : 'Outros'),
-        data:           Timestamp.fromDate(hoje2),
-        dataReferencia: dataRef2,
-        mesReferencia:  mesRef2,
-        mesRecorrencia: mesRecorrencia,
-        formaPagamento: lembrete.formaPagamento || 'Débito',
-        origem:         'recorrente',
-        recorrente:     true,
-        confirmado:     true,
-        pago:           true,
-        dataCriacao:    serverTimestamp()
-      };
-      if (lembrete.recorrenteId) tx.recorrenteId = lembrete.recorrenteId;
-      if (lembrete.dividaId)     tx.dividaId     = lembrete.dividaId;
-      if (contaId) {
-        tx.contaId = contaId;
-        tx.carteiraId = contaId;
-      }
-      if (contaNome) tx.contaNome = contaNome;
-
-      await addDoc(collection(db, 'usuarios', usuarioAtualId, 'transacoes'), tx);
-      await ajustarSaldoDaConta(contaId, tx.tipo, valorReal, 1);
-
-      // Se dívida: incrementar parcelasPagas no documento da dívida
-      if (lembrete.dividaId) {
-        var divObj = dividasGlobaisDash.find(function (d) { return d.id === lembrete.dividaId; });
-        var pagas = (divObj ? (divObj.parcelasPagas || 0) : 0) + 1;
-        await updateDoc(doc(db, 'usuarios', usuarioAtualId, 'dividas', lembrete.dividaId), {
-          parcelasPagas: pagas,
-          ...(contaId ? { contaId: contaId } : {})
-        });
-        // Parcelamento de fatura mantém o saldo financiado reservado no
-        // cartão. Cada parcela confirmada libera exatamente o valor pago.
-        if (divObj?.tipo === 'parcelamento_fatura' && divObj.cartaoId) {
-          var cartaoRef = doc(db, 'usuarios', usuarioAtualId, 'carteira', divObj.cartaoId);
-          var cartaoSnap = await getDoc(cartaoRef);
-          if (cartaoSnap.exists()) {
-            var reservado = Math.max(0, (Number(cartaoSnap.data().limiteReservado) || 0) - valorReal);
-            await updateDoc(cartaoRef, { limiteReservado: reservado });
-          }
-        }
-      }
-
-      overlay.remove();
-      if (window.budShowToast) window.budShowToast(tx.tipo === 'receita' ? 'Recebimento confirmado!' : 'Pagamento confirmado!', 'success');
-    } catch (_err) {
-      btn.disabled = false;
-      btn.textContent = 'Confirmar ✓';
-      if (window.budShowToast) window.budShowToast('Erro ao registrar. Tente novamente.', 'error');
-    }
-  });
+    var pendente = candidatos.find(function(t){return t.pendenteConfirmacao === true && t.confirmado === false;});
+    if (!pendente) throw new Error('Ainda não há confirmação disponível para esta data.');
+    abrirConfirmacaoPendente(pendente);
+  } finally { if (botao) botao.disabled = false; }
 }
 
 // ─── Modal: Confirmar recorrências pendentes ─────────────────────────────
@@ -1366,7 +1251,7 @@ function atualizarPrioridadesHoje() {
 
   sec.style.display = '';
   lista.innerHTML = '';
-  prioridades.slice(0, 3).forEach(function (l) {
+  prioridades.forEach(function (l) {
     var atrasada = l.diffDias < 0;
     var nome = l.nome.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     var ehReceita = l.tipoTrans === 'receita';
@@ -1482,7 +1367,7 @@ function abrirConfirmacaoPendente(tx) {
       });
       overlay.remove();
       if (window.budShowToast) window.budShowToast(tx.tipo === 'receita' ? 'Recebimento confirmado!' : 'Pagamento confirmado!', 'success');
-    } catch (_e) { btn.disabled = false; btn.textContent = 'Tentar novamente'; if (window.budShowToast) window.budShowToast('Não foi possível confirmar. Tente novamente.', 'error'); }
+    } catch (_e) { btn.disabled = false; btn.textContent = 'Tentar novamente'; if (window.budShowToast) window.budShowToast(_e.message || 'Não foi possível confirmar. Tente novamente.', 'error'); }
   };
 }
 
@@ -1542,7 +1427,7 @@ function _dispararNotifRecorrentesUrgentes() {
 
 // ─── Auto-processar recorrentes (1x/dia, background silencioso) ───────────
 var _dashCurrentUser = null;
-async function _autoProcessarRecorrentesHoje() {
+async function _autoProcessarRecorrentesHoje(exibirErro) {
   if (!_dashCurrentUser) return;
 
   // Reprocessar ao abrir permite incluir recorrências cadastradas hoje; servidor evita duplicidade.
@@ -1553,7 +1438,8 @@ async function _autoProcessarRecorrentesHoje() {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
     });
-  } catch (_e) { /* silencioso */ }
+    if (!resp.ok) { var details=await resp.json().catch(function(){return {};}); throw new Error(details.error || 'Não foi possível carregar as recorrências.'); }
+  } catch (_e) { if (exibirErro) throw _e; }
 }
 
 // ─── Tudo em dia ──────────────────────────────────────────────────────────
@@ -1914,7 +1800,7 @@ function renderizarAtividades(transacoesDoMes) {
 
   // Filtrar por tipo (Todos/Receitas/Despesas)
   var filtradas = transacoesDoMes.filter(function (t) {
-    return filtroAtividadeAtual === 'todos' || t.tipo === filtroAtividadeAtual;
+    return t.confirmado !== false && t.pendenteConfirmacao !== true && (filtroAtividadeAtual === 'todos' || t.tipo === filtroAtividadeAtual);
   });
 
   // Atualizar contador de transações

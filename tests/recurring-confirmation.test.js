@@ -19,3 +19,10 @@ test('dashboard renders pending receipts across the selected month and binds vis
  assert(section.includes('pendenciasRecorrentes.filter'));assert(section.includes('abrirConfirmacaoPendente(item._lembrete.pendencia)'));
  assert(!section.includes('mesVisualizado'));
 });
+
+test('all reminder buttons resolve persisted pending data and use the atomic confirmation',()=>{
+ const route=source.slice(source.indexOf('function marcarLembretePago'),source.indexOf('// ─── Modal: Confirmar recorrências pendentes'));
+ assert(route.includes('conferirRecorrencia(lembrete)'));assert(route.includes('abrirConfirmacaoPendente(pendente)'));assert(!route.includes('await addDoc'));assert(!source.includes('pmgContaSel'));
+ const activities=source.slice(source.indexOf('function renderizarAtividades'));
+ assert(activities.includes('t.pendenteConfirmacao !== true'));
+});
