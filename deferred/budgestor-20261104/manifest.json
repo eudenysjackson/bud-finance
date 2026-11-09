@@ -1,0 +1,112 @@
+[
+  {
+    "file": "backend/gestor-api.js",
+    "sha256": "d9a1715314bbc5d75c56c8f3d193c7762c7f540bc1f8d53bb560ef09658eb98f",
+    "kind": "gestor-only"
+  },
+  {
+    "file": "backend/owner-notifications.js",
+    "sha256": "ebc2ec359c0067c99a6ce4311df19a4f4d6a877a60a3c1fdcdf5e7a7f1ee7dd6",
+    "kind": "gestor-only"
+  },
+  {
+    "file": "tests/gestor-api.test.js",
+    "sha256": "8e3581afe886dbd0f6e28783a879258c437194336b89430668612aa288ea7ec3",
+    "kind": "gestor-only"
+  },
+  {
+    "file": "tests/owner-notifications.test.js",
+    "sha256": "c48094083930e77e39221fd17a876627d59957d6b632980492d6964ee202362f",
+    "kind": "gestor-only"
+  },
+  {
+    "file": "budgestor/config.js",
+    "sha256": "a73fa18e6b0d1db54d4e4368767fb5a7545afcbe89edfda73ad95ff07f26e62a",
+    "kind": "gestor-only"
+  },
+  {
+    "file": "budgestor/index.html",
+    "sha256": "efbc072449133e02b8541b6a5bfb9d7ada1d5bbb984b06825a3a9588fe9f563b",
+    "kind": "gestor-only"
+  },
+  {
+    "file": "budgestor/manifest.json",
+    "sha256": "73f9d7a9a47b0c345404f1973aec16a08989321639e33fc827bdfbb79f535423",
+    "kind": "gestor-only"
+  },
+  {
+    "file": "budgestor/notifications.js",
+    "sha256": "2f7ae8812c317c038cad4ab9309c9bf49a04ae3146d5b6adeed3b39be0cc9399",
+    "kind": "gestor-only"
+  },
+  {
+    "file": "budgestor/sw.js",
+    "sha256": "5dad97524c4e33bf9950d42d0054d7a74bf4758ba038009a0576565522e0ba36",
+    "kind": "gestor-only"
+  },
+  {
+    "file": "backend/server.js",
+    "sha256": "5e667b55f71718ac0cd3ac65c3420c10175658acbfdda1c7cb80446e921871ee",
+    "kind": "shared-before-separation"
+  },
+  {
+    "file": "backend/account-lifecycle.js",
+    "sha256": "2367eb9de51b637d253be4d17e75f10c1695c67d08a23faa179b868ce217a9a8",
+    "kind": "shared-before-separation"
+  },
+  {
+    "file": "appbudfinance/admin.html",
+    "sha256": "8bc9ed0bc300078c770ba89dc9ad83127f4bd675d8fdfe759fa5ee5c143f9154",
+    "kind": "shared-before-separation"
+  },
+  {
+    "file": "appbudfinance/js/admin.js",
+    "sha256": "bc12e88e6d9d771ef809b3b412d2b4bf37d2039797c29841615c09d71f9894a8",
+    "kind": "shared-before-separation"
+  },
+  {
+    "file": "appbudfinance/index.html",
+    "sha256": "9b1a10776b0507a808b511b1fa608010eca879798361188b68a3b8d7a4ba249f",
+    "kind": "shared-before-separation"
+  },
+  {
+    "file": "firestore.indexes.json",
+    "sha256": "bc1695686388fc0d27c65aff3ddcdb567cfb46188e10b8395a203a22c689c10a",
+    "kind": "shared-before-separation"
+  },
+  {
+    "file": "firestore.rules",
+    "sha256": "93ad34973eb138951113fd5bdff1f09aa886367e6365939c6ae63e41ffb5b113",
+    "kind": "shared-before-separation"
+  },
+  {
+    "file": "package.json",
+    "sha256": "239c794a8cd6b283b81337432308f9dcced98bfef0b7e679a860d8d4c83ebf66",
+    "kind": "shared-before-separation"
+  },
+  {
+    "file": "scripts/package-release.js",
+    "sha256": "2eec8f9105972785d1adaccbcf811c8976249e5f7e472d19a381a181d3b3763b",
+    "kind": "shared-before-separation"
+  },
+  {
+    "file": "scripts/verify-release-package.js",
+    "sha256": "e4d704885ba673315c047e9f43c82044d31dd4fa21ad7bd38ccd115d239f6e2a",
+    "kind": "shared-before-separation"
+  },
+  {
+    "file": "tests/checkout.test.js",
+    "sha256": "c0975d822f45b4f9545cb0c8998b40e40237ec160d62a9238aa7dfeee9743cd6",
+    "kind": "shared-before-separation"
+  },
+  {
+    "file": "tests/security-emulator.test.js",
+    "sha256": "adefbde7019b6f0806c2927a497e85c897710ec9540f013419a3b9c34b0ae6b4",
+    "kind": "shared-before-separation"
+  },
+  {
+    "file": "RELEASE_BUDGESTOR_PREPARACAO_2026-11-04.md",
+    "sha256": "71168c3999c16518e9a8a273c77d4808eb9f97fe2045ae179262f6b2c8c6abbe",
+    "kind": "shared-before-separation"
+  }
+]

@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const crypto=require('node:crypto');
 const source=fs.readFileSync('backend/server.js','utf8');
 const code=source.slice(source.indexOf("app.post('/mercadopago/create-subscription'"),source.indexOf("app.post('/api/push/token'"));
-function setup({providerError=false,lookupError=false,referrer=null,initialProfile={}}={}){
+function setup({providerError=false,lookupError=false,referrer=null,initialProfile={},onEmail}={}){
  const routes=new Map(),calls=[];
  const profile=Object.assign({email:'qa@example.test',nome:'Pessoa teste',plano:'free'},initialProfile);
  const sub={external_reference:'owner|starter',payer_email:'qa@example.test',status:'authorized'};
@@ -23,7 +23,8 @@ function setup({providerError=false,lookupError=false,referrer=null,initialProfi
   MP_ACCESS_TOKEN:'TEST-fake-token',MP_WEBHOOK_SECRET:'test-secret',MP_WEBHOOK_URL:'https://backend.test/webhook/mercadopago',MP_INDICACAO_DESCONTO:.15,MP_BONUS_INDICADOR:.5,
   MP_PLANS:{starter:{title:'Bud Finance Starter',amount:9.99},pro:{amount:29.90},plus:{amount:49.90}},FRONTEND_URL:'https://budsolucoes.com.br/appbudfinance',
   admin:{firestore:{FieldValue:{delete:()=>'__delete',serverTimestamp:()=>1},Timestamp:{fromDate:date=>date.toISOString()}}},
-  process:{env:{BUD_USE_EMULATOR:'true'}},require:name=>{assert.equal(name,'crypto');return crypto;},console:{log(){},warn(){},error(){}},
+  process:{env:{BUD_USE_EMULATOR:onEmail ? 'false' : 'true'}},require:name=>{assert.equal(name,'crypto');return crypto;},console:{log(){},warn(){},error(){}},
+  sendCommunicationEmail:onEmail,
   fetch:async(url,options={})=>{calls.push({url,options});if(options.method==='POST')return{ok:!providerError,json:async()=>providerError?{message:'Provider unavailable'}:{id:'sub-1',init_point:'https://www.mercadopago.com.br/subscriptions/checkout?preapproval_id=sub-1'}};if(options.method==='PUT'){if(!providerError)Object.assign(sub,JSON.parse(options.body));return{ok:!providerError,json:async()=>sub};}return{ok:!lookupError,status:lookupError?503:200,json:async()=>url.includes('/authorized_payments/')?invoice:url.includes('/v1/payments/')?payment:sub};}};
  vm.runInNewContext(code,context);
  async function invoke(route,body={},headers={authorization:'Bearer test-token'},query={}){
@@ -275,3 +276,18 @@ test('provider may omit payer email when subscription binding and payer ID ident
 test('an initial checkout from a manually granted plan activates only the plan actually bought after approval',async()=>{const s=setup({initialProfile:{plano:'plus'}});await s.invoke('/mercadopago/create-subscription',{planKey:'starter'});await s.webhook();assert.equal(s.profile.plano,'plus');s.payment.status='approved';s.payment.transaction_amount=9.99;s.payment.date_approved=new Date().toISOString();await s.webhook('payment');assert.equal(s.profile.plano,'starter');assert.equal(s.profile.mpCheckout,undefined);});
 
 test('a subscription status event read before an upgrade cannot overwrite the new plan',async()=>{const s=setup({initialProfile:{plano:'pro',mpSubscriptionId:'sub-1'}});await assert.rejects(s.updateSubscription('owner','sub-1',{plano:'starter'},'starter'),/changed concurrently/);assert.equal(s.profile.plano,'pro');});
+
+test('abandoning an unpaid checkout preserves existing access and sends no cancellation email', async () => {
+ const emails = [];
+ const s = setup({onEmail: async email => emails.push(email), initialProfile: {
+   plano:'trial', planoExpira:'2026-11-30', mpSubscriptionId:'sub-1',
+   assinaturaStatus:'pending', mpCheckout:{state:'pending',subscriptionId:'sub-1'}
+ }});
+ const response = await s.invoke('/mercadopago/cancelar-assinatura');
+ assert.equal(response.statusCode,200);
+ assert.equal(s.profile.plano,'trial');
+ assert.equal(s.profile.planoExpira,'2026-11-30');
+ assert.equal(s.profile.mpCheckout,undefined);
+ assert.equal(s.profile.canceladoEm,undefined);
+ assert.equal(emails.length,0);
+});

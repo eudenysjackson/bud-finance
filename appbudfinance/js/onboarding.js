@@ -24,7 +24,7 @@ import {
   getFirestore, initializeFirestore, persistentLocalCache,
   doc, getDoc, updateDoc, setDoc, addDoc, getDocs,
   collection, serverTimestamp, Timestamp
-} from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js';
+} from './financial-firestore.js';
 import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Preview mode (sem login) ──────────────────────────────────────────────

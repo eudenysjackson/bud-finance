@@ -31,7 +31,7 @@ test('financial push fans out once per device, expires after one hour and identi
 test('scheduled dry-run verifies the shared secret and database without sending any message',async()=>{
  const source=fs.readFileSync('backend/server.js','utf8');let handler,reads=0;
  const db={collection:()=>({where:()=>({limit:()=>({get:async()=>{reads++;return{empty:false};}})})})};
- new Function('app','auth','db','process','enviarLembretesDeAssinatura',source.slice(source.indexOf("app.get('/api/notifications/daily'"),source.indexOf('var PORT = process.env.PORT')))(
+ new Function('app','auth','db','process','enviarLembretesDeAssinatura',source.slice(source.indexOf("app.get('/api/notifications/daily'"),source.indexOf('app.use(safeError)')))(
   {get:(_,h)=>{handler=h;}},{},db,{env:{CRON_SECRET:'test-only'}},()=>{throw Error('dry-run must not send emails');}
  );
  async function call(secret){const res={statusCode:200,status(n){this.statusCode=n;return this;},json(data){this.data=data;return this;}};await handler({headers:{'x-cron-secret':secret},query:{dry_run:'1'}},res);return res;}

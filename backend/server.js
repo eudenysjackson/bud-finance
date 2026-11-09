@@ -15,6 +15,9 @@ const { createJobs, currentJob } = require('./ai-jobs');
 const { createFirestoreJobStore } = require('./ai-job-store');
 const { readNubankInvoice } = require('./invoice-reader');
 const { createAccountLifecycle } = require('./account-lifecycle');
+const planPolicy = require('./plan-policy');
+const { privateHeaders, safeError, revokeSessions } = require('./security-controls');
+const { createFinancialWrite } = require('./financial-write');
 const { createSecurityGuard, pruneSecurityLimits } = require('./security-guard');
 const { createSubscriptionChange } = require('./subscription-change');
 const { createSubscriptionUpgrade } = require('./subscription-upgrade');
@@ -112,7 +115,8 @@ const subscriptionUpgrades=createSubscriptionUpgrade({auth,db,token:MP_ACCESS_TO
 // â”€â”€â”€ Express setup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const app = express();
 app.disable('x-powered-by');
-app.use((_req,res,next)=>{res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');next();});
+app.use(privateHeaders);
+app.use('/api/financial/write', express.json({ limit: '2mb' }));
 app.use(express.json({ limit: '200kb' })); // aumentado para suportar mensagens com extratos/planilhas do Assistente IA
 
 // A3 fix: CORS allowlist split por NODE_ENV (dev permite localhost; prod sÃ³ domÃ­nios pÃºblicos).
@@ -134,18 +138,7 @@ const ALLOWED_ORIGINS_DEV = [
 const ALLOWED_ORIGINS_PROD = [
   'https://bud-finance.onrender.com',
   'https://budsolucoes.com.br',
-  'https://www.budsolucoes.com.br',
-  // Origens locais de desenvolvimento â€” seguras pois localhost/127.0.0.1 nÃ£o Ã© acessÃ­vel externamente.
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'http://localhost:3001',
-  'http://127.0.0.1:3001',
-  'http://localhost:5500',
-  'http://127.0.0.1:5500',
-  'http://localhost:5501',
-  'http://127.0.0.1:5501',
-  'http://localhost:5502',
-  'http://127.0.0.1:5502'
+  'https://www.budsolucoes.com.br'
 ];
 const ALLOWED_ORIGINS = IS_PROD
   ? ALLOWED_ORIGINS_PROD
@@ -482,7 +475,7 @@ app.post('/api/boas-vindas', async function (req, res) {
 });
 
 // â”€â”€â”€ POST /api/iniciar-trial â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Ativado automaticamente apÃ³s cadastro: concede 3 dias no plano Pro.
+// Ativado automaticamente apÃ³s cadastro: concede 3 dias com acesso Plus.
 // Usa Firebase Admin SDK para contornar regras Firestore de create.
 app.post('/api/iniciar-trial', express.json(), async function (req, res) {
   if (!db) return res.status(503).json({ ok: false, error: 'Firebase Admin nÃ£o inicializado.' });
@@ -497,19 +490,16 @@ app.post('/api/iniciar-trial', express.json(), async function (req, res) {
   var uid = decoded.uid;
   try {
     var ref = db.collection('usuarios').doc(uid);
-    var snap = await ref.get();
-    if (!snap.exists) return res.status(404).json({ ok: false, error: 'UsuÃ¡rio nÃ£o encontrado.' });
-    var data = snap.data();
-    // SÃ³ ativa trial em contas sem plano ou no free (nÃ£o sobrescreve planos pagos)
-    if (data.plano && data.plano !== 'free') {
-      return res.json({ ok: true, msg: 'Plano jÃ¡ definido.' });
-    }
-    var trialFim = new Date();
-    trialFim.setDate(trialFim.getDate() + 3);
-    await ref.update({
-      plano:         'trial',
-      trialFim:      admin.firestore.Timestamp.fromDate(trialFim),
-      trialIniciado: admin.firestore.FieldValue.serverTimestamp()
+    await db.runTransaction(async transaction => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists) throw new Error('Perfil indisponível.');
+      const data = snap.data();
+      if (data.trialIniciado || (data.plano && data.plano !== 'free')) return;
+      transaction.update(ref, {
+        plano: 'trial',
+        trialFim: admin.firestore.Timestamp.fromMillis(Date.now() + 3 * 86400000),
+        trialIniciado: admin.firestore.FieldValue.serverTimestamp()
+      });
     });
     return res.json({ ok: true });
   } catch (e) {
@@ -534,19 +524,11 @@ app.post('/api/expirar-trial', express.json(), async function (req, res) {
   var uid = decoded.uid;
   try {
     var ref = db.collection('usuarios').doc(uid);
-    var snap = await ref.get();
-    if (!snap.exists) return res.status(404).json({ ok: false });
-    var data = snap.data();
-    if (data.plano !== 'trial') return res.json({ ok: true, msg: 'N\u00e3o era trial.' });
-    // Confirmar que realmente expirou
-    var trialFim = data.trialFim;
-    if (trialFim && trialFim.toDate && trialFim.toDate() > new Date()) {
-      return res.json({ ok: false, msg: 'Trial ainda ativo.' });
-    }
-    await ref.update({
-      plano:         'free',
-      trialFim:      admin.firestore.FieldValue.delete(),
-      trialIniciado: admin.firestore.FieldValue.delete()
+    await db.runTransaction(async transaction => {
+      const snap = await transaction.get(ref);
+      if (!snap.exists || snap.data().plano !== 'trial') return;
+      if (planPolicy.effectivePlan(snap.data()) !== 'free') return;
+      transaction.update(ref, { plano: 'free', trialFim: admin.firestore.FieldValue.delete() });
     });
     return res.json({ ok: true });
   } catch (e) {
@@ -756,6 +738,8 @@ async function requireAuthenticatedUser(req, res, next) {
   req.budUser = decoded;
   next();
 }
+app.post('/api/security/revoke-sessions', requireAuthenticatedUser, revokeSessions({ auth, db }));
+app.post('/api/financial/write', requireAuthenticatedUser, createFinancialWrite({ db, admin }));
 app.get('/api/ia/jobs/:id', aiJobs.poll);
 const accountLifecycle=createAccountLifecycle({authenticate:getBearerUser,auth,db,fieldValue:admin.firestore.FieldValue,emulator:process.env.BUD_USE_EMULATOR==='true'});
 app.delete('/api/account',accountLifecycle.handler);
@@ -886,6 +870,7 @@ app.post('/api/extrair-fatura', requireAuthenticatedUser, upload.single('arquivo
     return res.json({ transacoes: transacoes, meta: meta });
 
   } catch (err) {
+    if (err.code === 'PLAN_LIMIT') return res.status(403).json({error:err.message,code:err.code});
     if (err.code === 'AI_OUTPUT_LIMIT') return res.status(502).json({ error: AI_OUTPUT_LIMIT_MESSAGE });
     if (err.code === 'AI_RATE_LIMIT') return res.status(503).json({ error: err.message, code: err.code });
     if (err.name === 'TimeoutError') return res.status(504).json({ error: 'O provedor de IA não respondeu a tempo. Tente novamente.', code: 'AI_TIMEOUT' });
@@ -1033,20 +1018,18 @@ var uploadCupom = multer({
 //   - application/json     { texto: "..." } para colar texto direto
 // Retorna: { mercado, cnpj, data, itens:[{nome,qtd,valor,cat}], cached?: true }
 // Cota única mensal para todo processamento inteligente (cupom e fatura).
-var IA_LIMITES_CUPOM = { free: 0, starter: 3, trial: 10, pro: 10, plus: 9999 };
+var IA_LIMITES_CUPOM = { free: 0, starter: 0, trial: Infinity, pro: 5, plus: Infinity };
 
 async function verificarQuotaIA(uid) {
   if (currentJob()?.uid === uid && currentJob().quotaApplied) return;
-  if (!db) return; // Firebase nÃ£o iniciado â€” permite (degrada gracefully)
-  var anoMes = (function() {
-    var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-  })();
+  if (!db) throw Object.assign(new Error('Serviço indisponível.'), {status:503}); // Firebase nÃ£o iniciado â€” permite (degrada gracefully)
+  var anoMes = planPolicy.month();
   var userDoc = await db.collection('usuarios').doc(uid).get();
   var plano = userDoc.exists ? _effectivePlan(userDoc.data()) : 'free';
   var limite = Object.prototype.hasOwnProperty.call(IA_LIMITES_CUPOM, plano)
     ? IA_LIMITES_CUPOM[plano]
     : IA_LIMITES_CUPOM.free;
-  if (limite >= 9999) return; // ilimitado
+  if (limite === Infinity) return; // ilimitado
   var usoSnap = await db.collection('usuarios').doc(uid).collection('uso-ia').doc(anoMes).get();
   var usoData = usoSnap.exists ? (usoSnap.data() || {}) : {};
   // "mercado" é mantido durante a migração para não quebrar o indicador atual.
@@ -1059,25 +1042,22 @@ async function verificarQuotaIA(uid) {
 }
 
 async function incrementarQuotaIA(uid) {
-  if (!db) return;
-  var anoMes = (function() {
-    var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-  })();
-  try {
-    var FieldValue = require('firebase-admin').firestore.FieldValue;
-    const quotaRef = db.collection('usuarios').doc(uid).collection('uso-ia').doc(anoMes);
-    const increment = { processamentos: FieldValue.increment(1), mercado: FieldValue.increment(1) };
-    const job = currentJob();
-    if (job?.documentPath && job.uid === uid) {
-      await db.runTransaction(async transaction => {
-        const jobRef = db.doc(job.documentPath), snap = await transaction.get(jobRef);
-        if (!snap.exists || snap.data().owner !== job.owner) throw new Error('Job lease changed');
-        if (snap.data().quotaApplied) return;
-        transaction.set(quotaRef, increment, { merge: true });transaction.update(jobRef, { quotaApplied: true });
-      });
-      job.quotaApplied = true;
-    } else await quotaRef.set(increment, { merge: true });
-  } catch (_e) { if (currentJob()?.documentPath) throw _e; }
+  if (!db) throw Object.assign(new Error('Serviço indisponível.'), {status:503});
+  const userRef = db.collection('usuarios').doc(uid);
+  const quotaRef = userRef.collection('uso-ia').doc(planPolicy.month());
+  const job = currentJob();
+  await db.runTransaction(async transaction => {
+    const jobRef = job?.documentPath && job.uid === uid ? db.doc(job.documentPath) : null;
+    const [userSnap, quotaSnap, jobSnap] = await Promise.all([transaction.get(userRef), transaction.get(quotaRef), jobRef ? transaction.get(jobRef) : null]);
+    if (jobRef && (!jobSnap.exists || jobSnap.data().owner !== job.owner)) throw new Error('Job lease changed');
+    if (jobSnap?.data()?.quotaApplied) return;
+    const cap = planPolicy.limits(userSnap.exists ? userSnap.data() : {}).ai;
+    const usage = quotaSnap.exists ? Number(quotaSnap.data().processamentos || quotaSnap.data().mercado || 0) : 0;
+    planPolicy.assertLimit(usage, 1, cap, 'serviços de IA por mês');
+    transaction.set(quotaRef, {processamentos:usage+1,mercado:usage+1}, {merge:true});
+    if (jobRef) transaction.update(jobRef,{quotaApplied:true});
+  });
+  if (job?.uid === uid) job.quotaApplied = true;
 }
 
 app.post('/api/extrair-cupom', requireAuthenticatedUser, function parseReceiptFiles(req, res, next) {
@@ -1154,6 +1134,7 @@ app.post('/api/extrair-cupom', requireAuthenticatedUser, function parseReceiptFi
     return res.json(result);
 
   } catch (err) {
+    if (err.code === 'PLAN_LIMIT') return res.status(403).json({error:err.message,code:err.code});
     if (err.code === 'AI_OUTPUT_LIMIT') return res.status(502).json({ error: AI_OUTPUT_LIMIT_MESSAGE });
     var safeMsg = (err.message || '').replace(/(key=)[^\s&]+/, '$1***');
     if (err.status === 429) return res.status(429).json({ error: err.message });
@@ -1613,7 +1594,7 @@ app.post('/api/chat', async function (req, res) {
     'â€¢ Starter â€” R$ 9,99/mÃªs: tudo do Free + Mercado de compras, Limites por categoria, Comparativo mensal, RelatÃ³rios PDF/CSV.',
     'â€¢ Pro â€” R$ 29,90/mÃªs: tudo do Starter + Recorrentes automÃ¡ticas, DÃ­vidas com Tabela Price, GrÃ¡ficos avanÃ§ados, ImportaÃ§Ã£o de extratos (PDF/OFX/CSV/imagem), Insights de saÃºde financeira, BalanÃ§o mensal.',
     'â€¢ Plus â€” R$ 49,90/mÃªs: tudo do Pro + Assistente de IA (vocÃª, o Buddy), Assistente WhatsApp (em breve), Parcelamento inteligente de cartÃ£o via IA.',
-    'â€¢ Trial: 3 dias grÃ¡tis com funcionalidades Pro ao criar conta.',
+    'â€¢ Trial: 3 dias grÃ¡tis com funcionalidades Plus ao criar conta.',
     'Para assinar: acessar https://budsolucoes.com.br/budfinance/ (seÃ§Ã£o Planos) ou dentro do app em qualquer banner de upgrade.',
     '',
     '=== CONTATO E SUPORTE ===',
@@ -3041,6 +3022,8 @@ app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req
       return res.status(400).json({ error: 'Nenhuma assinatura ativa para cancelar.' });
     }
 
+    const tentativaPendente = userData.assinaturaStatus === 'pending' && userData.mpCheckout?.state === 'pending';
+
     // Cancelar no Mercado Pago (pular em sandbox)
     var localTestSubscription = process.env.BUD_USE_EMULATOR === 'true' && String(subId).startsWith('LOCAL_TEST_');
     if (!String(subId).startsWith('SANDBOX_TEST_') && !localTestSubscription) {
@@ -3056,22 +3039,30 @@ app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req
       }
     }
 
-    // Rebaixar para free no Firestore
-    await userRef.update({
-      plano:             'free',
+    // Reconcile the current profile in the same transaction.
+    await db.runTransaction(async transaction => {
+      const fresh = await transaction.get(userRef);
+      if (!fresh.exists || fresh.data().mpSubscriptionId !== subId) return;
+      const stillPending = fresh.data().assinaturaStatus === 'pending' && fresh.data().mpCheckout?.state === 'pending';
+      transaction.update(userRef, {
+      ...(!stillPending ? {
+        plano: 'free',
+        planoExpira: admin.firestore.FieldValue.delete(),
+        canceladoEm: admin.firestore.FieldValue.serverTimestamp()
+      } : {}),
       mpSubscriptionId:  admin.firestore.FieldValue.delete(),
-      planoExpira:       admin.firestore.FieldValue.delete(),
       planoAtualizadoEm: admin.firestore.FieldValue.serverTimestamp(),
       assinaturaStatus:  'cancelled',
       planoTroca:        admin.firestore.FieldValue.delete(),
       mpCheckout:        admin.firestore.FieldValue.delete(),
       pagamentoPendente: false,
       pagamentoPendenteDesde: admin.firestore.FieldValue.delete(),
-      pagamentoPendentePagamentoId: admin.firestore.FieldValue.delete(),
-      canceladoEm:       admin.firestore.FieldValue.serverTimestamp()
+      pagamentoPendentePagamentoId: admin.firestore.FieldValue.delete()
     });
 
-    if (process.env.BUD_USE_EMULATOR !== 'true') {
+    });
+
+    if (!tentativaPendente && process.env.BUD_USE_EMULATOR !== 'true') {
       await enviarConfirmacoesCancelamento(decoded.email_verified ? decoded.email : null, userData.plano);
     }
     console.log('[cancelar-assinatura] Assinatura cancelada:', uid, subId);
@@ -3316,15 +3307,7 @@ function _formatDateBR(date) {
 
 var PAYMENT_GRACE_DAYS = 10;
 function _effectivePlan(user, now) {
-  user = user || {};
-  var plan = String(user.plano || 'free').toLowerCase();
-  var expiry = _toDate(plan === 'trial' ? user.trialFim : user.planoExpira || user.assinaturaExpira);
-  var pendingSince = user.pagamentoPendente ? _toDate(user.pagamentoPendenteDesde) : null;
-  if (pendingSince && ['starter', 'pro', 'plus'].includes(plan)) {
-    var graceEnd = new Date(pendingSince.getTime() + PAYMENT_GRACE_DAYS * 86400000);
-    if (graceEnd > (expiry || new Date(0))) expiry = graceEnd;
-  }
-  return expiry && expiry.getTime() < (now || new Date()).getTime() ? 'free' : plan;
+  return planPolicy.effectivePlan(user, (now || new Date()).getTime());
 }
 
 function _pendingDayCount(profile, now) {
@@ -3655,6 +3638,7 @@ app.get('/api/notifications/daily', async function (req, res) {
 });
 
 // â”€â”€â”€ Start server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+app.use(safeError);
 var PORT = process.env.PORT || 3000;
 app.listen(PORT, function () {
   console.log('[Bud Finance Backend] Running on port ' + PORT);

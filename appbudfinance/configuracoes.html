@@ -450,6 +450,42 @@
     @media (min-width: 769px) {
       .sidebar-collapse-btn { display: flex; }
     }
+
+    .cfg-plan-box {
+      margin-top: 1rem;
+      padding: clamp(.75rem, 2vw, 1.25rem);
+      border: 1px solid var(--card-border, #dbeafe);
+      border-radius: 1.25rem;
+      background: radial-gradient(circle, #3b82f638 1px, transparent 1px) 0 0 / 12px 12px,
+                  linear-gradient(135deg, #3b82f612, #10b98112);
+    }
+    .cfg-plan-box summary { cursor: pointer; font-weight: 800; }
+    .cfg-plan-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+      gap: .75rem;
+      margin-top: .85rem;
+    }
+    .cfg-plan-grid .cfg-plan-option {
+      margin: 0;
+      padding: 1rem;
+      border-top: 3px solid #60a5fa;
+    }
+    .cfg-plan-option:nth-child(1) { border-top-color: #94a3b8; }
+    .cfg-plan-option:nth-child(3) { border-top-color: #10b981; }
+    .cfg-plan-option:nth-child(4) { border-top-color: #8b5cf6; }
+    .cfg-plan-option strong { display: block; padding-bottom: .65rem; }
+    .cfg-benefits-grid {display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .cfg-benefit {display:flex;flex-direction:column;gap:7px;padding:12px 8px;border:1px solid var(--card-border,#dbeafe);border-radius:14px;background:var(--input-bg,#f5f9ff);font-size:.72rem;text-align:center}
+    .cfg-benefit > span:first-child {font-size:1.3rem}
+    .cfg-benefit b {color:var(--card-text,#1e293b);font-size:.8rem}
+    .cfg-plan-option ul { list-style: none; padding: 0; margin: 0; }
+    .cfg-plan-option li {
+      border-top: 1px solid var(--card-border, #dbeafe);
+      padding: .4rem 0;
+      font-size: .8rem;
+      color: var(--card-text-sec, #475569);
+    }
   </style>
 </head>
 <body>
@@ -663,6 +699,10 @@
             <div id="planoBotoes" style="display:flex;flex-direction:column;gap:0.5rem;flex-shrink:0;"></div>
           </div>
           <div id="planoBannerStatus" style="display:none;border-radius:0.75rem;padding:0.75rem 1rem;margin-top:0.875rem;font-size:0.8125rem;font-weight:600;"></div>
+          <details class="cfg-plan-box" open>
+            <summary>Comparar planos</summary>
+            <div id="cfgPlanComparison" class="cfg-plan-grid"></div>
+          </details>
         </div>
 
         <!-- ── WhatsApp ──────────────────────────────────────────── -->
@@ -801,6 +841,14 @@
             <button class="cfg-btn cfg-btn-danger" id="btnLogoutSeg">Sair</button>
           </div>
 
+          <div class="cfg-action-row">
+            <div class="cfg-action-info">
+              <div class="cfg-action-label">Encerrar todas as sessões</div>
+              <div class="cfg-action-desc">Desconecta os outros dispositivos e este também. Desativa os avisos push até você ativá-los novamente. Exige login feito nos últimos 5 minutos.</div>
+            </div>
+            <button class="cfg-btn cfg-btn-danger" id="btnRevokeSessions">Encerrar sessões</button>
+          </div>
+
           <div class="cfg-action-row" style="margin-top:0.75rem;border-top:1px solid var(--card-border);padding-top:0.75rem;">
             <div class="cfg-action-info">
               <div class="cfg-action-label" style="color:#f59e0b;">Resetar Toda a Conta</div>
@@ -900,8 +948,8 @@
 
   <!-- ═══ Firebase + Config ════════════════════════════════════════ -->
   <script src="js/firebase-config.js"></script>
-  <script src="js/bud-utils.js?v=20261102-mobile"></script>
-  <script type="module" src="js/configuracoes.js?v=20261103-profile-plans"></script>
+  <script src="js/bud-utils.js?v=20261104-planos"></script>
+  <script type="module" src="js/configuracoes.js?v=20261104-planos"></script>
   <script src="js/tutorial.js"></script>
   <script>BudTutorial.init('configuracoes');</script>
 </body>

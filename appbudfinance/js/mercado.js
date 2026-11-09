@@ -61,7 +61,7 @@ const IA_MAX_FILES  = 3;
 const IA_MAX_SIZE_MB = 8;
 // Limites mensais de processamento inteligente: Free apresenta o recurso,
 // mas exige upgrade; os planos pagos evoluem de forma clara.
-const IA_LIMITES_PLANO = { free: 0, starter: 3, pro: 10, plus: 9999, trial: 10 };
+const IA_LIMITES_PLANO = { free: 0, starter: 0, pro: 5, plus: Infinity, trial: Infinity };
 const CATEGORIAS_IA = ['Mercado','Padaria/Café','Bares/Baladas','Farmácia','Pet','Material Escolar','Outros'];
 
 // ─── Estado global ───────────────────────────────────────────────
@@ -1794,7 +1794,7 @@ async function incrementarUsoIA() {
   } catch (e) { warn('inc uso IA', e); }
 }
 
-function limiteIA() { return IA_LIMITES_PLANO[_planoUsuario] || 5; }
+function limiteIA() { return IA_LIMITES_PLANO[_planoUsuario] ?? 0; }
 function restanteIA() { return Math.max(0, limiteIA() - _usoIAMes); }
 
 function atualizarChipQuota() {
