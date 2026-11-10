@@ -407,6 +407,7 @@ window.processarArquivoIA = async function(inputEl) {
   animarStepsIA(1);
 
   try {
+    let layoutPdf;
     let texto = '';
 
     if (file.type === 'application/pdf' || ext === 'pdf') {
@@ -419,11 +420,13 @@ window.processarArquivoIA = async function(inputEl) {
       const buffer = await file.arrayBuffer();
       const pdfDoc = await window.pdfjsLib.getDocument({ data: buffer }).promise;
       const paginas = [];
+      const paginasComColunas = [];
       let pdfOcrWorker;
       try {
         for (let p = 1; p <= pdfDoc.numPages; p++) {
           const page = await pdfDoc.getPage(p);
           const content = await page.getTextContent();
+          paginasComColunas.push(window.BudContractReader?.rowsFromPdfItems(content.items) || '');
           let pageText = content.items.map(i => i.str + (i.hasEOL ? '\n' : ' ')).join('');
           if (!pageText.trim()) {
             if (!window.Tesseract) throw new Error('O leitor de imagens não carregou. Recarregue a página.');
@@ -442,6 +445,7 @@ window.processarArquivoIA = async function(inputEl) {
           page.cleanup();
         }
         texto = paginas.join('\n');
+        layoutPdf = paginasComColunas.join('\n');
       } finally {
         if (pdfOcrWorker) await pdfOcrWorker.terminate();
         await pdfDoc.destroy();
@@ -467,7 +471,7 @@ window.processarArquivoIA = async function(inputEl) {
     animarStepsIA(2);
     if (!texto.trim()) throw new Error('Não foi possível extrair texto do arquivo. Tente com um arquivo mais legível.');
 
-    await processarTextoExtraido(texto);
+    await processarTextoExtraido(texto, layoutPdf);
   } catch (err) {
     (window.budError||console.error)('[Dividas] processarArquivoIA:', err);
     mostrarErroIA(err.message || 'Erro ao processar o arquivo.');
@@ -494,20 +498,20 @@ window.processarTextoIA = async function() {
   }
 };
 
-async function processarTextoExtraido(texto) {
+async function processarTextoExtraido(texto, layoutPdf) {
   animarStepsIA(2);
   await new Promise(r => setTimeout(r, 200)); // deixa a UI atualizar
 
   const classif = classificarContrato(texto);
   if (!window.BudContractReader) throw new Error('O leitor de contratos não carregou. Recarregue a página.');
-  contratoExtraido = window.BudContractReader.read(texto);
+  contratoExtraido = window.BudContractReader.read(texto, layoutPdf);
   contratoBlocos = [];
   contratoFingerprint = '';
   contratoMensagem = '';
   atualizarAvisoPendenciasContrato();
   if (contratoExtraido?.components?.length) {
     contratoFingerprint = await window.BudContractReader.fingerprint(texto);
-    contratoBlocos = contratoExtraido.components.map(b => ({...b, dados:{...b.dados, parcelasPagas:0}, selecionado:false, salvo:false, edicoes:{}, totalDerivado: b.dados.valorTotal === Math.round(b.dados.valorParcela*b.dados.parcelas*100)/100}));
+    contratoBlocos = contratoExtraido.components.map(b => ({...b, dados:{...b.dados, parcelasPagas:0}, selecionado:contratoExtraido.tipo === 'Consórcio', salvo:false, edicoes:{}, totalDerivado: b.totalDerivado || b.dados.valorTotal === Math.round(b.dados.valorParcela*b.dados.parcelas*100)/100}));
   }
   const dados = contratoExtraido ? { ...contratoExtraido.dados } : extrairDadosDoTexto(texto.replace(/[ \t]+/g, ' '));
   if (contratoExtraido) {
@@ -792,6 +796,13 @@ function mostrarPreviewIA(dados, classif) {
   `;
 }
 
+function renderHistoricoConsorcio() {
+  const rows = contratoExtraido?.historicoConsorcio;
+  if (!rows?.length) return '';
+  const total = rows.reduce((sum, row) => sum + Math.round(row.valor * 100), 0) / 100;
+  return '<details style="margin:.75rem 0"><summary>Pagamentos de parcelas no extrato · ' + fmtIA(total) + '</summary><ul>' + rows.map(row => '<li>Assembleia ' + row.assembleia + ' · ' + formatDataBR(row.data) + ' · ' + fmtIA(row.valor) + '</li>').join('') + '</ul></details>';
+}
+
 function renderBlocosContrato() {
   const el = document.getElementById('iaResultado');
   if (!el) return;
@@ -802,6 +813,7 @@ function renderBlocosContrato() {
     <strong>Obrigações identificadas — selecione uma ou várias</strong>
     <p style="font-size:0.8125rem;line-height:1.5;">Cada obrigação será cadastrada como uma dívida separada. Complete os campos de cada uma abaixo. As pendentes permanecem nesta revisão. Complete-as antes de trocar de documento, iniciar nova dívida ou atualizar a página. Os valores são base contratual: confira reajustes e encargos nos avisos de cada obrigação.</p>
     ${(contratoExtraido?.avisos || []).map(a=>`<p style="font-size:0.8125rem;color:#b45309;">${escapeHTML(a)}</p>`).join('')}
+${renderHistoricoConsorcio()}
     <div class="contrato-actions">
       <button type="button" class="contrato-action contrato-action-select" ${salvandoBlocos?'disabled':''} onclick="window._contratoMarcar('todas')">Marcar todas</button>
       <button type="button" class="contrato-action" ${salvandoBlocos?'disabled':''} onclick="window._contratoMarcar('completas')">Só completas</button>

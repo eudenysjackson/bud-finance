@@ -766,6 +766,8 @@
       <button class="modal-close" id="btnFecharModalCartao" aria-label="Fechar">✕</button>
       <div class="modal-title" id="titleModalCartao">Novo Cartão</div>
 
+      <button type="button" id="btnConverterBeneficio" class="btn-secondary" style="width:100%;margin:0 0 1rem;display:none;">🎁 Este cartão é um benefício</button>
+      <p style="font-size:.8rem;color:var(--card-text-sec);">Vale alimentação, refeição e transporte usam saldo próprio. <a href="carteira.html">Cadastrar em Contas → Benefícios</a></p>
       <form id="formCartao" novalidate>
         <div class="modal-field">
           <label class="modal-label" for="inputNomeCartao">Nome do Cartão</label>
@@ -1118,7 +1120,8 @@
   </script>
   <script src="js/invoice-refunds.js?v=20261101-refund-reconcile2"></script>
   <script src="js/goal-purchase.js?v=20261102-purchase-fix"></script>
-  <script type="module" src="js/cartoes.js?v=20261104-planos"></script>
+  <script src="js/benefits.js?v=20261110"></script>
+  <script type="module" src="js/cartoes.js?v=20261110-beneficios2"></script>
   <script src="js/tutorial.js"></script>
   <script>BudTutorial.init('cartoes');</script>
 </body>

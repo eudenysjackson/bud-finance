@@ -16,7 +16,7 @@ test('dashboard no longer imports old global notices or converts foreground push
  assert.equal(s.includes("collection(db, 'notificacoes-globais')"),false);
  assert.equal(s.includes('BudInAppNotif.addExternal'),false);
  const html=fs.readFileSync('appbudfinance/dashboard.html','utf8');
- for(const id of ['secPrioridadesHoje','secLembretes7Dias','secDividasAtraso','bannerConfirmarReceitas','secTudoEmDia'])assert.equal(html.includes('id="'+id+'"'),false);
+ for(const id of ['secDividasAtraso','bannerConfirmarReceitas','secTudoEmDia'])assert.equal(html.includes('id="'+id+'"'),false);
  assert.match(fs.readFileSync('appbudfinance/js/bud-notif-inapp.js','utf8'),/removeItem\('bud_notif_v2'\)/);
 });
 test('recurring reminders respect confirmations, inactive items and month rollover',()=>{

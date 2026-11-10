@@ -108,3 +108,23 @@ test('discarding a pending draft never deletes registered debts',async()=>{
  const {ctx,ledger,nodes}=batchContext();ctx.window._contratoMarcar('todas');await ctx.window._salvarBlocosContrato();assert.equal(ledger.size,4);ctx.window._descartarPendenciasContrato();assert.equal(ledger.size,4);assert.equal(ctx.contratoBlocos.length,0);assert.equal(nodes.get('avisoPendenciasContrato').style.display,'none');
 });
 
+
+test('consortium statement keeps actual payments and assembly dates apart from future due dates', () => {
+  const text = 'Consórcio Honda Grupo/Cota/RD Lista de Pagamentos Valor devido';
+  const layout = [
+    'PARCELA | 33 | 18/10/2024 | 684,65 | 2,08 | 27/09/2024 | 684,65',
+    'PARCELA | 33 | 18/10/2024 | 0,00 | 0,00 | 30/09/2024 | 12,00',
+    'LANCE | 33 | 18/10/2024 | 15000,00 | 45,64 | 25/10/2024 | 5553,28',
+    'PARCELA | 58 | 19/11/2026 | 536,75 | 1,46 | / / | 0,00',
+  ].join('\n');
+  const result = reader.read(text, layout);
+  assert.equal(result.tipo, 'Consórcio');
+  assert.deepEqual(result.historicoConsorcio.map(row => row.valor), [684.65,12]);
+  const upcoming = result.components[0].dados;
+  assert.equal(upcoming.valorParcela,536.75);
+  assert.equal(upcoming.vencimento,undefined);
+  assert.equal(upcoming.parcelas,undefined);
+  assert.equal(reader.plan([{selecionado:true,dados:upcoming}]).ready.length,0);
+  const reviewed = {...upcoming, parcelas:2, valorTotal:1073.50, vencimento:'2026-11-20'};
+  assert.equal(reader.plan([{selecionado:true,dados:reviewed}]).ready.length,1);
+});

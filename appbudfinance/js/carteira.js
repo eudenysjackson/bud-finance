@@ -71,6 +71,7 @@ const CORES_MAP = {
 
 // ── Tipo config ───────────────────────────────────────────
 const TIPO_CONFIG = {
+  beneficio: { icon:'🎁', label:'Outro benefício', color:'#7c3aed', bg:'#f5f3ff' },
   dinheiro:        { icon: '💵', label: 'Dinheiro',            color: '#16a34a', bg: '#f0fdf4' },
   debito:          { icon: '🏦', label: 'Conta Bancária',      color: '#2563eb', bg: '#eff6ff' },
   vale_refeicao:   { icon: '🍽️', label: 'Vale Refeição',       color: '#ea580c', bg: '#fff7ed' },
@@ -444,7 +445,7 @@ function getContasFiltradas() {
   // Filtro por tipo
   if (_contasFiltroTipo !== 'todos') {
     if (_contasFiltroTipo === 'beneficio') {
-      lista = lista.filter(c => c.tipo === 'vale_refeicao' || c.tipo === 'vale_alimentacao');
+      lista = lista.filter(c => ['vale_refeicao','vale_alimentacao','beneficio'].includes(c.tipo));
     } else {
       lista = lista.filter(c => c.tipo === _contasFiltroTipo);
     }
