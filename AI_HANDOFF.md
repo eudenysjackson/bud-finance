@@ -454,3 +454,4 @@ Conferência UI local abriu Alelo→Editar→benefício e quatro opções; não 
 
 ## Leitura de extrato de consórcio
 O PDF de duas páginas era textual. O leitor não tratava o layout de extrato e perdia separação de colunas. Agora PDF.js preserva posição de células em paralelo ao texto usado pelos leitores existentes. Leitor identifica tabela de parcelas, mostra pagamentos e soma em centavos, exclui lances e separa próxima assembleia de vencimento. A obrigação restante usa valor encontrado e exige revisão do vencimento e quantidade antes de calcular projeção e salvar. Histórico é para conferência, sem relançar pagamentos. Validado localmente com o PDF real sem guardar dados pessoais. Sem publicação.
+Publicação em andamento em 10/11/2026. PR #57 integrado em 2f3a6d1 após 183 testes locais e CI aprovado. O merge herdou a marca de pular CI de um commit documental anterior. Uma atualização de acompanhamento aciona o deploy da versão integrada.
