@@ -627,7 +627,7 @@
 
       <div class="modal-field" id="fieldJuros" style="margin-top:1rem;">
         <label class="modal-label" for="dividaJuros">Taxa de Juros (% a.m.)</label>
-        <input class="modal-input" type="number" id="dividaJuros" placeholder="Ex: 3.5" min="0" max="100" step="0.01">
+        <input inputmode="decimal" class="modal-input" type="text" id="dividaJuros" placeholder="Ex: 3.5">
       </div>
 
       <!-- Campos opcionais CET / IOF / Seguro -->
@@ -640,7 +640,7 @@
           <div class="modal-grid2" style="margin-bottom:0.625rem;">
             <div class="modal-field" style="margin-bottom:0;">
               <label class="modal-label" for="dividaCET">CET (% a.a.)</label>
-              <input class="modal-input" type="number" id="dividaCET" placeholder="Ex: 64.5" min="0" max="9999" step="0.01">
+              <input inputmode="decimal" class="modal-input" type="text" id="dividaCET" placeholder="Ex: 64.5">
             </div>
             <div class="modal-field" style="margin-bottom:0;">
               <label class="modal-label" for="dividaIOF">IOF Total (R$)</label>
@@ -789,7 +789,7 @@
   <script src="js/contract-reader.js?v=20261110-consorcio"></script>
   <script src="js/debt-payments.js?v=20261102-payment"></script>
   <script src="js/debt-payment-dialog.js?v=20261102-payment"></script>
-  <script type="module" src="js/dividas.js?v=20261110-consorcio"></script>
+  <script type="module" src="js/dividas.js?v=20261110-decimais"></script>
   <script src="js/tutorial.js"></script>
   <script>BudTutorial.init('dividas');</script>
 </body>

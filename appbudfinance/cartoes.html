@@ -795,7 +795,7 @@
           </div>
           <div class="modal-field">
             <label class="modal-label" for="inputLimite">Limite Total</label>
-            <input class="modal-input" id="inputLimite" type="text" placeholder="R$ 0,00" inputmode="numeric" autocomplete="off" required>
+            <input class="modal-input" id="inputLimite" type="text" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off" required>
           </div>
         </div>
 
@@ -853,10 +853,10 @@
         <div class="modal-row">
           <div class="modal-field">
             <label class="modal-label" for="inputValorGasto">Valor</label>
-            <input class="modal-input" id="inputValorGasto" type="text" placeholder="R$ 0,00" inputmode="numeric" autocomplete="off" required>
+            <input class="modal-input" id="inputValorGasto" type="text" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off" required>
           </div>
           <div class="modal-field" style="position:relative;">
-            <label class="modal-label">Data</label>
+            <label class="modal-label" id="labelDataGasto">Data da compra</label>
             <button type="button" class="dp-trigger" id="dpGastoTrigger" aria-haspopup="true">
               <span id="dpGastoLabel">Hoje</span>
               <span style="font-size:0.75rem;color:var(--card-text-sec);">📅</span>
@@ -925,11 +925,11 @@
       <div class="confirm-sub" id="subParcelarFatura">O saldo financiado ficará reservado no limite do cartão e será liberado conforme as parcelas forem pagas.</div>
       <div id="infoParcelarFatura" style="background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:.75rem;padding:.75rem;margin:1rem 0;font-size:.875rem;font-weight:700;color:#6d28d9;text-align:center;"></div>
       <div class="parcelamento-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.875rem;">
-        <label class="modal-label">Entrada (opcional)<input class="modal-input" id="inputEntradaParcelamento" type="number" min="0" step="0.01" value="0"></label>
+        <label class="modal-label">Entrada (opcional)<input inputmode="decimal" class="modal-input" id="inputEntradaParcelamento" type="text" value="0"></label>
         <label class="modal-label">Número de parcelas<input class="modal-input" id="inputNParcelasFatura" type="number" min="2" max="48" value="6"></label>
       </div>
       <div class="parcelamento-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem;">
-        <label class="modal-label">Juros ao mês (%)<input class="modal-input" id="inputJurosParcelamento" type="number" min="0" max="100" step="0.01" value="0"></label>
+        <label class="modal-label">Juros ao mês (%)<input inputmode="decimal" class="modal-input" id="inputJurosParcelamento" type="text" value="0"></label>
         <label class="modal-label">1º vencimento<input class="modal-input" id="inputVencimentoParcelamento" type="date"></label>
       </div>
       <label class="modal-label" style="margin-bottom:1rem;display:block;">Conta da entrada (se houver)
@@ -1121,7 +1121,7 @@
   <script src="js/invoice-refunds.js?v=20261101-refund-reconcile2"></script>
   <script src="js/goal-purchase.js?v=20261102-purchase-fix"></script>
   <script src="js/benefits.js?v=20261110"></script>
-  <script type="module" src="js/cartoes.js?v=20261110-beneficios2"></script>
+  <script type="module" src="js/cartoes.js?v=20261110-ciclo-cartao"></script>
   <script src="js/tutorial.js"></script>
   <script>BudTutorial.init('cartoes');</script>
 </body>

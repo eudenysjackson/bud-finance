@@ -23,3 +23,41 @@ test('reserve changes after planning are rechecked at confirmation',async()=>{co
 
 test('reported purchase creates eight installments from December through July',async()=>{const f=fixture();Object.assign(f.get('carteira','c'),{fechamento:1,vencimento:10});await f.service.save({uid:'u',goalId:'g',confirm:true,request:{date:'2026-11-02',total:600,reserve:100,parts:[{accountId:'c',value:500,installments:8}]}});const rows=f.rows('transacoes');assert.equal(rows.length,8);assert(rows.every(t=>t.valor===62.5));assert.deepEqual(rows.map(t=>t.dataReferencia),['2026-12-10','2027-01-10','2027-02-10','2027-03-10','2027-04-10','2027-05-10','2027-06-10','2027-07-10']);});
 
+
+test('manual card form stores purchase date separately and bills each installment in its cycle', async () => {
+  const source = fs.readFileSync('appbudfinance/js/cartoes.js', 'utf8');
+  const start = source.indexOf('function dadosDataGasto(');
+  const end = source.indexOf('\nfunction ', source.indexOf('async function handleSubmitGasto(', start) + 1);
+  const fields = { inputDescGasto: { value: 'Compra' }, inputValorGasto: { value: '100' },
+    dpGastoHidden: { value: '2026-12-08' }, btnSalvarGasto: {}, hiddenCatGasto: {},
+    toggleParcelado: { checked: true }, inputNParcelas: { value: '3' } };
+  const rows = [];
+  const card = { id: 'c', fechamento: 5, vencimento: 12 };
+  const context = { cartaoParaGasto: 'c', cartoesGlobal: [card], gastoEditandoId: null,
+    document: { getElementById: id => fields[id] }, window: { BudGoalPurchase: api },
+    parseBRL: Number, budSanitize: s => s, db: {}, uid: 'u',
+    Timestamp: { fromDate: date => date }, serverTimestamp: () => 1,
+    doc() {}, collection() {}, writeBatch: () => ({ set: (_, row) => rows.push(row), commit: async () => {} }),
+    showToast(message, kind) { assert.equal(kind, 'ok', message); }, fecharModalGasto() {}, MESES_PT: [],
+    transacoesGlobal: [], updateDoc: async (_, row) => rows.push(row),
+  };
+  vm.runInNewContext(source.slice(start, end), context);
+  const submit = () => context.handleSubmitGasto({ preventDefault() {} });
+  await submit();
+  assert.deepEqual(rows.map(row => row.dataReferencia), ['2027-01-12', '2027-02-12', '2027-03-12']);
+  assert(rows.every(row => row.dataCompra === '2026-12-08'));
+  assert.equal(rows.reduce((cents, row) => cents + Math.round(row.valor * 100), 0), 10000);
+  fields.toggleParcelado.checked = false;
+  fields.dpGastoHidden.value = '2026-12-04';
+  await submit();
+  assert.equal(rows.at(-1).mesReferencia, '2026-12');
+  fields.dpGastoHidden.value = '2026-12-05';
+  await submit();
+  assert.equal(rows.at(-1).mesReferencia, '2027-01');
+  context.gastoEditandoId = 'legacy';
+  context.transacoesGlobal = [{ id: 'legacy', origem: 'manual', dataReferencia: '2026-12-08' }];
+  fields.dpGastoHidden.value = '2026-12-08';
+  await submit();
+  assert.equal(rows.at(-1).dataReferencia, '2027-01-12');
+  assert.equal(rows.at(-1).dataCompra, '2026-12-08');
+});

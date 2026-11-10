@@ -763,7 +763,7 @@ function renderizarCartaoTransacao(dados, afterEl) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
         <div>
           <div style="${labelStyle}">Valor (R$)</div>
-          <input id="${cardId}-valor" type="number" min="0.01" step="0.01" value="${Number(dados.valor).toFixed(2)}" style="${inputStyle}">
+          <input id="${cardId}-valor" type="text" inputmode="decimal" value="${Number(dados.valor).toFixed(2)}" style="${inputStyle}">
         </div>
         <div>
           <div style="${labelStyle}">Tipo</div>
@@ -874,7 +874,7 @@ function renderizarCartaoTransacao(dados, afterEl) {
   // ── Confirmar ─────────────────────────────────────────────────────────────────
   document.getElementById(cardId + '-ok').addEventListener('click', async () => {
     const desc    = (document.getElementById(cardId + '-desc')?.value  || '').trim();
-    const valor   = parseFloat(document.getElementById(cardId + '-valor')?.value || '0');
+    const valor   = Number((document.getElementById(cardId + '-valor')?.value || '0').trim().replace(',', '.'));
     const tipo    = _tipoVal;
     const cat     = _catVal;
     const dataStr = document.getElementById(cardId + '-data')?.value   || dataHoje;

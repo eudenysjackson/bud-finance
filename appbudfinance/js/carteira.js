@@ -1047,9 +1047,7 @@ function abrirModalImport(contaId) {
     const saldoInputEl = document.getElementById('importSaldoFinalInput');
     let saldoFinal = btn._pendingSaldo ?? 0;
     if (saldoInputEl && saldoInputEl.value) {
-      // Converter "R$ 1.454,50" ou "1454.50" → número
-      const raw = saldoInputEl.value.replace(/R\$\s*/g, '').replace(/\./g, '').replace(',', '.').trim();
-      const parsed = parseFloat(raw);
+      const parsed = parseValorBR(saldoInputEl.value);
       if (!isNaN(parsed)) saldoFinal = parsed;
     }
     // Importações históricas servem para análise e não reescrevem o saldo atual.
