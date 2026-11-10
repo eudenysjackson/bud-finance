@@ -141,6 +141,8 @@ function atualizarVisibilidadeValores() {
   if (btn) btn.textContent = valoresOcultos ? '🙈' : '👁️';
 }
 
+function transacaoConfirmada(t) { return t.confirmado !== false && t.pendenteConfirmacao !== true; }
+
 // ─── Renderizar dashboard ───────────────────────────────────────────────
 function renderizarDashboard() {
   var mesAtual = mesVisualizado;
@@ -158,7 +160,7 @@ function renderizarDashboard() {
 
   // Transferências entre contas são exibidas no histórico, mas não são renda
   // nem gasto. Portanto não podem contaminar os indicadores financeiros.
-  var transacoesFinanceiras = transacoesDoMes.filter(function (t) { return !t.transferencia; });
+  var transacoesFinanceiras = transacoesDoMes.filter(function (t) { return !t.transferencia && transacaoConfirmada(t); });
   var entradas = 0;
   var saidas = 0;
 
@@ -202,7 +204,7 @@ function renderizarDashboard() {
     var transPrev = transacoesGlobais.filter(function (t) {
       if (!t.data) return false;
       var d = t.data.toDate ? t.data.toDate() : new Date(t.data);
-      return d.getMonth() === mesPrev && d.getFullYear() === anoPrev && !t.transferencia;
+      return d.getMonth() === mesPrev && d.getFullYear() === anoPrev && !t.transferencia && transacaoConfirmada(t);
     });
     var entPrev = 0, despPrev = 0;
     transPrev.forEach(function (t) {
@@ -481,9 +483,9 @@ function calcularTotaisSaudeMes(transacoesDoMes) {
     if (valor <= 0) return;
 
     if (t.tipo === 'receita') {
-      if (t.confirmado === false) receitasPendentes += valor;
+      if (!transacaoConfirmada(t)) receitasPendentes += valor;
       else receitasTotal += valor;
-    } else if (t.tipo === 'despesa') {
+    } else if (t.tipo === 'despesa' && transacaoConfirmada(t)) {
       if (t.pagamentoFatura)      gastosFatura += valor;
       else if (t.cartaoId)        gastosCartao += valor;
       else                        gastosConta += valor;

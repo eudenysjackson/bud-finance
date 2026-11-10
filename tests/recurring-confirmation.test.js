@@ -26,3 +26,11 @@ test('all reminder buttons resolve persisted pending data and use the atomic con
  const activities=source.slice(source.indexOf('function renderizarAtividades'));
  assert(activities.includes('t.pendenteConfirmacao !== true'));
 });
+
+test('unconfirmed expenses never enter monthly financial totals and legacy confirmed entries remain valid',()=>{
+ const fn=source.slice(source.indexOf('function calcularTotaisSaudeMes('),source.indexOf('window.toggleSaudeMesDetalhe'));
+ const helper=source.slice(source.indexOf('function transacaoConfirmada('),source.indexOf('// ─── Renderizar dashboard'));
+ const calculate=new Function(helper+fn+';return calcularTotaisSaudeMes;')();
+ const totals=calculate([{tipo:'receita',valor:100},{tipo:'receita',valor:40,confirmado:false,pendenteConfirmacao:true},{tipo:'despesa',valor:30},{tipo:'despesa',valor:900,confirmado:false,pendenteConfirmacao:true}]);
+ assert.equal(totals.receitasTotal,100);assert.equal(totals.receitasPendentes,40);assert.equal(totals.gastosTotal,30);assert.equal(totals.saldo,70);
+});
