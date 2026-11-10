@@ -9,3 +9,33 @@ test('explicit bank credit/debit takes priority over ambiguous text and recogniz
 test('returning to automatic restores original directions rather than guessing from absolute values',()=>{const start=source.indexOf('window.setGlobalTipo ='),end=source.indexOf('// ── Global Categoria',start);const rows=[{tipo:'receita',_tipoOriginal:'despesa',valor:100,descricao:'PIX genérico'},{tipo:'despesa',_tipoOriginal:'receita',valor:100,descricao:'PIX genérico'}];const window={};vm.runInNewContext(source.slice(start,end),{window,parsedRows:rows,globalTipo:'auto',renderPreview(){},detectarTipo:classification()});window.setGlobalTipo('despesa');window.setGlobalTipo('auto');assert.equal(rows[0].tipo,'despesa');assert.equal(rows[1].tipo,'receita');});
 
 test('mapped imports retain original direction and Pix method without changing the amount',()=>{const code=source.slice(source.indexOf('function mapearTransacoes('),source.indexOf('// ── Detectar Tipo'));const fn=new Function('detectarTipo','detectarCategoria','detectarMovimentoInterno',code+';return mapearTransacoes;')(classification(),()=> 'Outros',()=>null);const row=fn([{descricao:'PIX loja',tipoOrigem:'debito',valor:123.45,data:'2026-11-02'}])[0];assert.equal(row.tipo,'despesa');assert.equal(row._tipoOriginal,'despesa');assert.equal(row.formaPagamento,'PIX');assert.equal(row.valor,123.45);});
+
+test('money and interest fields request a decimal keyboard and accept either decimal separator', () => {
+  const fields = {
+    cartoes: ['inputValorGasto', 'inputLimite', 'inputEntradaParcelamento', 'inputJurosParcelamento'],
+    dashboard: ['inputValor'],
+    dividas: ['dividaValorTotal', 'dividaJuros', 'dividaCET'],
+    investimentos: ['simInicial', 'simMensal', 'simTaxa'],
+    carteira: ['contaSaldoInicial', 'inputValorTransf', 'importSaldoFinalInput'],
+  };
+  for (const [page, ids] of Object.entries(fields)) {
+    const html = fs.readFileSync('appbudfinance/' + page + '.html', 'utf8');
+    for (const id of ids) {
+      const field = html.match(/<input\b[^>]*>/g).find(tag => tag.includes('id="' + id + '"'));
+      assert.match(field, /inputmode="decimal"/);
+      assert.match(field, /type="text"/);
+    }
+  }
+  const parsers = { cartoes: 'parseBRL', dashboard: 'lerValorMonetario', dividas: 'parseMoeda', investimentos: 'parseBRL', carteira: 'parseValorBR' };
+  for (const [page, name] of Object.entries(parsers)) {
+    const js = fs.readFileSync('appbudfinance/js/' + page + '.js', 'utf8');
+    const start = js.indexOf('function ' + name + '(');
+    const end = js.indexOf('\n}', start) + 2;
+    const parse = new Function(js.slice(start, end) + '\nreturn ' + name)();
+    assert.equal(parse('277'), 277);
+    assert.equal(parse('277,50'), 277.50);
+    assert.equal(parse('277.50'), 277.50);
+    assert.equal(parse('R$ 1.277,50'), 1277.50);
+    assert.equal(parse('0,83'), 0.83);
+  }
+});

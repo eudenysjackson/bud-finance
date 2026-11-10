@@ -82,18 +82,6 @@ function aplicarMascaraMoeda(input) {
   input.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// Trata os dígitos como centavos durante a digitação: 91675 → 916,75.
-// Também aceita colagem em formatos como "916,75" e "916.75".
-function aplicarMascaraMoedaDuranteDigitacao(input) {
-  const digitos = String(input.value || '').replace(/\D/g, '');
-  if (!digitos) {
-    input.value = '';
-    return;
-  }
-  const valor = Number(digitos) / 100;
-  input.value = valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
 // DEC-018: campo de data como texto DD/MM/AAAA
 function aplicarMascaraData(input) {
   let v = input.value.replace(/\D/g, '');
@@ -1253,7 +1241,7 @@ function _adaptarFormTipo(tipo) {
 window.calcularPMTForm = function() {
   const valorTotal  = parseMoeda(document.getElementById('dividaValorTotal').value);
   const parcelas    = parseInt(document.getElementById('dividaParcelas').value, 10);
-  const juros       = parseFloat(document.getElementById('dividaJuros').value) || 0;
+  const juros       = parseMoeda(document.getElementById('dividaJuros').value) || 0;
 
   if (!valorTotal || !parcelas) {
     window.budShowToast?.('Preencha o valor total e o número de parcelas.', 'warning');
@@ -1279,8 +1267,8 @@ async function salvarDivida() {
   const parcelas      = parseInt(document.getElementById('dividaParcelas').value, 10) || 0;
   const parcelasPagas = parseInt(document.getElementById('dividaParcelasPagas').value, 10) || 0;
   const valorParcela  = parseMoeda(document.getElementById('dividaValorParcela').value) || 0;
-  const juros         = parseFloat(document.getElementById('dividaJuros').value) || 0;
-  const cetAnual      = parseFloat(document.getElementById('dividaCET')?.value) || 0;
+  const juros         = parseMoeda(document.getElementById('dividaJuros').value) || 0;
+  const cetAnual      = parseMoeda(document.getElementById('dividaCET')?.value) || 0;
   const iofTotal      = parseMoeda(document.getElementById('dividaIOF')?.value) || 0;
   const seguroTotal   = parseMoeda(document.getElementById('dividaSeguro')?.value) || 0;
   const vencIso       = parseDataBR(document.getElementById('dividaVencimento').value);
@@ -2329,7 +2317,6 @@ document.addEventListener('DOMContentLoaded', () => {
     input.addEventListener('focus', function() {
       if (parseMoeda(this.value) === 0) this.value = '';
     });
-    input.addEventListener('input', function() { aplicarMascaraMoedaDuranteDigitacao(this); });
     input.addEventListener('blur', function() { if (this.value) aplicarMascaraMoeda(this); });
   });
 

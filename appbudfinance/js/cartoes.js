@@ -490,7 +490,7 @@ function buildCartaoEl(cartao, fatura, status, limite, reservado, dispPct, gasto
         <div class="gasto-item" style="${riscado ? 'opacity:0.6;' : ''}">
           <div class="gasto-desc">
             <div class="gasto-desc-text" style="${riscado ? 'text-decoration:line-through;' : ''}">${badgeHTML}${escHtml(g.descricao || '—')}</div>
-            <div class="gasto-desc-cat">${escHtml(g.categoria || 'Outros')} · ${formatData(g.dataReferencia)} · ${escHtml(window.BudCategoryUI?.presentation(g).label || 'Despesa')}${/\bpix\b/i.test(g.descricao||'') ? ' · Pix no crédito' : ''}</div>
+            <div class="gasto-desc-cat">${escHtml(g.categoria || 'Outros')} · ${formatData(g.origem === 'manual' && g.dataCompra ? g.dataCompra : g.dataReferencia)} · ${escHtml(window.BudCategoryUI?.presentation(g).label || 'Despesa')}${/\bpix\b/i.test(g.descricao||'') ? ' · Pix no crédito' : ''}</div>
           </div>
           <div style="display:flex;align-items:center;gap:0.25rem;">
             <span class="gasto-valor" style="${riscado ? 'text-decoration:line-through;color:var(--card-text-sec);' : ''}">${formatBRL(g.valor || 0)}</span>
@@ -939,11 +939,14 @@ function abrirModalGasto(cartaoId, gastoObj = null) {
   if (sub) sub.textContent = c ? `💳 ${c.nome}` : '—';
 
   document.getElementById('formGasto').reset();
+  const dataFixa = gastoObj?.origem === 'manual' && (gastoObj.parcelado || c?.faturasPagas?.[gastoObj.dataReferencia?.slice(0, 7)]);
+  document.getElementById('dpGastoTrigger').disabled = Boolean(dataFixa);
+  document.getElementById('labelDataGasto').textContent = gastoObj && (gastoObj.origem !== 'manual' || gastoObj.parcelado) ? 'Data de referência da fatura' : 'Data da compra';
 
   if (gastoObj) {
     document.getElementById('inputDescGasto').value  = gastoObj.descricao || '';
     document.getElementById('inputValorGasto').value = formatBRL(gastoObj.valor || 0);
-    const dataRef = gastoObj.dataReferencia || toISODate(new Date());
+    const dataRef = (gastoObj.origem === 'manual' && !gastoObj.parcelado ? gastoObj.dataCompra : null) || gastoObj.dataReferencia || toISODate(new Date());
     dpGastoMes  = parseInt(dataRef.substring(5, 7)) - 1;
     dpGastoAno  = parseInt(dataRef.substring(0, 4));
     dpGastoData = dataRef;
@@ -1012,6 +1015,23 @@ function setupFormGasto() {
   });
 }
 
+function dadosDataGasto(date) {
+  return {
+    dataReferencia: date,
+    mesReferencia: date.slice(0, 7),
+    data: Timestamp.fromDate(new Date(date + 'T12:00:00')),
+  };
+}
+
+function programarGastoCartao(cartao, dataCompra, valor, parcelas) {
+  try {
+    return window.BudGoalPurchase.schedule(cartao, dataCompra, valor, parcelas);
+  } catch (error) {
+    showToast(error.message, 'erro');
+    return [];
+  }
+}
+
 async function handleSubmitGasto(e) {
   e.preventDefault();
   if (!cartaoParaGasto) return;
@@ -1030,72 +1050,71 @@ async function handleSubmitGasto(e) {
     if (!valor || valor <= 0) { showToast('Informe um valor válido.', 'erro'); return; }
     if (!dataRef)             { showToast('Selecione a data do gasto.', 'erro'); return; }
 
-    // ── Modo Edição ──────────────────────────────────────────────────────────
-    if (gastoEditandoId) {
-      const [_ey, _em, _ed] = dataRef.split('-').map(Number);
-      await updateDoc(doc(db, 'usuarios', uid, 'transacoes', gastoEditandoId), {
-        descricao,
-        valor,
-        categoria,
-        dataReferencia: dataRef,
-        data: Timestamp.fromDate(new Date(_ey, _em - 1, _ed, 12, 0, 0)),
-      });
+    const cartao = cartoesGlobal.find(c => c.id === cartaoParaGasto);
+    if (!cartao) { showToast('Cartão não encontrado.', 'erro'); return; }
+    const gasto = gastoEditandoId ? transacoesGlobal.find(t => t.id === gastoEditandoId) : null;
+    if (gastoEditandoId && !gasto) { showToast('Gasto não encontrado. Atualize a página.', 'erro'); return; }
+
+    if (gasto) {
+      const mesOriginal = gasto.dataReferencia?.slice(0, 7);
+      const podeRecalcular = gasto.origem === 'manual' && !gasto.parcelado && !cartao.faturasPagas?.[mesOriginal];
+      const dataCompra = gasto.dataCompra || gasto.dataReferencia;
+      let datas = dadosDataGasto(dataRef);
+      if (podeRecalcular) {
+        const [fatura] = programarGastoCartao(cartao, dataRef, valor, 1);
+        if (!fatura) return;
+        if (cartao.faturasPagas?.[fatura.date.slice(0, 7)]) {
+          showToast('A data da compra corresponde a uma fatura já paga ou parcelada.', 'erro');
+          return;
+        }
+        datas = { ...dadosDataGasto(fatura.date), dataCompra: dataRef };
+      } else if (gasto.origem === 'manual' && (gasto.parcelado || cartao.faturasPagas?.[mesOriginal])) {
+        const dataExibida = gasto.parcelado ? gasto.dataReferencia : dataCompra;
+        if (dataRef !== dataExibida) {
+          showToast('A data deste lançamento já está vinculada à fatura original.', 'erro');
+          return;
+        }
+        datas = {};
+      }
+      await updateDoc(doc(db, 'usuarios', uid, 'transacoes', gastoEditandoId), { descricao, valor, categoria, ...datas });
       showToast('Gasto atualizado!', 'ok');
       fecharModalGasto();
       return;
     }
 
-    // ── Parcelamento ─────────────────────────────────────────────────────────
     const isParcelado = document.getElementById('toggleParcelado')?.checked;
-    const nParcelas   = isParcelado ? Math.max(2, Math.min(48, parseInt(document.getElementById('inputNParcelas')?.value || '2') || 2)) : 1;
-
-    const baseData = {
-      tipo: 'despesa',
-      descricao,
-      categoria,
-      cartaoId: cartaoParaGasto,
-      formaPagamento: 'Crédito',
-      pagamentoFatura: false,
-      origem: 'manual',
-      status: 'ativa',
-      dataCriacao: serverTimestamp(),
-    };
+    const nParcelas = isParcelado ? Math.max(2, Math.min(48, parseInt(document.getElementById('inputNParcelas')?.value || '2') || 2)) : 1;
+    const parcelas = programarGastoCartao(cartao, dataRef, valor, nParcelas);
+    if (!parcelas.length) return;
+    if (parcelas.some(parcela => cartao.faturasPagas?.[parcela.date.slice(0, 7)])) {
+      showToast('A compra inclui uma fatura já paga ou parcelada. Revise a data do lançamento.', 'erro');
+      return;
+    }
 
     const expenseBatch = writeBatch(db);
-    if (nParcelas === 1) {
-      const [_sy, _sm, _sd] = dataRef.split('-').map(Number);
+    parcelas.forEach(({ date, value }, i) => {
       expenseBatch.set(doc(collection(db, 'usuarios', uid, 'transacoes')), {
-        ...baseData,
-        valor,
-        dataReferencia: dataRef,
-        data: Timestamp.fromDate(new Date(_sy, _sm - 1, _sd, 12, 0, 0)),
+        tipo: 'despesa',
+        descricao: nParcelas > 1 ? descricao + ' (' + (i + 1) + '/' + nParcelas + ')' : descricao,
+        categoria,
+        cartaoId: cartaoParaGasto,
+        formaPagamento: 'Crédito',
+        pagamentoFatura: false,
+        origem: 'manual',
+        status: 'ativa',
+        dataCriacao: serverTimestamp(),
+        dataCompra: dataRef,
+        ...dadosDataGasto(date),
+        valor: value,
+        ...(nParcelas > 1 ? { parcelado: true, parcelaAtual: i + 1, totalParcelas: nParcelas } : {}),
       });
-    } else {
-      const valorParcela = parseFloat((valor / nParcelas).toFixed(2));
-      // _addMesesData garante datas válidas (ex: fev-28 em vez de fev-31)
-      for (let i = 0; i < nParcelas; i++) {
-        const dataParc = _addMesesData(dataRef, i);
-        const [_py, _pm, _pd] = dataParc.split('-').map(Number);
-
-        // Ajuste de centavos na primeira parcela
-        const valorParc = i === 0 ? parseFloat((valor - valorParcela * (nParcelas - 1)).toFixed(2)) : valorParcela;
-
-        expenseBatch.set(doc(collection(db, 'usuarios', uid, 'transacoes')), {
-          ...baseData,
-          valor: valorParc,
-          dataReferencia: dataParc,
-          data: Timestamp.fromDate(new Date(_py, _pm - 1, _pd, 12, 0, 0)),
-          parcelado: true,
-          parcelaAtual: i + 1,
-          totalParcelas: nParcelas,
-          descricao: `${descricao} (${i + 1}/${nParcelas})`,
-        });
-      }
-    }
+    });
 
     await expenseBatch.commit();
 
-    showToast(nParcelas > 1 ? `${nParcelas} parcelas registradas!` : 'Gasto registrado!', 'ok');
+    const [anoFatura, mesFatura] = parcelas[0].date.split('-');
+    const primeiraFatura = MESES_PT[Number(mesFatura) - 1] + '/' + anoFatura;
+    showToast((nParcelas > 1 ? nParcelas + ' parcelas a partir de ' : 'Gasto registrado na fatura de ') + primeiraFatura + '.', 'ok');
     fecharModalGasto();
   } catch {
     showToast('Erro ao registrar gasto. Tente novamente.', 'erro');
@@ -1107,9 +1126,9 @@ async function handleSubmitGasto(e) {
 
 function atualizarResumoParcelamento() {
   if (!faturaParaParcelar) return;
-  const entrada = Math.max(0, Number(document.getElementById('inputEntradaParcelamento').value) || 0);
+  const entrada = Math.max(0, parseBRL(document.getElementById('inputEntradaParcelamento').value) || 0);
   const n = Math.max(2, Math.floor(Number(document.getElementById('inputNParcelasFatura').value) || 2));
-  const juros = Math.max(0, Number(document.getElementById('inputJurosParcelamento').value) || 0) / 100;
+  const juros = Math.max(0, parseBRL(document.getElementById('inputJurosParcelamento').value) || 0) / 100;
   const principal = Math.max(0, faturaParaParcelar.fatura - entrada);
   const parcela = juros > 0 ? principal * juros * Math.pow(1 + juros, n) / (Math.pow(1 + juros, n) - 1) : principal / n;
   const total = parcela * n;
@@ -1190,9 +1209,9 @@ async function confirmarParcelarFatura() {
   if (!faturaParaParcelar) return;
   const { cartaoId, fatura } = faturaParaParcelar;
   const cartao = cartoesGlobal.find(c => c.id === cartaoId);
-  const entrada = Math.max(0, Number(document.getElementById('inputEntradaParcelamento').value) || 0);
+  const entrada = Math.max(0, parseBRL(document.getElementById('inputEntradaParcelamento').value) || 0);
   const n = Math.floor(Number(document.getElementById('inputNParcelasFatura').value) || 0);
-  const taxa = Math.max(0, Number(document.getElementById('inputJurosParcelamento').value) || 0) / 100;
+  const taxa = Math.max(0, parseBRL(document.getElementById('inputJurosParcelamento').value) || 0) / 100;
   const vencimento = document.getElementById('inputVencimentoParcelamento').value;
   const contaId = document.getElementById('inputContaEntrada').value || null;
   if (entrada > fatura || n < 2 || !vencimento) return showToast('Revise a entrada, parcelas e vencimento.', 'erro');
@@ -2519,7 +2538,7 @@ function renderListaReviewIA() {
                 ${opcoesCategoria}
               </div>
             </div>
-            <input type="text" value="${formatBRL(item.valor)}" style="padding:0.375rem 0.5rem;border:1.5px solid var(--input-border);border-radius:0.5rem;font-size:0.75rem;font-weight:700;color:var(--card-text);background:var(--input-bg);font-family:inherit;outline:none;text-align:right;" oninput="window._iaValorChange(${i}, this.value)" onfocus="this.style.borderColor='var(--input-focus)'" onblur="this.style.borderColor='var(--input-border)'">
+            <input type="text" inputmode="decimal" value="${formatBRL(item.valor)}" style="padding:0.375rem 0.5rem;border:1.5px solid var(--input-border);border-radius:0.5rem;font-size:0.75rem;font-weight:700;color:var(--card-text);background:var(--input-bg);font-family:inherit;outline:none;text-align:right;" oninput="window._iaValorChange(${i}, this.value)" onfocus="this.style.borderColor='var(--input-focus)'" onblur="this.style.borderColor='var(--input-border)'">
           </div>
           ${expandirHTML}
         </div>
@@ -2951,7 +2970,7 @@ function abrirConversaoBeneficio(id) {
  const card=cartoesGlobal.find(c=>c.id===id); if(!card)return;
  const overlay=document.createElement('div');overlay.className='modal-overlay open';overlay.style.zIndex='100';
  const box=document.createElement('div');box.style.cssText='background:var(--card-bg);color:var(--card-text);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.5rem;width:100%;max-width:440px;max-height:90vh;overflow:auto;';
- box.innerHTML='<h2 style="font-size:1.15rem;font-weight:800;">🎁 Corrigir para cartão de benefício</h2><p style="font-size:.85rem;margin:1rem 0;">O limite antigo não será convertido em dinheiro. Informe o saldo disponível no aplicativo do benefício.</p><div id="benefitTypes" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;"></div><label style="display:block;margin:1rem 0;">Saldo disponível agora (R$)<input id="benefitBalance" type="number" min="0" step=".01" placeholder="Informe o saldo real" style="width:100%;padding:.75rem;border:1px solid var(--input-border);border-radius:.75rem;background:var(--input-bg);color:var(--card-text);"></label><label style="display:flex;gap:.5rem;font-size:.85rem;"><input id="benefitIncludes" type="checkbox">Esse saldo já inclui as recargas que ainda aparecem pendentes no app.</label><p style="font-size:.75rem;color:var(--card-text-sec);margin:1rem 0;">Se marcar, essas recargas serão registradas como recebidas sem somar ao saldo novamente. Compras futuras descontarão deste benefício, sem fatura. Recebimentos vinculados a este cartão serão direcionados ao benefício. Se foram creditados em conta bancária, esse crédito será retirado da conta de origem. O saldo do benefício será exatamente o que você informar.</p><div style="display:flex;gap:.5rem;"><button id="benefitCancel" class="btn-secondary" type="button">Cancelar</button><button id="benefitSave" class="btn-primary" type="button">Corrigir cadastro</button></div><p id="benefitError" role="alert" style="color:#dc2626;font-size:.85rem;"></p>';
+ box.innerHTML='<h2 style="font-size:1.15rem;font-weight:800;">🎁 Corrigir para cartão de benefício</h2><p style="font-size:.85rem;margin:1rem 0;">O limite antigo não será convertido em dinheiro. Informe o saldo disponível no aplicativo do benefício.</p><div id="benefitTypes" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;"></div><label style="display:block;margin:1rem 0;">Saldo disponível agora (R$)<input id="benefitBalance" type="text" inputmode="decimal" placeholder="Informe o saldo real" style="width:100%;padding:.75rem;border:1px solid var(--input-border);border-radius:.75rem;background:var(--input-bg);color:var(--card-text);"></label><label style="display:flex;gap:.5rem;font-size:.85rem;"><input id="benefitIncludes" type="checkbox">Esse saldo já inclui as recargas que ainda aparecem pendentes no app.</label><p style="font-size:.75rem;color:var(--card-text-sec);margin:1rem 0;">Se marcar, essas recargas serão registradas como recebidas sem somar ao saldo novamente. Compras futuras descontarão deste benefício, sem fatura. Recebimentos vinculados a este cartão serão direcionados ao benefício. Se foram creditados em conta bancária, esse crédito será retirado da conta de origem. O saldo do benefício será exatamente o que você informar.</p><div style="display:flex;gap:.5rem;"><button id="benefitCancel" class="btn-secondary" type="button">Cancelar</button><button id="benefitSave" class="btn-primary" type="button">Corrigir cadastro</button></div><p id="benefitError" role="alert" style="color:#dc2626;font-size:.85rem;"></p>';
  overlay.append(box);document.body.append(overlay);let selected='';
  for(const [type,label]of Object.entries(window.BudBenefits.types)){const b=document.createElement('button');b.type='button';b.textContent=label;b.className='btn-secondary';b.onclick=()=>{selected=type;for(const child of b.parentElement.children)child.style.borderColor='var(--input-border)';b.style.borderColor='#2563eb';};box.querySelector('#benefitTypes').append(b);}
  box.querySelector('#benefitCancel').onclick=()=>overlay.remove();
@@ -2964,7 +2983,7 @@ function abrirConversaoBeneficio(id) {
    const history=txs.docs.filter(d=>d.data().cartaoId===id && d.data().tipo==='receita' && d.data().confirmado!==false && d.data().pendenteConfirmacao!==true);
    const links=recs.docs.filter(d=>d.data().cartaoId===id || d.data().contaId===id);
    if(pending.length+links.length+history.length>350)throw Error('Há muitos vínculos para corrigir de uma vez.');
-   const balance=box.querySelector('#benefitBalance').value;
+   const balance=box.querySelector('#benefitBalance').value.trim().replace(',', '.');
    const includes=box.querySelector('#benefitIncludes').checked;
    window.BudBenefits.conversion(card,selected,balance,all,debts.docs.map(d=>d.data()));
    await runTransaction(db,async tx=>{

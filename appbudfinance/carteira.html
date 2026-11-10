@@ -481,7 +481,7 @@
       <div class="modal-grid2">
         <div class="modal-field">
           <label class="modal-label">Valor</label>
-          <input type="tel" class="modal-input" id="inputValorTransf" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
+          <input type="text" class="modal-input" id="inputValorTransf" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
         </div>
         <div class="modal-field">
           <label class="modal-label">Data</label>
@@ -508,7 +508,7 @@
       <input type="hidden" id="saldoRapidoContaId">
       <div class="modal-field">
         <label class="modal-label">Saldo atual (conforme extrato ou app do banco)</label>
-        <input type="tel" class="modal-input" id="inputSaldoRapido" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
+        <input type="text" class="modal-input" id="inputSaldoRapido" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
       </div>
       <button class="modal-submit" id="btnConfirmarSaldoRapido">✅ Confirmar Saldo</button>
       <button class="modal-cancel" id="btnCancelarSaldoRapido">Cancelar</button>
@@ -553,7 +553,7 @@
       <!-- Saldo Inicial -->
       <div class="modal-field">
         <label class="modal-label" for="contaSaldoInicial">Saldo Atual (R$)</label>
-        <input type="text" id="contaSaldoInicial" class="modal-input" placeholder="R$ 0,00">
+        <input inputmode="decimal" type="text" id="contaSaldoInicial" class="modal-input" placeholder="R$ 0,00">
       </div>
 
       <!-- Cor da Conta -->
@@ -706,7 +706,7 @@
         <!-- Confirmação de saldo: usuário pode corrigir antes de fechar -->
         <div id="importSaldoConfirm" style="display:none;margin-bottom:1rem;">
           <label style="font-size:0.8125rem;font-weight:700;color:var(--card-text-sec);display:block;margin-bottom:0.375rem;">💰 Saldo atual da conta (confirme ou corrija):</label>
-          <input type="text" id="importSaldoFinalInput" class="modal-input" placeholder="R$ 0,00" style="font-size:0.9rem;font-weight:700;">
+          <input inputmode="decimal" type="text" id="importSaldoFinalInput" class="modal-input" placeholder="R$ 0,00" style="font-size:0.9rem;font-weight:700;">
           <div style="font-size:0.75rem;color:var(--text-sec);margin-top:0.25rem;">Este valor será salvo como saldo da conta</div>
         </div>
         <button class="modal-submit" id="btnImportConcluir" style="display:none;">Concluído ✓</button>
@@ -736,7 +736,7 @@
   <script src="js/bud-utils.js?v=20261110-beneficios"></script>
   <script src="js/categorias-padrao.js"></script>
   <script src="js/firebase-config.js"></script>
-  <script type="module" src="js/carteira.js?v=20261104-planos"></script>
+  <script type="module" src="js/carteira.js?v=20261110-decimais"></script>
 
   <script src="js/tutorial.js"></script>
   <script>BudTutorial.init('carteira');</script>

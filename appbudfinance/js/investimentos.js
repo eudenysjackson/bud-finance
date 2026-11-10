@@ -803,7 +803,7 @@ window.calcularSimulador = function() {
   const parseSimBRL = s => parseBRL(s);
   const pv    = parseSimBRL(document.getElementById('simInicial').value);
   const pmt   = parseSimBRL(document.getElementById('simMensal').value);
-  const taxa  = parseFloat(document.getElementById('simTaxa').value) / 100 || 0;
+  const taxa  = parseBRL(document.getElementById('simTaxa').value) / 100 || 0;
   const n     = parseInt(document.getElementById('simPrazo').value, 10) || 0;
   const res   = document.getElementById('simResultado');
 
