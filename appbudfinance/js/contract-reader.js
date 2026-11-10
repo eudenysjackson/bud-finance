@@ -19,8 +19,59 @@
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data?.vencimento || '') || !date(data.vencimento.split('-').reverse().join('/'))) fields.push('data da primeira parcela');
     return fields;
   }
-  function read(input) {
+  function rowsFromPdfItems(items) {
+    const rows = new Map();
+    for (const item of items) {
+      if (!item.str?.trim() || !item.transform) continue;
+      const row = Math.round(item.transform[5]);
+      if (!rows.has(row)) rows.set(row, []);
+      rows.get(row).push(item);
+    }
+    return [...rows].sort(([a], [b]) => b - a).map(([, cells]) =>
+      cells.sort((a, b) => a.transform[4] - b.transform[4]).map(cell => cell.str.trim()).join(' | ')
+    ).join('\n');
+  }
+
+  function readConsortium(text, layout) {
+    if (!/lista de pagamentos/.test(text) || !/grupo\s*\/\s*cota/.test(text) || !/valor devido/.test(text)) return null;
+    const history = [];
+    const upcoming = [];
+    const seen = new Set();
+    const cash = /^\d+(?:\.\d{3})*,\d{2}$/;
+    for (const line of String(layout || '').split('\n')) {
+      const [kind, assembly, meeting, due, , paidDate, paid] = line.split('|').map(cell => cell.trim());
+      if (kind !== 'PARCELA' || !/^\d+$/.test(assembly) || !cash.test(due || '') || !cash.test(paid || '')) continue;
+      const meetingDate = firstDate(meeting || '');
+      if (!meetingDate) continue;
+      const paymentDate = firstDate(paidDate || '');
+      if (paymentDate && amount(paid) > 0) {
+        const key = [assembly, meetingDate, paymentDate, paid, line].join('|');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        history.push({assembleia:Number(assembly), data:paymentDate, valor:amount(paid)});
+      } else if (/^\/\s*\/$/.test(paidDate || '') && amount(paid) === 0 && amount(due) > 0) {
+        upcoming.push({data:meetingDate, valor:amount(due)});
+      }
+    }
+    upcoming.sort((a,b) => a.data.localeCompare(b.data));
+    const next = upcoming[0];
+    const institution = /\bhonda\b/.test(text) ? 'Consórcio Honda' : 'Consórcio';
+    return {
+      tipo:'Consórcio', dados:{}, historicoConsorcio:history,
+      components:[{label:'Consórcio — parcelas restantes', totalDerivado:true,
+        dados:{nomeCliente:institution, instituicao:institution, tipo:'Consórcio', valorParcela:next?.valor || null},
+        aviso:'Confirme a quantidade restante e o vencimento da primeira parcela a pagar. O app projeta os meses seguintes pelo valor informado, sujeito a reajustes.'}],
+      avisos:[
+        ...(next ? ['A próxima assembleia consta no extrato em ' + next.data.split('-').reverse().join('/') + '. Confira o vencimento no boleto.'] : ['O extrato não forneceu uma próxima parcela legível. Confira o valor no boleto.']),
+        'O histórico abaixo mostra pagamentos de parcelas. Lances ficam fora da soma e os pagamentos anteriores não serão lançados novamente.'
+      ]
+    };
+  }
+
+  function read(input, layout) {
     const text = normalize(input), t = plain(input);
+    const consortium = readConsortium(t, layout);
+    if (consortium) return consortium;
     // Contractual summary wins over guides, illustrative examples and appendices.
     const start = t.search(/5\s*\)\s*do preco do imovel e forma de pagamento/);
     if (start >= 0 && /parcela\s+tenda\s+pre\s*-?\s*chaves/.test(t)) {
@@ -93,7 +144,7 @@
     });
     return {ready,incomplete};
   }
-  const api = {read,missing,normalize,fingerprint,pending,plan};
+  const api = {read,missing,normalize,fingerprint,pending,plan,rowsFromPdfItems};
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.BudContractReader = api;
 })(typeof window === 'undefined'?globalThis:window);

@@ -18,9 +18,9 @@ test('conversion reconciles wrong bank credit and includes pending reload only o
   await vm.runInNewContext('(async()=>{'+block+'})()',{
    db:{},uid:'demo',id:'benefit',selected:'vale_alimentacao',balance:'700',includes,
    pending:[wrapper('pending')],history:[wrapper('history')],links:[wrapper('rec')],all:[],debts:{docs:[]},window:{BudBenefits:b},
-   doc:(_db,_collection,_uid,_wallet,id)=>id,serverTimestamp:()=>0,deleteField:()=>null,
+   doc:(_db,_collection,_uid,_wallet,id)=>id,serverTimestamp:()=>0,
    runTransaction:async(_db,callback)=>{const writes=[];await callback({get:async ref=>({exists:()=>!!records[ref],data:()=>records[ref]}),update:(ref,data)=>writes.push([ref,data])});for(const [ref,data]of writes)Object.assign(records[ref],data);}
   });
-  assert.equal(records.benefit.saldo,700);assert.equal(records.benefit.limite,0);assert.equal(records.bank.saldo,300);assert.equal(records.history.carteiraId,'benefit');assert.equal(records.rec.contaTipo,'vale_alimentacao');assert.equal(records.pending.confirmado,includes);
+  assert.equal(records.benefit.saldo,700);assert.equal(records.benefit.limite,0);assert.equal(records.bank.saldo,300);assert.equal(records.history.carteiraId,'benefit');assert.equal(records.history.cartaoId,null);assert.equal(records.pending.cartaoId,null);assert.equal(records.rec.contaTipo,'vale_alimentacao');assert.equal(records.pending.confirmado,includes);
  }
 });

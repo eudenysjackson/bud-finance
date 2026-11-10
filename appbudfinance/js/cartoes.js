@@ -10,7 +10,7 @@ import {
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
   collection, query, orderBy, limit, onSnapshot,
-  addDoc, updateDoc, deleteDoc, getDocs, getDoc, where, doc, writeBatch, serverTimestamp, Timestamp, runTransaction, deleteField
+  addDoc, updateDoc, deleteDoc, getDocs, getDoc, where, doc, writeBatch, serverTimestamp, Timestamp, runTransaction
 } from './financial-firestore.js';
 import { connectEmulators } from './bud-emulator-connect.js';
 
@@ -2977,8 +2977,8 @@ function abrirConversaoBeneficio(id) {
     if(banks.some(b=>!b.exists()||b.data().tipo==='credito'))throw Error('Revise a conta de origem dos recebimentos antes de converter.');
     const patch=window.BudBenefits.conversion({...fresh.data(),id},selected,balance,all,debts.docs.map(d=>d.data()));
     tx.update(ref,{...patch,beneficioConvertidoEm:serverTimestamp()});
-    pending.forEach((d,i)=>{if(!docs[i].exists() || docs[i].data().confirmado===true)throw Error('Uma recarga mudou. Atualize e confira o saldo novamente.');tx.update(d.ref,{cartaoId:deleteField(),contaId:id,carteiraId:id,formaPagamento:'Benefício',...(includes && docs[i].data().tipo==='receita'?{confirmado:true,pago:true,pendenteConfirmacao:false,confirmadoEm:serverTimestamp(),conciliadoNoSaldo:true}:{})});});
-    history.forEach(d=>tx.update(d.ref,{cartaoId:deleteField(),carteiraId:id,contaId:id,formaPagamento:'Benefício',conciliadoNoSaldo:true}));
+    pending.forEach((d,i)=>{if(!docs[i].exists() || docs[i].data().confirmado===true)throw Error('Uma recarga mudou. Atualize e confira o saldo novamente.');tx.update(d.ref,{cartaoId:null,contaId:id,carteiraId:id,formaPagamento:'Benefício',...(includes && docs[i].data().tipo==='receita'?{confirmado:true,pago:true,pendenteConfirmacao:false,confirmadoEm:serverTimestamp(),conciliadoNoSaldo:true}:{})});});
+    history.forEach(d=>tx.update(d.ref,{cartaoId:null,carteiraId:id,contaId:id,formaPagamento:'Benefício',conciliadoNoSaldo:true}));
     bankIds.forEach((bank,i)=>{const data=banks[i].data();tx.update(doc(db,'usuarios',uid,'carteira',bank),{saldo:Number(data.saldo ?? data.ultimaConfirmacao?.saldo ?? data.saldoInicial ?? 0)-debits.get(bank)});});
     links.forEach((d,i)=>{if(!docs[pending.length+i].exists())throw Error('Uma recorrência mudou. Atualize.');tx.update(d.ref,{contaId:id,contaTipo:selected,cartaoId:null,cartaoNome:null});});
    });
