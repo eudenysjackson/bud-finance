@@ -237,7 +237,7 @@ function popularContaDropdown(valorAtualId) {
     return;
   }
 
-  const iconeTipo = { corrente:'🏦', poupanca:'💰', investimento:'📈', dinheiro:'💵', credito:'💳' };
+  const iconeTipo = { corrente:'🏦', poupanca:'💰', investimento:'📈', dinheiro:'💵', credito:'💳', vale_refeicao:'🍽️', vale_alimentacao:'🛒', transporte:'🚌', beneficio:'🎁' };
 
   const addGrupo = (items, rotulo) => {
     if (items.length === 0) return;
@@ -264,7 +264,9 @@ function popularContaDropdown(valorAtualId) {
     });
   };
 
-  addGrupo(carteiraItems.filter(c => c.tipo !== 'credito'), 'Contas');
+  const benefitTypes=['vale_refeicao','vale_alimentacao','transporte','beneficio'];
+  addGrupo(carteiraItems.filter(c => c.tipo !== 'credito' && !benefitTypes.includes(c.tipo)), 'Contas');
+  addGrupo(carteiraItems.filter(c => benefitTypes.includes(c.tipo)), 'Cartões de benefícios');
   addGrupo(carteiraItems.filter(c => c.tipo === 'credito'),  'Cartões de Crédito');
 
   // pré-selecionar valor atual no label

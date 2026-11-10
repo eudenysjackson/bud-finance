@@ -10,7 +10,7 @@ import {
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
   collection, query, orderBy, limit, onSnapshot,
-  addDoc, updateDoc, deleteDoc, getDocs, getDoc, where, doc, writeBatch, serverTimestamp, Timestamp
+  addDoc, updateDoc, deleteDoc, getDocs, getDoc, where, doc, writeBatch, serverTimestamp, Timestamp, runTransaction, deleteField
 } from './financial-firestore.js';
 import { connectEmulators } from './bud-emulator-connect.js';
 
@@ -757,6 +757,8 @@ function setupModais() {
 
 function abrirModalCartao(id = null) {
   cartaoEditandoId = id;
+  document.getElementById('btnConverterBeneficio').style.display=id?'':'none';
+  document.getElementById('btnConverterBeneficio').onclick=()=>abrirConversaoBeneficio(id);
   const title = document.getElementById('titleModalCartao');
   const form  = document.getElementById('formCartao');
   form.reset();
@@ -2943,4 +2945,44 @@ function showToast(msg, tipo = 'ok') {
   }
 
   setTimeout(() => t.remove(), 3500);
+}
+
+function abrirConversaoBeneficio(id) {
+ const card=cartoesGlobal.find(c=>c.id===id); if(!card)return;
+ const overlay=document.createElement('div');overlay.className='modal-overlay open';overlay.style.zIndex='100';
+ const box=document.createElement('div');box.style.cssText='background:var(--card-bg);color:var(--card-text);border:1px solid var(--card-border);border-radius:1.5rem;padding:1.5rem;width:100%;max-width:440px;max-height:90vh;overflow:auto;';
+ box.innerHTML='<h2 style="font-size:1.15rem;font-weight:800;">🎁 Corrigir para cartão de benefício</h2><p style="font-size:.85rem;margin:1rem 0;">O limite antigo não será convertido em dinheiro. Informe o saldo disponível no aplicativo do benefício.</p><div id="benefitTypes" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;"></div><label style="display:block;margin:1rem 0;">Saldo disponível agora (R$)<input id="benefitBalance" type="number" min="0" step=".01" placeholder="Informe o saldo real" style="width:100%;padding:.75rem;border:1px solid var(--input-border);border-radius:.75rem;background:var(--input-bg);color:var(--card-text);"></label><label style="display:flex;gap:.5rem;font-size:.85rem;"><input id="benefitIncludes" type="checkbox">Esse saldo já inclui as recargas que ainda aparecem pendentes no app.</label><p style="font-size:.75rem;color:var(--card-text-sec);margin:1rem 0;">Se marcar, essas recargas serão registradas como recebidas sem somar ao saldo novamente. Compras futuras descontarão deste benefício, sem fatura. Recebimentos vinculados a este cartão serão direcionados ao benefício. Se foram creditados em conta bancária, esse crédito será retirado da conta de origem. O saldo do benefício será exatamente o que você informar.</p><div style="display:flex;gap:.5rem;"><button id="benefitCancel" class="btn-secondary" type="button">Cancelar</button><button id="benefitSave" class="btn-primary" type="button">Corrigir cadastro</button></div><p id="benefitError" role="alert" style="color:#dc2626;font-size:.85rem;"></p>';
+ overlay.append(box);document.body.append(overlay);let selected='';
+ for(const [type,label]of Object.entries(window.BudBenefits.types)){const b=document.createElement('button');b.type='button';b.textContent=label;b.className='btn-secondary';b.onclick=()=>{selected=type;for(const child of b.parentElement.children)child.style.borderColor='var(--input-border)';b.style.borderColor='#2563eb';};box.querySelector('#benefitTypes').append(b);}
+ box.querySelector('#benefitCancel').onclick=()=>overlay.remove();
+ box.querySelector('#benefitSave').onclick=async function(){
+  this.disabled=true;box.querySelector('#benefitError').textContent='';
+  try{
+   const [txs,recs,debts]=await Promise.all(['transacoes','recorrentes','dividas'].map(name=>getDocs(collection(db,'usuarios',uid,name))));
+   const all=txs.docs.map(d=>({...d.data(),id:d.id}));
+   const pending=txs.docs.filter(d=>d.data().pendenteConfirmacao===true && (d.data().cartaoId===id || d.data().contaId===id));
+   const history=txs.docs.filter(d=>d.data().cartaoId===id && d.data().tipo==='receita' && d.data().confirmado!==false && d.data().pendenteConfirmacao!==true);
+   const links=recs.docs.filter(d=>d.data().cartaoId===id || d.data().contaId===id);
+   if(pending.length+links.length+history.length>350)throw Error('Há muitos vínculos para corrigir de uma vez.');
+   const balance=box.querySelector('#benefitBalance').value;
+   const includes=box.querySelector('#benefitIncludes').checked;
+   window.BudBenefits.conversion(card,selected,balance,all,debts.docs.map(d=>d.data()));
+   await runTransaction(db,async tx=>{
+    const ref=doc(db,'usuarios',uid,'carteira',id);const fresh=await tx.get(ref);
+    if(!fresh.exists()||fresh.data().tipo!=='credito')throw Error('O cadastro mudou. Reabra o cartão.');
+    const docs=await Promise.all([...pending,...links,...history].map(d=>tx.get(d.ref)));
+    const debits=new Map();
+    history.forEach((d,i)=>{const actual=docs[pending.length+links.length+i];if(!actual.exists())throw Error('O histórico mudou. Atualize.');const data=actual.data();if(data.cartaoId!==id || data.confirmado===false)throw Error('O histórico mudou. Atualize.');const bank=data.carteiraId || data.contaId;if(bank && bank!==id)debits.set(bank,(debits.get(bank)||0)+Number(data.valor||0));});
+    const bankIds=[...debits.keys()];const banks=await Promise.all(bankIds.map(bank=>tx.get(doc(db,'usuarios',uid,'carteira',bank))));
+    if(banks.some(b=>!b.exists()||b.data().tipo==='credito'))throw Error('Revise a conta de origem dos recebimentos antes de converter.');
+    const patch=window.BudBenefits.conversion({...fresh.data(),id},selected,balance,all,debts.docs.map(d=>d.data()));
+    tx.update(ref,{...patch,beneficioConvertidoEm:serverTimestamp()});
+    pending.forEach((d,i)=>{if(!docs[i].exists() || docs[i].data().confirmado===true)throw Error('Uma recarga mudou. Atualize e confira o saldo novamente.');tx.update(d.ref,{cartaoId:deleteField(),contaId:id,carteiraId:id,formaPagamento:'Benefício',...(includes && docs[i].data().tipo==='receita'?{confirmado:true,pago:true,pendenteConfirmacao:false,confirmadoEm:serverTimestamp(),conciliadoNoSaldo:true}:{})});});
+    history.forEach(d=>tx.update(d.ref,{cartaoId:deleteField(),carteiraId:id,contaId:id,formaPagamento:'Benefício',conciliadoNoSaldo:true}));
+    bankIds.forEach((bank,i)=>{const data=banks[i].data();tx.update(doc(db,'usuarios',uid,'carteira',bank),{saldo:Number(data.saldo ?? data.ultimaConfirmacao?.saldo ?? data.saldoInicial ?? 0)-debits.get(bank)});});
+    links.forEach((d,i)=>{if(!docs[pending.length+i].exists())throw Error('Uma recorrência mudou. Atualize.');tx.update(d.ref,{contaId:id,contaTipo:selected,cartaoId:null,cartaoNome:null});});
+   });
+   overlay.remove();fecharModalCartao();showToast('Benefício corrigido. Confira em Contas → Benefícios.','ok');
+  }catch(error){box.querySelector('#benefitError').textContent=error.message || 'Não foi possível corrigir.';this.disabled=false;}
+ };
 }

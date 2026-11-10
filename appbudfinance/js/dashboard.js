@@ -1289,7 +1289,7 @@ function abrirConfirmacaoPendente(tx) {
   var descricao = String(tx.descricao || 'Recorrência').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   var opcoes = '<option value="">Nenhuma (sem conta vinculada)</option>';
   contas.forEach(function (c) {
-    var nome = String(c.nome || c.banco || 'Conta').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    var nome = String((['vale_refeicao','vale_alimentacao','transporte','beneficio'].includes(c.tipo)?'🎁 ':'')+(c.nome || c.banco || 'Conta')).replace(/</g, '&lt;').replace(/>/g, '&gt;');
     opcoes += '<option value="' + c.id + '"' + (c.id === (tx.carteiraId || tx.contaId) ? ' selected' : '') + '>' + nome + '</option>';
   });
   var overlay = document.createElement('div');
@@ -1305,7 +1305,7 @@ function abrirConfirmacaoPendente(tx) {
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.625rem;margin-bottom:.875rem;">'
     + '<label style="font-size:.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:.05em;">Valor real<input id="pcValor" type="number" min=".01" step=".01" value="' + previsto.toFixed(2) + '" style="display:block;width:100%;margin-top:.375rem;padding:.5rem .625rem;border:1.5px solid var(--input-border);border-radius:.75rem;background:var(--input-bg);color:var(--card-text);font:600 .875rem inherit;box-sizing:border-box;"></label>'
     + '<div style="position:relative;font-size:.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:.05em;">Data real<button id="pcDataBtn" type="button" style="display:flex;width:100%;align-items:center;justify-content:space-between;margin-top:.375rem;padding:.5rem .625rem;border:1.5px solid var(--input-border);border-radius:.75rem;background:var(--input-bg);color:var(--card-text);font:600 .875rem inherit;cursor:pointer;"><span>' + dataPadrao.split('-').reverse().join('/') + '</span><span>▣</span></button><div id="pcCalendario" style="display:none;position:absolute;right:0;top:calc(100% + .35rem);z-index:90;width:260px;padding:.75rem;border:1px solid var(--card-border);border-radius:1rem;background:var(--card-bg);box-shadow:0 16px 35px rgba(15,23,42,.2);text-transform:none;letter-spacing:normal;"></div></div></div>'
-    + '<div style="position:relative;font-size:.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:.05em;margin-bottom:1.125rem;">' + (tx.tipo === 'receita' ? 'Conta creditada' : 'Conta debitada') + '<button id="pcContaBtn" type="button" style="display:flex;width:100%;align-items:center;justify-content:space-between;margin-top:.375rem;padding:.5rem .625rem;border:1.5px solid var(--input-border);border-radius:.75rem;background:var(--input-bg);color:var(--card-text);font:600 .875rem inherit;cursor:pointer;text-align:left;"><span></span><span>⌄</span></button><div id="pcContas" style="display:none;position:absolute;z-index:90;left:0;right:0;top:calc(100% + .35rem);max-height:180px;overflow:auto;border:1px solid var(--card-border);border-radius:.875rem;background:var(--card-bg);box-shadow:0 16px 35px rgba(15,23,42,.2);text-transform:none;letter-spacing:normal;"></div></div>'
+    + '<div style="position:relative;font-size:.6875rem;font-weight:700;color:var(--card-text-sec);text-transform:uppercase;letter-spacing:.05em;margin-bottom:1.125rem;">' + (tx.tipo === 'receita' ? 'Conta ou benefício creditado' : 'Conta ou benefício debitado') + '<button id="pcContaBtn" type="button" style="display:flex;width:100%;align-items:center;justify-content:space-between;margin-top:.375rem;padding:.5rem .625rem;border:1.5px solid var(--input-border);border-radius:.75rem;background:var(--input-bg);color:var(--card-text);font:600 .875rem inherit;cursor:pointer;text-align:left;"><span></span><span>⌄</span></button><div id="pcContas" style="display:none;position:absolute;z-index:90;left:0;right:0;top:calc(100% + .35rem);max-height:180px;overflow:auto;border:1px solid var(--card-border);border-radius:.875rem;background:var(--card-bg);box-shadow:0 16px 35px rgba(15,23,42,.2);text-transform:none;letter-spacing:normal;"></div></div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.625rem;"><button id="pcCancelar" style="padding:.625rem;border:1.5px solid var(--input-border);border-radius:.75rem;background:var(--input-bg);color:var(--card-text-sec);font:700 .875rem inherit;cursor:pointer;">Ainda não</button><button id="pcConfirmar" style="padding:.625rem;border:0;border-radius:.75rem;background:' + cor + ';color:#fff;font:800 .875rem inherit;cursor:pointer;">' + acao + ' ✓</button></div>';
   overlay.appendChild(card); document.body.appendChild(overlay);
   var dataSelecionada = dataPadrao;
@@ -1340,7 +1340,7 @@ function abrirConfirmacaoPendente(tx) {
     var data = dataSelecionada;
     var contaId = contaSelecionada || null;
     if (!(valor > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(data)) { if (window.budShowToast) window.budShowToast('Informe um valor e uma data válidos.', 'error'); return; }
-    if (!contaId) { window.budShowToast('Escolha a conta do recebimento ou pagamento.', 'error'); return; }
+    if (!contaId) { window.budShowToast('Escolha a conta ou o benefício do recebimento ou pagamento.', 'error'); return; }
     if (!pagamentoPodeSerConfirmado(contaId, tx.tipo, valor)) return;
     btn.disabled = true; btn.textContent = 'Salvando…';
     try {
