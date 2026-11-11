@@ -6,6 +6,7 @@
 
 import { initializeApp, getApps }         from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import { getAuth, onAuthStateChanged, signOut, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
+import { connectEmulators } from './bud-emulator-connect.js';
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
   collection, doc, getDoc, getDocs, addDoc, updateDoc,
@@ -20,6 +21,7 @@ const db   = (() => {
   try { return initializeFirestore(app, { localCache: persistentLocalCache() }); }
   catch(e) { return getFirestore(app); }
 })();
+connectEmulators(auth, db);
 
 // ── State ──────────────────────────────────────────────────────
 const PAGE_SIZE       = 25;
