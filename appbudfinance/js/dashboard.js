@@ -35,6 +35,7 @@ window._budRequestPushToken = async function (user, silent) {
 let usuarioAtualId = null;
 let transacoesGlobais = [];
 let pendenciasRecorrentes = [];
+let lancamentosCartoesDashboard = [];
 let valoresOcultos = localStorage.getItem('bud_valores_ocultos') === 'true';
 let mesVisualizado = new Date().getMonth();   // 0-based (0 = Jan)
 let anoVisualizado = new Date().getFullYear();
@@ -993,77 +994,85 @@ function atualizarLembretes7Dias() {
   // consultando outro mês no seletor da dashboard.
   atualizarPrioridadesHoje();
 
-  // PEND-064: só exibir lembretes quando o mês visualizado é o mês atual
-  var hojeCheck = new Date();
-  if (mesVisualizado !== hojeCheck.getMonth() || anoVisualizado !== hojeCheck.getFullYear()) {
-    sec.style.display = 'none';
-    lista.innerHTML = '';
-    return;
-  }
-
   var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  var inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-  var em7  = new Date(hoje); em7.setDate(em7.getDate() + 3);
-
+  var limite = new Date(hoje); limite.setDate(limite.getDate() + 30);
   var lembretes = [];
 
-  // Recorrentes com vencimento hoje ou nos próximos 3 dias.
+  function adicionar(lembrete, data, manterAtrasado = false) {
+    data.setHours(0, 0, 0, 0);
+    if (!Number.isFinite(data.getTime()) || (!manterAtrasado && data < hoje) || data > limite) return;
+    lembretes.push({ ...lembrete, dataVenc: data, diffDias: Math.round((data - hoje) / 86400000) });
+  }
+
+  function dataMensal(ano, mes, dia) {
+    const ultimo = new Date(ano, mes + 1, 0).getDate();
+    return new Date(ano, mes, Math.min(dia, ultimo));
+  }
+
   recorrentesGlobaisDash.forEach(function (r) {
     if (r.ativa === false || r.ativo === false) return;
-    var dia = parseInt(r.diaVencimento, 10);
-    if (!dia) return;
-
-    for (var offset = 0; offset <= 1; offset++) {
-      var d = new Date(hoje.getFullYear(), hoje.getMonth() + offset, dia);
-      // Mantém ocorrências já vencidas no mês até o usuário confirmá-las.
-      if (d < inicioMes || d > em7) continue;
-      // Verificar se já tem transação para este recorrente neste mês
-      var mesVenc = d.getMonth();
-      var anoVenc = d.getFullYear();
-      var jaLancado = transacoesGlobais.some(function (t) {
-        if (!t.recorrenteId || t.recorrenteId !== r.id) return false;
-        var competencia = anoVenc + '-' + String(mesVenc + 1).padStart(2, '0');
-        if (t.mesRecorrencia === competencia) return true;
-        var dt = t.data && t.data.toDate ? t.data.toDate() : new Date(t.data || 0);
-        return dt.getMonth() === mesVenc && dt.getFullYear() === anoVenc;
-      });
-      if (!jaLancado) {
-        lembretes.push({
-          tipo: 'recorrente', nome: r.nome || r.descricao || 'Recorrente',
-          valor: r.valorPrevisto != null ? r.valorPrevisto : r.valor, dataVenc: d,
-          diffDias: Math.round((d - hoje) / 86400000),
-          tipoTrans: r.tipo || 'despesa',
-          recorrenteId: r.id,
-          categoria: r.categoria || 'Outros',
-          formaPagamento: r.formaPagamento || 'Débito',
-          contaId: r.contaId || null
-        });
+    const item = { tipo: 'recorrente', nome: r.nome || r.descricao || 'Recorrente',
+      valor: r.valorPrevisto ?? r.valor, tipoTrans: r.tipo || 'despesa', recorrenteId: r.id, periodicidade: r.periodicidade || 'mensal' };
+    const vinculadas = transacoesGlobais.concat(pendenciasRecorrentes).filter(t =>
+      t.recorrenteId === r.id && !['cancelado', 'estornado'].includes(t.status));
+    const datas = [];
+    if (!r.periodicidade || r.periodicidade === 'mensal') {
+      const dia = Number(r.diaVencimento);
+      if (!Number.isInteger(dia) || dia < 1 || dia > 31) return;
+      for (let offset = 0; offset <= 2; offset++) {
+        datas.push(dataMensal(hoje.getFullYear(), hoje.getMonth() + offset, dia));
       }
+    } else if (r.proximaData) {
+      datas.push(r.proximaData.toDate ? r.proximaData.toDate() : new Date(r.proximaData));
     }
+    const criadaEm = r.criadoEm || r.dataCriacao;
+    const criada = criadaEm?.toDate ? criadaEm.toDate() : new Date(criadaEm || 0);
+    criada.setHours(0, 0, 0, 0);
+    datas.forEach(data => {
+      if (data < criada) return;
+      const competencia = data.getFullYear() + '-' + String(data.getMonth() + 1).padStart(2, '0');
+      const dataISO = competencia + '-' + String(data.getDate()).padStart(2, '0');
+      const mensal = !r.periodicidade || r.periodicidade === 'mensal';
+      const existe = vinculadas.some(t => mensal
+        ? (t.mesRecorrencia || t.mesReferencia || t.dataReferencia?.slice(0, 7)) === competencia
+        : t.dataReferencia === dataISO);
+      if (!existe) adicionar(item, data, data.getMonth() === hoje.getMonth() && data.getFullYear() === hoje.getFullYear());
+    });
   });
 
-  // Dívidas com próxima parcela hoje ou nos próximos 3 dias
   dividasGlobaisDash.forEach(function (d) {
-    if (!d.vencimento || !d.parcelas) return;
-    var pagas = d.parcelasPagas || 0;
-    if (pagas >= d.parcelas) return;
-    var base = new Date(d.vencimento + 'T12:00:00');
-    var proxVenc = addMonthsDash(base, pagas);
-    proxVenc.setHours(0, 0, 0, 0);
-    if (proxVenc >= hoje && proxVenc <= em7) {
-      lembretes.push({
-        tipo: 'divida', nome: d.nome || 'Dívida',
-        valor: d.valorParcela, dataVenc: proxVenc,
-        diffDias: Math.round((proxVenc - hoje) / 86400000),
-        tipoTrans: 'despesa',
-        dividaId: d.id,
-        categoria: 'Dívidas',
-        formaPagamento: 'Débito'
-      });
-    }
+    const pagas = Number(d.parcelasPagas || 0);
+    if (!d.vencimento || pagas >= Number(d.parcelas || 0) || d.status === 'cancelada') return;
+    adicionar({ tipo: 'divida', nome: d.nome || 'Dívida',
+      valor: d.valorParcela || Number(d.valorTotal || 0) / Number(d.parcelas),
+      tipoTrans: 'despesa', dividaId: d.id },
+    addMonthsDash(new Date(d.vencimento + 'T12:00:00'), pagas), true);
+  });
+
+  const cartoes = new Map(carteiraGlobal.filter(c => c.tipo === 'credito').map(c => [c.id, c]));
+  const faturas = new Map();
+  lancamentosCartoesDashboard.forEach(t => {
+    const cartao = cartoes.get(t.cartaoId);
+    const mes = t.dataReferencia?.slice(0, 7);
+    if (!cartao || !/^\d{4}-\d{2}$/.test(mes) || cartao.faturasPagas?.[mes] ||
+      t.pagamentoFatura || ['cancelado', 'estornado'].includes(t.status)) return;
+    const chave = cartao.id + ':' + mes;
+    const fatura = faturas.get(chave) || { cartao, mes, valor: 0 };
+    fatura.valor += Number(t.valor || 0);
+    faturas.set(chave, fatura);
+  });
+  faturas.forEach(({ cartao, mes, valor }) => {
+    const dia = Number(cartao.vencimento || cartao.diaVencimento);
+    if (!(valor > 0 && dia >= 1 && dia <= 31)) return;
+    const [ano, numeroMes] = mes.split('-').map(Number);
+    const data = dataMensal(ano, numeroMes - 1, dia);
+    const item = { tipo: 'fatura', nome: 'Fatura ' + (cartao.nome || 'do cartão'), valor, tipoTrans: 'despesa' };
+    adicionar(item, data, true);
   });
 
   lembretes.sort(function (a, b) { return a.dataVenc - b.dataVenc; });
+  const secPrioridades = document.getElementById('secPrioridadesHoje');
+  const listaPrioridades = document.getElementById('listaPrioridadesHoje');
 
   if (lembretes.length === 0) {
     sec.style.display = 'none';
@@ -1072,10 +1081,10 @@ function atualizarLembretes7Dias() {
     return;
   }
 
-  sec.style.display = '';
+  sec.style.display = lembretes.some(l => l.diffDias > 0) ? '' : 'none';
   lista.innerHTML = '';
 
-  lembretes.slice(0, 5).forEach(function (l) {
+  lembretes.forEach(function (l) {
     var el = document.createElement('div');
     var urgente = l.diffDias <= 3;
     var bgCol  = urgente ? 'rgba(255,251,235,0.8)' : 'var(--sidebar-link-hover-bg)';
@@ -1086,33 +1095,31 @@ function atualizarLembretes7Dias() {
     var nomeEsc = l.nome.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     var valorFmt = l.valor ? formatarValor(l.valor) : '';
     // Pill de urgência: vermelho hoje, laranja amanhã, âmbar 2-3 dias, cinza resto
-    var pillBg  = l.diffDias === 0 ? '#dc2626' : l.diffDias === 1 ? '#d97706' : l.diffDias <= 3 ? '#f59e0b' : '#64748b';
+    var pillBg  = l.diffDias <= 0 ? '#dc2626' : l.diffDias === 1 ? '#d97706' : l.diffDias <= 3 ? '#f59e0b' : '#64748b';
     var pillTxt = l.diffDias < 0 ? 'Vencido há ' + Math.abs(l.diffDias) + 'd' : (l.diffDias === 0 ? 'Hoje' : l.diffDias === 1 ? 'Amanhã' : 'Em ' + l.diffDias + 'd');
     var confirmarTxt = l.tipoTrans === 'receita' ? 'Recebi ✓' : 'Paguei ✓';
+    var acao = l.tipo === 'fatura' ? '<a href="cartoes.html">Ver fatura</a>' : l.diffDias > 0 ? '' : '<button type="button" class="pmg-btn" style="font-size:0.6875rem;font-weight:800;padding:0.15rem 0.5rem;border-radius:9999px;background:#16a34a;color:#fff;border:none;cursor:pointer;">' + confirmarTxt + '</button>';
     el.innerHTML = '<div style="display:flex;align-items:center;gap:0.625rem;min-width:0;flex:1;">'
       + '<span style="font-size:1.125rem;flex-shrink:0;">' + icone + '</span>'
       + '<div style="min-width:0;">'
       + '<div style="font-size:0.8125rem;font-weight:700;color:var(--card-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + nomeEsc + '</div>'
-      + '<div style="font-size:0.6875rem;font-weight:600;color:#94a3b8;">' + (l.tipo === 'divida' ? 'Parcela de dívida' : (l.tipoTrans === 'receita' ? 'Receita recorrente' : 'Despesa recorrente')) + '</div>'
+      + '<div style="font-size:0.6875rem;font-weight:600;color:#94a3b8;">' + (l.tipo === 'fatura' ? 'Cartão de crédito' : l.tipo === 'divida' ? 'Parcela de dívida' : (l.tipoTrans === 'receita' ? 'Receita recorrente' : 'Despesa recorrente')) + '</div>'
       + '</div></div>'
       + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;flex-shrink:0;">'
       + (valorFmt ? '<div style="font-size:0.8125rem;font-weight:700;color:' + (l.tipoTrans === 'receita' ? '#16a34a' : '#dc2626') + ';">' + (valoresOcultos ? '•••' : (l.tipoTrans === 'receita' ? '+' : '-') + formatarValor(l.valor)) + '</div>' : '')
       + '<div style="display:flex;align-items:center;gap:0.375rem;">'
       + '<span style="font-size:0.6875rem;font-weight:700;padding:0.15rem 0.5rem;border-radius:9999px;background:' + pillBg + ';color:#fff;">' + pillTxt + '</span>'
-      + '<button class="pmg-btn" data-idx="' + (lista.children.length) + '" style="font-size:0.6875rem;font-weight:800;padding:0.15rem 0.5rem;border-radius:9999px;background:#16a34a;color:#fff;border:none;cursor:pointer;font-family:inherit;white-space:nowrap;">' + confirmarTxt + '</button>'
+      + acao
       + '</div>'
       + '</div>';
-    // Guardar referência do lembrete no elemento para o click
-    el._lembrete = l;
-    lista.appendChild(el);
+    el.querySelector('.pmg-btn')?.addEventListener('click', () => marcarLembretePago(l));
+    if (l.diffDias <= 0 && listaPrioridades && secPrioridades) {
+      listaPrioridades.appendChild(el);
+      secPrioridades.style.display = '';
+    } else {
+      lista.appendChild(el);
+    }
   });
-
-  if (lembretes.length > 5) {
-    var mais = document.createElement('div');
-    mais.style.cssText = 'text-align:center;font-size:0.75rem;font-weight:600;color:#94a3b8;padding-top:0.25rem;';
-    mais.textContent = '+ mais ' + (lembretes.length - 5) + ' lembrete' + (lembretes.length - 5 > 1 ? 's' : '');
-    lista.appendChild(mais);
-  }
 
   // Badge de urgentes (≤3 dias) no cabeçalho da seção
   var nUrgentes = lembretes.filter(function(l) { return l.diffDias <= 3; }).length;
@@ -1124,19 +1131,6 @@ function atualizarLembretes7Dias() {
     } else {
       badge.style.display = 'none';
     }
-  }
-
-  // Delegar click nos botões Pago ✓
-  if (!lista._lembretesBound) {
-    lista.addEventListener('click', function (e) {
-      var btn = e.target.closest('.pmg-btn');
-      if (!btn) return;
-      var item = btn.parentElement;
-      while (item && !item._lembrete) item = item.parentElement;
-      if (!item || !item._lembrete) return;
-      marcarLembretePago(item._lembrete);
-    });
-    lista._lembretesBound = true;
   }
 
   atualizarTudoEmDia();
@@ -1152,7 +1146,7 @@ function marcarLembretePago(lembrete) {
   }
 }
 async function conferirRecorrencia(lembrete) {
-  var botao = document.querySelector('#listaLembretes7Dias .pmg-btn:focus');
+  var botao = document.querySelector('.pmg-btn:focus');
   if (botao) botao.disabled = true;
   try {
     await _autoProcessarRecorrentesHoje(true);
@@ -1160,7 +1154,9 @@ async function conferirRecorrencia(lembrete) {
     var venc = lembrete.dataVenc;
     var competencia = venc.getFullYear()+'-'+String(venc.getMonth()+1).padStart(2,'0');
     var candidatos = result.docs.map(function(d){return Object.assign({},d.data(),{id:d.id});}).filter(function(t){
-      return (t.mesRecorrencia || t.mesReferencia || '') === competencia;
+      if (['cancelado', 'estornado'].includes(t.status)) return false;
+      if (lembrete.periodicidade !== 'mensal') return t.dataReferencia === competencia + '-' + String(venc.getDate()).padStart(2, '0');
+      return (t.mesRecorrencia || t.mesReferencia || t.dataReferencia?.slice(0, 7)) === competencia;
     });
     if (candidatos.some(function(t){return t.confirmado === true;})) {
       window.budShowToast('Este recebimento ou pagamento já foi confirmado.','success');
@@ -2670,9 +2666,9 @@ function setupSidebar() {
 // ─── Listener de Transações com filtro por data (re-assinado ao trocar mês) ──
 function setupTransacoesListener(uid) {
   if (_unsubTransacoes) { _unsubTransacoes(); _unsubTransacoes = null; }
-  // Carrega mês anterior (para comparativo) + mês atual + mês seguinte
+  // Inclui os meses seguintes para deduplicar ocorrências nos próximos 30 dias.
   var inicio = new Date(anoVisualizado, mesVisualizado - 2, 1);
-  var fim    = new Date(anoVisualizado, mesVisualizado + 1, 0, 23, 59, 59);
+  var fim    = new Date(anoVisualizado, mesVisualizado + 3, 0, 23, 59, 59);
   var transRef = query(
     collection(db, 'usuarios', uid, 'transacoes'),
     where('data', '>=', Timestamp.fromDate(inicio)),
@@ -2711,7 +2707,7 @@ function setupListeners(uid) {
   setupTransacoesListener(uid);
   _unsubs.push(onSnapshot(query(collection(db,'usuarios',uid,'transacoes'), where('pendenteConfirmacao','==',true), limit(500)), function(snapshot) {
     pendenciasRecorrentes = snapshot.docs.map(function(d) { return Object.assign({},d.data(),{id:d.id}); });
-    atualizarPrioridadesHoje();
+    atualizarLembretes7Dias();
   }));
   _autoProcessarRecorrentesHoje();
 
@@ -2743,9 +2739,15 @@ function setupListeners(uid) {
     });
     atualizarWidgetCarteira();
     atualizarSaudeMes();
+    atualizarLembretes7Dias();
   }, function () {}));
 
-  // Recorrentes — widget lembretes 7 dias
+  _unsubs.push(onSnapshot(query(collection(db, 'usuarios', uid, 'transacoes'), where('cartaoId', '>', '')), snapshot => {
+    lancamentosCartoesDashboard = snapshot.docs.map(d => d.data());
+    atualizarLembretes7Dias();
+  }, error => console.warn('[Dashboard] Faturas:', error.code)));
+
+  // Recorrentes — próximos vencimentos
   var recorrentesRef = query(collection(db, 'usuarios', uid, 'recorrentes'), limit(500));
   _unsubs.push(onSnapshot(recorrentesRef, function (snapshot) {
     recorrentesGlobaisDash = snapshot.docs.map(function (d) {

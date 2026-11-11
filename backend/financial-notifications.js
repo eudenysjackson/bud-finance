@@ -13,20 +13,33 @@ function monthDate(month, day) {
 function financialNotices({recorrentes=[],cartoes=[],dividas=[],transacoes=[]}, today) {
   const tomorrow = new Date(today+'T12:00:00Z');tomorrow.setUTCDate(tomorrow.getUTCDate()+1);
   const next = tomorrow.toISOString().slice(0,10), month=today.slice(0,7), notices=[];
+  const tags = new Set();
   const activeTx = transacoes.filter(t=>!['cancelado','estornado'].includes(t.status));
   function add(kind,id,due,label,value,url,receipt=false) {
     if (!due || due>next) return;
+    const daysLate = Math.round((Date.parse(today + 'T12:00:00Z') - Date.parse(due + 'T12:00:00Z')) / 86400000);
+    if (daysLate > 1 && daysLate % 7 !== 0) return;
     const when=due===next?'amanhã':due===today?'hoje':'em atraso';
-    notices.push({tag:[kind,id,due,today].join('-'),title:receipt?(due<today?'Recebimento a confirmar':'Recebimento previsto '+when):(due<today?'Pagamento em atraso': 'Pagamento '+when),body:label+(value!=null?' — '+money(value):'')+(due<today?' · previsto para '+due.split('-').reverse().join('/'):'')+(receipt?' · confirme quando receber.':' · já pagou? Confirme no app.'),url,emoji:receipt?'💰':'🔔'});
+    const tag = [kind,id,due,today].join('-');
+    if (tags.has(tag)) return;
+    tags.add(tag);
+    notices.push({tag,title:receipt?(due<today?'Recebimento a confirmar':'Recebimento previsto '+when):(due<today?'Pagamento em atraso': 'Pagamento '+when),body:label+(value!=null?' — '+money(value):'')+(due<today?' · previsto para '+due.split('-').reverse().join('/'):'')+(receipt?' · confirme quando receber.':' · já pagou? Confirme no app.'),url,emoji:receipt?'💰':'🔔'});
   }
   for (const rec of recorrentes) {
-    if (rec.ativa===false) continue;
+    if (rec.ativa===false || rec.ativo===false) continue;
     const id=rec._id||rec.id, frequency=rec.periodicidade||'mensal';
     let due=frequency==='mensal'?monthDate(month,rec.diaVencimento):iso(rec.proximaData);
     if (frequency==='mensal' && due<today && month!==next.slice(0,7)) {
       const nextDue=monthDate(next.slice(0,7),rec.diaVencimento);
       const paid=activeTx.some(t=>t.recorrenteId===id && String(t.mesReferencia||iso(t.dataReferencia||t.data)).slice(0,7)===month && t.confirmado!==false && t.pago!==false && !t.pendenteConfirmacao);
       if (paid) due=nextDue;
+    }
+    for (const tx of activeTx) {
+      if (tx.recorrenteId !== id || tx.pendenteConfirmacao !== true || tx.confirmado !== false) continue;
+      const pendingDue = iso(tx.dataReferencia || tx.data);
+      if (pendingDue && pendingDue < today && pendingDue !== due) {
+        add('rec',id,pendingDue,rec.descricao||'Recorrência',tx.valorPrevisto ?? tx.valor,'recorrentes.html',rec.tipo==='receita');
+      }
     }
     if (iso(rec.criadoEm||rec.dataCriacao)>due) continue;
     const paid=activeTx.some(t=>{
@@ -50,7 +63,7 @@ function financialNotices({recorrentes=[],cartoes=[],dividas=[],transacoes=[]}, 
   }
   for (const debt of dividas) {
     const paid=Number(debt.parcelasPagas||0),total=Number(debt.parcelas||1),base=iso(debt.vencimento);
-    if (!base || paid>=total || ['quitada','cancelada'].includes(debt.status)) continue;
+    if (!base || paid>=total || debt.status === 'cancelada') continue;
     const start=new Date(base+'T12:00:00Z'),target=new Date(Date.UTC(start.getUTCFullYear(),start.getUTCMonth()+paid,1));
     const period=target.toISOString().slice(0,7),due=monthDate(period,start.getUTCDate());
     add('divida',debt._id||debt.id,due,(debt.nome||debt.instituicao||'Dívida')+' · parcela '+(paid+1)+'/'+total,Number(debt.valorParcela)||Number(debt.valorTotal||0)/total,'dividas.html');
