@@ -8,6 +8,53 @@ const day = 24 * 60 * 60 * 1000;
 
 function registerGestorAccess(app, { db, auth, emulator, sendEmail, limit }) {
   const requests = () => db.collection('_gestor_access_requests');
+  const ownerRef = () => db.doc('_gestor_private/owner');
+
+  async function ownerOnly(req, res, next) {
+    const bearer = req.get('Authorization')?.match(/^Bearer (\S+)$/i);
+    if (!bearer) return res.sendStatus(401);
+    let identity;
+    try { identity = await auth.verifyIdToken(bearer[1], true); }
+    catch { return res.sendStatus(401); }
+    if (!identity.email_verified || identity.budGestorOwner !== true) return res.sendStatus(403);
+    req.gestorOwner = identity.uid;
+    next();
+  }
+
+  function publicProfile(profile) {
+    return {
+      name: profile.name, recoveryEmail: profile.recoveryEmail,
+      whatsapp: profile.whatsapp, whatsappVerified: profile.whatsappVerified === true
+    };
+  }
+
+  app.get('/api/gestor/owner-profile', ownerOnly, async (req, res) => {
+    try {
+      const profile = (await ownerRef().get()).data();
+      if (profile?.uid !== req.gestorOwner) return res.sendStatus(403);
+      return res.json(publicProfile(profile));
+    } catch { return res.sendStatus(503); }
+  });
+
+  app.patch('/api/gestor/owner-profile', ownerOnly, async (req, res) => {
+    const { name, whatsapp } = req.body ?? {};
+    const phone = typeof whatsapp === 'string' && /^[+\d ().-]{10,25}$/.test(whatsapp)
+      ? whatsapp.replace(/\D/g, '') : '';
+    if (typeof name !== 'string' || name.trim().length < 3 || name.length > 120 || phone.length < 10 || phone.length > 15) {
+      return res.status(400).json({ error: 'Confira o nome e o WhatsApp com DDD.' });
+    }
+    try {
+      const ref = ownerRef();
+      const profile = await db.runTransaction(async tx => {
+        const current = (await tx.get(ref)).data();
+        if (current?.uid !== req.gestorOwner) return null;
+        const update = { name: name.trim(), whatsapp: phone, whatsappVerified: current.whatsapp === phone && current.whatsappVerified === true };
+        tx.update(ref, update);
+        return publicProfile({ ...current, ...update });
+      });
+      return profile ? res.json(profile) : res.sendStatus(403);
+    } catch { return res.sendStatus(503); }
+  });
 
   app.post('/api/gestor/recovery', async (req, res) => {
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';

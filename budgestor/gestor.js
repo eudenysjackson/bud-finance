@@ -37,6 +37,27 @@ async function post(path, body) {
   return result;
 }
 
+async function ownerProfile(data) {
+  const token = await auth.currentUser.getIdToken();
+  const response = await fetch(api + '/api/gestor/owner-profile', {
+    method: data ? 'PATCH' : 'GET',
+    headers: data ? { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }
+      : { Authorization: 'Bearer ' + token },
+    body: data ? JSON.stringify(data) : undefined,
+    signal: AbortSignal.timeout(15_000)
+  });
+  if (!response.ok) throw new Error('Não foi possível acessar ou salvar a ficha. Confira os dados e tente novamente.');
+  return response.json();
+}
+
+function fillOwnerProfile(profile) {
+  document.querySelector('#owner-name').value = profile.name || '';
+  document.querySelector('#owner-email').value = profile.recoveryEmail || '';
+  document.querySelector('#owner-whatsapp').value = profile.whatsapp || '';
+  document.querySelector('#owner-whatsapp-status').textContent = profile.whatsappVerified
+    ? 'WhatsApp verificado para recuperação.' : 'WhatsApp aguarda verificação para recuperação.';
+}
+
 function submit(id, run, fallback) {
   const form = document.getElementById(id);
   form.addEventListener('submit', async event => {
@@ -80,7 +101,10 @@ onAuthStateChanged(auth, async user => {
       return;
     }
     if (!confirmationToken) {
+      const profile = await ownerProfile();
+      if (auth.currentUser?.uid !== user.uid) return;
       document.querySelector('#login-form').reset();
+      fillOwnerProfile(profile);
       show('owner', false);
     }
   } catch {
@@ -104,6 +128,7 @@ submit('register-form', async data => {
   if (local && result.confirmationToken) {
     confirmationToken = result.confirmationToken;
     show('confirmation');
+    message('Este é um teste local. Use o botão acima para simular a confirmação por e-mail.');
     return;
   }
   show('login');
@@ -118,9 +143,15 @@ document.querySelector('#confirm-request').addEventListener('click', async event
     confirmationToken = null;
     history.replaceState(null, '', location.pathname + location.search);
     show('login');
-    message('Sua solicitação foi enviada à equipe responsável. Aguarde nosso retorno pelo e-mail informado.');
+    message(local ? 'Solicitação registrada no ambiente de teste. O envio por e-mail foi simulado.'
+      : 'Sua solicitação foi enviada à equipe responsável. Aguarde nosso retorno pelo e-mail informado.');
   } catch (error) { message(error.message, true); }
   finally { button.disabled = false; }
+});
+
+submit('owner-form', async data => {
+  fillOwnerProfile(await ownerProfile(data));
+  message('Ficha do proprietário salva.');
 });
 
 document.querySelector('#sign-out').addEventListener('click', async () => {

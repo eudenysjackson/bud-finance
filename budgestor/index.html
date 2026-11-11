@@ -12,7 +12,7 @@
   <main class="layout">
     <div class="art" aria-hidden="true"></div>
     <section class="card" aria-label="Bud Gestor">
-      <img class="brand" src="../logo.png" alt="Bud Soluções" width="72" height="72">
+      <img class="brand" src="./marca-bud-solucoes.webp" alt="Bud Soluções" width="72" height="72">
       <div id="login">
         <h1>Bem-vindo(a)</h1>
         <p class="intro">Insira seus dados de acesso</p>
@@ -62,8 +62,18 @@
         <p class="footer"><button class="text-button" type="button" data-view="login">Voltar ao login</button></p>
       </div>
       <div id="owner" hidden>
-        <h1>Bud Gestor</h1>
-        <p class="intro">Sessão de proprietário</p>
+        <h1>Ficha do proprietário</h1>
+        <p class="intro">Dados privados da conta do Bud Gestor.</p>
+        <form id="owner-form">
+          <label for="owner-name">Nome completo</label>
+          <input id="owner-name" name="name" autocomplete="name" minlength="3" maxlength="120" required>
+          <label for="owner-email">E-mail de acesso e recuperação</label>
+          <input id="owner-email" type="email" readonly>
+          <label for="owner-whatsapp">WhatsApp com DDD</label>
+          <input id="owner-whatsapp" name="whatsapp" type="tel" autocomplete="tel" maxlength="25" required>
+          <small id="owner-whatsapp-status"></small>
+          <button class="primary" type="submit">Salvar ficha</button>
+        </form>
         <button id="sign-out" class="primary" type="button">Sair</button>
       </div>
       <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
