@@ -26,24 +26,35 @@ test('reported purchase creates eight installments from December through July',a
 
 test('manual card form stores purchase date separately and bills each installment in its cycle', async () => {
   const source = fs.readFileSync('appbudfinance/js/cartoes.js', 'utf8');
-  const start = source.indexOf('function dadosDataGasto(');
+  const start = source.indexOf('const gastosAguardandoConfirmacao');
   const end = source.indexOf('\nfunction ', source.indexOf('async function handleSubmitGasto(', start) + 1);
   const fields = { inputDescGasto: { value: 'Compra' }, inputValorGasto: { value: '100' },
     dpGastoHidden: { value: '2026-12-08' }, btnSalvarGasto: {}, hiddenCatGasto: {},
     toggleParcelado: { checked: true }, inputNParcelas: { value: '3' } };
-  const rows = [];
+  const rows = [], messages = [];
+  let failCommit = true;
   const card = { id: 'c', fechamento: 5, vencimento: 12 };
   const context = { cartaoParaGasto: 'c', cartoesGlobal: [card], gastoEditandoId: null,
     document: { getElementById: id => fields[id] }, window: { BudGoalPurchase: api },
     parseBRL: Number, budSanitize: s => s, db: {}, uid: 'u',
     Timestamp: { fromDate: date => date }, serverTimestamp: () => 1,
-    doc() {}, collection() {}, writeBatch: () => ({ set: (_, row) => rows.push(row), commit: async () => {} }),
-    showToast(message, kind) { assert.equal(kind, 'ok', message); }, fecharModalGasto() {}, MESES_PT: [],
+    doc() {}, collection() {}, writeBatch: (_, { timeoutMs }) => {
+      assert.equal(timeoutMs, 20000);
+      return { set: (_, row) => rows.push(row), commit: async () => {
+        if (failCommit) throw Object.assign(new Error('Timeout'), { name: 'TimeoutError' });
+      } };
+    },
+    showToast(message, kind) { messages.push({ message, kind }); }, fecharModalGasto() {}, MESES_PT: [],
     transacoesGlobal: [], updateDoc: async (_, row) => rows.push(row),
   };
   vm.runInNewContext(source.slice(start, end), context);
   const submit = () => context.handleSubmitGasto({ preventDefault() {} });
   await submit();
+  assert.match(messages.at(-1).message, /tente novamente com os mesmos dados/);
+  assert.equal(fields.btnSalvarGasto.disabled, false);
+  failCommit = false;
+  await submit();
+  assert.equal(messages.at(-1).kind, 'ok');
   assert.deepEqual(rows.map(row => row.dataReferencia), ['2027-01-12', '2027-02-12', '2027-03-12']);
   assert(rows.every(row => row.dataCompra === '2026-12-08'));
   assert.equal(rows.reduce((cents, row) => cents + Math.round(row.valor * 100), 0), 10000);
@@ -60,4 +71,34 @@ test('manual card form stores purchase date separately and bills each installmen
   await submit();
   assert.equal(rows.at(-1).dataReferencia, '2027-01-12');
   assert.equal(rows.at(-1).dataCompra, '2026-12-08');
+});
+
+test('card expense is hidden immediately, restored on failure and stays hidden after confirmation', async () => {
+  const source = fs.readFileSync('appbudfinance/js/cartoes.js', 'utf8');
+  const start = source.indexOf('function atualizarGastosVisiveis(');
+  const end = source.indexOf('async function editarGasto(', start);
+  let finish, fail;
+  const context = { uid: 'u', gastoParaExcluir: 'a', gastosEmExclusao: new Map(),
+    transacoesDoServidor: [{ id: 'a' }, { id: 'b' }], transacoesGlobal: [],
+    db: {}, doc: (_, ...parts) => parts.join('/'), renderizarCartoes() {}, showToast() {},
+    fecharModalExcluirGasto() { context.gastoParaExcluir = null; },
+    writeBatch: () => ({ delete: ref => assert.equal(ref, 'usuarios/u/transacoes/a'),
+      commit: () => new Promise((resolve, reject) => { finish = resolve; fail = reject; }) }),
+  };
+  vm.runInNewContext(source.slice(start, end), context);
+  const ids = () => context.transacoesGlobal.map(row => row.id);
+  const first = context.confirmarExcluirGasto();
+  assert.deepEqual(ids(), ['b']);
+  assert.equal(context.gastoParaExcluir, null);
+  fail(new Error('Falha'));
+  await first;
+  assert.deepEqual(ids(), ['a', 'b']);
+  context.gastoParaExcluir = 'a';
+  const second = context.confirmarExcluirGasto();
+  finish();
+  await second;
+  assert.deepEqual(ids(), ['b']);
+  context.transacoesDoServidor = [{ id: 'b' }];
+  context.atualizarGastosVisiveis();
+  assert.equal(context.gastosEmExclusao.size, 0);
 });

@@ -914,3 +914,9 @@ Resolvido no código local. Campos de valores pediam teclado de dígitos ou usav
 
 ## Ciclo de compra manual em Cartões — 10/11/2026
 Resolvido localmente. A gravação manual ignorava fechamento e vencimento ao escolher o mês da fatura. Agora usa a programação de ciclo compartilhada com Metas e registra separadamente a data da compra. Teste do formulário e suite de release passaram. Publicação pendente.
+
+## Espera e erro genérico na gravação em Cartões — 10/11/2026
+Tratado localmente com limite no envio, mensagem específica de rejeição e repetição idempotente do lote em caso de resposta incerta. Causa da tentativa original ainda sem confirmação. Sem publicação.
+
+## Quitação prematura em Dívidas — 10/11/2026
+Corrigido localmente. O saldo amortizado podia chegar a zero enquanto ainda havia parcelas em aberto. Quitação agora acompanha as parcelas pagas e o saldo usa as parcelas restantes se o principal zerar antes da hora. Regressão reproduz a Shopee com duas de três parcelas pagas.

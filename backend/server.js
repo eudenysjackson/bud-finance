@@ -3567,7 +3567,7 @@ app.get('/api/notifications/daily', async function (req, res) {
       // Sem IA e sem comunicados promocionais: somente pendências financeiras atuais.
       var [recSnap, cartSnap, dividaSnap, txSnap] = await Promise.all([
         db.collection('usuarios').doc(uid).collection('recorrentes').where('ativa', '==', true).get(),
-        db.collection('usuarios').doc(uid).collection('cartoes').get(),
+        db.collection('usuarios').doc(uid).collection('carteira').where('tipo', '==', 'credito').get(),
         db.collection('usuarios').doc(uid).collection('dividas').get(),
         db.collection('usuarios').doc(uid).collection('transacoes').select('cartaoId','pagamentoFatura','status','valor','dataReferencia','data','mesReferencia','recorrenteId','origem','tipo','descricao','confirmado','pago','pendenteConfirmacao').get()
       ]);

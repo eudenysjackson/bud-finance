@@ -19,18 +19,18 @@ function encode(value) {
   return value;
 }
 const protectedRef = ref => ref.path?.split('/')[0] === 'usuarios' && financial.has(ref.path.split('/')[2]);
-async function commit(operations, reads = [], operationId = crypto.randomUUID()) {
+async function commit(operations, reads = [], operationId = crypto.randomUUID(), timeoutMs = 45000) {
   const user = getAuth().currentUser;
   if (!user) throw new Error('Entre novamente na sua conta.');
   const token = await user.getIdToken();
   const response = await fetch(`${window.BUD_FUNCTIONS_URL}/api/financial/write`, {
     method: 'POST', headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
-    body: JSON.stringify({ operationId, operations, reads }), signal: AbortSignal.timeout(45000)
+    body: JSON.stringify({ operationId, operations, reads }), signal: AbortSignal.timeout(timeoutMs)
   });
   const result = await response.json();
   if (!response.ok) {
     if (result.code === 'PLAN_LIMIT') window.budShowToast?.(result.error, 'warning');
-    throw Object.assign(new Error(result.error || 'Não foi possível salvar.'), { code: result.code });
+    throw Object.assign(new Error(result.error || 'Não foi possível salvar.'), { code: result.code, status: response.status });
   }
 }
 const operation = (type, ref, data, options) => ({ type, path: ref.path, ...(data === undefined ? {} : { data: encode(data) }), ...(options ? { options } : {}) });
@@ -49,7 +49,7 @@ export async function updateDoc(ref, data, ...rest) {
   return commit([operation('update',ref,data)]);
 }
 export async function deleteDoc(ref) { return protectedRef(ref) ? commit([operation('delete',ref)]) : sdk.deleteDoc(ref); }
-export function writeBatch(db) {
+export function writeBatch(db, { timeoutMs } = {}) {
   const entries = [], operationId = crypto.randomUUID();
   const batch = {
     set(ref,data,options) { entries.push({ref,type:'set',data,options}); return batch; },
@@ -62,7 +62,7 @@ export function writeBatch(db) {
         for (const e of entries) { if (e.type === 'delete') native.delete(e.ref); else if (e.options) native[e.type](e.ref,e.data,e.options); else native[e.type](e.ref,e.data); }
         return native.commit();
       }
-      return commit(entries.map(e => operation(e.type,e.ref,e.data,e.options)), [], operationId);
+      return commit(entries.map(e => operation(e.type,e.ref,e.data,e.options)), [], operationId, timeoutMs);
     }
   };
   return batch;

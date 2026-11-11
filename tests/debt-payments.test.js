@@ -69,3 +69,19 @@ test('invalid dates do not become another calendar day',async()=>{
  const f=fixture();await assert.rejects(f.service.confirm({...request,date:'2026-02-30'}),/data válida/);assert.equal(f.rows('pagamentos-dividas').length,0);
 });
 
+
+test('debt status follows outstanding installments when the recorded principal is too low', () => {
+  const fs = require('node:fs');
+  const source = fs.readFileSync('appbudfinance/js/dividas.js', 'utf8');
+  const code = source.slice(source.indexOf('function dividaQuitada('), source.indexOf('// Retorna quantas parcelas'));
+  const { dividaQuitada, calcularSaldoDevedor, progressoParcelas } = new Function(code + '\nreturn { dividaQuitada, calcularSaldoDevedor, progressoParcelas };')();
+  const debt = { valorTotal: 3.99, valorParcela: 3.99, parcelas: 3, parcelasPagas: 2 };
+  assert.equal(dividaQuitada(debt), false);
+  assert.equal(progressoParcelas(debt), 67);
+  assert.equal(calcularSaldoDevedor(debt), 3.99);
+  assert.equal(calcularSaldoDevedor({ ...debt, valorTotal: 11.97 }), 3.99);
+  const paid = { ...debt, valorTotal: 12, parcelasPagas: 3 };
+  assert.equal(dividaQuitada(paid), true);
+  assert.equal(progressoParcelas(paid), 100);
+  assert.equal(calcularSaldoDevedor(paid), 0);
+});

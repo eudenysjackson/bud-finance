@@ -10,8 +10,8 @@ import {
 import {
   getFirestore, initializeFirestore, persistentLocalCache,
   collection, query, orderBy, limit, onSnapshot,
-  addDoc, updateDoc, deleteDoc, getDocs, getDoc, where, doc, writeBatch, serverTimestamp, Timestamp, runTransaction
-} from './financial-firestore.js';
+  addDoc, updateDoc, getDocs, getDocsFromServer, getDoc, where, doc, writeBatch, serverTimestamp, Timestamp, runTransaction
+} from './financial-firestore.js?v=20261110-gravacao-cartao';
 import { connectEmulators } from './bud-emulator-connect.js';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
@@ -48,6 +48,8 @@ const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
 let db, auth, uid;
 let cartoesGlobal   = [];
 let transacoesGlobal = [];
+let transacoesDoServidor = [];
+const gastosEmExclusao = new Map();
 let categoriasGlobal = [];
 let _filtroCartaoId  = '';   // PEND-010: '' = todos
 
@@ -253,8 +255,8 @@ function setupListeners() {
   const txRef = collection(db, 'usuarios', uid, 'transacoes');
   const qTx = query(txRef, orderBy('dataCriacao', 'desc')); // Inclui parcelas futuras para calcular o limite comprometido.
   const u2 = onSnapshot(qTx, (snap) => {
-    transacoesGlobal = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderizarCartoes();
+    transacoesDoServidor = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    atualizarGastosVisiveis();
   });
 
   // Categorias personalizadas
@@ -1015,6 +1017,8 @@ function setupFormGasto() {
   });
 }
 
+const gastosAguardandoConfirmacao = new Map();
+
 function dadosDataGasto(date) {
   return {
     dataReferencia: date,
@@ -1037,8 +1041,10 @@ async function handleSubmitGasto(e) {
   if (!cartaoParaGasto) return;
 
   const btn = document.getElementById('btnSalvarGasto');
+  if (btn.disabled) return;
   btn.disabled = true;
   btn.textContent = 'Salvando...';
+  let chaveGasto;
 
   try {
     const descricao  = budSanitize(document.getElementById('inputDescGasto').value.trim()).substring(0, 100);
@@ -1084,40 +1090,53 @@ async function handleSubmitGasto(e) {
 
     const isParcelado = document.getElementById('toggleParcelado')?.checked;
     const nParcelas = isParcelado ? Math.max(2, Math.min(48, parseInt(document.getElementById('inputNParcelas')?.value || '2') || 2)) : 1;
-    const parcelas = programarGastoCartao(cartao, dataRef, valor, nParcelas);
-    if (!parcelas.length) return;
-    if (parcelas.some(parcela => cartao.faturasPagas?.[parcela.date.slice(0, 7)])) {
-      showToast('A compra inclui uma fatura já paga ou parcelada. Revise a data do lançamento.', 'erro');
-      return;
-    }
+    chaveGasto = JSON.stringify([uid, cartao.id, descricao, valor, dataRef, categoria, nParcelas]);
+    let tentativa = gastosAguardandoConfirmacao.get(chaveGasto);
+    if (!tentativa) {
+      const parcelas = programarGastoCartao(cartao, dataRef, valor, nParcelas);
+      if (!parcelas.length) return;
+      if (parcelas.some(parcela => cartao.faturasPagas?.[parcela.date.slice(0, 7)])) {
+        showToast('A compra inclui uma fatura já paga ou parcelada. Revise a data do lançamento.', 'erro');
+        return;
+      }
 
-    const expenseBatch = writeBatch(db);
-    parcelas.forEach(({ date, value }, i) => {
-      expenseBatch.set(doc(collection(db, 'usuarios', uid, 'transacoes')), {
-        tipo: 'despesa',
-        descricao: nParcelas > 1 ? descricao + ' (' + (i + 1) + '/' + nParcelas + ')' : descricao,
-        categoria,
-        cartaoId: cartaoParaGasto,
-        formaPagamento: 'Crédito',
-        pagamentoFatura: false,
-        origem: 'manual',
-        status: 'ativa',
-        dataCriacao: serverTimestamp(),
-        dataCompra: dataRef,
-        ...dadosDataGasto(date),
-        valor: value,
-        ...(nParcelas > 1 ? { parcelado: true, parcelaAtual: i + 1, totalParcelas: nParcelas } : {}),
+      const expenseBatch = writeBatch(db, { timeoutMs: 20000 });
+      parcelas.forEach(({ date, value }, i) => {
+        expenseBatch.set(doc(collection(db, 'usuarios', uid, 'transacoes')), {
+          tipo: 'despesa',
+          descricao: nParcelas > 1 ? descricao + ' (' + (i + 1) + '/' + nParcelas + ')' : descricao,
+          categoria,
+          cartaoId: cartaoParaGasto,
+          formaPagamento: 'Crédito',
+          pagamentoFatura: false,
+          origem: 'manual',
+          status: 'ativa',
+          dataCriacao: serverTimestamp(),
+          dataCompra: dataRef,
+          ...dadosDataGasto(date),
+          valor: value,
+          ...(nParcelas > 1 ? { parcelado: true, parcelaAtual: i + 1, totalParcelas: nParcelas } : {}),
+        });
       });
-    });
+      tentativa = { batch: expenseBatch, primeiraData: parcelas[0].date };
+      gastosAguardandoConfirmacao.set(chaveGasto, tentativa);
+    }
+    await tentativa.batch.commit();
+    gastosAguardandoConfirmacao.delete(chaveGasto);
 
-    await expenseBatch.commit();
-
-    const [anoFatura, mesFatura] = parcelas[0].date.split('-');
+    const [anoFatura, mesFatura] = tentativa.primeiraData.split('-');
     const primeiraFatura = MESES_PT[Number(mesFatura) - 1] + '/' + anoFatura;
     showToast((nParcelas > 1 ? nParcelas + ' parcelas a partir de ' : 'Gasto registrado na fatura de ') + primeiraFatura + '.', 'ok');
     fecharModalGasto();
-  } catch {
-    showToast('Erro ao registrar gasto. Tente novamente.', 'erro');
+  } catch (error) {
+    const rejeitado = error.status >= 400 && error.status < 500 && ![408, 429].includes(error.status);
+    if (rejeitado) gastosAguardandoConfirmacao.delete(chaveGasto);
+    if (error.code === 'PLAN_LIMIT') return; // O serviço de gravação já exibiu o limite específico.
+    if (!rejeitado && gastosAguardandoConfirmacao.has(chaveGasto)) {
+      showToast('Não foi possível confirmar o gasto. Confira sua conexão e tente novamente com os mesmos dados.', 'erro');
+    } else {
+      showToast(error.message || 'Erro ao registrar gasto. Tente novamente.', 'erro');
+    }
   } finally {
     btn.disabled = false;
     btn.textContent = gastoEditandoId ? 'Salvar Alterações' : (document.getElementById('toggleParcelado')?.checked ? 'Parcelar' : 'Registrar Gasto');
@@ -1483,23 +1502,19 @@ async function confirmarExcluirCartao() {
   btn.textContent = 'Excluindo...';
 
   try {
-    // Buscar todas as transações do cartão (em lotes de 500 — limite do writeBatch).
-    // Loop para deletar mais de 500 sem trunc silenciosa (A5 fix).
+    // O serviço financeiro aceita até 450 operações por lote.
     const txRef = collection(db, 'usuarios', uid, 'transacoes');
-    let totalDeletadas = 0;
+    const cartaoRef = doc(db, 'usuarios', uid, 'carteira', cartaoParaExcluir);
+    const tamanhoLote = 450;
+    const qTx = query(txRef, where('cartaoId', '==', cartaoParaExcluir), limit(tamanhoLote));
     let snap;
     do {
-      const qTx = query(txRef, where('cartaoId', '==', cartaoParaExcluir), limit(500));
-      snap = await getDocs(qTx);
-      if (snap.empty) break;
+      snap = await getDocsFromServer(qTx);
       const batch = writeBatch(db);
       snap.docs.forEach(d => batch.delete(d.ref));
+      if (snap.size < tamanhoLote) batch.delete(cartaoRef);
       await batch.commit();
-      totalDeletadas += snap.size;
-    } while (snap.size === 500);
-
-    // Deletar o cartão em si
-    await deleteDoc(doc(db, 'usuarios', uid, 'carteira', cartaoParaExcluir));
+    } while (snap.size === tamanhoLote);
 
     showToast('Cartão excluído.', 'ok');
     fecharModalExcluirCartao();
@@ -1525,20 +1540,39 @@ function fecharModalExcluirGasto() {
   gastoParaExcluir = null;
 }
 
-async function confirmarExcluirGasto() {
-  if (!gastoParaExcluir) return;
+function atualizarGastosVisiveis() {
+  const ids = new Set(transacoesDoServidor.map(gasto => gasto.id));
+  for (const [id, exclusao] of gastosEmExclusao) {
+    if (exclusao.uid === uid && exclusao.confirmada && !ids.has(id)) gastosEmExclusao.delete(id);
+  }
+  transacoesGlobal = transacoesDoServidor.filter(gasto => gastosEmExclusao.get(gasto.id)?.uid !== uid);
+  renderizarCartoes();
+}
 
-  const btn = document.getElementById('btnConfirmarExcluirGasto');
-  btn.disabled = true;
+async function confirmarExcluirGasto() {
+  const id = gastoParaExcluir;
+  if (!id || gastosEmExclusao.get(id)?.uid === uid) return;
+
+  const exclusao = { uid, confirmada: false };
+  gastosEmExclusao.set(id, exclusao);
+  fecharModalExcluirGasto();
+  atualizarGastosVisiveis();
 
   try {
-    await deleteDoc(doc(db, 'usuarios', uid, 'transacoes', gastoParaExcluir));
-    showToast('Gasto excluído.', 'ok');
-    fecharModalExcluirGasto();
-  } catch {
-    showToast('Erro ao excluir gasto.', 'erro');
-  } finally {
-    btn.disabled = false;
+    const batch = writeBatch(db, { timeoutMs: 20000 });
+    batch.delete(doc(db, 'usuarios', exclusao.uid, 'transacoes', id));
+    await batch.commit();
+    exclusao.confirmada = true;
+    if (uid === exclusao.uid) {
+      atualizarGastosVisiveis();
+      showToast('Gasto excluído.', 'ok');
+    }
+  } catch (error) {
+    gastosEmExclusao.delete(id);
+    if (uid === exclusao.uid) {
+      atualizarGastosVisiveis();
+      showToast(error.status && error.status < 500 ? error.message : 'Não foi possível confirmar a exclusão. Confira o gasto antes de tentar novamente.', 'erro');
+    }
   }
 }
 

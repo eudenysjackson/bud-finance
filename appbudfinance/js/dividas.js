@@ -117,9 +117,20 @@ function addMonthsSafe(date, months) {
   return d;
 }
 
-// Bug #15: saldo devedor real via Tabela Price (não simplesmente valorTotal - valorPago)
+function dividaQuitada(d) {
+  return Number(d.parcelas) > 0 && Number(d.parcelasPagas || 0) >= Number(d.parcelas);
+}
+
+function progressoParcelas(d) {
+  const total = Number(d.parcelas);
+  if (!(total > 0)) return 0;
+  if (dividaQuitada(d)) return 100;
+  return Math.max(0, Math.min(99, Math.round(100 * (Number(d.parcelasPagas) || 0) / total)));
+}
+
+// Saldo do principal pela Tabela Price, com suporte a cadastros legados.
 function calcularSaldoDevedor(d) {
-  if (!d || !d.valorTotal) return 0;
+  if (!d || dividaQuitada(d)) return 0;
   const taxaMensal  = (d.juros || 0) / 100;
   const n           = d.parcelas || 1;
   const valorParcela = d.valorParcela ||
@@ -127,11 +138,14 @@ function calcularSaldoDevedor(d) {
       ? (d.valorTotal * taxaMensal) / (1 - Math.pow(1 + taxaMensal, -n))
       : d.valorTotal / n);
 
-  let saldo = d.valorTotal;
+  let saldo = Number(d.valorTotal) || 0;
   for (let i = 0; i < (d.parcelasPagas || 0); i++) {
     const j = saldo * taxaMensal;
     saldo = Math.max(0, saldo - (valorParcela - j));
   }
+  // Um total cadastrado menor que as parcelas pode zerar o principal antes da última cobrança.
+  const restantes = Math.max(0, Number(d.parcelas || 0) - Number(d.parcelasPagas || 0));
+  if (saldo <= 0.01 && restantes > 0) return Math.round(restantes * valorParcela * 100) / 100;
   return saldo;
 }
 
@@ -1373,7 +1387,7 @@ window.abrirDetalhes = function(id, tabInicial) {
   const saldo      = calcularSaldoDevedor(d);
   const totalPago  = (d.valorPago || 0);
   const jurosPagos = (d.jurosPagos || 0);
-  const pct        = d.valorTotal > 0 ? Math.min(100, Math.round((1 - saldo / d.valorTotal) * 100)) : 0;
+  const pct        = progressoParcelas(d);
 
   document.getElementById('detalhesNome').textContent    = escapeHTML(d.nome || '—');
   document.getElementById('detPct').textContent           = pct + '%';
@@ -1696,7 +1710,7 @@ function calcularResultadoQuitar() {
 // ─────────────────────────────────────────────────────────────────
 function renderizar() {
   // Bug #13: [...dividas].sort() — nunca mutar o array original
-  const ativas = dividas.filter(d => calcularSaldoDevedor(d) > 0.01);
+  const ativas = dividas.filter(d => !dividaQuitada(d));
 
   // KPIs
   let totalSaldo  = 0;
@@ -1844,8 +1858,8 @@ function renderizar() {
   // ── Filtro ──────────────────────────────────────────────────
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   // Quitadas sempre ficam na seção separada
-  const quitadasLista = dividas.filter(d => calcularSaldoDevedor(d) <= 0.01);
-  let filtradas = dividas.filter(d => calcularSaldoDevedor(d) > 0.01);
+  const quitadasLista = dividas.filter(dividaQuitada);
+  let filtradas = dividas.filter(d => !dividaQuitada(d));
   if (_filtroDivida === 'atraso') {
     filtradas = filtradas.filter(d => calcularParcelasAtrasadas(d) > 0);
   }
@@ -1871,9 +1885,7 @@ function renderizar() {
     }
     if (ordem === 'progresso') {
       // mais adiantadas primeiro (maior % pago)
-      const pctA = a.valorTotal > 0 ? (1 - calcularSaldoDevedor(a) / a.valorTotal) : 0;
-      const pctB = b.valorTotal > 0 ? (1 - calcularSaldoDevedor(b) / b.valorTotal) : 0;
-      return pctB - pctA;
+      return progressoParcelas(b) - progressoParcelas(a);
     }
     // default: saldo — maior saldo devedor primeiro
     return calcularSaldoDevedor(b) - calcularSaldoDevedor(a);
@@ -1893,8 +1905,8 @@ function renderizar() {
 
   filtradas.forEach((d, idx) => {
     const saldo   = calcularSaldoDevedor(d);
-    const pct     = d.valorTotal > 0 ? Math.min(100, Math.round((1 - saldo / d.valorTotal) * 100)) : 0;
-    const quitada = saldo <= 0.01;
+    const pct     = progressoParcelas(d);
+    const quitada = dividaQuitada(d);
     const atrasadas = calcularParcelasAtrasadas(d);
 
     // Badge "Pague Primeiro"
@@ -2062,7 +2074,7 @@ window.toggleQuitadas = function() {
     if (icon) icon.textContent = '▾ Recolher';
     // Preenche os cards diretamente sem re-renderizar tudo
     listaQuit.innerHTML = '';
-    const quitadas = dividas.filter(d => calcularSaldoDevedor(d) <= 0.01);
+    const quitadas = dividas.filter(dividaQuitada);
     quitadas.forEach((d, idx) => listaQuit.appendChild(_renderCardQuitada(d, idx)));
   }
 };
@@ -2189,25 +2201,18 @@ async function migrarTransacoesDividas(uid) {
   }
 }
 
-onAuthStateChanged(auth, async (user) => {
-  // Bug #7: limpar unsubs em toda troca de estado de autenticação
-  _unsubs.forEach(u => u && u());
-  _unsubs = [];
+function mostrarEstadoCargaDividas(mensagem) {
+  const estado = document.getElementById('estadoCargaDividas');
+  estado.hidden = !mensagem;
+  document.getElementById('mensagemCargaDividas').textContent = mensagem;
+  document.getElementById('splash')?.classList.add('hide');
+}
 
-  if (user) {
-    try { await user.reload(); user = auth.currentUser; } catch (_) { user = null; }
-  }
-  if (!user || !user.emailVerified) {
-    window.location.href = 'index.html';
-    return;
-  }
+const prazoCargaDividas = setTimeout(() => {
+  mostrarEstadoCargaDividas('A lista de dívidas está demorando a carregar.');
+}, 8000);
 
-  try { await user.getIdToken(); } catch (_) { /* ignora */ } // usa cache; Firebase renova quando expirado
-
-  currentUser = user;
-
-  // Migração: criar transações para parcelas já pagas (roda 1x por conta)
-  migrarTransacoesDividas(user.uid);
+async function carregarPerfilDividas(user) {
   let userData = {};
   try {
     const snap = await getDoc(doc(db, 'usuarios', user.uid));
@@ -2215,6 +2220,8 @@ onAuthStateChanged(auth, async (user) => {
   } catch (err) {
     (window.budError||console.error)('[Dividas] userData:', err);
   }
+
+  if (auth.currentUser?.uid !== user.uid) return;
 
   // Atualizar sidebar
   const nome      = escapeHTML(userData.nome || user.displayName || 'Usuário');
@@ -2227,7 +2234,28 @@ onAuthStateChanged(auth, async (user) => {
   if (elNome)   elNome.textContent   = nome;
   if (elId)     elId.textContent     = matricula;
   if (window.budAplicarFotoSidebar) window.budAplicarFotoSidebar(userData.photoURL || null, userData.nome || user.displayName || '');
+}
 
+onAuthStateChanged(auth, async (user) => {
+  // Bug #7: limpar unsubs em toda troca de estado de autenticação
+  _unsubs.forEach(u => u && u());
+  _unsubs = [];
+
+  if (user && !user.emailVerified) {
+    const userId = user.uid;
+    try { await user.reload(); } catch (_) { /* O estado local ainda exige verificação. */ }
+    if (auth.currentUser?.uid !== userId) return;
+    user = auth.currentUser;
+  }
+  if (!user || !user.emailVerified) {
+    window.location.href = 'index.html';
+    return;
+  }
+
+  currentUser = user;
+
+  // Migração: criar transações para parcelas já pagas (roda 1x por conta)
+  migrarTransacoesDividas(user.uid);
   // Bug #22: orderBy('criadoEm', 'desc') na query
   // Bug #2: error callback obrigatório no onSnapshot
   const qDividas = query(
@@ -2240,18 +2268,17 @@ onAuthStateChanged(auth, async (user) => {
     dividas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderizar();
 
-    const splash = document.getElementById('splash');
-    if (splash && !splash.classList.contains('hide')) {
-      splash.classList.add('hide');
-      setTimeout(() => { if (splash) splash.style.display = 'none'; }, 500);
-    }
+    clearTimeout(prazoCargaDividas);
+    mostrarEstadoCargaDividas('');
   }, err => {
     // Bug #2: error callback implementado
     (window.budError||console.error)('[Dividas] snapshot:', err);
-    window.budShowToast?.('Erro ao carregar dívidas.', 'error');
+    clearTimeout(prazoCargaDividas);
+    mostrarEstadoCargaDividas('Não foi possível carregar as dívidas.');
   });
 
   _unsubs.push(unsubDividas);
+  carregarPerfilDividas(user);
 
   // PEND-063: Verificar prefill vindo do Assistente IA (contrato detectado)
   const _rawPrefill = sessionStorage.getItem('bud_prefill_divida');
@@ -2372,8 +2399,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ─── PEND-038: Exportar PDF Dívidas ──────────────────────────────────────────
 window.exportarPDFDividas = function () {
-  const ativas = dividas.filter(d => !d.quitada);
-  const quitadas = dividas.filter(d => d.quitada);
+  const ativas = dividas.filter(d => !dividaQuitada(d));
+  const quitadas = dividas.filter(dividaQuitada);
 
   const fmt = (v) => 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fmtDate = (s) => {
