@@ -480,3 +480,10 @@ A barra individual, o detalhe e a ordenação por progresso passaram a usar parc
 
 ## Vencimentos no painel e frequência de push — 10/11/2026
 Painel separa pendências de hoje e atrasadas da previsão de 30 dias, com receitas, despesas recorrentes, próxima parcela de cada dívida e faturas abertas. Mantém confirmação de dívida e recorrência no painel e link para faturas. Push financeiro usa véspera, dia, primeiro dia de atraso e a cada sete dias de atraso. O backend consulta cartões de crédito na carteira atual. Incluídas na publicação autorizada as correções locais de gravação e exclusão em Cartões e quitação, progresso e carregamento em Dívidas.
+
+## Preparação do segundo PC — 11/11/2026
+
+- Cópia local criada a partir de `master` no commit `488ccd6` (PR #61). A branch `codex/continuidade-neste-pc-20261111` guarda o trabalho deste PC. Este commit registra somente a preparação do ambiente.
+- Fluxo combinado com o titular: sincronizar os commits pelo GitHub na branch de trabalho, com escopo, testes, pendências e próximo passo registrados neste arquivo. Integração na master e publicação em produção dependem de autorização explícita do titular.
+- Prévia estática verificada no navegador interno: a partir da raiz do repositório, executar `python -m http.server 3002 --bind 127.0.0.1 --directory appbudfinance` e abrir `http://localhost:3002/?emulator=1`. A tela de login carregou e exibiu o aviso de modo emulador. Isso confirma a abertura do frontend.
+- Próximo passo para testes autenticados: preparar npm e Java, instalar as dependências e iniciar Firebase Auth/Firestore e o backend local conforme os scripts do projeto. Nesta sessão foram encontrados Node e Python, sem npm e Java disponíveis no PATH, e nenhum fluxo autenticado foi executado. O Git local baixou o repositório, mas o push precisou da conexão autenticada do GitHub no Codex.
