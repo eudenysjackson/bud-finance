@@ -1,20 +1,26 @@
 const { createHash, randomBytes } = require('node:crypto');
 const { readFileSync, writeFileSync } = require('node:fs');
 const admin = require('../backend/node_modules/firebase-admin');
+const { normalizeCpf, cpfDigest } = require('../backend/gestor-cpf');
 
 async function main() {
   const [profilePath, codesPath, target] = process.argv.slice(2);
   if (!profilePath || !codesPath) throw new Error('Informe o arquivo privado do perfil e o destino privado dos códigos.');
-  const { email, name, whatsapp, whatsappVerified, password } = JSON.parse(readFileSync(profilePath, 'utf8'));
+  const { email, recoveryEmail: alternateEmail, cpf: inputCpf, name, whatsapp, whatsappVerified, password } = JSON.parse(readFileSync(profilePath, 'utf8'));
   if (typeof email !== 'string' || typeof name !== 'string' || typeof whatsapp !== 'string') {
     throw new Error('Informe email, name e whatsapp no perfil privado.');
   }
-  const recoveryEmail = email.trim().toLowerCase();
+  const loginEmail = email.trim().toLowerCase();
+  const recoveryEmail = (alternateEmail ?? email).trim().toLowerCase();
+  const cpf = normalizeCpf(inputCpf);
   const phone = whatsapp.replace(/\D/g, '');
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail) || name.trim().length < 3 ||
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailPattern.test(loginEmail) || !emailPattern.test(recoveryEmail) || inputCpf && !cpf || name.trim().length < 3 ||
       phone.length < 10 || phone.length > 15) throw new Error('Revise o perfil do proprietário.');
 
   const local = process.env.BUD_USE_EMULATOR === 'true';
+  const cpfSecret = process.env.GESTOR_CPF_SECRET || (local ? 'gestor-local-cpf-only' : '');
+  if (cpf && !cpfSecret) throw new Error('Configure GESTOR_CPF_SECRET no ambiente privado.');
   if (!local && (target !== '--production' || process.env.FIREBASE_AUTH_EMULATOR_HOST || process.env.FIRESTORE_EMULATOR_HOST)) {
     throw new Error('Selecione o emulador ou indique --production com credenciais do projeto.');
   }
@@ -27,10 +33,10 @@ async function main() {
   const db = admin.firestore();
   let owner;
   try {
-    owner = await auth.getUserByEmail(recoveryEmail);
+    owner = await auth.getUserByEmail(loginEmail);
   } catch (error) {
     if (!local || error.code !== 'auth/user-not-found') throw error;
-    owner = await auth.createUser({ email: recoveryEmail, password, emailVerified: true, displayName: name.trim() });
+    owner = await auth.createUser({ email: loginEmail, password, emailVerified: true, displayName: name.trim() });
   }
   if (!owner.emailVerified || owner.disabled) throw new Error('A conta do proprietário precisa estar ativa e com e-mail verificado.');
 
@@ -43,7 +49,11 @@ async function main() {
     const current = await tx.get(ref);
     if (current.exists && current.data().uid !== owner.uid) throw new Error('Já existe outro proprietário do Bud Gestor.');
     tx.set(ref, {
-      uid: owner.uid, name: name.trim(), recoveryEmail, whatsapp: phone,
+      uid: owner.uid, name: name.trim(), loginEmail, recoveryEmail,
+      recoveryEmailVerified: recoveryEmail === loginEmail ||
+        (current.data()?.recoveryEmail === recoveryEmail && current.data()?.recoveryEmailVerified === true),
+      ...(cpf ? { cpfHash: cpfDigest(cpf, cpfSecret) } : current.data()?.cpfHash ? { cpfHash: current.data().cpfHash } : {}),
+      whatsapp: phone,
       whatsappVerified: whatsappVerified === true,
       recoveryCodes: codes.map(code => createHash('sha256').update(code).digest('hex'))
     });

@@ -1,4 +1,5 @@
 const { createHash, randomBytes } = require('node:crypto');
+const { normalizeCpf, cpfDigest } = require('./gestor-cpf');
 
 const inbox = 'budsolucoes@gmail.com';
 const gestorUrl = 'https://budsolucoes.com.br/budgestor/';
@@ -9,6 +10,34 @@ const day = 24 * 60 * 60 * 1000;
 function registerGestorAccess(app, { db, auth, emulator, sendEmail, limit }) {
   const requests = () => db.collection('_gestor_access_requests');
   const ownerRef = () => db.doc('_gestor_private/owner');
+  const cpfSecret = process.env.GESTOR_CPF_SECRET || (emulator ? 'gestor-local-cpf-only' : '');
+  const firebaseKey = process.env.GESTOR_FIREBASE_API_KEY || (emulator ? 'local' : '');
+  const authApi = emulator ? 'http://127.0.0.1:9099/identitytoolkit.googleapis.com' : 'https://identitytoolkit.googleapis.com';
+
+  app.post('/api/gestor/cpf-login', async (req, res) => {
+    const cpf = normalizeCpf(req.body?.cpf);
+    const password = req.body?.password;
+    if (limit('gestor:cpf:ip:' + req.ip)) return res.sendStatus(429);
+    if (!cpf || typeof password !== 'string' || !password || password.length > 4096) return res.sendStatus(401);
+    if (!cpfSecret || !firebaseKey) return res.sendStatus(503);
+    try {
+      const profile = (await ownerRef().get()).data();
+      if (!profile?.cpfHash || cpfDigest(cpf, cpfSecret) !== profile.cpfHash) return res.sendStatus(401);
+      const owner = await auth.getUser(profile.uid);
+      if (owner.disabled || !owner.emailVerified || owner.customClaims?.budGestorOwner !== true ||
+          owner.multiFactor?.enrolledFactors?.length) return res.sendStatus(401);
+      const response = await fetch(authApi + '/v1/accounts:signInWithPassword?key=' + encodeURIComponent(firebaseKey), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: owner.email, password, returnSecureToken: true }),
+        signal: AbortSignal.timeout(10_000)
+      });
+      if (!response.ok) return res.sendStatus(401);
+      const result = await response.json();
+      if (!result.idToken || result.mfaPendingCredential || result.localId !== owner.uid) return res.sendStatus(401);
+      const token = emulator ? JSON.stringify({ uid: owner.uid }) : await auth.createCustomToken(owner.uid);
+      return res.json({ token });
+    } catch { return res.sendStatus(503); }
+  });
 
   async function ownerOnly(req, res, next) {
     const bearer = req.get('Authorization')?.match(/^Bearer (\S+)$/i);
@@ -23,7 +52,8 @@ function registerGestorAccess(app, { db, auth, emulator, sendEmail, limit }) {
 
   function publicProfile(profile) {
     return {
-      name: profile.name, recoveryEmail: profile.recoveryEmail,
+      name: profile.name, loginEmail: profile.loginEmail || profile.recoveryEmail, recoveryEmail: profile.recoveryEmail,
+      recoveryEmailVerified: profile.recoveryEmailVerified ?? !profile.loginEmail,
       whatsapp: profile.whatsapp, whatsappVerified: profile.whatsappVerified === true
     };
   }
@@ -62,7 +92,7 @@ function registerGestorAccess(app, { db, auth, emulator, sendEmail, limit }) {
     if (limit('gestor:recovery:ip:' + req.ip) || limit('gestor:recovery:email:' + email)) return res.sendStatus(429);
     try {
       const profile = (await db.doc('_gestor_private/owner').get()).data();
-      if (profile?.recoveryEmail === email) {
+      if (profile?.recoveryEmail === email && (profile.recoveryEmailVerified ?? !profile.loginEmail)) {
         const owner = await auth.getUser(profile.uid);
         if (owner.emailVerified && !owner.disabled && owner.customClaims?.budGestorOwner === true) {
           const link = await auth.generatePasswordResetLink(owner.email);
@@ -75,6 +105,44 @@ function registerGestorAccess(app, { db, auth, emulator, sendEmail, limit }) {
       console.error('[gestor-recovery]', error.code || 'delivery_failed');
     }
     return res.status(202).json({});
+  });
+
+  app.post('/api/gestor/verify-recovery', ownerOnly, async (req, res) => {
+    if (limit('gestor:verify-recovery:' + req.gestorOwner)) return res.sendStatus(429);
+    const token = randomBytes(32).toString('hex');
+    try {
+      const ref = ownerRef();
+      const email = await db.runTransaction(async tx => {
+        const profile = (await tx.get(ref)).data();
+        if (profile?.uid !== req.gestorOwner || !profile.recoveryEmail || profile.recoveryEmailVerified) return null;
+        tx.update(ref, { recoveryVerification: { hash: digest(token), expiresAt: Date.now() + day, email: profile.recoveryEmail } });
+        return profile.recoveryEmail;
+      });
+      if (!email) return res.sendStatus(409);
+      if (!emulator) await sendEmail({
+        to_email: email, action_url: gestorUrl + '#recovery=' + token,
+        action_label: 'Confirmar e-mail de recuperação'
+      }, process.env.EMAILJS_TEMPLATE_GESTOR_VERIFY_RECOVERY);
+      return res.json(emulator ? { token } : {});
+    } catch { return res.sendStatus(503); }
+  });
+
+  app.post('/api/gestor/confirm-recovery', async (req, res) => {
+    const token = req.body?.token;
+    if (limit('gestor:confirm-recovery:' + req.ip)) return res.sendStatus(429);
+    if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return res.sendStatus(400);
+    try {
+      const ref = ownerRef();
+      const verified = await db.runTransaction(async tx => {
+        const profile = (await tx.get(ref)).data();
+        const verification = profile?.recoveryVerification;
+        if (!verification || verification.expiresAt < Date.now() || verification.email !== profile.recoveryEmail ||
+            verification.hash !== digest(token)) return false;
+        tx.update(ref, { recoveryEmailVerified: true, recoveryVerification: null });
+        return true;
+      });
+      return verified ? res.json({ ok: true }) : res.sendStatus(400);
+    } catch { return res.sendStatus(503); }
   });
 
   app.post('/api/gestor/access-requests', async (req, res) => {

@@ -1,7 +1,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import {
   connectAuthEmulator, getAuth, getIdTokenResult, onAuthStateChanged,
-  signInWithEmailAndPassword, signOut
+  signInWithCustomToken, signInWithEmailAndPassword, signOut
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import './config.js';
 
@@ -15,6 +15,7 @@ if (local) connectAuthEmulator(auth, `http://${location.hostname}:9099`);
 const feedback = document.querySelector('#feedback');
 const views = ['login', 'register', 'recovery', 'confirmation', 'owner'];
 let confirmationToken = new URLSearchParams(location.hash.slice(1)).get('confirm');
+let recoveryToken = new URLSearchParams(location.hash.slice(1)).get('recovery');
 
 function message(text, error = false) {
   feedback.textContent = text;
@@ -27,12 +28,12 @@ function show(view, focus = true) {
   if (focus) document.querySelector(`#${view} input, #${view} button`)?.focus();
 }
 
-async function post(path, body) {
+async function post(path, body, bearer) {
   const response = await fetch(api + '/api/gestor/' + path, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...(bearer ? { Authorization: 'Bearer ' + bearer } : {}) },
     body: JSON.stringify(body), signal: AbortSignal.timeout(30_000)
   });
-  const result = await response.json();
+  const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(result.error || 'Não foi possível concluir. Tente novamente.');
   return result;
 }
@@ -52,7 +53,11 @@ async function ownerProfile(data) {
 
 function fillOwnerProfile(profile) {
   document.querySelector('#owner-name').value = profile.name || '';
-  document.querySelector('#owner-email').value = profile.recoveryEmail || '';
+  document.querySelector('#owner-email').value = profile.loginEmail || '';
+  document.querySelector('#owner-recovery-email').value = profile.recoveryEmail || '';
+  document.querySelector('#owner-recovery-status').textContent = profile.recoveryEmailVerified
+    ? 'E-mail de recuperação verificado.' : 'E-mail de recuperação aguarda verificação.';
+  document.querySelector('#verify-recovery').hidden = profile.recoveryEmailVerified;
   document.querySelector('#owner-whatsapp').value = profile.whatsapp || '';
   document.querySelector('#owner-whatsapp-status').textContent = profile.whatsappVerified
     ? 'WhatsApp verificado para recuperação.' : 'WhatsApp aguarda verificação para recuperação.';
@@ -82,7 +87,7 @@ document.querySelector('#show-password').addEventListener('click', event => {
   event.currentTarget.setAttribute('aria-pressed', String(visible));
 });
 
-if (confirmationToken) show('confirmation', false);
+if (confirmationToken || recoveryToken) show('confirmation', false);
 
 async function hasOwnerAccess(user) {
   if (!user?.emailVerified) return false;
@@ -100,7 +105,7 @@ onAuthStateChanged(auth, async user => {
       }
       return;
     }
-    if (!confirmationToken) {
+    if (!confirmationToken && !recoveryToken) {
       const profile = await ownerProfile();
       if (auth.currentUser?.uid !== user.uid) return;
       document.querySelector('#login-form').reset();
@@ -113,9 +118,15 @@ onAuthStateChanged(auth, async user => {
   }
 });
 
-submit('login-form', async ({ email, password }) => {
-  await signInWithEmailAndPassword(auth, email.trim(), password);
-}, 'Não foi possível entrar. Confira o e-mail e a senha.');
+submit('login-form', async ({ identifier, password }) => {
+  const login = identifier.trim();
+  if (login.includes('@')) {
+    await signInWithEmailAndPassword(auth, login, password);
+  } else {
+    const { token } = await post('cpf-login', { cpf: login, password });
+    await signInWithCustomToken(auth, token);
+  }
+}, 'Não foi possível entrar. Confira o e-mail ou CPF e a senha.');
 
 submit('recovery-form', async ({ email }) => {
   await post('recovery', { email });
@@ -139,6 +150,17 @@ document.querySelector('#confirm-request').addEventListener('click', async event
   const button = event.currentTarget;
   button.disabled = true;
   try {
+    if (recoveryToken) {
+      await post('confirm-recovery', { token: recoveryToken });
+      recoveryToken = null;
+      history.replaceState(null, '', location.pathname + location.search);
+      if (auth.currentUser && await hasOwnerAccess(auth.currentUser)) {
+        fillOwnerProfile(await ownerProfile());
+        show('owner');
+      } else show('login');
+      message('E-mail de recuperação confirmado.');
+      return;
+    }
     await post('access-requests/confirm', { token: confirmationToken });
     confirmationToken = null;
     history.replaceState(null, '', location.pathname + location.search);
@@ -146,6 +168,20 @@ document.querySelector('#confirm-request').addEventListener('click', async event
     message(local ? 'Solicitação registrada no ambiente de teste. O envio por e-mail foi simulado.'
       : 'Sua solicitação foi enviada à equipe responsável. Aguarde nosso retorno pelo e-mail informado.');
   } catch (error) { message(error.message, true); }
+  finally { button.disabled = false; }
+});
+
+document.querySelector('#verify-recovery').addEventListener('click', async event => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const { token } = await post('verify-recovery', {}, await auth.currentUser.getIdToken());
+    if (local && token) {
+      recoveryToken = token;
+      show('confirmation');
+      message('Use o botão acima para simular a verificação do e-mail de recuperação.');
+    } else message('Enviamos um link para o e-mail de recuperação cadastrado.');
+  } catch { message('Não foi possível enviar a verificação agora. Tente novamente.', true); }
   finally { button.disabled = false; }
 });
 

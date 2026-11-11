@@ -17,8 +17,8 @@
         <h1>Bem-vindo(a)</h1>
         <p class="intro">Insira seus dados de acesso</p>
         <form id="login-form">
-          <label for="login-email">E-mail</label>
-          <input id="login-email" name="email" type="email" autocomplete="username" placeholder="Seu e-mail de acesso" required>
+          <label for="login-email">E-mail ou CPF</label>
+          <input id="login-email" name="identifier" type="text" autocomplete="username" autocapitalize="none" placeholder="Seu e-mail ou CPF de acesso" required>
           <label for="login-password">Senha</label>
           <div class="password">
             <input id="login-password" name="password" type="password" autocomplete="current-password" required>
@@ -47,7 +47,7 @@
       </div>
       <div id="recovery" hidden>
         <h1>Recuperar senha</h1>
-        <p class="intro">Informe seu e-mail de acesso.</p>
+        <p class="intro">Informe seu e-mail de recuperação.</p>
         <form id="recovery-form">
           <label for="recovery-email">E-mail</label>
           <input id="recovery-email" name="email" type="email" autocomplete="email" required>
@@ -67,8 +67,12 @@
         <form id="owner-form">
           <label for="owner-name">Nome completo</label>
           <input id="owner-name" name="name" autocomplete="name" minlength="3" maxlength="120" required>
-          <label for="owner-email">E-mail de acesso e recuperação</label>
+          <label for="owner-email">E-mail de acesso</label>
           <input id="owner-email" type="email" readonly>
+          <label for="owner-recovery-email">E-mail de recuperação</label>
+          <input id="owner-recovery-email" type="email" readonly>
+          <small id="owner-recovery-status"></small>
+          <button id="verify-recovery" class="text-button" type="button" hidden>Verificar e-mail de recuperação</button>
           <label for="owner-whatsapp">WhatsApp com DDD</label>
           <input id="owner-whatsapp" name="whatsapp" type="tel" autocomplete="tel" maxlength="25" required>
           <small id="owner-whatsapp-status"></small>
