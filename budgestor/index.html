@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <title>Bud Gestor</title>
+  <link rel="stylesheet" href="./gestor.css">
+</head>
+<body>
+  <main class="layout">
+    <div class="art" aria-hidden="true"></div>
+    <section class="card" aria-label="Bud Gestor">
+      <img class="brand" src="../logo.png" alt="Bud Soluções" width="72" height="72">
+      <div id="login">
+        <h1>Bem-vindo(a)</h1>
+        <p class="intro">Insira seus dados de acesso</p>
+        <form id="login-form">
+          <label for="login-email">E-mail</label>
+          <input id="login-email" name="email" type="email" autocomplete="username" placeholder="Seu e-mail de acesso" required>
+          <label for="login-password">Senha</label>
+          <div class="password">
+            <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+            <button id="show-password" class="text-button" type="button" aria-pressed="false">Mostrar</button>
+          </div>
+          <button class="text-button forgot" type="button" data-view="recovery">Esqueceu sua senha?</button>
+          <button class="primary" type="submit">Acessar meu painel</button>
+        </form>
+        <p class="footer">Novo por aqui? <button class="text-button" type="button" data-view="register">Cadastre-se</button></p>
+      </div>
+      <div id="register" hidden>
+        <h1>Cadastre-se</h1>
+        <p class="intro">Envie sua solicitação de acesso ao Bud Gestor.</p>
+        <form id="register-form">
+          <label for="name">Nome completo</label>
+          <input id="name" name="name" autocomplete="name" minlength="3" maxlength="120" required>
+          <label for="email">E-mail</label>
+          <input id="email" name="email" type="email" autocomplete="email" maxlength="254" required>
+          <label for="whatsapp">WhatsApp com DDD</label>
+          <input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" minlength="10" maxlength="25" required>
+          <label for="reason">Por que você precisa de acesso?</label>
+          <textarea id="reason" name="reason" minlength="5" maxlength="500" rows="3" required></textarea>
+          <button class="primary" type="submit">Enviar solicitação</button>
+        </form>
+        <p class="footer"><button class="text-button" type="button" data-view="login">Voltar ao login</button></p>
+      </div>
+      <div id="recovery" hidden>
+        <h1>Recuperar senha</h1>
+        <p class="intro">Informe seu e-mail de acesso.</p>
+        <form id="recovery-form">
+          <label for="recovery-email">E-mail</label>
+          <input id="recovery-email" name="email" type="email" autocomplete="email" required>
+          <button class="primary" type="submit">Enviar link</button>
+        </form>
+        <p class="footer"><button class="text-button" type="button" data-view="login">Voltar ao login</button></p>
+      </div>
+      <div id="confirmation" hidden>
+        <h1>Confirmar e-mail</h1>
+        <p class="intro">Confirme seu e-mail para concluir a solicitação.</p>
+        <button id="confirm-request" class="primary" type="button">Confirmar e-mail</button>
+        <p class="footer"><button class="text-button" type="button" data-view="login">Voltar ao login</button></p>
+      </div>
+      <div id="owner" hidden>
+        <h1>Bud Gestor</h1>
+        <p class="intro">Sessão de proprietário</p>
+        <button id="sign-out" class="primary" type="button">Sair</button>
+      </div>
+      <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
+      <p class="privacy"><a href="../appbudfinance/politica-privacidade.html">Política de Privacidade</a></p>
+    </section>
+  </main>
+  <script type="module" src="./gestor.js"></script>
+</body>
+</html>
