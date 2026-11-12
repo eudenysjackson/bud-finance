@@ -523,3 +523,23 @@ Painel separa pendências de hoje e atrasadas da previsão de 30 dias, com recei
 
 - Gerado o pacote local com node scripts/package-release.js e aberto http://127.0.0.1:5503/budgestor/ no navegador interno. Confirmados o formulário de e-mail ou CPF e senha e o aviso de modo emulador. A prévia serve arquivos localmente. Nenhum login real foi realizado.
 - A ativação foi solicitada pelo titular. O terminal desta máquina não apresentou credenciais administrativas padrão nem GESTOR_CPF_SECRET. A ficha privada não foi encontrada nos locais de trabalho consultados. Próximo passo é disponibilizar a ficha e a credencial nesta máquina, conferir o projeto bud-finance e a conta ativa com e-mail verificado, e executar o provisionamento com saída de códigos em pasta privada. Para acesso por CPF, usar o mesmo segredo na configuração privada do backend. Nenhuma alteração no Firebase ou publicação.
+
+## Prévia visual do login do Bud Finance — 11/11/2026
+
+- Adaptada a tela appbudfinance/index.html com fundo azul-claro, cartão branco e arte existente do gênio, à esquerda no desktop e acima no celular. Formulário e lógica de autenticação preservados.
+- Prévia em http://127.0.0.1:5503/appbudfinance/?emulator=1. Navegador confirmou imagem carregada, posições esperadas a 1100 px e 390 px e ausência de rolagem horizontal. Pacote local verificado. Aguardando aprovação visual e autorização de publicação.
+
+- A prévia do Bud Finance também usa o selo circular da Bud Soluções acima da saudação e como favicon do login. O botão de senha alterna entre Mostrar e Ocultar, com rótulo acessível correspondente. O navegador confirmou imagem carregada, favicon referenciado e alternância entre campo visível e protegido. Ajuste local.
+
+## Identidade visual da ajuda no Bud Finance — 11/11/2026
+
+- Componente compartilhado de tutoriais usa lâmpada no botão flutuante e Buddy acima das informações da tela. As 19 páginas consumidoras referenciam a versão atualizada. Artes WebP transparentes têm fumaça completa com ponta suave.
+- Pacote local verificado. Prévia isolada em http://127.0.0.1:5503/previa-ajuda.html confirmou abertura automática, fechamento, reabertura pela lâmpada e carregamento das duas artes. Alteração local aguardando autorização de publicação.
+
+- Removidos fundo, borda e sombra do botão flutuante. A lâmpada ocupa o botão transparente. A prévia do próprio Dashboard foi aberta em http://127.0.0.1:5503/appbudfinance/dashboard com conta fictícia no emulador. Conferidos o fundo transparente, a imagem carregada e a abertura e o fechamento do tutorial. Pacote local verificado.
+
+## Publicação confirmada — login e ajuda visual do Bud Finance (11/11/2026)
+
+- Publicado pelo [PR #62](https://github.com/eudenysjackson/bud-finance/pull/62), commit `55a01da` no master. Validação do PR e [deploy do Pages](https://github.com/eudenysjackson/bud-finance/actions/runs/43126419675) aprovados.
+- Produção confirmou HTTP 200 e a versão esperada no login, dashboard, scripts e nas quatro imagens WebP. A interação foi exercitada localmente com emulador. A pendência de publicação dos ajustes visuais do Finance está resolvida.
+- Retomada do Bud Gestor: continua na branch de continuidade. A ativação do proprietário continua pendente conforme o registro acima.
