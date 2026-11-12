@@ -250,6 +250,7 @@ function hashVerificationCode(uid, code) {
     .digest('hex');
 }
 
+const { recordPlanChange } = require('./gestor-clientes');
 require('./gestor-access').registerGestorAccess(app, {
   db,
   auth,
@@ -509,6 +510,7 @@ app.post('/api/iniciar-trial', express.json(), async function (req, res) {
       if (!snap.exists) throw new Error('Perfil indisponível.');
       const data = snap.data();
       if (data.trialIniciado || (data.plano && data.plano !== 'free')) return;
+      recordPlanChange(transaction, ref, data, { plano: 'trial' }, admin.firestore.FieldValue.serverTimestamp());
       transaction.update(ref, {
         plano: 'trial',
         trialFim: admin.firestore.Timestamp.fromMillis(Date.now() + 3 * 86400000),
@@ -542,6 +544,7 @@ app.post('/api/expirar-trial', express.json(), async function (req, res) {
       const snap = await transaction.get(ref);
       if (!snap.exists || snap.data().plano !== 'trial') return;
       if (planPolicy.effectivePlan(snap.data()) !== 'free') return;
+      recordPlanChange(transaction, ref, snap.data(), { plano: 'free' }, admin.firestore.FieldValue.serverTimestamp());
       transaction.update(ref, { plano: 'free', trialFim: admin.firestore.FieldValue.delete() });
     });
     return res.json({ ok: true });
@@ -2593,6 +2596,7 @@ async function _mpUpdateSubscriptionProfile(uid, subscriptionId, data, expectedP
     if (!snapshot.exists) throw new Error('MP account profile not found');
     if (!_mpSubscriptionEventMatches(snapshot.data(), subscriptionId)) return false;
     if (expectedPlan !== undefined && snapshot.data().plano !== expectedPlan) throw new Error('MP plan changed concurrently; retry event');
+    recordPlanChange(transaction, ref, snapshot.data(), data, admin.firestore.FieldValue.serverTimestamp());
     transaction.update(ref, data);
     return true;
   });
@@ -3058,6 +3062,9 @@ app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req
       const fresh = await transaction.get(userRef);
       if (!fresh.exists || fresh.data().mpSubscriptionId !== subId) return;
       const stillPending = fresh.data().assinaturaStatus === 'pending' && fresh.data().mpCheckout?.state === 'pending';
+      if (!stillPending) recordPlanChange(transaction, userRef, fresh.data(), {
+        plano: 'free', assinaturaStatus: 'cancelled'
+      }, admin.firestore.FieldValue.serverTimestamp());
       transaction.update(userRef, {
       ...(!stillPending ? {
         plano: 'free',

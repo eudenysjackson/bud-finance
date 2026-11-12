@@ -1,4 +1,5 @@
 const {randomUUID}=require('node:crypto');
+const {recordPlanChange}=require('./gestor-clientes');
 const cents=v=>Math.round(Number(v)*100),stamp=v=>v?.toDate?v.toDate().getTime():new Date(v||0).getTime();
 const pending=s=>['quoted','creating','unknown','pending','applying'].includes(s);
 function quoteProration(profile,sub,planKey,plans,time,approved){
@@ -68,6 +69,7 @@ function createSubscriptionUpgrade({auth,db,token,plans,frontend,webhook,fieldVa
    await api('/preapproval/'+encodeURIComponent(order.subscriptionId),{method:'PUT',body:{reason:plans[order.planKey].title,auto_recurring:{transaction_amount:nextAmount,currency_id:'BRL'}}});
    const check=await subscription(profile,{uid,email:profile.email});if(cents(check.auto_recurring?.transaction_amount)!==cents(nextAmount)||stamp(check.next_payment_date)!==stamp(order.cycleEnd))throw Error('Recurring amount unconfirmed');
    await db.runTransaction(async tx=>{const [p,s]=await Promise.all([tx.get(root),tx.get(ref)]);const latest=p.data();if(!latest||latest.mpSubscriptionId!==order.subscriptionId||latest.plano!==order.fromPlan||latest.planoUpgrade?.id!==id||latest._deletionPending)throw Error('Upgrade state changed');
+    recordPlanChange(tx,root,latest,{plano:order.planKey},fieldValue.serverTimestamp());
     tx.update(root,{plano:order.planKey,planoTroca:null,upgradeCiclo:{subscriptionId:order.subscriptionId,cycleStart:order.cycleStart,cycleEnd:order.cycleEnd,factor:order.factor},planoUpgrade:{id,state:'applied',planKey:order.planKey,amount:order.amount,paymentId:pid},planoAtualizadoEm:fieldValue.serverTimestamp(),...(discountNext?{beneficioIndicacao50:{...reward,planKey:order.planKey,baseAmount:plans[order.planKey].amount,discountAmount:nextAmount}}:{})});
     tx.update(ref,{state:'applied',paymentId:pid,appliedAt:now(),leaseUntil:0});
    });

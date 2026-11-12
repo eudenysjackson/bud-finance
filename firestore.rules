@@ -35,9 +35,9 @@ service cloud.firestore {
       }
       // Dados financeiros pertencem somente ao titular; o admin pode operar suporte.
       match /{subcolecao}/{documento} {
-        allow read: if (owner(uid) || admin()) && !(subcolecao in ['_owner_events', '_plan_usage', '_plan_operations', '_plan_imports', 'uso-ia', '_seguranca', '_ai_jobs', 'upgrades-planos']);
+        allow read: if (owner(uid) || admin()) && !(subcolecao in ['_owner_events', '_gestor_plan_history', '_plan_usage', '_plan_operations', '_plan_imports', 'uso-ia', '_seguranca', '_ai_jobs', 'upgrades-planos']);
         // Financial writes are validated atomically by the authenticated backend.
-        allow write: if (owner(uid) || admin()) && !(subcolecao in ['_owner_events', '_plan_usage', '_plan_operations', '_plan_imports', 'uso-ia', '_seguranca', '_ai_jobs', 'upgrades-planos']) &&
+        allow write: if (owner(uid) || admin()) && !(subcolecao in ['_owner_events', '_gestor_plan_history', '_plan_usage', '_plan_operations', '_plan_imports', 'uso-ia', '_seguranca', '_ai_jobs', 'upgrades-planos']) &&
           (admin() || !(subcolecao in ['carteira','transacoes','importacoes','metas','compras-metas','pagamentos-dividas','dividas','investimentos','recorrentes','limites','categorias']));
       }
     }

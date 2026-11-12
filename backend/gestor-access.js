@@ -1,5 +1,6 @@
 const { createHash, randomBytes } = require('node:crypto');
 const { normalizeCpf, cpfDigest } = require('./gestor-cpf');
+const { registerGestorClients } = require('./gestor-clientes');
 
 const inbox = 'budsolucoes@gmail.com';
 const gestorUrl = 'https://budsolucoes.com.br/budgestor/';
@@ -49,6 +50,14 @@ function registerGestorAccess(app, { db, auth, emulator, sendEmail, limit }) {
     req.gestorOwner = identity.uid;
     next();
   }
+
+  registerGestorClients(app, { db, ownerOnly: [ownerOnly, async (req, res, next) => {
+    try {
+      const profile = (await ownerRef().get()).data();
+      if (profile?.uid !== req.gestorOwner) return res.sendStatus(403);
+      next();
+    } catch { return res.sendStatus(503); }
+  }] });
 
   function publicProfile(profile) {
     return {

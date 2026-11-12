@@ -7,6 +7,7 @@
   <meta name="robots" content="noindex">
   <title>Bud Gestor</title>
   <link rel="stylesheet" href="./gestor.css">
+  <link rel="stylesheet" href="./clientes.css">
 </head>
 <body>
   <main class="layout">
@@ -86,6 +87,68 @@
       <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
       <p class="privacy"><a href="../appbudfinance/politica-privacidade.html">Política de Privacidade</a></p>
     </section>
+  </main>
+  <main id="gestor-desk" class="desk" hidden>
+    <header class="desk-header">
+      <div class="desk-brand"><img src="../logo.png" width="42" height="42" alt=""><span>Bud <strong>Gestor</strong></span></div>
+      <button id="open-owner" class="desk-secondary" type="button">Minha conta</button>
+    </header>
+    <div class="desk-content">
+      <section class="desk-intro" aria-labelledby="clients-title">
+        <div>
+          <span class="desk-tag">Gestão de clientes</span>
+          <h1 id="clients-title">Clientes</h1>
+          <p>Acompanhe quem usa o Bud Finance e quem pediu um orçamento.</p>
+        </div>
+        <button id="add-client" class="desk-primary" type="button">＋ Novo cadastro</button>
+      </section>
+      <div class="desk-summary">
+        <article><span class="desk-icon" aria-hidden="true">👥</span><div><small>Clientes e contatos</small><strong id="count-all">—</strong></div></article>
+        <article><span class="desk-icon green"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18h2"/></svg></span><div><small>Bud Finance</small><strong id="count-finance">—</strong></div></article>
+        <article><span class="desk-icon violet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c0 5.2 4.3 9.5 9.5 9.5-5.2 0-9.5 4.3-9.5 9.5 0-5.2-4.3-9.5-9.5-9.5 5.2 0 9.5-4.3 9.5-9.5Z"/></svg></span><div><small>Interesses e cotações</small><strong id="count-leads">—</strong></div></article>
+      </div>
+      <section class="desk-panel" aria-label="Lista de clientes">
+        <div class="desk-filters">
+          <label>Buscar na lista<input id="client-search" type="search" placeholder="Nome, e-mail ou telefone"></label>
+          <label>Origem<select id="client-source"><option value="">Todas</option><option value="finance">Bud Finance</option><option value="manual">Cadastro manual</option></select></label>
+          <label>Etapa<select id="client-stage"><option value="">Todas</option><option value="lead">Interessado</option><option value="quote">Em cotação</option><option value="customer">Cliente</option><option value="inactive">Inativo</option></select></label>
+          <label>Plano<select id="client-plan"><option value="">Todos</option><option value="free">Gratuito</option><option value="trial">Trial</option><option value="starter">Starter</option><option value="pro">Pro</option><option value="plus">Plus</option></select></label>
+        </div>
+        <p id="clients-status" class="desk-status" role="status"></p>
+        <div class="desk-table-wrap">
+          <table class="desk-table">
+            <thead><tr><th>Cliente</th><th>Produto</th><th>Plano ativo</th><th>Etapa</th><th>Ficha</th></tr></thead>
+            <tbody id="client-rows"></tbody>
+          </table>
+        </div>
+        <button id="clients-more" class="desk-secondary" type="button" hidden>Carregar mais</button>
+      </section>
+    </div>
+    <dialog id="owner-dialog" class="desk-dialog" aria-label="Minha conta">
+      <form method="dialog" class="desk-close"><button class="desk-secondary" aria-label="Fechar minha conta">✕</button></form>
+    </dialog>
+    <dialog id="client-dialog" class="desk-dialog" aria-labelledby="client-dialog-title">
+      <form method="dialog" class="desk-close"><button class="desk-secondary" aria-label="Fechar ficha">✕</button></form>
+      <h2 id="client-dialog-title">Novo cadastro</h2>
+      <p id="client-dialog-status" role="status"></p>
+      <div id="finance-detail" hidden></div>
+      <form id="client-form" class="desk-form">
+        <label>Nome completo<input name="name" autocomplete="name" required maxlength="120" minlength="2"></label>
+        <label>Empresa<input name="company" autocomplete="organization" maxlength="120"></label>
+        <label>E-mail<input name="email" type="email" autocomplete="email" maxlength="254"></label>
+        <label>Telefone<input name="phone" type="tel" maxlength="40"></label>
+        <label>WhatsApp<input name="whatsapp" type="tel" maxlength="40"></label>
+        <label>CPF ou CNPJ <small>(opcional)</small><input name="document" maxlength="30"></label>
+        <label>Etapa<select name="stage" required><option value="lead">Interessado</option><option value="quote">Em cotação</option><option value="customer">Cliente</option><option value="inactive">Inativo</option></select></label>
+        <label>Produto<select name="product"><option value="">A definir</option><option value="finance">Bud Finance</option></select></label>
+        <label>CEP<input name="postalCode" autocomplete="postal-code" maxlength="15"></label>
+        <label>Endereço, número e complemento<input name="address" autocomplete="street-address" maxlength="180"></label>
+        <label>Cidade<input name="city" autocomplete="address-level2" maxlength="100"></label>
+        <label>Estado<input name="state" autocomplete="address-level1" maxlength="40"></label>
+        <label class="desk-wide">Notas e próximo contato<textarea name="notes" rows="3" maxlength="2000"></textarea></label>
+        <button class="desk-primary desk-wide" type="submit">Salvar cadastro</button>
+      </form>
+    </dialog>
   </main>
   <script type="module" src="./gestor.js"></script>
 </body>

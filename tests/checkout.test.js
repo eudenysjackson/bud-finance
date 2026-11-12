@@ -3,20 +3,21 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const crypto=require('node:crypto');
+const {recordPlanChange}=require('../backend/gestor-clientes');
 const source=fs.readFileSync('backend/server.js','utf8');
 const code=source.slice(source.indexOf("app.post('/mercadopago/create-subscription'"),source.indexOf("app.post('/api/push/token'"));
 function setup({providerError=false,lookupError=false,referrer=null,initialProfile={},onEmail}={}){
- const routes=new Map(),calls=[];
+ const routes=new Map(),calls=[],history=[];
  const profile=Object.assign({email:'qa@example.test',nome:'Pessoa teste',plano:'free'},initialProfile);
  const sub={external_reference:'owner|starter',payer_email:'qa@example.test',status:'authorized'};
  const payment={status:'rejected',preapproval_id:'sub-1'};
  const invoice={preapproval_id:'sub-1',payment:{id:1234,status:'approved'}};
  const update=async data=>{for(const [key,value] of Object.entries(data)){if(value==='__delete')delete profile[key];else profile[key]=value;}};
- const ref={get:async()=>({exists:true,data:()=>({...profile})}),update,set:update};
+ const ref={get:async()=>({exists:true,data:()=>({...profile})}),update,set:update,collection:name=>({doc:()=>({name})})};
  let transactionTail=Promise.resolve();
  const referrerDoc=referrer?{id:referrer.uid,data:()=>referrer.data,ref:{collection:()=>({doc:()=>({})})}}:null;
- const db={collection:name=>({doc:uid=>{assert.equal(name,'usuarios');assert.equal(uid,'owner');return ref;},where:(_field,_op,value)=>({limit:()=>({get:async()=>referrerDoc&&referrer.data.codigoIndicacao===value?{size:1,docs:[referrerDoc]}:{size:0,docs:[]}})})}),runTransaction(fn){const work=transactionTail.then(()=>fn({get:r=>r.get(),update:(_,data)=>update(data)}));transactionTail=work.catch(()=>{});return work;}};
- const context={subscriptionUpgrades:{handler:async()=>{},processPayment:async()=>false},createSubscriptionChange:require('../backend/subscription-change').createSubscriptionChange,crypto,Buffer,AbortSignal,
+ const db={collection:name=>({doc:uid=>{assert.equal(name,'usuarios');assert.equal(uid,'owner');return ref;},where:(_field,_op,value)=>({limit:()=>({get:async()=>referrerDoc&&referrer.data.codigoIndicacao===value?{size:1,docs:[referrerDoc]}:{size:0,docs:[]}})})}),runTransaction(fn){const work=transactionTail.then(()=>fn({get:r=>r.get(),update:(_,data)=>update(data),set:(target,data)=>{assert.equal(target.name,'_gestor_plan_history');history.push(data);}}));transactionTail=work.catch(()=>{});return work;}};
+ const context={recordPlanChange,subscriptionUpgrades:{handler:async()=>{},processPayment:async()=>false},createSubscriptionChange:require('../backend/subscription-change').createSubscriptionChange,crypto,Buffer,AbortSignal,
   _toDate:value=>{if(!value)return null;if(typeof value.toDate==='function')return value.toDate();const parsed=new Date(value);return Number.isNaN(parsed.getTime())?null:parsed;},
   app:{post:(route,...handlers)=>routes.set(route,handlers.at(-1))},express:{json:()=>()=>{}},
   auth:{verifyIdToken:async token=>{assert.equal(token,'test-token');return{uid:'owner',email:'qa@example.test'};}},db,
@@ -36,8 +37,19 @@ function setup({providerError=false,lookupError=false,referrer=null,initialProfi
   const signature=crypto.createHmac('sha256','test-secret').update(`id:${id};request-id:${requestId};ts:${ts};`).digest('hex');
   return invoke('/webhook/mercadopago',{type,data:{id}},{'x-request-id':requestId,'x-signature':`ts=${ts},v1=${valid?signature:'invalid'}`});
  }
- return{profile,sub,payment,invoice,calls,invoke,webhook,updateSubscription:context._mpUpdateSubscriptionProfile};
+ return{profile,sub,payment,invoice,calls,history,invoke,webhook,updateSubscription:context._mpUpdateSubscriptionProfile};
 }
+test('Finance history records changes and cancellation once when Mercado Pago retries',async()=>{
+ const s=setup({initialProfile:{plano:'pro',mpSubscriptionId:'sub-1',assinaturaStatus:'authorized'}});
+ await s.updateSubscription('owner','sub-1',{plano:'plus',assinaturaStatus:'authorized'});
+ await s.updateSubscription('owner','sub-1',{plano:'plus',assinaturaStatus:'authorized'});
+ await s.updateSubscription('owner','sub-1',{plano:'free',assinaturaStatus:'cancelled'});
+ await s.updateSubscription('owner','sub-1',{plano:'free',assinaturaStatus:'cancelled'});
+ assert.deepEqual(s.history,[
+   {from:'pro',to:'plus',status:'authorized',at:1},
+   {from:'plus',to:'free',status:'cancelled',at:1}
+ ]);
+});
 test('checkout requires authentication and uses server price and identity',async()=>{
  const s=setup();assert.equal((await s.invoke('/mercadopago/create-subscription',{},{})).statusCode,401);assert.equal(s.calls.length,0);
  const result=await s.invoke('/mercadopago/create-subscription',{planKey:'starter',uid:'other',amount:0,email:'other@example.test'});

@@ -4,6 +4,7 @@ import {
   onAuthStateChanged, signInWithCustomToken, signInWithEmailAndPassword, signInWithPopup, signOut
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import './config.js';
+import { setupClients } from './clientes.js';
 
 const local = ['localhost', '127.0.0.1'].includes(location.hostname);
 const config = local ? { ...window.BUD_GESTOR_FIREBASE_CONFIG, projectId: 'bud-finance-local' }
@@ -17,6 +18,25 @@ const googleLink = document.querySelector('#google-link');
 const googleStatus = document.querySelector('#google-link-status');
 
 const feedback = document.querySelector('#feedback');
+const loginLayout = document.querySelector('.layout');
+const loginCard = feedback.parentElement;
+const desk = document.querySelector('#gestor-desk');
+const ownerDialog = document.querySelector('#owner-dialog');
+const ownerView = document.querySelector('#owner');
+ownerDialog.append(ownerView);
+document.querySelector('#open-owner').addEventListener('click', () => ownerDialog.showModal());
+const clients = setupClients(async (path, { method = 'GET', data } = {}) => {
+  const token = await auth.currentUser.getIdToken();
+  const headers = { Authorization: 'Bearer ' + token };
+  if (data) headers['Content-Type'] = 'application/json';
+  const response = await fetch(api + '/api/gestor/' + path, {
+    method, headers, body: data ? JSON.stringify(data) : undefined,
+    signal: AbortSignal.timeout(15_000)
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Não foi possível concluir. Tente novamente.');
+  return result;
+});
 const views = ['login', 'register', 'recovery', 'confirmation', 'owner'];
 let confirmationToken = new URLSearchParams(location.hash.slice(1)).get('confirm');
 let recoveryToken = new URLSearchParams(location.hash.slice(1)).get('recovery');
@@ -28,8 +48,17 @@ function message(text, error = false) {
 
 function show(view, focus = true) {
   for (const id of views) document.getElementById(id).hidden = id !== view;
+  const workspace = view === 'owner';
+  loginLayout.hidden = workspace;
+  desk.hidden = !workspace;
+  (workspace ? ownerDialog : loginCard).append(feedback);
+  if (workspace) clients.start();
+  else {
+    if (ownerDialog.open) ownerDialog.close();
+    clients.reset();
+  }
   message('');
-  if (focus) document.querySelector(`#${view} input, #${view} button`)?.focus();
+  if (focus && !workspace) document.querySelector(`#${view} input, #${view} button`)?.focus();
 }
 
 async function post(path, body, bearer) {
@@ -110,6 +139,7 @@ function updateGoogleLink(user) {
 onAuthStateChanged(auth, async user => {
   if (!user) {
     ownerAuthTime = 0;
+    if (!desk.hidden) show('login');
     return;
   }
   try {
