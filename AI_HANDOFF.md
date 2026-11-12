@@ -1,5 +1,11 @@
 # Estado compartilhado e ponto de continuidade
 
+## Bud Gestor — consulta local à base real do Finance (12/11/2026)
+
+- Branch `codex/gestor-clientes-local`. O código da tela de Clientes segue em homologação. A prévia emulada fica em `http://localhost:5501/budgestor/` com base zerada. Nenhum deploy.
+- A prévia de leitura em `scripts/gestor-clientes-production-preview.cjs` usa o pacote local `dist/site` (`npm run package:release`), as dependências da raiz e do backend e a sessão do Firebase CLI com permissão no projeto `bud-finance`. No PowerShell, a partir da raiz do projeto, defina `$env:XDG_CONFIG_HOME = Join-Path (Get-Location) '.tools\gestor-firebase-config'`. Execute `npx firebase login --reauth --interactive` e conclua o login no navegador deste PC. No mesmo PowerShell, execute `node scripts/gestor-clientes-production-preview.cjs` e abra `http://localhost:5506/budgestor/`. Se a porta estiver ocupada, defina `$env:BUD_GESTOR_PREVIEW_PORT = '5507'` antes de iniciar. Entre no Gestor com a conta de proprietário.
+- O servidor escuta apenas no loopback, aceita consultas de leitura e exige a identidade de proprietário do Gestor. O login Google do CLI retornou sucesso neste PC, mas a primeira sessão ficou em um diretório temporário isolado. O acesso ponta a ponta à lista real ainda requer validação com o diretório de configuração estável e a conta de proprietário. A pasta `.tools` está ignorada pelo Git. Cada PC deve autenticar a própria sessão. Não copiar dados de clientes para o emulador nem credenciais para o Git.
+
 ## Publicação confirmada — indicações e importação IA (01/11/2026)
 
 - PEND-REF-001: descontos 15%/50% homologados e PUBLICADOS. PR #5 integrado em 3d6f5f4c831498a8938d4ba1ba463197a2c439ae; Pages 41344526378 aprovado e Render Live confirmado. Regras do Firestore compiladas e publicadas no projeto bud-finance após login do titular.
