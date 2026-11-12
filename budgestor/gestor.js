@@ -4,7 +4,7 @@ import {
   onAuthStateChanged, signInWithCustomToken, signInWithEmailAndPassword, signInWithPopup, signOut
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import './config.js';
-import { setupClients } from './clientes.js';
+import { setupClients } from './clientes.js?v=20261112-lista';
 
 const local = ['localhost', '127.0.0.1'].includes(location.hostname);
 const config = local ? { ...window.BUD_GESTOR_FIREBASE_CONFIG, projectId: 'bud-finance-local' }

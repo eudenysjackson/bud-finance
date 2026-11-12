@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex">
   <title>Bud Gestor</title>
   <link rel="stylesheet" href="./gestor.css">
-  <link rel="stylesheet" href="./clientes.css">
+  <link rel="stylesheet" href="./clientes.css?v=20261112-lista">
 </head>
 <body>
   <main class="layout">
@@ -91,28 +91,22 @@
   <main id="gestor-desk" class="desk" hidden>
     <header class="desk-header">
       <div class="desk-brand"><img src="../logo.png" width="42" height="42" alt=""><span>Bud <strong>Gestor</strong></span></div>
+      <nav class="desk-nav" aria-label="Áreas do Gestor">
+        <a href="#clients-title" aria-current="page">👥 Clientes</a>
+      </nav>
       <button id="open-owner" class="desk-secondary" type="button">Minha conta</button>
     </header>
     <div class="desk-content">
       <section class="desk-intro" aria-labelledby="clients-title">
-        <div>
-          <span class="desk-tag">Gestão de clientes</span>
-          <h1 id="clients-title">Clientes</h1>
-          <p>Acompanhe quem usa o Bud Finance e quem pediu um orçamento.</p>
-        </div>
-        <button id="add-client" class="desk-primary" type="button">＋ Novo cadastro</button>
+        <h1 id="clients-title">Clientes</h1>
       </section>
-      <div class="desk-summary">
-        <article><span class="desk-icon" aria-hidden="true">👥</span><div><small>Clientes e contatos</small><strong id="count-all">—</strong></div></article>
-        <article><span class="desk-icon green"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18h2"/></svg></span><div><small>Bud Finance</small><strong id="count-finance">—</strong></div></article>
-        <article><span class="desk-icon violet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c0 5.2 4.3 9.5 9.5 9.5-5.2 0-9.5 4.3-9.5 9.5 0-5.2-4.3-9.5-9.5-9.5 5.2 0 9.5-4.3 9.5-9.5Z"/></svg></span><div><small>Interesses e cotações</small><strong id="count-leads">—</strong></div></article>
-      </div>
       <section class="desk-panel" aria-label="Lista de clientes">
         <div class="desk-filters">
           <label>Buscar na lista<input id="client-search" type="search" placeholder="Nome, e-mail ou telefone"></label>
           <label>Origem<select id="client-source"><option value="">Todas</option><option value="finance">Bud Finance</option><option value="manual">Cadastro manual</option></select></label>
           <label>Etapa<select id="client-stage"><option value="">Todas</option><option value="lead">Interessado</option><option value="quote">Em cotação</option><option value="customer">Cliente</option><option value="inactive">Inativo</option></select></label>
           <label>Plano<select id="client-plan"><option value="">Todos</option><option value="free">Gratuito</option><option value="trial">Trial</option><option value="starter">Starter</option><option value="pro">Pro</option><option value="plus">Plus</option></select></label>
+          <button id="add-client" class="desk-primary" type="button">＋ Novo cadastro</button>
         </div>
         <p id="clients-status" class="desk-status" role="status"></p>
         <div class="desk-table-wrap">
@@ -150,6 +144,6 @@
       </form>
     </dialog>
   </main>
-  <script type="module" src="./gestor.js"></script>
+  <script type="module" src="./gestor.js?v=20261112-lista"></script>
 </body>
 </html>

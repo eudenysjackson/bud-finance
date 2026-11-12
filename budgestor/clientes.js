@@ -27,9 +27,6 @@ export function setupClients(request) {
 
   function render() {
     const all = [...clients.values()];
-    select('count-all').textContent = all.length;
-    select('count-finance').textContent = all.filter(item => item.source === 'finance').length;
-    select('count-leads').textContent = all.filter(item => ['lead', 'quote'].includes(item.stage)).length;
     const term = normalized(search.value.trim());
     const matches = all.filter(item =>
       (!source.value || item.source === source.value) &&
@@ -46,12 +43,18 @@ export function setupClients(request) {
       const contact = document.createElement('small');
       contact.textContent = item.email || item.phone || item.company || 'Contato indisponível';
       identity.append(name, contact);
-      row.insertCell().textContent = item.source === 'finance' || item.product === 'finance' ? 'Bud Finance' : 'A definir';
-      row.insertCell().textContent = plans[item.plan] || '—';
-      row.insertCell().textContent = stages[item.stage] || '—';
+      for (const [label, value] of [
+        ['Produto', item.source === 'finance' || item.product === 'finance' ? 'Bud Finance' : 'A definir'],
+        ['Plano ativo', plans[item.plan] || '—'],
+        ['Etapa', stages[item.stage] || '—']
+      ]) {
+        const cell = row.insertCell();
+        cell.dataset.label = label;
+        cell.textContent = value;
+      }
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'desk-secondary';
+      button.className = 'desk-secondary desk-open-client';
       button.textContent = 'Abrir';
       button.setAttribute('aria-label', 'Abrir ficha de ' + name.textContent);
       button.addEventListener('click', () => openClient(item));
@@ -60,7 +63,9 @@ export function setupClients(request) {
     }
     rows.replaceChildren(fragment);
     more.hidden = !Object.values(next).some(value => value !== null);
-    status.textContent = matches.length ? `${matches.length} de ${all.length} registros carregados` : 'Nenhum registro corresponde aos filtros.';
+    status.textContent = matches.length ? `${matches.length} de ${all.length} registros carregados`
+      : all.length ? 'Nenhum registro corresponde aos filtros.'
+      : more.hidden ? 'Nenhum cliente cadastrado. Use Novo cadastro para começar.' : 'Nenhum registro nesta página. Carregue mais para continuar.';
   }
 
   async function load() {
