@@ -480,3 +480,9 @@ A barra individual, o detalhe e a ordenação por progresso passaram a usar parc
 
 ## Vencimentos no painel e frequência de push — 10/11/2026
 Painel separa pendências de hoje e atrasadas da previsão de 30 dias, com receitas, despesas recorrentes, próxima parcela de cada dívida e faturas abertas. Mantém confirmação de dívida e recorrência no painel e link para faturas. Push financeiro usa véspera, dia, primeiro dia de atraso e a cada sete dias de atraso. O backend consulta cartões de crédito na carteira atual. Incluídas na publicação autorizada as correções locais de gravação e exclusão em Cartões e quitação, progresso e carregamento em Dívidas.
+
+## Ícone instalado e vencimentos da Dashboard
+
+- Configurado o selo da Bud Soluções como ícone da Tela de Início do iOS e no manifesto do Bud Finance, com arquivos PNG de 180, 192 e 512 px e versão para máscaras.
+- A previsão da Dashboard passa a mostrar entradas e saídas a partir de três dias corridos antes da data registrada. Hoje e atrasos continuam nas prioridades. A regra de push permanece a mesma.
+- Validação local: a renderização confirmou 1, 2 e 3 dias na virada do mês, exclusão de 4 dias, preservação de hoje e atrasos e inclusão de dívida e fatura. Dimensões dos quatro PNGs e sintaxe do JavaScript conferidas. Branch `codex/icone-vencimentos-3-dias`, baseada na publicação visual `55a01da`. Publicação ainda não autorizada. Após publicar, confirmar a instalação em iPhone, recriando o atalho se o anterior mantiver o ícone antigo.

@@ -995,7 +995,7 @@ function atualizarLembretes7Dias() {
   atualizarPrioridadesHoje();
 
   var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  var limite = new Date(hoje); limite.setDate(limite.getDate() + 30);
+  var limite = new Date(hoje); limite.setDate(limite.getDate() + 3);
   var lembretes = [];
 
   function adicionar(lembrete, data, manterAtrasado = false) {
@@ -2666,7 +2666,7 @@ function setupSidebar() {
 // ─── Listener de Transações com filtro por data (re-assinado ao trocar mês) ──
 function setupTransacoesListener(uid) {
   if (_unsubTransacoes) { _unsubTransacoes(); _unsubTransacoes = null; }
-  // Inclui os meses seguintes para deduplicar ocorrências nos próximos 30 dias.
+  // Inclui os meses seguintes para deduplicar ocorrências próximas, inclusive na virada do mês.
   var inicio = new Date(anoVisualizado, mesVisualizado - 2, 1);
   var fim    = new Date(anoVisualizado, mesVisualizado + 3, 0, 23, 59, 59);
   var transRef = query(
