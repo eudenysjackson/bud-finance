@@ -97,7 +97,12 @@ function registerGestorAccess(app, { db, auth, emulator, sendEmail, limit }) {
         if (owner.emailVerified && !owner.disabled && owner.customClaims?.budGestorOwner === true) {
           const link = await auth.generatePasswordResetLink(owner.email);
           if (!emulator) await sendEmail({
-            to_email: email, action_url: link, action_label: 'Redefinir senha'
+            to_email: email, to_name: 'Administrador do Bud Gestor',
+            email_subject: '[Bud Gestor] Redefina sua senha',
+            email_title: 'Redefina sua senha',
+            email_preheader: 'Recuperação de acesso ao Bud Gestor',
+            email_body: 'Use o botão abaixo para definir uma nova senha para sua conta administrativa.',
+            action_url: link, action_label: 'Redefinir senha'
           }, process.env.EMAILJS_TEMPLATE_GESTOR_RECOVERY);
         }
       }
@@ -120,7 +125,12 @@ function registerGestorAccess(app, { db, auth, emulator, sendEmail, limit }) {
       });
       if (!email) return res.sendStatus(409);
       if (!emulator) await sendEmail({
-        to_email: email, action_url: gestorUrl + '#recovery=' + token,
+        to_email: email, to_name: 'Administrador do Bud Gestor',
+        email_subject: '[Bud Gestor] Confirme seu e-mail de recuperação',
+        email_title: 'Confirme seu e-mail de recuperação',
+        email_preheader: 'Verificação de endereço do Bud Gestor',
+        email_body: 'Use o botão abaixo para confirmar este endereço. O link pode ser usado uma vez em até 24 horas.',
+        action_url: gestorUrl + '#recovery=' + token,
         action_label: 'Confirmar e-mail de recuperação'
       }, process.env.EMAILJS_TEMPLATE_GESTOR_VERIFY_RECOVERY);
       return res.json(emulator ? { token } : {});

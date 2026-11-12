@@ -256,8 +256,9 @@ require('./gestor-access').registerGestorAccess(app, {
   emulator: process.env.BUD_USE_EMULATOR === 'true',
   limit: isRateLimited,
   sendEmail(params, template) {
-    if (!template) throw new Error('Template Bud Gestor não configurado');
-    return sendEmailViaEmailJS(params, template);
+    const gestorParams = { app_name: 'Bud Gestor', app_url: 'https://budsolucoes.com.br/budgestor/', ...params };
+    if (!template && !EMAILJS_TEMPLATE_COMUNICACAO) throw new Error('Template Bud Gestor não configurado');
+    return sendEmailViaEmailJS(gestorParams, template || EMAILJS_TEMPLATE_COMUNICACAO);
   }
 });
 
