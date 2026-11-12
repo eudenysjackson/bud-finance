@@ -543,3 +543,8 @@ Painel separa pendências de hoje e atrasadas da previsão de 30 dias, com recei
 - Publicado pelo [PR #62](https://github.com/eudenysjackson/bud-finance/pull/62), commit `55a01da` no master. Validação do PR e [deploy do Pages](https://github.com/eudenysjackson/bud-finance/actions/runs/43126419675) aprovados.
 - Produção confirmou HTTP 200 e a versão esperada no login, dashboard, scripts e nas quatro imagens WebP. A interação foi exercitada localmente com emulador. A pendência de publicação dos ajustes visuais do Finance está resolvida.
 - Retomada do Bud Gestor: continua na branch de continuidade. A ativação do proprietário continua pendente conforme o registro acima.
+
+## Publicação confirmada — selo instalado e previsão da Dashboard (11/11/2026)
+
+- PR #63 integrado no commit `2e00585` do master. CI `43129013430` e deploy Pages `43129091347` aprovados. Produção confirmou HTTP 200 e as referências ao selo no login e manifesto, os quatro PNGs e a janela de três dias no JavaScript da Dashboard. A instalação física no iPhone ainda não foi conferida.
+- Retomada do Bud Gestor nesta branch. Login por e-mail/CPF e recuperação separada validados no emulador. Para ativação real, ainda faltam a ficha privada do proprietário e uma credencial administrativa utilizável do Firebase no terminal. Para CPF e recuperação por e-mail em produção, permanecem as configurações privadas descritas acima. Nesta retomada, a prévia da porta 5503 também estava parada. Gestor sem implantação.
