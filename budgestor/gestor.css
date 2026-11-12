@@ -77,6 +77,19 @@ button:disabled { cursor: wait; opacity: .65; }
   box-shadow: 0 5px 12px #245ce830;
 }
 :focus-visible { outline: 3px solid #1d57d4; outline-offset: 3px; }
+.google-button {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border: 1px solid #cbd9ec;
+  border-radius: 10px;
+  background: #fff;
+  color: #18366b;
+  font-weight: 650;
+}
+.google-button:hover:not(:disabled) { background: #f4f8fd; }
+#google-link-status { display: block; margin-top: 14px; }
 .feedback { margin: 16px 0 0; font-size: .88rem; line-height: 1.45; }
 .feedback:empty { display: none; }
 .feedback[data-error="true"] { color: #a02432; }
