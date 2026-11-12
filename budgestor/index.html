@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex">
   <title>Bud Gestor</title>
   <link rel="stylesheet" href="./gestor.css">
-  <link rel="stylesheet" href="./clientes.css?v=20261112-lista">
+  <link rel="stylesheet" href="./clientes.css?v=20261112-sidebar">
 </head>
 <body>
   <main class="layout">
@@ -92,15 +92,16 @@
     <header class="desk-header">
       <div class="desk-brand"><img src="../logo.png" width="42" height="42" alt=""><span>Bud <strong>Gestor</strong></span></div>
       <nav class="desk-nav" aria-label="Áreas do Gestor">
-        <a href="#clients-title" aria-current="page">👥 Clientes</a>
+        <a href="#clients-title" aria-current="page">
+          <span class="desk-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4M3 8h18"/></svg></span>
+          Clientes
+        </a>
       </nav>
       <button id="open-owner" class="desk-secondary" type="button">Minha conta</button>
     </header>
     <div class="desk-content">
-      <section class="desk-intro" aria-labelledby="clients-title">
-        <h1 id="clients-title">Clientes</h1>
-      </section>
-      <section class="desk-panel" aria-label="Lista de clientes">
+      <h1 id="clients-title" class="desk-visually-hidden" tabindex="-1">Clientes</h1>
+      <section class="desk-panel" aria-labelledby="clients-title">
         <div class="desk-filters">
           <label>Buscar na lista<input id="client-search" type="search" placeholder="Nome, e-mail ou telefone"></label>
           <label>Origem<select id="client-source"><option value="">Todas</option><option value="finance">Bud Finance</option><option value="manual">Cadastro manual</option></select></label>
@@ -132,7 +133,7 @@
         <label>E-mail<input name="email" type="email" autocomplete="email" maxlength="254"></label>
         <label>Telefone<input name="phone" type="tel" maxlength="40"></label>
         <label>WhatsApp<input name="whatsapp" type="tel" maxlength="40"></label>
-        <label>CPF ou CNPJ <small>(opcional)</small><input name="document" maxlength="30"></label>
+        <label><span>CPF ou CNPJ <small>(opcional)</small></span><input name="document" maxlength="30"></label>
         <label>Etapa<select name="stage" required><option value="lead">Interessado</option><option value="quote">Em cotação</option><option value="customer">Cliente</option><option value="inactive">Inativo</option></select></label>
         <label>Produto<select name="product"><option value="">A definir</option><option value="finance">Bud Finance</option></select></label>
         <label>CEP<input name="postalCode" autocomplete="postal-code" maxlength="15"></label>
@@ -144,6 +145,6 @@
       </form>
     </dialog>
   </main>
-  <script type="module" src="./gestor.js?v=20261112-lista"></script>
+  <script type="module" src="./gestor.js?v=20261112-sidebar"></script>
 </body>
 </html>

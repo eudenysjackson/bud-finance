@@ -4,7 +4,8 @@ import {
   onAuthStateChanged, signInWithCustomToken, signInWithEmailAndPassword, signInWithPopup, signOut
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import './config.js';
-import { setupClients } from './clientes.js?v=20261112-lista';
+import { setupClients } from './clientes.js?v=20261112-sidebar';
+import { setupSelects } from './selects.js?v=20261112-sidebar';
 
 const local = ['localhost', '127.0.0.1'].includes(location.hostname);
 const config = local ? { ...window.BUD_GESTOR_FIREBASE_CONFIG, projectId: 'bud-finance-local' }
@@ -25,6 +26,7 @@ const ownerDialog = document.querySelector('#owner-dialog');
 const ownerView = document.querySelector('#owner');
 ownerDialog.append(ownerView);
 document.querySelector('#open-owner').addEventListener('click', () => ownerDialog.showModal());
+const syncSelects = setupSelects(desk);
 const clients = setupClients(async (path, { method = 'GET', data } = {}) => {
   const token = await auth.currentUser.getIdToken();
   const headers = { Authorization: 'Bearer ' + token };
@@ -36,7 +38,7 @@ const clients = setupClients(async (path, { method = 'GET', data } = {}) => {
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(result.error || 'Não foi possível concluir. Tente novamente.');
   return result;
-});
+}, syncSelects);
 const views = ['login', 'register', 'recovery', 'confirmation', 'owner'];
 let confirmationToken = new URLSearchParams(location.hash.slice(1)).get('confirm');
 let recoveryToken = new URLSearchParams(location.hash.slice(1)).get('recovery');

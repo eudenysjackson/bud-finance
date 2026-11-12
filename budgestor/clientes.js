@@ -4,7 +4,7 @@ const dateFormat = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium' });
 const formatDate = value => value ? dateFormat.format(new Date(value)) : 'Data indisponível';
 const normalized = value => (value || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 
-export function setupClients(request) {
+export function setupClients(request, syncSelects) {
   const select = id => document.getElementById(id);
   const rows = select('client-rows');
   const search = select('client-search');
@@ -19,6 +19,17 @@ export function setupClients(request) {
   const detail = select('finance-detail');
   const form = select('client-form');
   const add = select('add-client');
+  let scrollTimer;
+  const clientScroll = () => {
+    if (dialog.scrollHeight <= dialog.clientHeight) return;
+    dialog.classList.add('is-scrolling');
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => dialog.classList.remove('is-scrolling'), 750);
+  };
+  dialog.addEventListener('scroll', clientScroll, { passive: true });
+  dialog.addEventListener('pointermove', event => {
+    if (event.clientX >= dialog.getBoundingClientRect().right - 16) clientScroll();
+  }, { passive: true });
   const clients = new Map();
   let next = {};
   let session = 0;
@@ -126,6 +137,8 @@ export function setupClients(request) {
     const current = ++revision;
     editing = item?.source === 'manual' ? item.id : null;
     form.reset();
+    syncSelects();
+    dialog.classList.toggle('desk-dialog-wide', item?.source !== 'finance');
     title.textContent = item?.name || 'Novo cadastro';
     detail.replaceChildren();
     detail.hidden = true;
@@ -143,6 +156,7 @@ export function setupClients(request) {
         for (const field of form.elements) {
           if (field.name && typeof data[field.name] === 'string') field.value = data[field.name];
         }
+        syncSelects();
         form.hidden = false;
       }
       dialogStatus.textContent = '';
@@ -171,7 +185,13 @@ export function setupClients(request) {
     } finally { button.disabled = false; }
   });
 
-  dialog.addEventListener('close', () => { revision++; form.reset(); detail.replaceChildren(); });
+  dialog.addEventListener('close', () => {
+    revision++;
+    clearTimeout(scrollTimer);
+    dialog.classList.remove('is-scrolling');
+    form.reset();
+    detail.replaceChildren();
+  });
   for (const field of [search, source, stage, plan]) field.addEventListener('input', render);
   add.addEventListener('click', () => openClient());
   more.addEventListener('click', load);
@@ -182,6 +202,7 @@ export function setupClients(request) {
     clients.clear();
     next = {};
     for (const field of [search, source, stage, plan]) field.value = '';
+    syncSelects();
     rows.replaceChildren();
     status.textContent = '';
   }
