@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <title>Bud Gestor</title>
+  <link rel="stylesheet" href="./gestor.css">
+</head>
+<body>
+  <main class="layout">
+    <div class="art" aria-hidden="true"></div>
+    <section class="card" aria-label="Bud Gestor">
+      <img class="brand" src="./marca-bud-solucoes.webp" alt="Bud Soluções" width="72" height="72">
+      <div id="login">
+        <h1>Bem-vindo(a)</h1>
+        <p class="intro">Insira seus dados de acesso</p>
+        <form id="login-form">
+          <label for="login-email">E-mail ou CPF</label>
+          <input id="login-email" name="identifier" type="text" autocomplete="username" autocapitalize="none" placeholder="Seu e-mail ou CPF de acesso" required>
+          <label for="login-password">Senha</label>
+          <div class="password">
+            <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+            <button id="show-password" class="text-button" type="button" aria-pressed="false">Mostrar</button>
+          </div>
+          <button class="text-button forgot" type="button" data-view="recovery">Esqueceu sua senha?</button>
+          <button class="primary" type="submit">Acessar meu painel</button>
+        </form>
+        <p class="footer">Novo por aqui? <button class="text-button" type="button" data-view="register">Cadastre-se</button></p>
+      </div>
+      <div id="register" hidden>
+        <h1>Cadastre-se</h1>
+        <p class="intro">Envie sua solicitação de acesso ao Bud Gestor.</p>
+        <form id="register-form">
+          <label for="name">Nome completo</label>
+          <input id="name" name="name" autocomplete="name" minlength="3" maxlength="120" required>
+          <label for="email">E-mail</label>
+          <input id="email" name="email" type="email" autocomplete="email" maxlength="254" required>
+          <label for="whatsapp">WhatsApp com DDD</label>
+          <input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" minlength="10" maxlength="25" required>
+          <label for="reason">Por que você precisa de acesso?</label>
+          <textarea id="reason" name="reason" minlength="5" maxlength="500" rows="3" required></textarea>
+          <button class="primary" type="submit">Enviar solicitação</button>
+        </form>
+        <p class="footer"><button class="text-button" type="button" data-view="login">Voltar ao login</button></p>
+      </div>
+      <div id="recovery" hidden>
+        <h1>Recuperar senha</h1>
+        <p class="intro">Informe seu e-mail de recuperação.</p>
+        <form id="recovery-form">
+          <label for="recovery-email">E-mail</label>
+          <input id="recovery-email" name="email" type="email" autocomplete="email" required>
+          <button class="primary" type="submit">Enviar link</button>
+        </form>
+        <p class="footer"><button class="text-button" type="button" data-view="login">Voltar ao login</button></p>
+      </div>
+      <div id="confirmation" hidden>
+        <h1>Confirmar e-mail</h1>
+        <p class="intro">Confirme seu e-mail para concluir a solicitação.</p>
+        <button id="confirm-request" class="primary" type="button">Confirmar e-mail</button>
+        <p class="footer"><button class="text-button" type="button" data-view="login">Voltar ao login</button></p>
+      </div>
+      <div id="owner" hidden>
+        <h1>Ficha do proprietário</h1>
+        <p class="intro">Dados privados da conta do Bud Gestor.</p>
+        <form id="owner-form">
+          <label for="owner-name">Nome completo</label>
+          <input id="owner-name" name="name" autocomplete="name" minlength="3" maxlength="120" required>
+          <label for="owner-email">E-mail de acesso</label>
+          <input id="owner-email" type="email" readonly>
+          <label for="owner-recovery-email">E-mail de recuperação</label>
+          <input id="owner-recovery-email" type="email" readonly>
+          <small id="owner-recovery-status"></small>
+          <button id="verify-recovery" class="text-button" type="button" hidden>Verificar e-mail de recuperação</button>
+          <label for="owner-whatsapp">WhatsApp com DDD</label>
+          <input id="owner-whatsapp" name="whatsapp" type="tel" autocomplete="tel" maxlength="25" required>
+          <small id="owner-whatsapp-status"></small>
+          <button class="primary" type="submit">Salvar ficha</button>
+        </form>
+        <button id="sign-out" class="primary" type="button">Sair</button>
+      </div>
+      <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
+      <p class="privacy"><a href="../appbudfinance/politica-privacidade.html">Política de Privacidade</a></p>
+    </section>
+  </main>
+  <script type="module" src="./gestor.js"></script>
+</body>
+</html>
