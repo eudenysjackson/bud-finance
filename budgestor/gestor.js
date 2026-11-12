@@ -1,7 +1,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js';
 import {
-  connectAuthEmulator, getAuth, getIdTokenResult, onAuthStateChanged,
-  signInWithCustomToken, signInWithEmailAndPassword, signOut
+  connectAuthEmulator, getAuth, getIdTokenResult, GoogleAuthProvider, linkWithPopup,
+  onAuthStateChanged, signInWithCustomToken, signInWithEmailAndPassword, signInWithPopup, signOut
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import './config.js';
 
@@ -11,6 +11,10 @@ const config = local ? { ...window.BUD_GESTOR_FIREBASE_CONFIG, projectId: 'bud-f
 const auth = getAuth(initializeApp(config, 'bud-gestor'));
 const api = local ? `http://${location.hostname}:3000` : 'https://bud-finance-backend.onrender.com';
 if (local) connectAuthEmulator(auth, `http://${location.hostname}:9099`);
+const google = new GoogleAuthProvider();
+google.setCustomParameters({ prompt: 'select_account' });
+const googleLink = document.querySelector('#google-link');
+const googleStatus = document.querySelector('#google-link-status');
 
 const feedback = document.querySelector('#feedback');
 const views = ['login', 'register', 'recovery', 'confirmation', 'owner'];
@@ -89,16 +93,28 @@ document.querySelector('#show-password').addEventListener('click', event => {
 
 if (confirmationToken || recoveryToken) show('confirmation', false);
 
-async function hasOwnerAccess(user) {
-  if (!user?.emailVerified) return false;
-  const { claims } = await getIdTokenResult(user, true);
-  return claims.budGestorOwner === true;
+async function ownerSession(user) {
+  if (!user?.emailVerified) return null;
+  const token = await getIdTokenResult(user, true);
+  return token.claims.budGestorOwner === true ? token : null;
+}
+
+let ownerAuthTime = 0;
+function updateGoogleLink(user) {
+  const linked = user.providerData.some(provider => provider.providerId === 'google.com');
+  googleLink.hidden = linked;
+  googleStatus.textContent = linked ? 'Conta Google vinculada.'
+    : 'Vincule uma conta Google para usá-la no próximo acesso.';
 }
 
 onAuthStateChanged(auth, async user => {
-  if (!user) return;
+  if (!user) {
+    ownerAuthTime = 0;
+    return;
+  }
   try {
-    if (!await hasOwnerAccess(user)) {
+    const session = await ownerSession(user);
+    if (!session) {
       await signOut(auth);
       if (!confirmationToken && !document.getElementById('login').hidden) {
         message('Esta conta não tem acesso ao Bud Gestor.', true);
@@ -108,6 +124,8 @@ onAuthStateChanged(auth, async user => {
     if (!confirmationToken && !recoveryToken) {
       const profile = await ownerProfile();
       if (auth.currentUser?.uid !== user.uid) return;
+      ownerAuthTime = Date.parse(session.authTime);
+      updateGoogleLink(user);
       document.querySelector('#login-form').reset();
       fillOwnerProfile(profile);
       show('owner', false);
@@ -116,6 +134,49 @@ onAuthStateChanged(auth, async user => {
     await signOut(auth);
     message('Não foi possível verificar o acesso. Tente novamente.', true);
   }
+});
+
+function googleError(error) {
+  switch (error.code) {
+    case 'auth/credential-already-in-use':
+    case 'auth/email-already-in-use':
+    case 'auth/account-exists-with-different-credential':
+      return 'Esta conta Google já está associada a outro acesso. Use seu login atual do Gestor ou selecione outra conta Google.';
+    case 'auth/popup-blocked':
+      return 'Permita pop-ups deste site e tente novamente.';
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return 'A janela do Google foi fechada. Tente novamente.';
+    case 'auth/requires-recent-login':
+      return 'Saia e entre novamente com CPF e senha para vincular o Google.';
+    default:
+      return 'Não foi possível usar o Google agora. Tente novamente ou entre com CPF e senha.';
+  }
+}
+
+document.querySelector('#google-sign-in').addEventListener('click', async event => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  message('');
+  try { await signInWithPopup(auth, google); }
+  catch (error) { message(googleError(error), true); }
+  finally { button.disabled = false; }
+});
+
+googleLink.addEventListener('click', async () => {
+  const user = auth.currentUser;
+  if (!user || !ownerAuthTime || Date.now() - ownerAuthTime > 5 * 60_000) {
+    message('Saia e entre novamente com CPF e senha para vincular o Google.', true);
+    return;
+  }
+  googleLink.disabled = true;
+  message('');
+  try {
+    const { user: linked } = await linkWithPopup(user, google);
+    updateGoogleLink(linked);
+    message('Conta Google vinculada. Você já pode entrar com ela.');
+  } catch (error) { message(googleError(error), true); }
+  finally { googleLink.disabled = false; }
 });
 
 submit('login-form', async ({ identifier, password }) => {
@@ -154,8 +215,14 @@ document.querySelector('#confirm-request').addEventListener('click', async event
       await post('confirm-recovery', { token: recoveryToken });
       recoveryToken = null;
       history.replaceState(null, '', location.pathname + location.search);
-      if (auth.currentUser && await hasOwnerAccess(auth.currentUser)) {
-        fillOwnerProfile(await ownerProfile());
+      const user = auth.currentUser;
+      const session = user && await ownerSession(user);
+      if (session) {
+        const profile = await ownerProfile();
+        if (auth.currentUser?.uid !== user.uid) return;
+        ownerAuthTime = Date.parse(session.authTime);
+        updateGoogleLink(user);
+        fillOwnerProfile(profile);
         show('owner');
       } else show('login');
       message('E-mail de recuperação confirmado.');
