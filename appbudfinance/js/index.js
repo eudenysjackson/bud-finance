@@ -4,7 +4,8 @@ import { openAuthenticatedCheckout } from './checkout-client.js?v=20261102-plans
 
 import { initializeApp, getApps }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signInWithCustomToken, signOut, onAuthStateChanged }
+import { deleteUser, getAdditionalUserInfo, getAuth, getIdTokenResult, GoogleAuthProvider,
+  signInWithEmailAndPassword, signInWithCustomToken, signInWithPopup, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getFirestore, initializeFirestore, persistentLocalCache, doc, getDoc, getDocFromServer, collection, query, where, getDocs }
   from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -23,6 +24,25 @@ let _loginInProgress = false;
 let _magicLoginInProgress = false;
 onAuthStateChanged(auth, async function (user) {
   if (_loginInProgress || _magicLoginInProgress || !user) return;
+  if (user.providerData?.some(provider => provider.providerId === 'google.com')) {
+    try {
+      const { signInProvider } = await getIdTokenResult(user);
+      if (_loginInProgress || _magicLoginInProgress || auth.currentUser?.uid !== user.uid) return;
+      if (signInProvider === 'google.com') {
+        const profile = await lerPerfilGoogle(user);
+        if (_loginInProgress || auth.currentUser?.uid !== user.uid) return;
+        if (!profile) {
+          await signOut(auth);
+          return;
+        }
+        await continuarLogin(user, profile);
+        return;
+      }
+    } catch {
+      if (!_loginInProgress && auth.currentUser?.uid === user.uid) await signOut(auth);
+      return;
+    }
+  }
   const params=new URLSearchParams(window.location.search),plan=(params.get('checkout')||'').toLowerCase();
   if (params.has('email_destino') && user.emailVerified) {
     _loginInProgress = true;
@@ -66,6 +86,7 @@ const formLogin          = document.getElementById('formLogin');
 const identificadorInput = document.getElementById('identificador');
 const senhaInput         = document.getElementById('senha');
 const btnLogin           = document.getElementById('btnLogin');
+const btnLoginGoogle     = document.getElementById('btnLoginGoogle');
 const toggleSenha        = document.getElementById('toggleSenha');
 
 // ─── Show/hide password ─────────────────────────────────────────────
@@ -250,14 +271,66 @@ function showEmailVerificationModal(user) {
 
 // ─── Reset button helper ────────────────────────────────────────────
 function resetBtn() {
+  _loginInProgress = false;
   btnLogin.textContent = 'Acessar meu painel';
   btnLogin.disabled = false;
+  btnLoginGoogle.textContent = 'Entrar com Google';
+  btnLoginGoogle.disabled = false;
 }
+
+async function lerPerfilGoogle(user, removerSeNovo = false) {
+  if (!user.emailVerified || !user.email) return null;
+  const snapshot = await getDocFromServer(doc(db, 'usuarios', user.uid));
+  if (!snapshot.exists()) {
+    // Undo an Auth-only account created by this popup so normal signup can use its email.
+    if (removerSeNovo) await deleteUser(user);
+    return null;
+  }
+  const profile = snapshot.data();
+  if (profile.bloqueado === true ||
+      profile.email?.trim().toLowerCase() !== user.email.trim().toLowerCase()) return null;
+  return profile;
+}
+
+btnLoginGoogle.addEventListener('click', async () => {
+  if (_loginInProgress || _magicLoginInProgress) return;
+  _loginInProgress = true;
+  btnLogin.disabled = true;
+  btnLoginGoogle.disabled = true;
+  btnLoginGoogle.textContent = 'Conectando ao Google...';
+
+  let user;
+  try {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const result = await signInWithPopup(auth, provider);
+    user = result.user;
+    const profile = await lerPerfilGoogle(user, getAdditionalUserInfo(result)?.isNewUser === true);
+    if (!profile) {
+      if (auth.currentUser?.uid === user.uid) await signOut(auth);
+      window.budShowToast('Use a conta Google com o mesmo e-mail do seu cadastro no Bud Finance.', 'warning');
+      resetBtn();
+      return;
+    }
+    await continuarLogin(user, profile);
+  } catch (error) {
+    if (user && auth.currentUser?.uid === user.uid) await signOut(auth);
+    if (error.code === 'auth/account-exists-with-different-credential') {
+      window.budShowToast('O Google não pôde confirmar o acesso a este cadastro. Entre com e-mail e senha.', 'warning');
+    } else if (!['auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(error.code)) {
+      const message = error.code === 'auth/popup-blocked'
+        ? 'Permita a janela do Google no navegador e tente novamente.'
+        : 'Não foi possível entrar com Google agora. Tente novamente.';
+      window.budShowToast(message, 'error');
+    }
+    resetBtn();
+  }
+});
 
 // ─── Main login flow ────────────────────────────────────────────────
 formLogin.addEventListener('submit', async function (e) {
   e.preventDefault();
-  _loginInProgress = true;
+  if (_loginInProgress || _magicLoginInProgress) return;
 
   // 1. Sanitize + validate
   const identificador = window.budSanitize(identificadorInput.value);
@@ -269,15 +342,17 @@ formLogin.addEventListener('submit', async function (e) {
   }
 
   // 2. Loading state
+  _loginInProgress = true;
   btnLogin.textContent = 'Acessando...';
   btnLogin.disabled = true;
+  btnLoginGoogle.disabled = true;
 
   try {
     // 3. Resolve identifier (email vs matrícula)
     let email;
     const upperIdent = identificador.toUpperCase();
 
-    if (upperIdent.startsWith('BUD-') || upperIdent.startsWith('NEX-')) {
+    if (!identificador.includes('@') && (upperIdent.startsWith('BUD-') || upperIdent.startsWith('NEX-'))) {
       email = await buscarEmailPorMatricula(identificador);
       if (!email) {
         // Generic error — do NOT reveal whether matrícula exists
@@ -345,42 +420,44 @@ formLogin.addEventListener('submit', async function (e) {
       }
     }
 
-    // 8. Redirect based on first login
-    if (userData.primeiroLogin === true) {
-      window.location.href = 'trocar-senha.html';
-      return;
-    }
-
-    if (new URLSearchParams(location.search).has('email_destino') &&
-        await continuarEmail(user, new URLSearchParams(location.search))) return;
-
-    // 8b. Auto-checkout: vindo de cadastro.html com ?checkout=plano
-    var _checkoutParams = new URLSearchParams(window.location.search);
-    var _checkoutPlano  = (_checkoutParams.get('checkout') || '').toLowerCase().trim();
-    var _checkoutRef    = _checkoutParams.get('ref') || '';
-    var _planosValidos  = ['starter', 'pro', 'plus'];
-    if (_planosValidos.includes(_checkoutPlano)) {
-      if (window.BUD_USE_EMULATOR) {
-        abrirCheckoutTesteLocal(user, _checkoutPlano);
-        return;
-      }
-      try {
-        await iniciarCheckoutMercadoPago(user, _checkoutPlano, _checkoutRef);
-        return;
-      } catch (_e) {
-        mostrarFalhaCheckout(_checkoutPlano, _checkoutRef, _e.message);
-        return;
-      }
-    }
-
-    window.location.href = 'dashboard.html';
-
+    await continuarLogin(user, userData);
   } catch (error) {
-    _loginInProgress = false;
     window.budShowToast('Erro ao acessar sua conta. Tente novamente.', 'error');
     resetBtn();
   }
 });
+
+async function continuarLogin(user, userData) {
+  // Redirect based on first login.
+  if (userData.primeiroLogin === true) {
+    window.location.href = 'trocar-senha.html';
+    return;
+  }
+
+  if (new URLSearchParams(location.search).has('email_destino') &&
+      await continuarEmail(user, new URLSearchParams(location.search))) return;
+
+  // 8b. Auto-checkout: vindo de cadastro.html com ?checkout=plano
+  var _checkoutParams = new URLSearchParams(window.location.search);
+  var _checkoutPlano  = (_checkoutParams.get('checkout') || '').toLowerCase().trim();
+  var _checkoutRef    = _checkoutParams.get('ref') || '';
+  var _planosValidos  = ['starter', 'pro', 'plus'];
+  if (_planosValidos.includes(_checkoutPlano)) {
+    if (window.BUD_USE_EMULATOR) {
+      abrirCheckoutTesteLocal(user, _checkoutPlano);
+      return;
+    }
+    try {
+      await iniciarCheckoutMercadoPago(user, _checkoutPlano, _checkoutRef);
+      return;
+    } catch (_e) {
+      mostrarFalhaCheckout(_checkoutPlano, _checkoutRef, _e.message);
+      return;
+    }
+  }
+
+  window.location.href = 'dashboard.html';
+}
 
 function abrirCheckoutTesteLocal(user, planKey) {
   var planos = { starter: ['Starter', 'R$ 9,99'], pro: ['Pro', 'R$ 29,90'], plus: ['Plus', 'R$ 49,90'] };
