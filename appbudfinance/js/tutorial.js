@@ -1,6 +1,6 @@
 /**
  * tutorial.js — Sistema de Tutorial Bud Finance
- * FAB "?" fixo em todas as telas autenticadas.
+ * Botão flutuante de ajuda fixo em todas as telas autenticadas.
  * Auto-popup na primeira visita; localStorage controla estado.
  */
 (function () {
@@ -8,6 +8,15 @@
 
   var PFX        = 'bud_tut_done_';
   var KEY_NEVER  = 'bud_tut_never';
+  var artBase = new URL('../', document.currentScript.src);
+
+  function tutorialArt(filename, css) {
+    var image = document.createElement('img');
+    image.src = new URL(filename, artBase).href;
+    image.alt = '';
+    image.style.cssText = css;
+    return image;
+  }
 
   /* ── Conteúdo dos tutoriais ─────────────────────────────────────── */
   var TUTS = {
@@ -336,6 +345,8 @@
     btns.appendChild(btnNever);
 
     card.appendChild(btnX);
+    card.appendChild(tutorialArt('buddy-tutorial.webp',
+      'display:block;width:100%;height:clamp(6.5rem,23vh,10rem);object-fit:contain;margin:0 auto 1rem;'));
     card.appendChild(hdr);
     card.appendChild(dsc);
     card.appendChild(fl);
@@ -378,25 +389,17 @@
     fab.id = 'bud-tut-fab';
     fab.setAttribute('aria-label', 'Abrir tutorial desta tela');
     fab.setAttribute('title', 'Tutorial');
-    fab.textContent = '?';
+    fab.appendChild(tutorialArt('lampada-tutorial.webp',
+      'display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;'));
     fab.style.cssText =
       'position:fixed;bottom:1.5rem;right:1.5rem;' +
-      'width:2.625rem;height:2.625rem;border-radius:50%;' +
-      'background:linear-gradient(135deg,#2563eb,#1d4ed8);' +
-      'color:#fff;border:none;cursor:pointer;' +
-      'font-size:1.0625rem;font-weight:800;font-family:inherit;line-height:1;' +
+      'width:3.125rem;height:3.125rem;padding:0;border-radius:50%;' +
+      'background:transparent;border:0;box-shadow:none;cursor:pointer;' +
       'display:flex;align-items:center;justify-content:center;' +
-      'box-shadow:0 4px 16px rgba(37,99,235,0.38);' +
-      'z-index:9990;transition:transform .15s,box-shadow .15s;';
+      'z-index:9990;transition:transform .15s;';
 
-    fab.addEventListener('mouseenter', function () {
-      fab.style.transform = 'scale(1.13)';
-      fab.style.boxShadow = '0 6px 24px rgba(37,99,235,0.55)';
-    });
-    fab.addEventListener('mouseleave', function () {
-      fab.style.transform = 'scale(1)';
-      fab.style.boxShadow = '0 4px 16px rgba(37,99,235,0.38)';
-    });
+    fab.addEventListener('mouseenter', function () { fab.style.transform = 'scale(1.13)'; });
+    fab.addEventListener('mouseleave', function () { fab.style.transform = 'scale(1)'; });
     fab.onclick = function () {
       var tut = TUTS[pageKey];
       if (tut) openModal(tut, pageKey);

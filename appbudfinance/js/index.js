@@ -72,7 +72,8 @@ const toggleSenha        = document.getElementById('toggleSenha');
 toggleSenha.addEventListener('click', function () {
   const isPassword = senhaInput.type === 'password';
   senhaInput.type = isPassword ? 'text' : 'password';
-  toggleSenha.textContent = isPassword ? '👁‍🗨' : '👁';
+  toggleSenha.textContent = isPassword ? 'Ocultar' : 'Mostrar';
+  toggleSenha.setAttribute('aria-label', isPassword ? 'Ocultar senha' : 'Mostrar senha');
 });
 
 // ─── Keybindings (Enter) ────────────────────────────────────────────
