@@ -21,6 +21,6 @@ function copy(relative) {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.copyFileSync(source, target);
 }
-for (const relative of ['index.html','logo.png','CNAME','robots.txt','sitemap.xml','appbudfinance','budfinance','site-assets','servicos','sobre','produtos','contato']) copy(relative);
+for (const relative of ['index.html','logo.png','CNAME','robots.txt','sitemap.xml','appbudfinance','budfinance','budgestor','site-assets','servicos','sobre','produtos','contato']) copy(relative);
 fs.writeFileSync(path.join(output, '.nojekyll'), '');
 console.log('Public artifact ready: dist/site (frontend only).');

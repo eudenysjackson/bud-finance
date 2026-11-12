@@ -6,11 +6,11 @@ test('publication rejects private credentials and recovery copies without echoin
   assert.equal(inspect('appbudfinance/js/firebase-config.js',Buffer.from('apiKey: "AIza-public-client-config"')),null);
 });
 
-test('Finance release excludes deferred Gestor routes and preserves the current admin',()=>{
+test('Release includes the new Gestor login without restoring the archived admin integration',()=>{
  const fs=require('node:fs');const server=fs.readFileSync('backend/server.js','utf8');
- assert(!/createGestorAPI|ownerNotifications|\/api\/gestor\//.test(server));
+ assert(!/createGestorAPI|ownerNotifications/.test(server));
  assert(!fs.readFileSync('appbudfinance/admin.html','utf8').includes('/budgestor/'));
  assert(fs.readFileSync('appbudfinance/admin.html','utf8').includes('adminContent'));
  assert(!fs.readFileSync('appbudfinance/js/admin.js','utf8').includes('bud-gestor'));
- assert(!fs.readFileSync('scripts/package-release.js','utf8').includes("'budgestor'"));
+ assert(fs.readFileSync('scripts/package-release.js','utf8').includes("'budgestor'"));
 });
