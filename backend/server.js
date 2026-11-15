@@ -288,7 +288,7 @@ require('./gestor-access').registerGestorAccess(app, {
       });
       if (!response.ok) throw new Error('Consulta indisponível.');
       const data = await response.json();
-      return { status: data.status, nextCharge: data.next_payment_date };
+      return { status: data.status, createdAt: data.date_created, nextCharge: data.next_payment_date };
     }
   },
   sendEmail(params, template) {

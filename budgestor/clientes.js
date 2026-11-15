@@ -105,9 +105,14 @@ export function setupClients(request, syncSelects) {
   }
 
   function financeDetail(item, id) {
+    const overview = document.createElement('section');
+    overview.className = 'desk-profile-section';
+    const overviewTitle = document.createElement('h3');
+    overviewTitle.textContent = 'Dados do cliente';
     const facts = document.createElement('dl');
     for (const [label, value] of [
-      ['E-mail', item.email], ['Telefone', item.phone], ['Cadastro', formatDate(item.createdAt)],
+      ['Nome', item.name], ['E-mail', item.email], ['Telefone', item.phone],
+      ['WhatsApp', item.whatsapp || 'Não informado'], ['Cadastro', formatDate(item.createdAt)],
       ['Plano ativo', plans[item.plan]], ['Etapa', stages[item.stage]],
       ['E-mail verificado', item.support?.emailVerified === true ? 'Sim' : item.support?.emailVerified === false ? 'Pendente' : ''],
       ['Assinatura', ({ authorized: 'Ativa', active: 'Ativa', pending: 'Pendente', past_due: 'Em atraso', cancelled: 'Cancelada', paused: 'Pausada' })[item.subscription]],
@@ -120,6 +125,9 @@ export function setupClients(request, syncSelects) {
       description.textContent = value;
       facts.append(term, description);
     }
+    overview.append(overviewTitle, facts);
+    const history = document.createElement('section');
+    history.className = 'desk-profile-section';
     const heading = document.createElement('h3');
     heading.textContent = 'Histórico de planos';
     const timeline = document.createElement(item.history.length ? 'ol' : 'p');
@@ -131,11 +139,16 @@ export function setupClients(request, syncSelects) {
       li.textContent = [formatDate(event.at), reason, change].filter(Boolean).join(' · ');
       timeline.append(li);
     }
-    detail.replaceChildren(facts, heading, timeline);
+    const firstPayment = document.createElement('p');
+    firstPayment.textContent = item.firstPaymentAt
+      ? 'Primeiro pagamento registrado · ' + formatDate(item.firstPaymentAt)
+      : 'Sem primeiro pagamento registrado.';
+    history.append(heading, firstPayment, timeline);
+    detail.replaceChildren(overview, history);
     if (!item.support) return;
 
     const support = document.createElement('section');
-    support.className = 'desk-support';
+    support.className = 'desk-support desk-profile-section';
     const supportTitle = document.createElement('h3');
     supportTitle.textContent = 'Atendimento';
     const actions = document.createElement('div');
@@ -180,7 +193,10 @@ export function setupClients(request, syncSelects) {
     if (item.support.hasSubscription) actionButton('Consultar Mercado Pago', 'subscription', async action => {
       const result = await run(action);
       const state = ({ authorized: 'Ativa', pending: 'Pendente', cancelled: 'Cancelada', paused: 'Pausada' })[result.status] || 'Situação indisponível';
-      return 'Mercado Pago · ' + state + (result.nextCharge ? ' · Próxima cobrança ' + formatDate(result.nextCharge) : '');
+      return ['Mercado Pago', state,
+        result.createdAt && 'Assinatura criada em ' + formatDate(result.createdAt),
+        result.nextCharge && 'Próxima cobrança ' + formatDate(result.nextCharge)
+      ].filter(Boolean).join(' · ');
     });
 
     const label = document.createElement('label');
@@ -207,6 +223,7 @@ export function setupClients(request, syncSelects) {
     form.reset();
     syncSelects();
     dialog.classList.toggle('desk-dialog-wide', item?.source !== 'finance');
+    dialog.classList.toggle('desk-dialog-finance', item?.source === 'finance');
     title.textContent = item?.name || 'Novo cadastro';
     detail.replaceChildren();
     detail.hidden = true;

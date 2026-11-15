@@ -96,7 +96,12 @@ function registerGestorClients(app, { db, ownerOnly, auth, limit, clientSupport 
       }
       history.sort((a, b) => (b.at || '').localeCompare(a.at || ''));
       const profile = financeProfile(data);
-      if (!clientSupport) return res.json({ ...profile, history: history.slice(0, 50) });
+      const details = {
+        ...profile, whatsapp: text(data.whatsapp, 40),
+        firstPaymentAt: date(data.primeiraCobrancaPagaEm),
+        history: history.slice(0, 50)
+      };
+      if (!clientSupport) return res.json(details);
       const [notes, user] = await Promise.all([
         ref.collection('_gestor_support_notes').orderBy('at', 'desc').limit(30).get(),
         auth.getUser(id).catch(error => {
@@ -104,7 +109,7 @@ function registerGestorClients(app, { db, ownerOnly, auth, limit, clientSupport 
           throw error;
         })
       ]);
-      return res.json({ ...profile, history: history.slice(0, 50), support: {
+      return res.json({ ...details, support: {
         emailVerified: user ? user.emailVerified : null,
         canEmail: Boolean(user?.email && !user.disabled && !data.bloqueado),
         hasSubscription: Boolean(data.mpSubscriptionId),
