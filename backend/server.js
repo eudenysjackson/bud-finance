@@ -117,6 +117,7 @@ const app = express();
 app.disable('x-powered-by');
 app.use(privateHeaders);
 app.use('/api/financial/write', express.json({ limit: '2mb' }));
+app.use('/api/gestor/clients/finance/:id/support', express.json({ limit: '360kb' }));
 app.use(express.json({ limit: '200kb' })); // aumentado para suportar mensagens com extratos/planilhas do Assistente IA
 
 // A3 fix: CORS allowlist split por NODE_ENV (dev permite localhost; prod sÃ³ domÃ­nios pÃºblicos).
@@ -257,6 +258,7 @@ require('./gestor-access').registerGestorAccess(app, {
   emulator: process.env.BUD_USE_EMULATOR === 'true',
   limit: isRateLimited,
   clientSupport: {
+    applyReferral: applyFinanceReferral,
     async sendAccessEmail(user, action) {
       if (process.env.BUD_USE_EMULATOR === 'true') return;
       const verify = action === 'verify-email';
@@ -2394,9 +2396,13 @@ app.post('/api/indicacao/aplicar', async function (req, res) {
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_) { return res.status(401).json({ error: 'Sessão inválida.' }); }
-  var code = String(req.body.codigo || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32);
+  return applyFinanceReferral(decoded.uid, req.body?.codigo, res);
+});
+
+async function applyFinanceReferral(uid, input, res) {
+  var code = String(input || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32);
   if (!/^[A-Z0-9]{8}$/.test(code)) return res.status(400).json({ error: 'Informe um código de indicação válido com 8 caracteres.' });
-  var userRef = db.collection('usuarios').doc(decoded.uid);
+  var userRef = db.collection('usuarios').doc(uid);
   var userSnap = await userRef.get();
   if (!userSnap.exists) return res.status(404).json({ error: 'Cadastro não encontrado.' });
   var current = userSnap.data() || {};
@@ -2410,14 +2416,15 @@ app.post('/api/indicacao/aplicar', async function (req, res) {
   var refSnap = await db.collection('usuarios').where('codigoIndicacao', '==', code).limit(2).get();
   if (refSnap.size !== 1) return res.status(400).json({ error: 'Código não encontrado ou indisponível.' });
   var referrerDoc = refSnap.docs[0];
-  if (referrerDoc.id === decoded.uid) return res.status(400).json({ error: 'Você não pode usar o próprio código.' });
+  if (referrerDoc.id === uid) return res.status(400).json({ error: 'Você não pode usar o próprio código.' });
   var referrer = referrerDoc.data() || {};
-  var referralRef = referrerDoc.ref.collection('indicacoes').doc(decoded.uid);
+  var referralRef = referrerDoc.ref.collection('indicacoes').doc(uid);
   try {
     await db.runTransaction(async function (transaction) {
       var fresh = await transaction.get(userRef);
       if (!fresh.exists) throw Object.assign(new Error('Cadastro não encontrado.'), { status: 404 });
       var data = fresh.data() || {};
+      if (data._deletionPending || data.bloqueado) throw Object.assign(new Error('Cadastro indisponível.'), { status: 409 });
       if (data.indicadoPor) {
         if (String(data.indicadoPor.codigo || '').toUpperCase() !== code) throw Object.assign(new Error('Uma indicação já está vinculada a esta conta.'), { status: 409 });
         return;
@@ -2430,7 +2437,7 @@ app.post('/api/indicacao/aplicar', async function (req, res) {
         codigoIndicacaoAplicadoEm: admin.firestore.FieldValue.serverTimestamp()
       });
       transaction.set(referralRef, {
-        indicadoUid: decoded.uid,
+        indicadoUid: uid,
         data: admin.firestore.FieldValue.serverTimestamp(),
         assinouPlano: false
       }, { merge: true });
@@ -2439,7 +2446,7 @@ app.post('/api/indicacao/aplicar', async function (req, res) {
   } catch (error) {
     return res.status(error.status || 503).json({ error: error.message || 'Não foi possível aplicar o código.' });
   }
-});
+}
 
 app.post('/mercadopago/create-subscription', async function (req, res) {
   if (!MP_ACCESS_TOKEN) return res.status(503).json({ error: 'Pagamentos nÃ£o configurados.' });

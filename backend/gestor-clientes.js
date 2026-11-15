@@ -2,6 +2,7 @@ const { effectivePlan } = require('./plan-policy');
 
 const PAGE_SIZE = 40;
 const stages = new Set(['lead', 'quote', 'customer', 'inactive']);
+const attachmentTypes = new Set(['application/pdf', 'image/png', 'image/jpeg']);
 const text = (value, max = 180) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 const date = value => {
   const result = value?.toDate?.() || (value ? new Date(value) : null);
@@ -113,16 +114,38 @@ function registerGestorClients(app, { db, ownerOnly, auth, limit, clientSupport 
         emailVerified: user ? user.emailVerified : null,
         canEmail: Boolean(user?.email && !user.disabled && !data.bloqueado),
         hasSubscription: Boolean(data.mpSubscriptionId),
-        notes: notes.docs.map(note => ({ text: note.data().text, at: date(note.data().at) }))
+        canApplyReferral: Boolean(user?.emailVerified && !user.disabled && !data.bloqueado &&
+          !data.indicadoPor && !data.primeiraCobrancaPagaEm && !data.mpSubscriptionId && !data.mpCheckout),
+        accessBlocked: data.bloqueado === true,
+        canManageAccess: Boolean(user && id !== req.gestorOwner && !user.customClaims?.budGestorOwner &&
+          (!user.disabled || data.bloqueado === true)),
+        notes: notes.docs.map(note => ({
+          id: note.id, text: note.data().text, at: date(note.data().at),
+          attachmentName: note.data().attachment?.name || ''
+        }))
       } });
     } catch { return res.status(503).json({ error: 'Não foi possível abrir a ficha.' }); }
   });
 
   if (clientSupport) {
+    app.get('/api/gestor/clients/finance/:id/support/:noteId', ownerOnly, async (req, res) => {
+      const { id, noteId } = req.params;
+      if (!isId(id) || !isId(noteId)) return res.sendStatus(400);
+      try {
+        const ref = sourceRef('finance').doc(id);
+        const profile = (await ref.get()).data();
+        if (!profile || profile._deletionPending) return res.sendStatus(404);
+        const attachment = (await ref.collection('_gestor_support_notes').doc(noteId).get()).data()?.attachment;
+        if (!attachment || !attachmentTypes.has(attachment.type)) return res.sendStatus(404);
+        return res.json(attachment);
+      } catch {
+        return res.status(503).json({ error: 'Não foi possível baixar o anexo.' });
+      }
+    });
     app.post('/api/gestor/clients/finance/:id/support', ownerOnly, async (req, res) => {
       const { id } = req.params;
-      const { action, note } = req.body || {};
-      if (!isId(id) || !['note', 'verify-email', 'reset-password', 'subscription'].includes(action)) return res.sendStatus(400);
+      const { action, note, attachment, code, reason } = req.body || {};
+      if (!isId(id) || !['note', 'verify-email', 'reset-password', 'subscription', 'referral', 'block', 'unblock'].includes(action)) return res.sendStatus(400);
       if (limit('gestor:support:' + action + ':owner:' + req.gestorOwner) ||
           action !== 'note' && limit('gestor:support:' + action + ':' + id)) {
         return res.status(429).json({ error: 'Aguarde antes de repetir a ação.' });
@@ -134,22 +157,68 @@ function registerGestorClients(app, { db, ownerOnly, auth, limit, clientSupport 
         if (action === 'note') {
           const content = typeof note === 'string' ? note.trim() : '';
           if (!content || content.length > 2000) return res.status(400).json({ error: 'Informe uma nota de até 2.000 caracteres.' });
+          let file;
+          if (attachment) {
+            const name = text(attachment.name, 120);
+            const { data: encoded, type } = attachment;
+            if (!name || !attachmentTypes.has(type) || typeof encoded !== 'string' ||
+                encoded.length > 350000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) {
+              return res.status(400).json({ error: 'Use um PDF, PNG ou JPG de até 256 KB.' });
+            }
+            const bytes = Buffer.from(encoded, 'base64');
+            const signature = bytes.subarray(0, 8).toString('hex');
+            const prefixes = { 'application/pdf': '255044462d', 'image/png': '89504e470d0a1a0a', 'image/jpeg': 'ffd8ff' };
+            if (bytes.length > 262144 || bytes.toString('base64') !== encoded || !signature.startsWith(prefixes[type])) {
+              return res.status(400).json({ error: 'O conteúdo do anexo não corresponde ao formato informado.' });
+            }
+            file = { name, type, data: encoded };
+          }
           const at = new Date();
           const noteRef = ref.collection('_gestor_support_notes').doc();
           const saved = await db.runTransaction(async tx => {
             const current = await tx.get(ref);
             if (!current.exists || current.data()._deletionPending) return false;
-            tx.create(noteRef, { text: content, at, authorUid: req.gestorOwner });
+            tx.create(noteRef, { text: content, at, authorUid: req.gestorOwner, ...(file ? { attachment: file } : {}) });
             return true;
           });
           if (!saved) return res.sendStatus(404);
-          return res.status(201).json({ note: { text: content, at: at.toISOString() } });
+          return res.status(201).json({ note: { id: noteRef.id, text: content, at: at.toISOString(), attachmentName: file?.name || '' } });
         }
         if (action === 'subscription') {
           if (!data.mpSubscriptionId) return res.status(409).json({ error: 'Este cliente não tem assinatura vinculada.' });
           return res.json(await clientSupport.subscription(data.mpSubscriptionId));
         }
         const user = await auth.getUser(id);
+        if (action === 'block' || action === 'unblock') {
+          const blocked = action === 'block';
+          const explanation = typeof reason === 'string' ? reason.trim() : '';
+          if (explanation.length < 5 || explanation.length > 500) return res.status(400).json({ error: 'Informe um motivo de 5 a 500 caracteres.' });
+          if (id === req.gestorOwner || user.customClaims?.budGestorOwner ||
+              (user.disabled && !data.bloqueado)) {
+            return res.status(409).json({ error: 'O acesso desta conta não pode ser alterado pelo Gestor.' });
+          }
+          const at = new Date();
+          const entry = ref.collection('_gestor_support_notes').doc();
+          const content = (blocked ? 'Acesso bloqueado' : 'Acesso desbloqueado') + ' · ' + explanation;
+          if (!blocked) await auth.updateUser(id, { disabled: false });
+          const profileChanged = await db.runTransaction(async tx => {
+            const current = await tx.get(ref);
+            if (!current.exists || current.data()._deletionPending) return false;
+            tx.update(ref, { bloqueado: blocked });
+            tx.create(entry, { text: content, at, authorUid: req.gestorOwner });
+            return true;
+          });
+          if (!profileChanged) return res.sendStatus(404);
+          if (blocked) {
+            await auth.updateUser(id, { disabled: true });
+            await auth.revokeRefreshTokens(id);
+          }
+          return res.json({ blocked, note: { id: entry.id, text: content, at: at.toISOString() } });
+        }
+        if (action === 'referral') {
+          if (!user.emailVerified || user.disabled || data.bloqueado) return res.status(409).json({ error: 'A indicação exige uma conta ativa com e-mail confirmado.' });
+          return await clientSupport.applyReferral(id, code, res);
+        }
         if (!user.email || user.disabled || data.bloqueado || (action === 'verify-email' && user.emailVerified)) {
           return res.status(409).json({ error: 'Este envio não está disponível para a conta.' });
         }

@@ -154,10 +154,32 @@ export function setupClients(request, syncSelects) {
     const actions = document.createElement('div');
     const status = document.createElement('p');
     status.setAttribute('role', 'status');
+    const supportPath = `clients/finance/${encodeURIComponent(id)}/support`;
     const notes = document.createElement('ul');
     const addNote = note => {
       const entry = document.createElement('li');
       entry.textContent = formatDate(note.at) + ' · ' + note.text;
+      if (note.attachmentName) {
+        const download = document.createElement('button');
+        download.type = 'button';
+        download.className = 'desk-secondary';
+        download.textContent = 'Baixar ' + note.attachmentName;
+        download.addEventListener('click', async () => {
+          download.disabled = true;
+          try {
+            const file = await request(supportPath + '/' + encodeURIComponent(note.id));
+            const bytes = Uint8Array.from(atob(file.data), character => character.charCodeAt(0));
+            const url = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = file.name;
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          } catch (error) { status.textContent = error.message; }
+          finally { download.disabled = false; }
+        });
+        entry.append(' ', download);
+      }
       notes.prepend(entry);
     };
     [...item.support.notes].reverse().forEach(addNote);
@@ -171,7 +193,7 @@ export function setupClients(request, syncSelects) {
         button.disabled = true;
         status.textContent = 'Processando…';
         try {
-          const result = await perform(action);
+          const result = await perform(action, button);
           status.textContent = result;
         } catch (error) { status.textContent = error.message; }
         finally { button.disabled = false; }
@@ -179,8 +201,7 @@ export function setupClients(request, syncSelects) {
       actions.append(button);
     }
 
-    const run = (action, note) => request(`clients/finance/${encodeURIComponent(id)}/support`,
-      { method: 'POST', data: { action, note } });
+    const run = (action, values) => request(supportPath, { method: 'POST', data: { action, ...values } });
     const send = label => async action => {
       if (!window.confirm(label + ' para o endereço cadastrado deste cliente?')) return '';
       await run(action);
@@ -205,15 +226,69 @@ export function setupClients(request, syncSelects) {
     input.maxLength = 2000;
     input.rows = 3;
     label.append(input);
+    const fileLabel = document.createElement('label');
+    fileLabel.textContent = 'Anexo opcional · PDF, PNG ou JPG de até 256 KB';
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'application/pdf,image/png,image/jpeg';
+    fileLabel.append(fileInput);
     actionButton('Salvar nota', 'note', async action => {
       const note = input.value.trim();
       if (!note) throw new Error('Escreva uma nota antes de salvar.');
-      const response = await run(action, note);
+      const file = fileInput.files[0];
+      if (file && file.size > 262144) throw new Error('O anexo pode ter até 256 KB.');
+      const attachment = file ? await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ name: file.name, type: file.type, data: reader.result.split(',')[1] });
+        reader.onerror = () => reject(new Error('Não foi possível ler o anexo.'));
+        reader.readAsDataURL(file);
+      }) : undefined;
+      const response = await run(action, { note, attachment });
       addNote(response.note);
       if (input.value.trim() === note) input.value = '';
+      if (fileInput.files[0] === file) fileInput.value = '';
       return 'Nota salva.';
     });
-    support.append(supportTitle, label, actions, status, notes);
+    support.append(supportTitle, label, fileLabel, actions, status, notes);
+    if (item.support.canApplyReferral) {
+      const referralLabel = document.createElement('label');
+      referralLabel.textContent = 'Código de indicação';
+      const code = document.createElement('input');
+      code.maxLength = 8;
+      code.autocapitalize = 'characters';
+      referralLabel.append(code);
+      support.insertBefore(referralLabel, actions);
+      actionButton('Aplicar indicação', 'referral', async (action, button) => {
+        if (!/^[A-Za-z0-9]{8}$/.test(code.value.trim())) throw new Error('Informe o código de oito caracteres.');
+        await run(action, { code: code.value.trim() });
+        referralLabel.remove();
+        button.remove();
+        return 'Indicação registrada. O desconto segue as regras do Finance.';
+      });
+    }
+    if (item.support.canManageAccess) {
+      const accessLabel = document.createElement('label');
+      accessLabel.textContent = 'Motivo da alteração de acesso';
+      const reason = document.createElement('input');
+      reason.maxLength = 500;
+      accessLabel.append(reason);
+      support.insertBefore(accessLabel, actions);
+      const accessText = document.createElement('p');
+      accessText.textContent = 'O bloqueio afeta o acesso. A assinatura e suas cobranças são gerenciadas separadamente.';
+      support.insertBefore(accessText, actions);
+      const labelFor = blocked => blocked ? 'Desbloquear acesso' : 'Bloquear acesso';
+      actionButton(labelFor(item.support.accessBlocked), 'access', async (_, button) => {
+        if (reason.value.trim().length < 5) throw new Error('Informe um motivo de pelo menos cinco caracteres.');
+        const action = item.support.accessBlocked ? 'unblock' : 'block';
+        if (!window.confirm(labelFor(item.support.accessBlocked) + ' deste cliente?')) return '';
+        const result = await run(action, { reason: reason.value.trim() });
+        item.support.accessBlocked = result.blocked;
+        addNote(result.note);
+        reason.value = '';
+        button.textContent = labelFor(result.blocked);
+        return result.blocked ? 'Acesso bloqueado.' : 'Acesso desbloqueado.';
+      });
+    }
     detail.append(support);
   }
 
