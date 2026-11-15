@@ -92,14 +92,44 @@
     <header class="desk-header">
       <div class="desk-brand"><img src="../logo.png" width="42" height="42" alt=""><span>Bud <strong>Gestor</strong></span></div>
       <nav class="desk-nav" aria-label="Áreas do Gestor">
-        <a href="#clients-title" aria-current="page">
+        <a href="#overview" data-desk-link="overview" hidden>Visão Geral</a>
+        <a href="#clients-title" data-desk-link="clients" aria-current="page">
           <span class="desk-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2m1-15a3 3 0 0 1 0 6m5 9v-2a4 4 0 0 0-3-3.9"/></svg></span>
           Clientes
         </a>
+        <a href="#sales" data-desk-link="sales" hidden>Vendas</a>
+        <a href="#finance" data-desk-link="finance" hidden>Financeiro</a>
       </nav>
       <button id="open-owner" class="desk-secondary" type="button">Minha conta</button>
     </header>
     <div class="desk-content">
+      <section id="overview" data-desk-view="overview" hidden>
+        <div class="desk-page-heading"><h1 tabindex="-1">Visão Geral</h1><span>Dados de demonstração</span></div>
+        <div id="overview-metrics" class="desk-metrics"></div>
+        <section class="desk-panel desk-dashboard-panel">
+          <h2>O que pede atenção</h2>
+          <div id="overview-attention" class="desk-dashboard-list"></div>
+        </section>
+      </section>
+      <section id="sales" data-desk-view="sales" hidden>
+        <div class="desk-page-heading"><h1 tabindex="-1">Vendas</h1><span>Dados de demonstração</span></div>
+        <div id="sales-metrics" class="desk-metrics"></div>
+        <section class="desk-panel desk-dashboard-panel">
+          <h2>Clientes por situação</h2>
+          <div id="sales-filters" class="desk-dashboard-filters" aria-label="Filtrar por situação"></div>
+          <p id="sales-count" role="status"></p>
+          <div id="sales-list" class="desk-dashboard-list"></div>
+        </section>
+      </section>
+      <section id="finance" data-desk-view="finance" hidden>
+        <div class="desk-page-heading"><h1 tabindex="-1">Financeiro da Empresa</h1><span>Dados de demonstração</span></div>
+        <div id="finance-metrics" class="desk-metrics"></div>
+        <section class="desk-panel desk-dashboard-panel">
+          <h2>Entradas e despesas do mês</h2>
+          <div id="finance-list" class="desk-dashboard-list"></div>
+        </section>
+      </section>
+      <section id="desk-clients" data-desk-view="clients">
       <h1 id="clients-title" class="desk-visually-hidden" tabindex="-1">Clientes</h1>
       <section class="desk-panel" aria-labelledby="clients-title">
         <div class="desk-filters">
@@ -117,6 +147,7 @@
           </table>
         </div>
         <button id="clients-more" class="desk-secondary" type="button" hidden>Carregar mais</button>
+      </section>
       </section>
     </div>
     <dialog id="owner-dialog" class="desk-dialog" aria-label="Minha conta">

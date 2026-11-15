@@ -6,6 +6,7 @@ import {
 import './config.js';
 import { setupClients } from './clientes.js?v=20261112-sidebar';
 import { setupSelects } from './selects.js?v=20261112-sidebar';
+import { setupDeskDemo } from './desk-demo.js';
 
 const local = ['localhost', '127.0.0.1'].includes(location.hostname);
 const config = local ? { ...window.BUD_GESTOR_FIREBASE_CONFIG, projectId: 'bud-finance-local' }
@@ -27,6 +28,7 @@ const ownerView = document.querySelector('#owner');
 ownerDialog.append(ownerView);
 document.querySelector('#open-owner').addEventListener('click', () => ownerDialog.showModal());
 const syncSelects = setupSelects(desk);
+const deskDemo = local ? setupDeskDemo(desk) : null;
 const clients = setupClients(async (path, { method = 'GET', data } = {}) => {
   const token = await auth.currentUser.getIdToken();
   const headers = { Authorization: 'Bearer ' + token };
@@ -54,7 +56,10 @@ function show(view, focus = true) {
   loginLayout.hidden = workspace;
   desk.hidden = !workspace;
   (workspace ? ownerDialog : loginCard).append(feedback);
-  if (workspace) clients.start();
+  if (workspace) {
+    deskDemo?.show('overview');
+    clients.start();
+  }
   else {
     if (ownerDialog.open) ownerDialog.close();
     clients.reset();
