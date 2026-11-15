@@ -256,6 +256,41 @@ require('./gestor-access').registerGestorAccess(app, {
   auth,
   emulator: process.env.BUD_USE_EMULATOR === 'true',
   limit: isRateLimited,
+  clientSupport: {
+    async sendAccessEmail(user, action) {
+      if (process.env.BUD_USE_EMULATOR === 'true') return;
+      const verify = action === 'verify-email';
+      const link = verify ? await auth.generateEmailVerificationLink(user.email)
+        : await auth.generatePasswordResetLink(user.email);
+      const code = new URL(link).searchParams.get('oobCode');
+      if (!code) throw new Error('Link de acesso indisponível.');
+      const mode = verify ? 'verifyEmail' : 'resetPassword';
+      const title = verify ? 'Confirme seu e-mail' : 'Redefina sua senha';
+      const actionUrl = FRONTEND_URL.replace(/\/$/, '') + '/acao-auth.html?mode=' + mode + '&oobCode=' + encodeURIComponent(code);
+      await sendCommunicationEmail({
+        to_email: user.email,
+        to_name: sanitizeStr(user.displayName || 'Cliente Bud Finance'),
+        email_subject: '[Bud Finance] ' + title,
+        email_title: title,
+        email_preheader: 'Solicitação de atendimento do Bud Finance',
+        email_body: 'Use o botão abaixo para concluir a solicitação de atendimento.',
+        action_label: title,
+        action_url: actionUrl,
+        reset_url: actionUrl
+      });
+    },
+    async subscription(id) {
+      if (process.env.BUD_USE_EMULATOR === 'true') return { status: 'authorized' };
+      if (!MP_ACCESS_TOKEN) throw new Error('Mercado Pago indisponível.');
+      const response = await fetch('https://api.mercadopago.com/preapproval/' + encodeURIComponent(id), {
+        headers: { Authorization: 'Bearer ' + MP_ACCESS_TOKEN },
+        signal: AbortSignal.timeout(8000)
+      });
+      if (!response.ok) throw new Error('Consulta indisponível.');
+      const data = await response.json();
+      return { status: data.status, nextCharge: data.next_payment_date };
+    }
+  },
   sendEmail(params, template) {
     const gestorParams = { app_name: 'Bud Gestor', app_url: 'https://budsolucoes.com.br/budgestor/', ...params };
     if (!template && !EMAILJS_TEMPLATE_COMUNICACAO) throw new Error('Template Bud Gestor não configurado');

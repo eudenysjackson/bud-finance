@@ -8,7 +8,7 @@ const digest = value => createHash('sha256').update(value).digest('hex');
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const day = 24 * 60 * 60 * 1000;
 
-function registerGestorAccess(app, { db, auth, emulator, sendEmail, limit }) {
+function registerGestorAccess(app, { db, auth, emulator, sendEmail, limit, clientSupport }) {
   const requests = () => db.collection('_gestor_access_requests');
   const ownerRef = () => db.doc('_gestor_private/owner');
   const cpfSecret = process.env.GESTOR_CPF_SECRET || (emulator ? 'gestor-local-cpf-only' : '');
@@ -51,7 +51,7 @@ function registerGestorAccess(app, { db, auth, emulator, sendEmail, limit }) {
     next();
   }
 
-  registerGestorClients(app, { db, ownerOnly: [ownerOnly, async (req, res, next) => {
+  registerGestorClients(app, { db, auth, limit, clientSupport, ownerOnly: [ownerOnly, async (req, res, next) => {
     try {
       const profile = (await ownerRef().get()).data();
       if (profile?.uid !== req.gestorOwner) return res.sendStatus(403);

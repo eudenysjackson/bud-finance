@@ -41,7 +41,7 @@ function manualProfile(data) {
   return profile;
 }
 
-function registerGestorClients(app, { db, ownerOnly }) {
+function registerGestorClients(app, { db, ownerOnly, auth, limit, clientSupport }) {
   const sources = { finance: 'usuarios', manual: '_gestor_clients' };
   const sourceRef = source => db.collection(sources[source]);
   const isId = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
@@ -95,9 +95,66 @@ function registerGestorClients(app, { db, ownerOnly }) {
         history.push({ to: 'free', status: 'cancelled', at: cancelledAt });
       }
       history.sort((a, b) => (b.at || '').localeCompare(a.at || ''));
-      return res.json({ ...financeProfile(data), history: history.slice(0, 50) });
+      const profile = financeProfile(data);
+      if (!clientSupport) return res.json({ ...profile, history: history.slice(0, 50) });
+      const [notes, user] = await Promise.all([
+        ref.collection('_gestor_support_notes').orderBy('at', 'desc').limit(30).get(),
+        auth.getUser(id).catch(error => {
+          if (error.code === 'auth/user-not-found') return null;
+          throw error;
+        })
+      ]);
+      return res.json({ ...profile, history: history.slice(0, 50), support: {
+        emailVerified: user ? user.emailVerified : null,
+        canEmail: Boolean(user?.email && !user.disabled && !data.bloqueado),
+        hasSubscription: Boolean(data.mpSubscriptionId),
+        notes: notes.docs.map(note => ({ text: note.data().text, at: date(note.data().at) }))
+      } });
     } catch { return res.status(503).json({ error: 'Não foi possível abrir a ficha.' }); }
   });
+
+  if (clientSupport) {
+    app.post('/api/gestor/clients/finance/:id/support', ownerOnly, async (req, res) => {
+      const { id } = req.params;
+      const { action, note } = req.body || {};
+      if (!isId(id) || !['note', 'verify-email', 'reset-password', 'subscription'].includes(action)) return res.sendStatus(400);
+      if (limit('gestor:support:' + action + ':owner:' + req.gestorOwner) ||
+          action !== 'note' && limit('gestor:support:' + action + ':' + id)) {
+        return res.status(429).json({ error: 'Aguarde antes de repetir a ação.' });
+      }
+      try {
+        const ref = sourceRef('finance').doc(id);
+        const data = (await ref.get()).data();
+        if (!data || data._deletionPending) return res.sendStatus(404);
+        if (action === 'note') {
+          const content = typeof note === 'string' ? note.trim() : '';
+          if (!content || content.length > 2000) return res.status(400).json({ error: 'Informe uma nota de até 2.000 caracteres.' });
+          const at = new Date();
+          const noteRef = ref.collection('_gestor_support_notes').doc();
+          const saved = await db.runTransaction(async tx => {
+            const current = await tx.get(ref);
+            if (!current.exists || current.data()._deletionPending) return false;
+            tx.create(noteRef, { text: content, at, authorUid: req.gestorOwner });
+            return true;
+          });
+          if (!saved) return res.sendStatus(404);
+          return res.status(201).json({ note: { text: content, at: at.toISOString() } });
+        }
+        if (action === 'subscription') {
+          if (!data.mpSubscriptionId) return res.status(409).json({ error: 'Este cliente não tem assinatura vinculada.' });
+          return res.json(await clientSupport.subscription(data.mpSubscriptionId));
+        }
+        const user = await auth.getUser(id);
+        if (!user.email || user.disabled || data.bloqueado || (action === 'verify-email' && user.emailVerified)) {
+          return res.status(409).json({ error: 'Este envio não está disponível para a conta.' });
+        }
+        await clientSupport.sendAccessEmail(user, action);
+        return res.json({ ok: true });
+      } catch {
+        return res.status(503).json({ error: 'Não foi possível concluir a ação de atendimento.' });
+      }
+    });
+  }
 
   async function saveManual(req, res) {
     const id = req.params.id;

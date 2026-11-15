@@ -104,11 +104,12 @@ export function setupClients(request, syncSelects) {
     }
   }
 
-  function financeDetail(item) {
+  function financeDetail(item, id) {
     const facts = document.createElement('dl');
     for (const [label, value] of [
       ['E-mail', item.email], ['Telefone', item.phone], ['Cadastro', formatDate(item.createdAt)],
       ['Plano ativo', plans[item.plan]], ['Etapa', stages[item.stage]],
+      ['E-mail verificado', item.support?.emailVerified === true ? 'Sim' : item.support?.emailVerified === false ? 'Pendente' : ''],
       ['Assinatura', ({ authorized: 'Ativa', active: 'Ativa', pending: 'Pendente', past_due: 'Em atraso', cancelled: 'Cancelada', paused: 'Pausada' })[item.subscription]],
       ['Próximo plano', item.scheduledPlan && plans[item.scheduledPlan] + ' · ' + formatDate(item.scheduledAt)]
     ]) {
@@ -131,6 +132,73 @@ export function setupClients(request, syncSelects) {
       timeline.append(li);
     }
     detail.replaceChildren(facts, heading, timeline);
+    if (!item.support) return;
+
+    const support = document.createElement('section');
+    support.className = 'desk-support';
+    const supportTitle = document.createElement('h3');
+    supportTitle.textContent = 'Atendimento';
+    const actions = document.createElement('div');
+    const status = document.createElement('p');
+    status.setAttribute('role', 'status');
+    const notes = document.createElement('ul');
+    const addNote = note => {
+      const entry = document.createElement('li');
+      entry.textContent = formatDate(note.at) + ' · ' + note.text;
+      notes.prepend(entry);
+    };
+    [...item.support.notes].reverse().forEach(addNote);
+
+    function actionButton(label, action, perform) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'desk-secondary';
+      button.textContent = label;
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        status.textContent = 'Processando…';
+        try {
+          const result = await perform(action);
+          status.textContent = result;
+        } catch (error) { status.textContent = error.message; }
+        finally { button.disabled = false; }
+      });
+      actions.append(button);
+    }
+
+    const run = (action, note) => request(`clients/finance/${encodeURIComponent(id)}/support`,
+      { method: 'POST', data: { action, note } });
+    const send = label => async action => {
+      if (!window.confirm(label + ' para o endereço cadastrado deste cliente?')) return '';
+      await run(action);
+      return 'Solicitação de envio aceita.';
+    };
+    if (item.support.canEmail && !item.support.emailVerified) {
+      actionButton('Reenviar verificação', 'verify-email', send('Reenviar verificação'));
+    }
+    if (item.support.canEmail) actionButton('Enviar recuperação', 'reset-password', send('Enviar recuperação'));
+    if (item.support.hasSubscription) actionButton('Consultar Mercado Pago', 'subscription', async action => {
+      const result = await run(action);
+      const state = ({ authorized: 'Ativa', pending: 'Pendente', cancelled: 'Cancelada', paused: 'Pausada' })[result.status] || 'Situação indisponível';
+      return 'Mercado Pago · ' + state + (result.nextCharge ? ' · Próxima cobrança ' + formatDate(result.nextCharge) : '');
+    });
+
+    const label = document.createElement('label');
+    label.textContent = 'Nota interna de atendimento';
+    const input = document.createElement('textarea');
+    input.maxLength = 2000;
+    input.rows = 3;
+    label.append(input);
+    actionButton('Salvar nota', 'note', async action => {
+      const note = input.value.trim();
+      if (!note) throw new Error('Escreva uma nota antes de salvar.');
+      const response = await run(action, note);
+      addNote(response.note);
+      if (input.value.trim() === note) input.value = '';
+      return 'Nota salva.';
+    });
+    support.append(supportTitle, label, actions, status, notes);
+    detail.append(support);
   }
 
   async function openClient(item) {
@@ -150,7 +218,7 @@ export function setupClients(request, syncSelects) {
       const data = await request(`clients/${item.source}/${encodeURIComponent(item.id)}`);
       if (current !== revision || !dialog.open) return;
       if (item.source === 'finance') {
-        financeDetail(data);
+        financeDetail(data, item.id);
         detail.hidden = false;
       } else {
         for (const field of form.elements) {
