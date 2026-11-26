@@ -503,7 +503,7 @@
       var members = [];
       var sib = label.nextElementSibling;
       while (sib && !sib.classList.contains('sidebar-group-label')) {
-        // Stop at the final divider that precedes Configurações (if present after Bud Plus group)
+        // Stop at the final divider that precedes Configurações (if present after Bud Pró group)
         members.push(sib);
         sib = sib.nextElementSibling;
       }
@@ -596,8 +596,8 @@
     free:    'Free',
     trial:   'Trial',
     starter: 'Starter',
-    plus:    'Plus',
-    pro:     'Pro',
+    plus:    'Pró',
+    pro:     'Plus',
   };
 
   // ─── Push permission popup ───────────────────────────────────────────────

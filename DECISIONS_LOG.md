@@ -929,3 +929,5 @@ Validação:175 testes de release aprovados; redução de184 corresponde aos10 t
 09/11/2026: pendências financeiras de recorrências voltam à Dashboard por solicitação expressa. Recebimento exige confirmação do valor/data/conta e gravação atômica de saldo e extrato, sem pagamento automático de dívidas.
 
 10/11/2026: benefícios têm saldo próprio em Contas, sem fatura/limite de crédito. Conversão exige saldo real informado; limite não vira saldo. Conciliação explícita evita recarga duplicada e mantém cota vigente de contas.
+
+26/11/2026: renomeação comercial preserva identificadores permanentes. plus passa a exibir Pró; pro passa a exibir Plus. Sem migração de campos de plano, alteração de preços, cotas ou assinaturas. Ver PLANOS_ATUAIS.md.

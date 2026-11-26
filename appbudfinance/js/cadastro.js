@@ -272,7 +272,7 @@ form.addEventListener('submit', async function (e) {
     // 10. Write user doc
     await setDoc(doc(db, 'usuarios', user.uid), docData);
 
-    // 10b. Ativar trial Plus de 3 dias (fire-and-forget — não bloqueia cadastro)
+    // 10b. Ativar trial Pró de 3 dias (fire-and-forget — não bloqueia cadastro)
     user.getIdToken().then(function (token) {
       return fetch(
         (window.BUD_FUNCTIONS_URL || 'https://bud-finance-backend.onrender.com') + '/api/iniciar-trial',
@@ -321,7 +321,7 @@ form.addEventListener('submit', async function (e) {
       var _params = new URLSearchParams(window.location.search);
       var _plano = (_params.get('plano') || '').toLowerCase().trim();
       var _ref = _params.get('ref') || '';
-      var _labels = { starter: 'Starter — R$ 9,99/mês', pro: 'Pro — R$ 29,90/mês', plus: 'Plus — R$ 49,90/mês' };
+      var _labels = { starter: 'Starter — R$ 9,99/mês', pro: 'Plus — R$ 29,90/mês', plus: 'Pró — R$ 49,90/mês' };
       if (!_labels[_plano]) return;
 
       var offer = document.getElementById('checkoutOffer');
@@ -330,7 +330,7 @@ form.addEventListener('submit', async function (e) {
       var btnLogin = document.getElementById('btnLoginNormal');
       if (!offer || !planLbl || !btnNow) return;
 
-      planLbl.textContent = _plano.charAt(0).toUpperCase() + _plano.slice(1);
+      planLbl.textContent = window.BUD_PLAN_LABELS[_plano];
       btnNow.textContent = 'Assinar ' + _labels[_plano];
 
       var loginUrl = 'index.html?checkout=' + encodeURIComponent(_plano);

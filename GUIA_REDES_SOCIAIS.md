@@ -1,4 +1,6 @@
 # 📲 Guia de Redes Sociais — Bud Finance
+
+> Atualização de nomes — 26/11/2026: Plus agora é Pró (R$ 49,90/mês, ilimitado); Pro agora é Plus (R$ 29,90/mês, 2 contas, 2 cartões, 15 lançamentos, 5 importações e 5 usos de IA por mês). O trial de três dias equivale ao Pró. Preços e recursos permanecem iguais. Consulte [PLANOS_ATUAIS.md](PLANOS_ATUAIS.md); referências antigas neste documento são históricas e não devem orientar novas peças.
 ### Manual de Postagens por Funcionalidade
 
 **Versão**: 1.0 — 31/05/2026  

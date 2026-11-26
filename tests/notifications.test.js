@@ -43,12 +43,12 @@ test('debt reminder uses next unpaid installment and clamps short months without
 
 test('renewal notices show the exact billing date and do not claim automatic renewal without a subscription',()=>{
  const profile={plano:'pro',assinaturaStatus:'authorized',mpSubscriptionId:'fictitious',planoExpira:'2026-11-03T15:00:00Z'};
- const notice=subscriptionNotice(profile,new Date('2026-10-31T18:00:00Z'));assert.match(notice.message,/Renovação do plano Pro/);assert.match(notice.message,/Próxima cobrança: 03\/11\/2026/);
+ const notice=subscriptionNotice(profile,new Date('2026-10-31T18:00:00Z'));assert.match(notice.message,/Renovação do plano Plus/);assert.match(notice.message,/Próxima cobrança: 03\/11\/2026/);
  const push=subscriptionPushNotices(profile,'2026-10-31');assert.equal(push.length,1);assert.match(push[0].body,/Próxima cobrança: 03\/11\/2026/);
  assert.equal(subscriptionPushNotices({...profile,planoExpira:'2026-12-03T15:00:00Z'},'2026-10-31').length,0);
  assert.equal(subscriptionPushNotices({...profile,assinaturaStatus:'cancelled'},'2026-10-31').length,0);
  assert.match(subscriptionPushNotices({...profile,mpSubscriptionId:null},'2026-10-31')[0].title,/Vencimento/);
- assert.match(subscriptionPushNotices({...profile,planoTroca:{status:'scheduled',planKey:'plus'}},'2026-10-31')[0].title,/Plus/);
+ assert.match(subscriptionPushNotices({...profile,planoTroca:{status:'scheduled',planKey:'plus'}},'2026-10-31')[0].title,/Pró/);
 });
 
 test('overdue financial push is sent one day late and then weekly until confirmation', () => {

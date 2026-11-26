@@ -514,7 +514,7 @@ function renderContas() {
       [btnEdit,btnImport,btnConfirm,btnTransf].filter(Boolean).forEach(el => { el.disabled=true; el.title='Conta bloqueada pelo limite do plano. Seus dados foram preservados.'; });
       if (btnEdit) btnEdit.insertAdjacentHTML('beforebegin','<p style="color:#64748b;font-size:12px">🔒 Bloqueada pelo plano</p>');
     }
-    if (window.BudPlanos.getMonthlyImportLimit(userData) === 0 && btnImport) { btnImport.disabled=true; btnImport.title='Importações disponíveis no Pro e Plus'; }
+    if (window.BudPlanos.getMonthlyImportLimit(userData) === 0 && btnImport) { btnImport.disabled=true; btnImport.title='Importações disponíveis no Plus e Pró'; }
     if (btnEdit)    btnEdit.addEventListener('click', () => abrirModalConta(conta.id));
     if (btnImport)  btnImport.addEventListener('click', () => abrirModalImport(conta.id));
     if (btnDel)     btnDel.addEventListener('click', () => abrirModalExcluir(conta.id));
