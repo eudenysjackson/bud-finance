@@ -724,3 +724,6 @@ PEND-MKT-NOVOS-PRECOS: HTML/texto e único teste ao titular preparados/enviados 
 
 
 27/11/2026 — PEND-MKT-NOVOS-PRECOS: V3 preparada,224 testes e pacote/scanner aprovados. Supressão/descadastro validados localmente; produção depende de autorização/publicação coordenada. Rodapé simplificado/WhatsApp e melhorias de entrada checkout prontas. Sem envio V3/campanha. QA mobile desta revisão não confirmado. Ler RELEASE_EMAIL_CHECKOUT_PREFERENCIAS_2026-11-27.md.
+
+
+27/11/2026 — Checkout ainda lento no vídeo: entrada mínima preparada na branch codex/checkout-direto-leve-20261127,235 testes/pacote/scanner aprovados. Vídeo era versão pública antiga; app/backend candidatos não publicados. Nova assinar.html/js e compatibilidade de links antigos aguardam autorização de implantação coordenada. Sem novo e-mail/campanha/checkout real. Ver RELEASE_CHECKOUT_DIRETO_2026-11-27.md.

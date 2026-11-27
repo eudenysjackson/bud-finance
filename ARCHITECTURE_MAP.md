@@ -814,3 +814,6 @@ Conferência UI local abriu Alelo→Editar→benefício e quatro opções; não 
 
 
 27/11/2026 — Candidata não publicada: checkout-entry.js controla restauração antes do formulário e GET ping opcional. Security-guard paraleliza bloqueios; create-subscription reutiliza req.budUser verificado. marketing-preferences.js registra POST /api/marketing/unsubscribe e prepare/render; preferencias-email.html/js usa fragmento/POST sem SDK/telemetria. Coleção privada _marketing_suppressions hash/estado/data, sem regras/índices novos. EmailJS verifica supressão para email_category=marketing; transacionais preservados. Módulo incluído no manifesto de equivalência backend. Ver release27/11 para implantação coordenada e limites.
+
+
+27/11/2026 — Candidata não publicada: assinar.html/js é entrada mínima App/Auth+checkout-client. checkout-entry.js encaminha URLs legadas em hosts oficiais antes do app-shell; entrar=1 mantém login. Backend create-subscription reforça e-mail verificado/bloqueio/identidade de perfil. checkout-client propaga status/code. Novos cards usam rota dedicada; IDs de planos preservados. Ver release direto para235 testes, demonstração e limites; publicar junto da preferência de marketing anterior.

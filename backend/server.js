@@ -2449,6 +2449,9 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
   catch (_) { return res.status(503).json({ error: 'Não foi possível consultar o cadastro para iniciar a assinatura.' }); }
   if (!userSnap.exists) return res.status(503).json({ error: 'Não foi possível consultar o cadastro para iniciar a assinatura.' });
   var userProfile = userSnap.data() || {};
+  // The lightweight entry has no Firestore client. Enforce account eligibility here.
+  if (decoded.email_verified !== true) return res.status(403).json({error:'Confirme seu e-mail antes de contratar um plano.',code:'EMAIL_VERIFICATION_REQUIRED'});
+  if (userProfile.bloqueado === true || (userProfile.email && String(userProfile.email).trim().toLowerCase() !== String(email).trim().toLowerCase())) return res.status(403).json({error:'Não foi possível autorizar a contratação nesta conta.',code:'ACCOUNT_UNAVAILABLE'});
   var explicitRef = req.body.ref ? String(req.body.ref).trim() : '';
   var rawRef = explicitRef || String(userProfile.indicadoPor && userProfile.indicadoPor.codigo || '');
   var refCode = rawRef ? rawRef.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8) : null;

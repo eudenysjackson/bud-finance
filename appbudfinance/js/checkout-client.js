@@ -10,7 +10,7 @@ export async function openAuthenticatedCheckout(user,planKey,{fetchImpl=fetch,ba
  try {
  const token=await user.getIdToken();
  const response=await fetchImpl(base.replace(/\/$/,'')+'/mercadopago/create-subscription',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({planKey,...(refCode?{ref:refCode}: {})}),signal:controller.signal});
- const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível abrir o checkout. Tente novamente.');
+ const data=await response.json().catch(()=>({}));if(!response.ok)throw Object.assign(Error(data.error||'Não foi possível abrir o checkout. Tente novamente.'),{status:response.status,code:data.code});
  const target=validCheckoutURL(data.init_point);navigate(target);return data;
  } finally {clearTimeout(timer);}
 }

@@ -49,6 +49,11 @@ onAuthStateChanged(auth, async function (user) {
     _loginInProgress = true;
     if (await continuarEmail(user, params)) return;
   }
+  if (['starter','pro','plus'].includes(plan) && user.emailVerified === false) {
+    window.BudCheckoutEntry?.showLogin();
+    window.budShowToast?.('Entre para confirmar seu e-mail e continuar a contratação.','warning');
+    return;
+  }
   if(['starter','pro','plus'].includes(plan)){
     _loginInProgress=true;
     if(window.BUD_USE_EMULATOR){abrirCheckoutTesteLocal(user,plan);return;}

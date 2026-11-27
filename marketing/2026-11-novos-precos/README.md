@@ -8,7 +8,7 @@ O pedido inicial mencionou Black Friday, mas a decisão final foi **divulgar som
 
 - Assunto: **Os preços baixaram. Sua organização pode ir além.**
 - Preheader: Starter R$4,99 · Plus R$14,99 · Pro R$29,99 por mês. Conheça os novos valores do Bud Finance.
-- CTAs atuais por card: Starter → https://budsolucoes.com.br/appbudfinance/?checkout=starter; Plus → https://budsolucoes.com.br/appbudfinance/?checkout=pro; Pro → https://budsolucoes.com.br/appbudfinance/?checkout=plus
+- CTAs atuais por card: Starter → https://budsolucoes.com.br/appbudfinance/assinar.html?checkout=starter; Plus → https://budsolucoes.com.br/appbudfinance/assinar.html?checkout=pro; Pro → https://budsolucoes.com.br/appbudfinance/assinar.html?checkout=plus
 - HTML: `email.html`, tabelas de apresentação e CSS inline, sem JavaScript, formulários, pixels de rastreamento ou fontes externas. Alternativa textual equivalente em `email.txt`.
 - Referência de conteúdo: `PLANOS_ATUAIS.md`, `backend/plan-policy.js` e abertura da aba Dados em `appbudfinance/js/configuracoes.js`.
 - Identidade: selo público existente, Buddy opaco em assets/buddy-email-v2.png e cartões individuais azul/verde/branco. No envio, substituir a imagem relativa por CID e incorporar o PNG como parte MIME inline (multipart/related); nunca enviar src relativo nem base64 dentro do HTML.
@@ -47,3 +47,7 @@ Próximo passo: titular avaliar o V2 e os links; ajustes se pedidos; campanha so
 
 ## V3 preparada — 27/11/2026 (aguarda publicação)
 Bloco adicional de checkout retirado; mantida só a frase mensal/gratuito. Contato WhatsApp; descadastro individual {{unsubscribe_url}} gerado por marketing-preferences.prepare/render. Não enviar template diretamente: deve consultar supressão, incorporar CID e abrir confirmação POST, sem login/mailto. Página/backend ainda não publicados; nenhum teste de e-mail V3 com rota indisponível. Demonstração local até autorizar implantação. Ver RELEASE_EMAIL_CHECKOUT_PREFERENCIAS_2026-11-27.md:224 testes, pacote e limites. Remoção por resposta da V1 é histórica e não deve ser reutilizada.
+
+
+## Entrada direta mínima preparada — 27/11/2026
+Cards agora apontam a /appbudfinance/assinar.html?checkout=starter/pro/plus, preservando nomes/direitos e os preços. Links antigos ganham encaminhamento antes do app-shell após implantação. Sem sessão, plano/referral seguem ao login; com sessão válida, não carrega formulário/Firestore cliente. Backend preserva todas as guardas e verifica e-mail/cadastro. Sem publicação e sem envio dos novos links enquanto a rota pública não existir. Ler RELEASE_CHECKOUT_DIRETO_2026-11-27.md:235 testes aprovados, demonstração local e limites de latência.

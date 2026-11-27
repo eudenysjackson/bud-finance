@@ -932,3 +932,7 @@ PDF recebido do teste confirmou retângulo preto e serrilhado no WebP transparen
 
 ## Espera no checkout e descadastro por mailto — 27/11/2026
 Candidata reduz etapas redundantes e flash do formulário durante restauração, sem prometer ausência de cold start/latência do provedor. Mailto substituído por confirmação POST/preferência persistida e supressão de novas mensagens marketing.224 testes aprovados e QA desktop local confirmou bloqueio após descadastro fictício. Sem publicação/preferência real/e-mail V3. Ler release/handoff; não declarar aplicado em produção.
+
+
+## Demora observada na contratação por e-mail — 27/11/2026
+Vídeo11,57s usava versão pública antiga: branco em3s,login em6s e provedor carregando em9s. Preparada entrada mínima sem recursos do login completo e encaminhamento compatível dos links antigos.235 testes e QA local com Auth/checkout fictícios aprovados; não foi medido tempo de prestadores reais nem publicado. Não declarar resolvido em produção antes da implantação/medição. Ver RELEASE_CHECKOUT_DIRETO_2026-11-27.md.

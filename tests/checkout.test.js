@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const crypto=require('node:crypto');
 const source=fs.readFileSync('backend/server.js','utf8');
 const code=source.slice(source.indexOf("app.post('/mercadopago/create-subscription'"),source.indexOf("app.post('/api/push/token'"));
-function setup({providerError=false,lookupError=false,referrer=null,initialProfile={},onEmail,catalog}={}){
+function setup({providerError=false,lookupError=false,referrer=null,initialProfile={},onEmail,catalog,verified=true}={}){
  const routes=new Map(),calls=[];
  const profile=Object.assign({email:'qa@example.test',nome:'Pessoa teste',plano:'free'},initialProfile);
  const sub={external_reference:'owner|starter',payer_email:'qa@example.test',status:'authorized'};
@@ -19,7 +19,7 @@ function setup({providerError=false,lookupError=false,referrer=null,initialProfi
  const context={paidCycleBase:require('../backend/subscription-pricing').paidCycleBase,subscriptionUpgrades:{handler:async()=>{},processPayment:async()=>false},createSubscriptionChange:require('../backend/subscription-change').createSubscriptionChange,crypto,Buffer,AbortSignal,
   _toDate:value=>{if(!value)return null;if(typeof value.toDate==='function')return value.toDate();const parsed=new Date(value);return Number.isNaN(parsed.getTime())?null:parsed;},
   app:{post:(route,...handlers)=>routes.set(route,handlers.at(-1))},express:{json:()=>()=>{}},
-  auth:{verifyIdToken:async token=>{assert.equal(token,'test-token');return{uid:'owner',email:'qa@example.test'};}},db,
+  auth:{verifyIdToken:async token=>{assert.equal(token,'test-token');return{uid:'owner',email:'qa@example.test',email_verified:verified};}},db,
   MP_ACCESS_TOKEN:'TEST-fake-token',MP_WEBHOOK_SECRET:'test-secret',MP_WEBHOOK_URL:'https://backend.test/webhook/mercadopago',MP_INDICACAO_DESCONTO:.15,MP_BONUS_INDICADOR:.5,
   MP_PLANS:catalog||{starter:{title:'Bud Finance Starter',amount:9.99},pro:{amount:29.90},plus:{amount:49.90}},FRONTEND_URL:'https://budsolucoes.com.br/appbudfinance',
   admin:{firestore:{FieldValue:{delete:()=>'__delete',serverTimestamp:()=>1},Timestamp:{fromDate:date=>date.toISOString()}}},
@@ -308,4 +308,11 @@ test('webhook retries during price migration without granting or consuming disco
  const s=setup({initialProfile:{plano:'plus',mpSubscriptionId:'sub-1',planoTrocaLock:{id:'migration',until:Date.now()+60000}}});
  assert.equal((await s.webhook()).statusCode,503);assert.equal(s.profile.plano,'plus');
  assert.equal(s.calls.filter(c=>c.options.method==='PUT').length,0);
+});
+
+
+test('direct checkout enforces verification, block status and profile identity on the server',async()=>{
+ for(const options of [{verified:false},{initialProfile:{bloqueado:true}},{initialProfile:{email:'other@example.test'}}]){
+  const s=setup(options);const r=await s.invoke('/mercadopago/create-subscription',{planKey:'starter'});assert.equal(r.statusCode,403);assert.equal(s.calls.length,0);assert.equal(s.profile.mpCheckout,undefined);
+ }
 });

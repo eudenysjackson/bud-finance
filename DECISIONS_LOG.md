@@ -947,3 +947,6 @@ Validação:175 testes de release aprovados; redução de184 corresponde aos10 t
 
 
 27/11/2026 — Marketing: link individual assinado, confirmação POST e preferência persistente mínima por hash de e-mail em coleção privada. GET não descadastra para evitar leitores automáticos; conta/assinatura e transacionais preservados. Campanhas consultam supressão antes de cada envio; conector Gmail avulso não é motor de campanhas. Não pré-gerar contratos para ocultar latência: antecipar conexão e paralelizar verificações mantendo segurança/idempotência.
+
+
+27/11/2026 — Contratação por e-mail usa entrada dedicada App/Auth, sem Firestore/recursos gerais de login. Identidade/eligibilidade permanecem validadas no servidor. Links antigos têm atalho no head; entrar=1 preserva login/evita loop, sem autoridade de segurança. Verificação/magic links não são interceptados. Nenhum contrato pré-gerado, token em URL ou promessa de eliminar espera do provedor. Alterações só passam a valer após implantação.

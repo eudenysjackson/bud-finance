@@ -2,6 +2,15 @@
   'use strict';
   var plan = (new URLSearchParams(location.search).get('checkout') || '').toLowerCase();
   if (!['starter','pro','plus'].includes(plan)) return;
+  var parameters = new URLSearchParams(location.search);
+  var rootEntry = /^\/appbudfinance\/(index\.html)?$/.test(location.pathname || '');
+  if (['budsolucoes.com.br','www.budsolucoes.com.br'].includes(location.hostname) && rootEntry && parameters.get('entrar') !== '1' && !parameters.has('magic_verification') && !parameters.has('email_destino')) {
+    var direct = new URL('assinar.html', location.href);
+    direct.searchParams.set('checkout', plan);
+    if (parameters.get('ref')) direct.searchParams.set('ref', parameters.get('ref'));
+    location.replace(direct.href);
+    return;
+  }
   var warmed = false;
   document.documentElement.dataset.checkoutEntry = 'loading';
   window.BudCheckoutEntry = {
