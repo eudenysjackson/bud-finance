@@ -59,23 +59,30 @@ test('backend monitoring reports only generic errors and does not serialize requ
   await monitoring.capture(new Error('CPF saldo e token privados'),{path:'/api/financial/write',body:{senha:'never'},headers:{authorization:'Bearer private'}});
   assert.equal(sent.length,1);for(const privateValue of ['privados','never','Bearer','senha','authorization'])assert(!sent[0].includes(privateValue));
 });
-async function browser({local=false,optOut=false,failSdk=false,appCheck=false}={}){
+async function browser({local=false,optOut=false,failSdk=false,appCheck=false,appCheckConfirmed=appCheck}={}){
   const records=[],calls=[],imports=[],events={},storage=new Map(optOut?[['bud_diagnostics_disabled','true']]:[]);
   const window={BudDiagnosticsCore:core,BUD_PERFORMANCE_ENABLED:true,BUD_SENTRY_FREE_PLAN_CONFIRMED:false,BUD_FUNCTIONS_URL:'https://api.example.test',
-    BUD_FIREBASE_CONFIG:{appId:'app',projectId:'project'},BUD_APP_CHECK_SITE_KEY:appCheck?'site-key':'',BUD_APP_CHECK_FREE_PROVIDER_CONFIRMED:appCheck,
+    BUD_FIREBASE_CONFIG:{appId:'app',projectId:'project'},BUD_APP_CHECK_SITE_KEY:appCheck?'site-key':'',BUD_APP_CHECK_FREE_PROVIDER_CONFIRMED:appCheckConfirmed,
     fetch:async(input,init)=>{calls.push({input,init});return{ok:true,status:200}},addEventListener:(name,fn)=>events[name]=fn};
   const context={window,URL,Headers,Request,AbortSignal,console,performance:{timeOrigin:1000,getEntriesByType:()=>[{domContentLoadedEventEnd:50}]},
     document:{readyState:'complete',getElementById:()=>null},location:{hostname:local?'localhost':'budsolucoes.com.br',protocol:local?'http:':'https:',pathname:'/appbudfinance/cartoes',href:'https://budsolucoes.com.br/appbudfinance/cartoes'},
     localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},
     loadSdk:async url=>{imports.push(url);if(failSdk)throw Error('unavailable');
       if(url.endsWith('firebase-app.js'))return{getApps:()=>[{name:'[DEFAULT]'}],initializeApp:()=>{throw Error('must reuse existing app')}};
-      if(url.endsWith('firebase-app-check.js'))return{initializeAppCheck:()=>({}),ReCaptchaV3Provider:class{},onTokenChanged:(_,callback)=>callback({token:'cached-app-token'}),getToken:async()=>({})};
+      if(url.endsWith('firebase-app-check.js'))return{initializeAppCheck:(_, {provider})=>{assert.equal(provider.siteKey,'site-key');return{}},ReCaptchaEnterpriseProvider:class{constructor(siteKey){this.siteKey=siteKey}},onTokenChanged:(_,callback)=>callback({token:'cached-app-token'}),getToken:async()=>({})};
       return{isSupported:async()=>true,initializePerformance:(_,settings)=>{assert.equal(settings.instrumentationEnabled,false);return{}},trace:(_,name)=>({record:(start,duration,options)=>records.push({name,start,duration,options})})};}};
   const source=fs.readFileSync('appbudfinance/js/diagnostics.js','utf8').replace("import './diagnostics-core.js';",'').replaceAll('import(','loadSdk(');
   vm.runInNewContext(source,context);await new Promise(resolve=>setImmediate(resolve));return{window,calls,records,imports,events};
 }
 test('local sessions never send telemetry or initialize production providers',async()=>{
   const b=await browser({local:true,appCheck:true});assert.equal(b.imports.length,0);assert.equal(b.records.length,0);
+});
+test('a site key alone never activates a provider whose no-cost configuration has not been confirmed',async()=>{
+  const b=await browser({appCheck:true,appCheckConfirmed:false});
+  assert.equal(b.window.BudDiagnostics.state.appCheck,'disabled');
+  assert(!b.imports.some(url=>url.endsWith('firebase-app-check.js')));
+  await b.window.fetch('https://api.example.test/api/financial/write',{method:'POST'});
+  assert.equal(b.calls[0].init.headers,undefined);
 });
 test('performance records only fixed operations/durations and App Check headers never reach another origin',async()=>{
   const b=await browser({appCheck:true});

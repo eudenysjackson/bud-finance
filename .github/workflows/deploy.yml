@@ -84,7 +84,7 @@ jobs:
             if [ "$revision" = "$EXPECTED_REVISION" ]; then exit 0; fi
             if [[ "$revision" =~ ^[0-9a-f]{40}$ ]] &&
                git cat-file -e "$revision^{commit}" 2>/dev/null &&
-               git diff --quiet "$revision" "$EXPECTED_REVISION" -- backend firestore.rules firestore.indexes.json firebase.json .firebaserc render.yaml render.yml Dockerfile; then
+               git diff --quiet "$revision" "$EXPECTED_REVISION" -- backend appbudfinance/js/diagnostics-core.js firestore.rules firestore.indexes.json firebase.json .firebaserc render.yaml render.yml Dockerfile; then
               echo "The deployed revision has identical backend and database files."
               exit 0
             fi

@@ -51,7 +51,7 @@ async function start(){
     // No provider is activated until the account is verified to have no paid overage.
     if(window.BUD_APP_CHECK_SITE_KEY&&window.BUD_APP_CHECK_FREE_PROVIDER_CONFIRMED===true){
       try{const check=await import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app-check.js');
-        const instance=check.initializeAppCheck(app,{provider:new check.ReCaptchaV3Provider(window.BUD_APP_CHECK_SITE_KEY),isTokenAutoRefreshEnabled:true});
+        const instance=check.initializeAppCheck(app,{provider:new check.ReCaptchaEnterpriseProvider(window.BUD_APP_CHECK_SITE_KEY),isTokenAutoRefreshEnabled:true});
         check.onTokenChanged(instance,result=>{appToken=result.token;state.appCheck='observing';},()=>{appToken=null;state.appCheck='unavailable';});
         // SDK handles caching/refresh. A failed request is never a reason to block the UI.
         check.getToken(instance,false).catch(()=>{state.appCheck='unavailable';});
