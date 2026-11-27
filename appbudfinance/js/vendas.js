@@ -22,7 +22,9 @@ try {
 let _refCode = null; // código de indicação da URL (?ref=XXXXX)
 
 // ── Desconto de indicação no primeiro mês (15%) ───────────
-function _makeDiscountedPrice(fullInt, fullDec, offInt, offDec) {
+function _makeDiscountedPrice(amount) {
+  const [fullInt, fullDec] = amount.toFixed(2).split('.');
+  const [offInt, offDec] = (Math.round(amount * 0.85 * 100) / 100).toFixed(2).split('.');
   return '<del style="font-size:.78rem;color:#94a3b8;font-weight:500">R$ ' + fullInt + ',' + fullDec + '/mês</del>' +
     '<div style="display:flex;align-items:flex-end;gap:3px;margin-top:2px">' +
     '<span class="currency">R$</span>' +
@@ -40,9 +42,9 @@ function _applyRefDiscount() {
   const ps = document.getElementById('plan-price-starter');
   const pp = document.getElementById('plan-price-pro');
   const px = document.getElementById('plan-price-plus');
-  if (ps) ps.innerHTML = _makeDiscountedPrice('9', '99', '8', '49');
-  if (pp) pp.innerHTML = _makeDiscountedPrice('29', '90', '25', '42');
-  if (px) px.innerHTML = _makeDiscountedPrice('49', '90', '42', '42');
+  if (ps) ps.innerHTML = _makeDiscountedPrice(4.99);
+  if (pp) pp.innerHTML = _makeDiscountedPrice(14.99);
+  if (px) px.innerHTML = _makeDiscountedPrice(29.99);
 
   // Mostrar banner
   const banner = document.getElementById('ref-banner');
