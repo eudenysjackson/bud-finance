@@ -73,7 +73,7 @@ function daysSince(ts) {
 function planBadge(plan) {
   const p = (plan || 'free').toLowerCase();
   const classes = { free:'plan-free', starter:'plan-starter', trial:'plan-trial', plus:'plan-plus', pro:'plan-pro', admin:'plan-admin' };
-  const labels  = { free:'Free', starter:'Starter', trial:'Trial', plus:'Plus', pro:'Pro', admin:'Admin' };
+  const labels  = { free:'Free', starter:'Starter', trial:'Trial', plus:'Pró', pro:'Plus', admin:'Admin' };
   return `<span class="plan-badge ${classes[p] || 'plan-free'}">${labels[p] || esc(p)}</span>`;
 }
 
@@ -320,8 +320,8 @@ async function loadOverview() {
 
     // Plan distribution
     const distData = [
-      { label: 'Pro',     val: proN,      color: '#059669' },
-      { label: 'Plus',    val: plusN,     color: '#9333ea' },
+      { label: 'Plus',     val: proN,      color: '#059669' },
+      { label: 'Pró',    val: plusN,     color: '#9333ea' },
       { label: 'Trial',   val: trialN,    color: '#ea580c' },
       { label: 'Starter', val: starterN,  color: '#2563eb' },
       { label: 'Free',    val: freeN,     color: '#94a3b8' },
@@ -562,12 +562,12 @@ window.viewUser = async function(uid) {
         <div style="display:flex;align-items:center;gap:.625rem;flex-wrap:wrap;">
           <div class="admin-sel" id="muPlanSelContainer" style="flex:1;min-width:130px;">
             <div class="admin-sel-trigger" style="width:100%;" onclick="toggleSel('muPlanSelContainer')">
-              <span id="muPlanSelLabel">${planoAtual.charAt(0).toUpperCase() + planoAtual.slice(1)}</span>
+              <span id="muPlanSelLabel">${window.BUD_PLAN_LABELS[planoAtual] || planoAtual}</span>
               <span class="admin-sel-arrow">▾</span>
             </div>
             <div class="admin-sel-drop" style="width:100%;">
               ${['free','starter','trial','plus','pro'].map(p => `
-                <div class="admin-sel-opt ${p === planoAtual ? 'sel' : ''}" onclick="pickSel('muPlanSelContainer','${p}','${p.charAt(0).toUpperCase()+p.slice(1)}')">${p.charAt(0).toUpperCase()+p.slice(1)}</div>
+                <div class="admin-sel-opt ${p === planoAtual ? 'sel' : ''}" onclick="pickSel('muPlanSelContainer','${p}','${window.BUD_PLAN_LABELS[p] || p}')">${window.BUD_PLAN_LABELS[p] || p}</div>
               `).join('')}
             </div>
             <input type="hidden" id="muPlanSel" value="${esc(planoAtual)}">
@@ -985,7 +985,7 @@ window.deletePromo = function(id) {
 // ═══════════════════════════════════════════════════════════════
 const DEFAULT_FLAGS = [
   { nome: 'Compras',              key: 'compras',              desc: 'Exibe o menu e libera a tela de compras',      planos: ['free','starter','trial','plus','pro'], enabled: true },
-  { nome: 'Grupo Bud Plus',       key: 'grupo_bud_plus',       desc: 'Exibe o título Bud Plus na barra lateral',     planos: ['free','starter','trial','plus','pro'], enabled: true },
+  { nome: 'Grupo Bud Pró',       key: 'grupo_bud_plus',       desc: 'Exibe o título Bud Pró na barra lateral',     planos: ['free','starter','trial','plus','pro'], enabled: true },
   { nome: 'Dashboard Avançado',   key: 'dashboard_avancado',  desc: 'Gráficos e insights avançados no dashboard', planos: ['plus','pro'], enabled: true },
   { nome: 'Importação por IA',    key: 'importacao_ia',       desc: 'Importar extrato via Gemini/OCR',           planos: ['pro'],         enabled: true },
   { nome: 'Limites de Gastos',    key: 'limites_gastos',      desc: 'Definir orçamento por categoria',           planos: ['starter','trial','plus','pro'], enabled: true },
@@ -1278,7 +1278,7 @@ window.loadIAMetrics = async function loadIAMetrics() {
       </tr></thead>
       <tbody>${rows.map(r => `<tr>
         <td style="padding:0.4rem 0.25rem;border-bottom:1px solid var(--card-border);color:var(--text-main)">${escapeHtmlAdmin(r.email)}</td>
-        <td style="padding:0.4rem 0.25rem;border-bottom:1px solid var(--card-border);color:var(--text-sec)">${r.plano}</td>
+        <td style="padding:0.4rem 0.25rem;border-bottom:1px solid var(--card-border);color:var(--text-sec)">${escapeHtmlAdmin(window.BUD_PLAN_LABELS[r.plano] || r.plano)}</td>
         <td style="padding:0.4rem 0.25rem;border-bottom:1px solid var(--card-border);text-align:center;font-weight:600">${r.cupons || '—'}</td>
         <td style="padding:0.4rem 0.25rem;border-bottom:1px solid var(--card-border);text-align:center">${r.extrato || '—'}</td>
         <td style="padding:0.4rem 0.25rem;border-bottom:1px solid var(--card-border);text-align:center">${r.chat || '—'}</td>

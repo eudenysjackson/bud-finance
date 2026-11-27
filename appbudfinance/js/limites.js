@@ -618,7 +618,7 @@ window.excluirLimiteAtual = function() {
 // ─── Copiar Mês Anterior ───────────────────────────────────────────────────
 window.copiarMesAnterior = async function() {
   if (!PLANOS_COPIAR.includes(_userPlano)) {
-    if (window.budShowToast) window.budShowToast('Recurso exclusivo para planos Plus e Pro.', 'warning');
+    if (window.budShowToast) window.budShowToast('Recurso exclusivo para planos Pró e Plus.', 'warning');
     return;
   }
   const btn = document.getElementById('btnCopiar');
@@ -806,11 +806,11 @@ function setupBotoes() {
     } else {
       // Feature gate: bloquear para Free/Starter
       btnCopiar.disabled = true;
-      btnCopiar.title = 'Exclusivo para planos Plus e Pro. Faça upgrade em Configurações!';
+      btnCopiar.title = 'Exclusivo para planos Pró e Plus. Faça upgrade em Configurações!';
       btnCopiar.style.cssText += ';opacity:0.5;cursor:not-allowed;';
       btnCopiar.innerHTML = '🔒 Copiar mês anterior';
       btnCopiar.addEventListener('click', () => {
-        if (window.budShowToast) window.budShowToast('Recurso exclusivo para planos Plus e Pro. Acesse Configurações para fazer upgrade.', 'warning');
+        if (window.budShowToast) window.budShowToast('Recurso exclusivo para planos Pró e Plus. Acesse Configurações para fazer upgrade.', 'warning');
       });
     }
   }
