@@ -58,3 +58,11 @@ A conferência achou incompatibilidade da primeira preparação: SDK10.8.1 não 
 Pendência desta atualização: publicar complemento e confirmar primeiro traço Performance no console. Painel pode levar cerca de10min para detectar SDK e30min para exibir dados segundo a documentação oficial; não confundir código configurado com recebimento confirmado. Fonte: https://firebase.google.com/docs/perf-mon/troubleshooting?platform=web.
 
 Auto-review rejeitou POST de teste sem login em /api/financial/write de produção por faltar autorização específica; não executado nem repetido. Conferência dessa rota limitada a testes locais e configuração, e comparações públicas somente GET. Nenhum cliente, saldo, cobrança, assinatura ou envio a clientes operado. Detalhes e limites no AI_HANDOFF.md.
+
+## Recebimento confirmado e encerramento — 26/11/2026
+
+PUBLICADO: PR71/d6fce0e e complemento PR72/**1236477a03dde652c899b8a5bb960f2119a8e2ce**. CI45924753237, Pages45923495425 e Pages45924853483 aprovados. Backend Live/revisão exata1236477 e flags de ativação conferidos.214 testes, pacote121públicos/23backend e scanner aprovados. Arquivos públicos conferem com a candidata.
+
+Sentry recebeu evento sintético BUD-FINANCE-1, resolvido. Google registrou troca de token App Check200 após ajuste mínimo da lista de APIs da chave Web. Performance recebeu **page_ready_index,1 amostra,1,16s**, visível em Traces personalizados. Essa observação encerra a pendência de primeiro traço mencionada acima; não é promessa de desempenho uniforme. Código corrigido inicializa exports reais do SDK10.8.1.
+
+Projeto Firebase Spark/US$0 e Sentry Developer sem cartão mantidos. App Check somente observe, Auth/Firestore Não aplicado, Gestor não registrado; nenhum enforcement adicional. Política/preferência atualizadas e metadados do SDK esclarecidos. Configuração e roteiro detalhados no AI_HANDOFF.md. Entrega física de e-mail Sentry não conferida. Teste de POST na rota de escrita em produção foi rejeitado por auto-review e ficou de fora; nenhum dado financeiro ou envio a clientes operado. Publicação concluída dentro do escopo autorizado.
