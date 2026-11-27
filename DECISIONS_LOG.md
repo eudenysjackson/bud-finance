@@ -933,3 +933,7 @@ Validação:175 testes de release aprovados; redução de184 corresponde aos10 t
 26/11/2026: renomeação comercial preserva identificadores permanentes. plus passa a exibir Pró; pro passa a exibir Plus. Sem migração de campos de plano, alteração de preços, cotas ou assinaturas. Ver PLANOS_ATUAIS.md.
 
 26/11/2026: Pro sem acento e novos preços4,99/14,99/29,99. Titular decidiu que assinantes atuais recebem novos preços na próxima renovação; ciclo já pago preservado no upgrade; descontos por indicação preservados. Cotas e IDs não mudam.
+
+26/11/2026: integrações limitadas a gratuidade. Performance sem coleta automática de URLs; Sentry por envelopes com lista permitida, sem replay/PII de conta. App Check somente após confirmar provedor sem excedente pago, inicialmente em observação; opt-out de diagnóstico não desativa segurança. Cloud Tasks, Document AI, Open Finance e troca de e-mails fora do escopo.
+
+26/11/2026 — Console atual descontinuou registro reCAPTCHA clássico. Candidata App Check usa ReCaptchaEnterpriseProvider do SDK10.8.1, somente após confirmar Spark/Essentials sem faturamento (excedente retorna429). Sentry confirmado Developer sem cartão, com um evento sintético validado; SDK de replay/SCM não instalado. Metadados da conexão podem gerar localização aproximada apesar de IP não armazenado; política informada. Aceite dos termos Google Cloud/ativação da API requer confirmação no momento da ação e permanece pendente. Publicação depende da autorização específica prevista no protocolo.

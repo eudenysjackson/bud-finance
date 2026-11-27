@@ -115,6 +115,13 @@ const subscriptionUpgrades=createSubscriptionUpgrade({auth,db,token:MP_ACCESS_TO
 
 // â”€â”€â”€ Express setup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const app = express();
+const monitoring = require('./monitoring').createMonitoring();
+const appCheckGuard = require('./app-check').createAppCheckGuard({
+  verify: token => admin.appCheck().verifyToken(token),
+  appIds: (process.env.BUD_APP_CHECK_APP_IDS || '').split(',').map(s=>s.trim()).filter(Boolean),
+  mode: process.env.BUD_APP_CHECK_MODE || 'off'
+});
+app.use(monitoring.middleware);
 app.disable('x-powered-by');
 app.use(privateHeaders);
 app.use('/api/financial/write', express.json({ limit: '2mb' }));
@@ -167,9 +174,10 @@ app.use(cors({
     }
   },
   methods: ['POST', 'GET', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Bud-Async']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Bud-Async', 'X-Firebase-AppCheck']
 }));
 
+app.use(appCheckGuard.middleware);
 app.use(createSecurityGuard({auth,db,secret:process.env.RATE_LIMIT_SECRET||EMAIL_VERIFICATION_SECRET}));
 // WhatsApp is outside the launch scope. Do not accept public integration traffic.
 app.use(['/webhook/whatsapp','/webhook/evolution','/api/whatsapp'],(_req,res)=>res.sendStatus(404));
@@ -3658,6 +3666,7 @@ app.get('/api/notifications/daily', async function (req, res) {
 });
 
 // â”€â”€â”€ Start server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+app.use(function(error, req, res, next) { void monitoring.capture(error, req); next(error); });
 app.use(safeError);
 var PORT = process.env.PORT || 3000;
 app.listen(PORT, function () {

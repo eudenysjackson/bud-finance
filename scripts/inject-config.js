@@ -2,6 +2,10 @@ const fs=require('node:fs'),path=require('node:path');
 const required=['FIREBASE_API_KEY','FIREBASE_AUTH_DOMAIN','FIREBASE_PROJECT_ID','FIREBASE_STORAGE_BUCKET','FIREBASE_MESSAGING_SENDER_ID','FIREBASE_APP_ID','BACKEND_URL'];
 function buildConfig(template,env){
   const values=Object.fromEntries(Object.entries(env).filter(([,value])=>typeof value==='string').map(([key,value])=>[key,value.trim()]));
+  if(!values.PERFORMANCE_MONITORING_ENABLED)values.PERFORMANCE_MONITORING_ENABLED='true';
+  for(const key of ['PERFORMANCE_MONITORING_ENABLED','SENTRY_FREE_PLAN_CONFIRMED','APP_CHECK_FREE_PROVIDER_CONFIRMED'])if(values[key]&&!['true','false'].includes(values[key]))throw Error('Opção de diagnóstico inválida: '+key);
+  if(values.SENTRY_DSN&&!require('../appbudfinance/js/diagnostics-core').sentryEndpoint(values.SENTRY_DSN))throw Error('SENTRY_DSN inválido.');
+  if(values.APP_CHECK_SITE_KEY&&!/^[A-Za-z0-9_-]{20,100}$/.test(values.APP_CHECK_SITE_KEY))throw Error('APP_CHECK_SITE_KEY inválida.');
   const missing=required.filter(key=>!values[key]);if(missing.length)throw Error('Variáveis ausentes: '+missing.join(', '));
   for(const key of required)if(/[\r\n]/.test(values[key]))throw Error('Configuração inválida em '+key);
   const backend=new URL(values.BACKEND_URL);if(backend.protocol!=='https:'&&!['localhost','127.0.0.1'].includes(backend.hostname))throw Error('BACKEND_URL precisa usar HTTPS.');

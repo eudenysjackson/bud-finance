@@ -36,6 +36,13 @@
   // Variável de ambiente: RECAPTCHA_SITE_KEY
   window.BUD_RECAPTCHA_SITE_KEY = "__RECAPTCHA_SITE_KEY__";
 
+  // Technical diagnostics: no session replay, financial payload or user identifier.
+  window.BUD_PERFORMANCE_ENABLED = "__PERFORMANCE_MONITORING_ENABLED__" === 'true';
+  window.BUD_SENTRY_DSN = "__SENTRY_DSN__";
+  window.BUD_SENTRY_FREE_PLAN_CONFIRMED = "__SENTRY_FREE_PLAN_CONFIRMED__" === 'true';
+  window.BUD_APP_CHECK_SITE_KEY = "__APP_CHECK_SITE_KEY__";
+  window.BUD_APP_CHECK_FREE_PROVIDER_CONFIRMED = "__APP_CHECK_FREE_PROVIDER_CONFIRMED__" === 'true';
+
   // ─── FCM Web Push VAPID Key ──────────────────────────────────────────────
   // Chave pública do FCM Web Push — segura para expor no client.
   // Obter em: Firebase Console → Project Settings → Cloud Messaging → Web Push certificates.

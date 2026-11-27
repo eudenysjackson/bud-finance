@@ -700,3 +700,7 @@ Conferência UI local abriu Alelo→Editar→benefício e quatro opções; não 
 26/11/2026 — Troca Pro/Plus preparada e testada (191 testes), aguardando publicação coordenada autorizada. Ficha Gestor em branch separada deve adotar o mesmo mapa quando retomada. Ver AI_HANDOFF.md e PLANOS_ATUAIS.md.
 
 26/11/2026 — Nova tabela Starter4,99/Plus14,99/Pro29,99 preparada na branch codex/planos-precos-20261126;200 testes aprovados. Assinantes atuais: próxima renovação, autorizado pelo titular. Publicação depende de autorização específica de regras Firestore após rejeição automática; ver handoff/roteiro de release.
+
+26/11/2026 — Monitoramento gratuito preparado,212 testes aprovados, branch codex/monitoramento-gratuito-20261126. Pendente: titular concluir cadastro gratuito Sentry/termos; depois DSN/projeto, confirmação de provedor App Check gratuito e implantação/QA externo. Performance preparado; nenhum dos fornecedores recebeu teste real ainda. Ver handoff e release.
+
+26/11/2026 — Conta Sentry concluída pelo titular e Developer sem faturamento conferido. Evento sintético BUD-FINANCE-1 aceito/visualizado e resolvido. Variáveis públicas GitHub configuradas; Render/publicação pendentes. App Check clássico descontinuado no console; preparação atualizada para Enterprise/Fraud Defense em Spark/Essentials sem billing e modo observe. Ativação da API/registro aceita termos Google Cloud e aguarda confirmação explícita; não ativar enforcement. QA local desktop de login/configurações/preferência aprovado e213 regressões. Ver release e handoff para estado e próximos passos.

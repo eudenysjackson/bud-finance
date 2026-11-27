@@ -670,6 +670,13 @@
           <div class="cfg-card-title">🛡️ Privacidade e LGPD</div>
           <div class="cfg-action-row">
             <div class="cfg-action-info">
+              <label class="cfg-action-label" for="diagnosticsConsent">Permitir diagnósticos técnicos neste dispositivo</label>
+              <div class="cfg-action-desc">Ajuda a identificar erros e lentidão. Não envia documentos, valores financeiros ou conteúdo de formulários. A proteção de acesso continua ativa.</div>
+            </div>
+            <input id="diagnosticsConsent" type="checkbox" checked style="width:1.25rem;height:1.25rem;accent-color:#2563eb;" />
+          </div>
+          <div class="cfg-action-row">
+            <div class="cfg-action-info">
               <div class="cfg-action-label">Política de Privacidade</div>
               <div class="cfg-action-desc">Como tratamos e protegemos seus dados</div>
             </div>
@@ -948,7 +955,7 @@
 
   <!-- ═══ Firebase + Config ════════════════════════════════════════ -->
   <script src="js/firebase-config.js"></script>
-  <script src="js/bud-utils.js?v=20261126-prices2"></script>
+  <script src="js/bud-utils.js?v=20261126-diagnostics1"></script>
   <script type="module" src="js/configuracoes.js?v=20261126-prices2"></script>
   <script src="js/tutorial.js?v=20261111-lampada"></script>
   <script>BudTutorial.init('configuracoes');</script>
