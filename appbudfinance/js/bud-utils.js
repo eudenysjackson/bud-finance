@@ -782,4 +782,4 @@ import('./push-foreground.js?v=20261031').catch(function () {});
 
 import('./profile-sync.js?v=20261102-mobile').catch(function(){console.warn('[Perfil] Sincronização indisponível.');});
 
-import('./diagnostics.js?v=20261126-free1').catch(function(){});
+import('./diagnostics.js?v=20261126-free2').catch(function(){});

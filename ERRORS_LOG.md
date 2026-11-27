@@ -920,3 +920,6 @@ Tratado localmente com limite no envio, mensagem específica de rejeição e rep
 
 ## Quitação prematura em Dívidas — 10/11/2026
 Corrigido localmente. O saldo amortizado podia chegar a zero enquanto ainda havia parcelas em aberto. Quitação agora acompanha as parcelas pagas e o saldo usa as parcelas restantes se o principal zerar antes da hora. Regressão reproduz a Shopee com duas de três parcelas pagas.
+
+## Incompatibilidade Performance10.8.1 e restrição App Check — 26/11/2026
+Corrigido no candidato codex/monitoramento-fix-20261126: Performance10.8.1 não exporta isSupported; chamar essa função abortava inicialização no catch. Teste passou a reproduzir exports reais do CDN;214 regressões aprovadas, incluindo inicialização e preservação de App Check sem Performance em URLs não canônicas/fragmentos. Página raiz identificada como index. Em produção,403 App Check inicial era lista de APIs da chave Web sem App Check; permitidas apenas App Check e Remote Config além das seis APIs anteriores. ExchangeRecaptchaEnterpriseToken200 confirmado por métricas agregadas Google. Aguardar deploy corretivo e confirmar Performance no painel antes de declarar recebimento.

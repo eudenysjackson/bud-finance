@@ -4,7 +4,7 @@
   const pages=new Set(['index','cadastro','acao-auth','recuperar-senha','trocar-senha','verificar-email','onboarding','dashboard','carteira','cartoes','extrato','recorrentes','dividas','metas','limites','categorias','graficos','insights','balanco-mensal','comparativo','relatorios','investimentos','assistente-ia','assistente-whatsapp','configuracoes','admin']);
   const kinds=new Set(['Error','TypeError','ReferenceError','SyntaxError','RangeError','NetworkError','TimeoutError','AbortError']);
   const files=new Set([...pages].map(p=>p+'.js').concat(['server.js','financial-write.js','financial-firestore.js','ai-reader.js','invoice-reader.js','subscription-change.js','subscription-upgrade.js','diagnostics.js','bud-utils.js','checkout-client.js']));
-  function page(path){const key=String(path||'').split('?')[0].split('#')[0].split('/').filter(Boolean).at(-1)?.replace(/\.html$/,'')||'index';return pages.has(key)?key:'other';}
+  function page(path){const clean=String(path||'').split('?')[0].split('#')[0].replace(/^\/appbudfinance\/?$/,'/');const key=clean.split('/').filter(Boolean).at(-1)?.replace(/\.html$/,'')||'index';return pages.has(key)?key:'other';}
   function operation(path){
     const p=String(path||'').split('?')[0];
     if(p==='/api/financial/write')return 'financial_write';
