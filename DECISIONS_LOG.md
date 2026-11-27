@@ -944,3 +944,6 @@ Validação:175 testes de release aprovados; redução de184 corresponde aos10 t
 
 
 27/11/2026 — Material de e-mail deve usar imagem Buddy opaca PNG incorporada por CID e cada card deve selecionar diretamente o checkout autenticado do plano. Aproveitar rota existente com parâmetro checkout; nunca levar o cliente a procurar plano em Configurações nem incluir credenciais pessoais na URL. Sessão só é aproveitada no navegador onde estiver ativa. Não mudou identificação interna de planos, preço ou serviço EmailJS.
+
+
+27/11/2026 — Marketing: link individual assinado, confirmação POST e preferência persistente mínima por hash de e-mail em coleção privada. GET não descadastra para evitar leitores automáticos; conta/assinatura e transacionais preservados. Campanhas consultam supressão antes de cada envio; conector Gmail avulso não é motor de campanhas. Não pré-gerar contratos para ocultar latência: antecipar conexão e paralelizar verificações mantendo segurança/idempotência.

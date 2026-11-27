@@ -43,3 +43,7 @@ Conferência visual Chromium desktop1265px/mobile375px: imagem carregada e sem o
 Teste V2 enviado somente ao endereço corporativo confirmado do titular via Gmail conectado. Assunto [TESTE V2] Bud Finance — Buddy corrigido e contratação pelo card. Releitura confirmou SENT, destinatário e MIME multipart/related → multipart/alternative (texto/HTML) + image/png inline com Content-ID correspondente; HTML sem src relativo no envio. Não houve publicação para hospedar a imagem. A aparência/entrega no Gmail de destino ainda depende da avaliação do titular. Nenhum disparo coletivo.
 
 Próximo passo: titular avaliar o V2 e os links; ajustes se pedidos; campanha somente após autorização específica e preparação de segmento/supressões/remetente conforme acima. O teste anterior permanece no histórico, mas seu HTML/CTA/Buddy não são mais a versão recomendada.
+
+
+## V3 preparada — 27/11/2026 (aguarda publicação)
+Bloco adicional de checkout retirado; mantida só a frase mensal/gratuito. Contato WhatsApp; descadastro individual {{unsubscribe_url}} gerado por marketing-preferences.prepare/render. Não enviar template diretamente: deve consultar supressão, incorporar CID e abrir confirmação POST, sem login/mailto. Página/backend ainda não publicados; nenhum teste de e-mail V3 com rota indisponível. Demonstração local até autorizar implantação. Ver RELEASE_EMAIL_CHECKOUT_PREFERENCIAS_2026-11-27.md:224 testes, pacote e limites. Remoção por resposta da V1 é histórica e não deve ser reutilizada.

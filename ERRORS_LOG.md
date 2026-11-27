@@ -928,3 +928,7 @@ Corrigido no candidato codex/monitoramento-fix-20261126: Performance10.8.1 não 
 \n
 ## Buddy com fundo preto no e-mail — 27/11/2026
 PDF recebido do teste confirmou retângulo preto e serrilhado no WebP transparente usado no e-mail, embora a prévia Chromium estivesse correta. Não foi comprovado em qual etapa do cliente/proxy/impressão ocorreu a conversão. Revisão V2 substitui por PNG RGB opaco1083×1452 incorporado ao MIME por CID e fundo branco. Releitura do envio confirmou image/png inline e referência correta; aparência no Gmail de destino aguarda o titular. Não alterar os mascotes do app por causa desse material.64 testes do fluxo de checkout/navegação/nomes aprovados; nenhuma publicação ou cobrança real.
+
+
+## Espera no checkout e descadastro por mailto — 27/11/2026
+Candidata reduz etapas redundantes e flash do formulário durante restauração, sem prometer ausência de cold start/latência do provedor. Mailto substituído por confirmação POST/preferência persistida e supressão de novas mensagens marketing.224 testes aprovados e QA desktop local confirmou bloqueio após descadastro fictício. Sem publicação/preferência real/e-mail V3. Ler release/handoff; não declarar aplicado em produção.

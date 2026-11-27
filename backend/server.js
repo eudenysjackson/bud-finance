@@ -22,6 +22,7 @@ const { createSecurityGuard, pruneSecurityLimits } = require('./security-guard')
 const { createSubscriptionChange } = require('./subscription-change');
 const { createSubscriptionUpgrade } = require('./subscription-upgrade');
 const { paidCycleBase } = require('./subscription-pricing');
+const { createMarketingPreferences } = require('./marketing-preferences');
 const { financialNotices, subscriptionDunningStage, subscriptionPushNotices, sendFinancialPush } = require('./financial-notifications');
 
 // Modelo multimodal configurável; validado na API da Groq em 24/10/2026.
@@ -221,7 +222,16 @@ function sanitizeStr(str) {
 }
 
 // â”€â”€â”€ Send email via EmailJS REST API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const marketingPreferences = createMarketingPreferences({db, secret:process.env.MARKETING_PREFERENCES_SECRET || EMAIL_VERIFICATION_SECRET, frontendURL:FRONTEND_URL});
+app.post('/api/marketing/unsubscribe', marketingPreferences.unsubscribe);
+
 async function sendEmailViaEmailJS(templateParams, templateId) {
+  if (templateParams.email_category === 'marketing') {
+    const preference = await marketingPreferences.prepare(templateParams.to_email);
+    if (!preference.allowed) return {skipped:true, reason:'marketing_unsubscribed'};
+    templateParams = {...templateParams, unsubscribe_url:preference.unsubscribeURL,
+      email_body:String(templateParams.email_body || '') + '\n\nDescadastrar dos e-mails promocionais: ' + preference.unsubscribeURL};
+  }
   var tid = templateId || EMAILJS_TEMPLATE_ID;
   if (!EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID || !tid) {
     throw new Error('EmailJS não configurado');
@@ -2422,7 +2432,7 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken,true); }
+  try { decoded = req.budUser || await auth.verifyIdToken(idToken,true); }
   catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   var uid   = decoded.uid;

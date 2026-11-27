@@ -23,7 +23,8 @@ connectEmulators(auth, db);
 let _loginInProgress = false;
 let _magicLoginInProgress = false;
 onAuthStateChanged(auth, async function (user) {
-  if (_loginInProgress || _magicLoginInProgress || !user) return;
+  if (!user) { if (!_magicLoginInProgress) window.BudCheckoutEntry?.showLogin(); return; }
+  if (_loginInProgress || _magicLoginInProgress) return;
   if (user.providerData?.some(provider => provider.providerId === 'google.com')) {
     try {
       const { signInProvider } = await getIdTokenResult(user);
@@ -271,6 +272,7 @@ function showEmailVerificationModal(user) {
 
 // ─── Reset button helper ────────────────────────────────────────────
 function resetBtn() {
+  window.BudCheckoutEntry?.showLogin();
   _loginInProgress = false;
   btnLogin.textContent = 'Acessar meu painel';
   btnLogin.disabled = false;
@@ -489,7 +491,7 @@ function abrirCheckoutTesteLocal(user, planKey) {
   });
 }
 
-async function iniciarCheckoutMercadoPago(user,planKey,refCode){return openAuthenticatedCheckout(user,planKey,{refCode});}
+async function iniciarCheckoutMercadoPago(user,planKey,refCode){window.BudCheckoutEntry?.start();return openAuthenticatedCheckout(user,planKey,{refCode});}
 
 function mostrarFalhaCheckout(planKey, refCode, message) {
   var overlay = document.createElement('div');

@@ -8,8 +8,8 @@ function createSecurityGuard({auth,db,secret,now=Date.now,maxRequests=300}){
    const header=String(req.headers.authorization||'');
    if(header.startsWith('Bearer ')){
     const user=await auth.verifyIdToken(header.slice(7),true);
-    if((await db.collection('_account_deletions').doc(user.uid).get()).exists)return res.status(403).json({error:'Conta em encerramento.'});
-    const revocation=await db.collection('_session_revocations').doc(user.uid).get();
+    const [deletion,revocation]=await Promise.all([db.collection('_account_deletions').doc(user.uid).get(),db.collection('_session_revocations').doc(user.uid).get()]);
+    if(deletion.exists)return res.status(403).json({error:'Conta em encerramento.'});
     if(revocation.exists && Number(user.auth_time||0)<=revocation.data().revokedAt)return res.status(401).json({error:'Sessão encerrada. Entre novamente.'});
     req.budUser=user;
    }

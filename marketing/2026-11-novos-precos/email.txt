@@ -22,14 +22,10 @@ Organize contas, cartões de crédito e benefícios como VT, VR e VA. Acompanhe 
 
 Benefícios ocupam a cota de contas. Cada parcela conta como um lançamento no mês da fatura. IA sujeita à disponibilidade do serviço.
 
-É só tocar no link do plano escolhido. Se você já estiver logado neste navegador, continuará direto para o pagamento. Caso precise entrar, o plano escolhido será mantido. Não precisa procurar em Configurações.
-
-Confira o valor no checkout antes de pagar. Seu plano só muda após a conclusão da contratação e a aprovação do pagamento.
-
-Novos preços mensais vigentes, sem prazo promocional de encerramento. A assinatura tem renovação mensal. Você pode continuar usando o plano Gratuito se preferir.
+A assinatura tem renovação mensal. Você pode continuar usando o plano Gratuito se preferir.
 
 Bud Soluções · Bud Finance
 Organização para sua vida financeira, no seu ritmo.
-Contato: budsolucoes@gmail.com
+WhatsApp: https://wa.me/5521983554954
 Política de privacidade: https://budsolucoes.com.br/appbudfinance/politica-privacidade.html
-Para não receber novidades por e-mail, responda solicitando a remoção.
+Descadastrar dos e-mails promocionais: {{unsubscribe_url}}

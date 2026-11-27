@@ -721,3 +721,6 @@ PEND-MKT-NOVOS-PRECOS: HTML/texto e único teste ao titular preparados/enviados 
 
 
 27/11/2026 — PEND-MKT-NOVOS-PRECOS: V2 corrigiu retângulo preto/serrilhado do Buddy com PNG opaco incorporado e cards com checkout por plano. Teste V2 enviado apenas ao titular;64 testes existentes aprovados. Aguardar avaliação; campanha coletiva não autorizada. Sem publicação ou contratação real. Ver handoff e README de marketing na branch codex/email-checkout-20261127.
+
+
+27/11/2026 — PEND-MKT-NOVOS-PRECOS: V3 preparada,224 testes e pacote/scanner aprovados. Supressão/descadastro validados localmente; produção depende de autorização/publicação coordenada. Rodapé simplificado/WhatsApp e melhorias de entrada checkout prontas. Sem envio V3/campanha. QA mobile desta revisão não confirmado. Ler RELEASE_EMAIL_CHECKOUT_PREFERENCIAS_2026-11-27.md.
