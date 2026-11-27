@@ -700,3 +700,5 @@ Conferência UI local abriu Alelo→Editar→benefício e quatro opções; não 
 26/11/2026 — Troca Pro/Plus preparada e testada (191 testes), aguardando publicação coordenada autorizada. Ficha Gestor em branch separada deve adotar o mesmo mapa quando retomada. Ver AI_HANDOFF.md e PLANOS_ATUAIS.md.
 
 26/11/2026 — Nova tabela Starter4,99/Plus14,99/Pro29,99 preparada na branch codex/planos-precos-20261126;200 testes aprovados. Assinantes atuais: próxima renovação, autorizado pelo titular. Publicação depende de autorização específica de regras Firestore após rejeição automática; ver handoff/roteiro de release.
+
+26/11/2026 — RESOLVIDO: Starter4,99/Plus14,99/Pro29,99 publicados por PR69/70. Regras Firebase publicadas, backend1907b3a, site8be3966, CI/Pages aprovados.201 testes e preços/indicação renderizados conferidos. Migração consultada/aplicada:0 elegíveis,1 vínculo não autorizado ativo ignorado, sem cobranças ou alterações de contratos. Bloqueio anterior de autorização resolvido.
