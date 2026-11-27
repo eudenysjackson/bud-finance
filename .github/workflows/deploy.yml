@@ -52,6 +52,11 @@ jobs:
           EMAILJS_TEMPLATE_BOAS_VINDAS:      ${{ secrets.EMAILJS_TEMPLATE_BOAS_VINDAS }}
           EMAILJS_TEMPLATE_RECUPERAR_SENHA:  ${{ secrets.EMAILJS_TEMPLATE_RECUPERAR_SENHA }}
           RECAPTCHA_SITE_KEY:                ${{ secrets.RECAPTCHA_SITE_KEY }}
+          PERFORMANCE_MONITORING_ENABLED:    ${{ vars.PERFORMANCE_MONITORING_ENABLED || 'true' }}
+          SENTRY_DSN:                        ${{ vars.SENTRY_DSN }}
+          SENTRY_FREE_PLAN_CONFIRMED:         ${{ vars.SENTRY_FREE_PLAN_CONFIRMED }}
+          APP_CHECK_SITE_KEY:                ${{ vars.APP_CHECK_SITE_KEY }}
+          APP_CHECK_FREE_PROVIDER_CONFIRMED:  ${{ vars.APP_CHECK_FREE_PROVIDER_CONFIRMED }}
         run: sh inject-env.sh
 
       - name: Setup Pages

@@ -254,7 +254,7 @@ form.addEventListener('submit', async function (e) {
       funcionalidades: {},
       lgpdConsentimento: true,
       lgpdConsentimentoData: serverTimestamp(),
-      lgpdVersaoPolitica: '2026-11-02-v1.8',
+      lgpdVersaoPolitica: '2026-11-26-v1.9',
       codigoIndicacao: codigoIndicacaoGerado,
       emailVerificationRequired: true
     };

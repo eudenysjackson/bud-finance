@@ -10,3 +10,12 @@ test('missing required configuration fails without exposing environment values',
  assert.throws(()=>buildConfig(template,{...env,FIREBASE_PROJECT_ID:''}),/Variáveis ausentes: FIREBASE_PROJECT_ID/);
  assert.throws(()=>buildConfig(template,{...env,BACKEND_URL:'http://remote.example'}),/HTTPS/);
 });
+
+test('free diagnostics default only to Performance; paid-capable integrations need explicit confirmation',()=>{
+ const window={};vm.runInNewContext(buildConfig(template,env),{window,console});
+ assert.equal(window.BUD_PERFORMANCE_ENABLED,true);assert.equal(window.BUD_SENTRY_FREE_PLAN_CONFIRMED,false);assert.equal(window.BUD_APP_CHECK_FREE_PROVIDER_CONFIRMED,false);
+ assert.equal(window.BUD_SENTRY_DSN,'');assert.equal(window.BUD_APP_CHECK_SITE_KEY,'');
+ assert.throws(()=>buildConfig(template,{...env,SENTRY_DSN:'https://example.test/private'}),/SENTRY_DSN inválido/);
+ assert.throws(()=>buildConfig(template,{...env,APP_CHECK_FREE_PROVIDER_CONFIRMED:'yes'}),/Opção de diagnóstico inválida/);
+ const off={};vm.runInNewContext(buildConfig(template,{...env,PERFORMANCE_MONITORING_ENABLED:'false'}),{window:off,console});assert.equal(off.BUD_PERFORMANCE_ENABLED,false);
+});
