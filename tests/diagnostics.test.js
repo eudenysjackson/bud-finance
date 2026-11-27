@@ -12,6 +12,7 @@ test('diagnostics allowlists discard financial values, identifiers, URLs, tokens
   assert.equal(event.exception.values[0].stacktrace.frames[0].filename,'app:///appbudfinance/js/cartoes.js');
   assert.equal(event.exception.values[0].stacktrace.frames[0].lineno,200);
   assert.equal(core.page('/appbudfinance/extrato?uid=secret'),'extrato');
+  assert.equal(core.page('/appbudfinance/'),'index');
   assert.equal(core.operation('/api/ia/jobs/private-id?token=secret'),'ai_status');
 });
 test('collector requires explicit activation and official DSN; sends minimal envelopes with bounded frequency',async()=>{
@@ -59,19 +60,20 @@ test('backend monitoring reports only generic errors and does not serialize requ
   await monitoring.capture(new Error('CPF saldo e token privados'),{path:'/api/financial/write',body:{senha:'never'},headers:{authorization:'Bearer private'}});
   assert.equal(sent.length,1);for(const privateValue of ['privados','never','Bearer','senha','authorization'])assert(!sent[0].includes(privateValue));
 });
-async function browser({local=false,optOut=false,failSdk=false,appCheck=false,appCheckConfirmed=appCheck}={}){
+async function browser({local=false,optOut=false,failSdk=false,appCheck=false,appCheckConfirmed=appCheck,path='/appbudfinance/cartoes',hash=''}={}){
   const records=[],calls=[],imports=[],events={},storage=new Map(optOut?[['bud_diagnostics_disabled','true']]:[]);
   const window={BudDiagnosticsCore:core,BUD_PERFORMANCE_ENABLED:true,BUD_SENTRY_FREE_PLAN_CONFIRMED:false,BUD_FUNCTIONS_URL:'https://api.example.test',
     BUD_FIREBASE_CONFIG:{appId:'app',projectId:'project'},BUD_APP_CHECK_SITE_KEY:appCheck?'site-key':'',BUD_APP_CHECK_FREE_PROVIDER_CONFIRMED:appCheckConfirmed,
     fetch:async(input,init)=>{calls.push({input,init});return{ok:true,status:200}},addEventListener:(name,fn)=>events[name]=fn};
   const context={window,URL,Headers,Request,AbortSignal,console,performance:{timeOrigin:1000,getEntriesByType:()=>[{domContentLoadedEventEnd:50}]},
-    document:{readyState:'complete',getElementById:()=>null},location:{hostname:local?'localhost':'budsolucoes.com.br',protocol:local?'http:':'https:',pathname:'/appbudfinance/cartoes',href:'https://budsolucoes.com.br/appbudfinance/cartoes'},
+    document:{readyState:'complete',getElementById:()=>null},location:{hostname:local?'localhost':'budsolucoes.com.br',protocol:local?'http:':'https:',pathname:path,hash,href:'https://budsolucoes.com.br'+path+hash},
     localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},
     loadSdk:async url=>{imports.push(url);if(failSdk)throw Error('unavailable');
       if(url.endsWith('firebase-app.js'))return{getApps:()=>[{name:'[DEFAULT]'}],initializeApp:()=>{throw Error('must reuse existing app')}};
       if(url.endsWith('firebase-app-check.js'))return{initializeAppCheck:(_, {provider})=>{assert.equal(provider.siteKey,'site-key');return{}},ReCaptchaEnterpriseProvider:class{constructor(siteKey){this.siteKey=siteKey}},onTokenChanged:(_,callback)=>callback({token:'cached-app-token'}),getToken:async()=>({})};
-      return{isSupported:async()=>true,initializePerformance:(_,settings)=>{assert.equal(settings.instrumentationEnabled,false);return{}},trace:(_,name)=>({record:(start,duration,options)=>records.push({name,start,duration,options})})};}};
-  const source=fs.readFileSync('appbudfinance/js/diagnostics.js','utf8').replace("import './diagnostics-core.js';",'').replaceAll('import(','loadSdk(');
+      // Match the real exports of the pinned 10.8.1 CDN module: no isSupported.
+      return{initializePerformance:(_,settings)=>{assert.equal(settings.instrumentationEnabled,false);return{}},trace:(_,name)=>({record:(start,duration,options)=>records.push({name,start,duration,options})})};}};
+  const source=fs.readFileSync('appbudfinance/js/diagnostics.js','utf8').replace(/^import '\.\/diagnostics-core\.js[^']*';/,'').replaceAll('import(','loadSdk(');
   vm.runInNewContext(source,context);await new Promise(resolve=>setImmediate(resolve));return{window,calls,records,imports,events};
 }
 test('local sessions never send telemetry or initialize production providers',async()=>{
@@ -86,10 +88,22 @@ test('a site key alone never activates a provider whose no-cost configuration ha
 });
 test('performance records only fixed operations/durations and App Check headers never reach another origin',async()=>{
   const b=await browser({appCheck:true});
+  assert.equal(b.window.BudDiagnostics.state.performance,'configured');
+  assert(b.records.some(r=>r.name==='page_ready_cartoes'));
   await b.window.fetch('https://api.example.test/api/financial/write',{method:'POST',headers:{Authorization:'Bearer original'},body:'private financial data'});
   const init=b.calls[0].init;assert.equal(init.headers.get('X-Firebase-AppCheck'),'cached-app-token');assert.equal(init.headers.get('Authorization'),'Bearer original');assert.equal(init.body,'private financial data');
   await b.window.fetch('https://other.example.test/api/financial/write',{method:'POST'});assert.equal(b.calls[1].init.headers,undefined);
   assert(b.records.some(r=>r.name==='api_financial_write'));assert(!JSON.stringify(b.records).includes('private'));
+});
+test('Performance skips unknown URL paths and fragments while preserving App Check',async()=>{
+  for(const options of [{path:'/appbudfinance/private/cartoes'},{hash:'#private'}]){
+    const b=await browser({...options,appCheck:true});
+    assert.equal(b.window.BudDiagnostics.state.performance,'disabled');
+    assert(!b.imports.some(url=>url.endsWith('firebase-performance.js')));
+    assert.equal(b.window.BudDiagnostics.state.appCheck,'observing');
+  }
+  const root=await browser({path:'/appbudfinance/'});
+  assert(root.records.some(r=>r.name==='page_ready_index'));
 });
 test('disabling optional diagnostics preserves App Check and unavailable SDKs do not prevent API calls',async()=>{
   const off=await browser({optOut:true,appCheck:true});assert.equal(off.records.length,0);assert.equal(off.window.BudDiagnostics.state.appCheck,'observing');

@@ -1,10 +1,17 @@
-import './diagnostics-core.js';
+import './diagnostics-core.js?v=20261126-free2';
 const core=window.BudDiagnosticsCore;
 const local=['localhost','127.0.0.1','[::1]'].includes(location.hostname);
 const state={performance:'disabled',sentry:'disabled',appCheck:'disabled'};
 let optedOut=false;try{optedOut=localStorage.getItem('bud_diagnostics_disabled')==='true';}catch(_){}
 const appEligible=!local&&location.protocol==='https:';
 const eligible=appEligible&&!optedOut;
+// The Performance SDK includes the page URL and an installation ID even for custom
+// traces. Only initialize on known static routes without a fragment; query strings
+// are removed by the pinned SDK before transport.
+const pageName=core.page(location.pathname);
+const performancePath=location.pathname.replace(/\/$/,'').replace(/\.html$/,'');
+const safePerformancePage=!location.hash&&pageName!=='other'&&
+  (performancePath==='/appbudfinance'||performancePath==='/appbudfinance/'+pageName);
 const nativeFetch=window.fetch.bind(window);
 const capture=core.collector({dsn:window.BUD_SENTRY_DSN,enabled:eligible&&window.BUD_SENTRY_FREE_PLAN_CONFIRMED===true,send:nativeFetch,limit:10});
 state.sentry=eligible&&window.BUD_SENTRY_FREE_PLAN_CONFIRMED===true&&core.sentryEndpoint(window.BUD_SENTRY_DSN)?'configured':'disabled';
@@ -39,13 +46,13 @@ async function start(){
     const config=window.BUD_FIREBASE_CONFIG;
     if(!config?.appId||!config.projectId||config.appId.startsWith('__'))return;
     const app=sdk.getApps().find(a=>a.name==='[DEFAULT]')||sdk.initializeApp(config);
-    if(eligible&&window.BUD_PERFORMANCE_ENABLED===true){
+    if(eligible&&safePerformancePage&&window.BUD_PERFORMANCE_ENABLED===true){
       try{const p=await import('https://www.gstatic.com/firebasejs/10.8.1/firebase-performance.js');
-        if(await p.isSupported()){
-          perf=p.initializePerformance(app,{instrumentationEnabled:false,dataCollectionEnabled:true});trace=p.trace;state.performance='configured';
-          const nav=performance.getEntriesByType('navigation')[0];
-          if(nav?.domContentLoadedEventEnd>0)p.trace(perf,'page_ready_'+core.page(location.pathname)).record(performance.timeOrigin,nav.domContentLoadedEventEnd);
-        }else state.performance='unsupported';
+        // 10.8.1 exports initializePerformance/trace, not isSupported. The SDK
+        // checks browser support internally; failures remain isolated here.
+        perf=p.initializePerformance(app,{instrumentationEnabled:false,dataCollectionEnabled:true});trace=p.trace;state.performance='configured';
+        const nav=performance.getEntriesByType('navigation')[0];
+        if(nav?.domContentLoadedEventEnd>0)p.trace(perf,'page_ready_'+pageName).record(performance.timeOrigin,nav.domContentLoadedEventEnd);
       }catch(_){state.performance='unavailable';}
     }
     // No provider is activated until the account is verified to have no paid overage.
