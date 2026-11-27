@@ -505,3 +505,15 @@ Painel separa pendências de hoje e atrasadas da previsão de 30 dias, com recei
 - Validação: 191 testes de release aprovados, incluindo clientes existentes, preços, trial e troca agendada; pacote público com119 arquivos e20 arquivos de backend verificado; sintaxe dos JS alterados e scanner do pacote aprovados. Primeiro teste falhou apenas por dependência sharp ausente nesta cópia; repetição com dependências locais completas passou.
 - Sem publicação, alteração de contas reais ou chamada de cobrança. Aguardando autorização de publicação coordenada frontend/backend. Descrições de assinaturas já existentes no Mercado Pago não foram alteradas por operação remota.
 - A ficha de Clientes do Gestor continua na branch separada não publicada. Ao retomar/integrar, aplicar o mapa comercial aos rótulos dessa ficha e filtros, preservando códigos. Não integrar Visão Geral/Vendas/Financeiro por causa desta tarefa.
+
+26/11/2026: publicação autorizada pelo titular. PR68 integrado em bc45a72d3e64bb6dca77002f6e4bce7d140fa493; validação PR45914297144 aprovada. Pages45914559499 em andamento; Render iniciou auto-deploy da mesma revisão, conferido no painel bud's workspace/bud-finance-backend. Conferência pública final pendente.
+
+## Troca de nomes publicada e conferida — 26/11/2026
+
+RESOLVIDO E PUBLICADO: PR68 integrado em bc45a72d3e64bb6dca77002f6e4bce7d140fa493. Validação PR45914297144 e Pages45914559499 aprovados; o workflow aguardou o backend correspondente antes de publicar o frontend. Render auto-deploy confirmado e GET /api/ping informou a revisão exata bc45a72.
+
+Conferência pública: página de vendas renderizada com Plus R$29,90 e cotas atuais, Pró R$49,90 ilimitado e trial Pró de três dias. Nove arquivos públicos conferidos contra a candidata: página de vendas, bud-utils, configurações JS/HTML, admin JS/HTML, cadastro, avisos in-app e política. Diferenças de bytes iniciais eram apenas CRLF/LF e BOM; conteúdo conferiu após normalização. Os191 testes passaram localmente e a validação de release passou novamente no CI.
+
+Clientes existentes adotam automaticamente o novo nome comercial ao carregar a versão publicada. Códigos internos e Firestore não foram migrados, mantendo cotas, assinaturas e preços. Nenhuma cobrança, cancelamento, envio de teste ou atualização em clientes reais foi executada. A descrição antiga no painel do provedor para assinaturas já existentes pode permanecer, pois nenhum contrato remoto foi alterado. Protótipo Gestor permanece separado; ao retomar a ficha não publicada, adaptar seus rótulos ao mesmo mapa.
+
+Próximo trabalho: retomar por master bc45a72 ou posterior, preservando as branches do Gestor. Este registro final está salvo na branch codex/planos-nomes-20261126 para continuidade entre máquinas.

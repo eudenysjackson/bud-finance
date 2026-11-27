@@ -698,3 +698,5 @@ Conversão atômica via adapter: informa saldo exato, atualiza recorrências e p
 Conferência UI local abriu Alelo→Editar→benefício e quatro opções; não salvou conversão porque saldo real não foi informado. Observado lançamento de receita como fatura no cadastro crédito, confirmando causa.181 regressões passaram antes do teste adicional da transação;3 testes específicos finais passaram incluindo saldo informado700 permanece700, crédito bancário errado revertido e pendência sem duplicar recarga. Nenhum saldo/cadastro real alterado nesta tarefa. Localhost deve recarregar para obter formulário atualizado. Não publicado, aguarda teste do titular.
 
 26/11/2026 — Troca Pro/Plus preparada e testada (191 testes), aguardando publicação coordenada autorizada. Ficha Gestor em branch separada deve adotar o mesmo mapa quando retomada. Ver AI_HANDOFF.md e PLANOS_ATUAIS.md.
+
+26/11/2026 — RESOLVIDA a publicação da troca de nomes: PR68 bc45a72, CI/Pages aprovados e backend na mesma revisão. Site/app/admin conferidos; códigos internos preservados. Rótulos da ficha Gestor não publicada permanecem para sua integração futura.
