@@ -708,3 +708,10 @@ Conferência UI local abriu Alelo→Editar→benefício e quatro opções; não 
 26/11/2026 — Sentry/AppCheck publicados em d6fce0e, Pages45923495425 aprovado, backend na mesma revisão/env conferido. App Check registrado no Spark e token200 confirmado após corrigir lista de APIs da chave Web. Performance precisa do complemento SDK10.8.1 em .tools/monitoramento-fix-20261126 (codex/monitoramento-fix-20261126),214 testes aprovados. Acompanhar deploy/primeiro traço; detalhes no handoff/release dessa cópia. Não repetir POST de teste em produção rejeitado por auto-review.
 
 26/11/2026 — RESOLVIDO/PUBLICADO: monitoramento gratuito PR71 + complemento SDK PR72, revisão funcional1236477.214 testes e CI/Pages aprovados; backend na revisão exata. Sentry recebeu teste sintético, App Check token200 e Performance page_ready_index/1amostra conferidos. Modo App Check observe, Spark/Developer sem faturamento adicional. Entrega física do e-mail Sentry não conferida e enforcement futuro fora do escopo. Ver encerramento em AI_HANDOFF.md/release, sem repetir POST de teste rejeitado em produção.
+
+## PEND-SEG-TESTE-API-20261127 — teste adicional de escrita sem autenticação
+
+- Status: PENDENTE, a pedido do titular em26/11/2026; data prevista27/11/2026 (amanhã, America/Sao_Paulo). Não executar hoje nem agendar envio automático.
+- Objetivo: conferir em produção a recusa de uma solicitação vazia, sem credenciais, ao POST /api/financial/write; resultado esperado401, sem criar ou alterar lançamentos. É teste complementar, não funcionalidade ausente.
+- Contexto: tentativa anterior foi barrada por auto-review por faltar autorização específica do teste em produção e NÃO foi executada nem repetida por outro meio. Ao retomar, verificar escopo/autorização aplicável com o titular e revisão implantada antes do teste; não contornar nova rejeição. Não usar dados/credenciais de cliente nem testar uma gravação válida.
+- Não inclui ativar enforcement do App Check, alterar regras, cobrar, cancelar ou enviar comunicações. As três integrações de monitoramento já estão publicadas/validadas, conforme release e encerramento do handoff.
