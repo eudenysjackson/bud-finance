@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const crypto=require('node:crypto');
 const source=fs.readFileSync('backend/server.js','utf8');
 const code=source.slice(source.indexOf("app.post('/mercadopago/create-subscription'"),source.indexOf("app.post('/api/push/token'"));
-function setup({providerError=false,lookupError=false,referrer=null,initialProfile={},onEmail}={}){
+function setup({providerError=false,lookupError=false,referrer=null,initialProfile={},onEmail,catalog}={}){
  const routes=new Map(),calls=[];
  const profile=Object.assign({email:'qa@example.test',nome:'Pessoa teste',plano:'free'},initialProfile);
  const sub={external_reference:'owner|starter',payer_email:'qa@example.test',status:'authorized'};
@@ -16,12 +16,12 @@ function setup({providerError=false,lookupError=false,referrer=null,initialProfi
  let transactionTail=Promise.resolve();
  const referrerDoc=referrer?{id:referrer.uid,data:()=>referrer.data,ref:{collection:()=>({doc:()=>({})})}}:null;
  const db={collection:name=>({doc:uid=>{assert.equal(name,'usuarios');assert.equal(uid,'owner');return ref;},where:(_field,_op,value)=>({limit:()=>({get:async()=>referrerDoc&&referrer.data.codigoIndicacao===value?{size:1,docs:[referrerDoc]}:{size:0,docs:[]}})})}),runTransaction(fn){const work=transactionTail.then(()=>fn({get:r=>r.get(),update:(_,data)=>update(data)}));transactionTail=work.catch(()=>{});return work;}};
- const context={subscriptionUpgrades:{handler:async()=>{},processPayment:async()=>false},createSubscriptionChange:require('../backend/subscription-change').createSubscriptionChange,crypto,Buffer,AbortSignal,
+ const context={paidCycleBase:require('../backend/subscription-pricing').paidCycleBase,subscriptionUpgrades:{handler:async()=>{},processPayment:async()=>false},createSubscriptionChange:require('../backend/subscription-change').createSubscriptionChange,crypto,Buffer,AbortSignal,
   _toDate:value=>{if(!value)return null;if(typeof value.toDate==='function')return value.toDate();const parsed=new Date(value);return Number.isNaN(parsed.getTime())?null:parsed;},
   app:{post:(route,...handlers)=>routes.set(route,handlers.at(-1))},express:{json:()=>()=>{}},
   auth:{verifyIdToken:async token=>{assert.equal(token,'test-token');return{uid:'owner',email:'qa@example.test'};}},db,
   MP_ACCESS_TOKEN:'TEST-fake-token',MP_WEBHOOK_SECRET:'test-secret',MP_WEBHOOK_URL:'https://backend.test/webhook/mercadopago',MP_INDICACAO_DESCONTO:.15,MP_BONUS_INDICADOR:.5,
-  MP_PLANS:{starter:{title:'Bud Finance Starter',amount:9.99},pro:{amount:29.90},plus:{amount:49.90}},FRONTEND_URL:'https://budsolucoes.com.br/appbudfinance',
+  MP_PLANS:catalog||{starter:{title:'Bud Finance Starter',amount:9.99},pro:{amount:29.90},plus:{amount:49.90}},FRONTEND_URL:'https://budsolucoes.com.br/appbudfinance',
   admin:{firestore:{FieldValue:{delete:()=>'__delete',serverTimestamp:()=>1},Timestamp:{fromDate:date=>date.toISOString()}}},
   process:{env:{BUD_USE_EMULATOR:onEmail ? 'false' : 'true'}},require:name=>{assert.equal(name,'crypto');return crypto;},console:{log(){},warn(){},error(){}},
   sendCommunicationEmail:onEmail,
@@ -290,4 +290,22 @@ test('abandoning an unpaid checkout preserves existing access and sends no cance
  assert.equal(s.profile.mpCheckout,undefined);
  assert.equal(s.profile.canceladoEm,undefined);
  assert.equal(emails.length,0);
+});
+
+
+test('legacy discounted renewal restores the new standard price and records the paid cycle base',async()=>{
+ const catalog=require('../backend/subscription-pricing').CATALOG;
+ const s=setup({catalog,initialProfile:{plano:'pro',mpSubscriptionId:'sub-1',beneficioIndicacao50:{status:'scheduled',subscriptionId:'sub-1',baseAmount:29.90,discountAmount:14.95,effectiveAt:'2026-11-01T00:00:00Z'}}});
+ Object.assign(s.sub,{external_reference:'owner|pro',next_payment_date:'2026-12-01T00:00:00Z'});
+ Object.assign(s.payment,{status:'approved',currency_id:'BRL',transaction_amount:14.95,date_approved:'2026-11-01T00:00:00Z'});
+ assert.equal((await s.webhook('payment')).statusCode,200);
+ assert.equal(s.sub.auto_recurring.transaction_amount,14.99);
+ assert.equal(s.profile.cicloPrecoBase,29.90);
+ assert.equal(s.profile.beneficioIndicacao50.status,'used');
+});
+
+test('webhook retries during price migration without granting or consuming discounts',async()=>{
+ const s=setup({initialProfile:{plano:'plus',mpSubscriptionId:'sub-1',planoTrocaLock:{id:'migration',until:Date.now()+60000}}});
+ assert.equal((await s.webhook()).statusCode,503);assert.equal(s.profile.plano,'plus');
+ assert.equal(s.calls.filter(c=>c.options.method==='PUT').length,0);
 });

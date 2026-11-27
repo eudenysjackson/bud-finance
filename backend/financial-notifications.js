@@ -102,7 +102,7 @@ function subscriptionPushNotices(profile, today) {
   if((days<0&&paid)||(status==='past_due'&&days<=0)) return [{tag:'subscription-overdue-'+due+'-'+today,title:'Pagamento da assinatura pendente',body:'Vencimento: '+formatted+'. Confira o pagamento do seu plano no Bud Finance.',url:'configuracoes.html',emoji:'⚠️'}];
   if(![3,1,0].includes(days)||(!paid&&plan!=='trial')) return [];
   const nextPlan=profile.planoTroca?.status==='scheduled'?profile.planoTroca.planKey:plan;
-  const label={starter:'Starter',pro:'Plus',plus:'Pró',trial:'de testes'}[nextPlan]||nextPlan;
+  const label={starter:'Starter',pro:'Plus',plus:'Pro',trial:'de testes'}[nextPlan]||nextPlan;
   const automatic=paid&&profile.mpSubscriptionId&&status==='authorized';
   return [{tag:'subscription-due-'+due+'-'+today,title:automatic?'Renovação do plano '+label: 'Vencimento do plano '+label,body:automatic?'Próxima cobrança: '+formatted+'. Sua assinatura será renovada nessa data.':'Seu plano vence em '+formatted+'. Confira as opções para continuar.',url:'configuracoes.html',emoji:'🔔'}];
 }

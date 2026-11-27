@@ -560,7 +560,7 @@ async function enviarParaIA(mensagem) {
     }
     if (resp.status === 403) {
       conversaIA.pop(); botRow.remove();
-      addMsg('bot', formatarMensagemIA('\uD83D\uDD12 O Assistente IA está disponível apenas no plano **Pró**.')); return;
+      addMsg('bot', formatarMensagemIA('\uD83D\uDD12 O Assistente IA está disponível apenas no plano **Pro**.')); return;
     }
     if (!resp.ok) {
       conversaIA.pop(); botRow.remove();

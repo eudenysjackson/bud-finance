@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="js/firebase-config.js"></script>
-  <script src="js/bud-utils.js?v=20261126-plan-labels" defer></script>
+  <script src="js/bud-utils.js?v=20261126-prices2" defer></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', sans-serif; background: #f0fdf4; color: #1e293b; min-height: 100vh; }
@@ -624,7 +624,7 @@
     <div id="panel-overview" class="anim-up">
       <div class="kpi-grid" id="overviewKpis">
         <div class="kpi-card green"><div class="kpi-val" id="kpiTotal">—</div><div class="kpi-lbl">Total Usuários</div></div>
-        <div class="kpi-card green"><div class="kpi-val" id="kpiPagantes">—</div><div class="kpi-lbl">Pagantes (Pró/Plus)</div></div>
+        <div class="kpi-card green"><div class="kpi-val" id="kpiPagantes">—</div><div class="kpi-lbl">Pagantes (Pro/Plus)</div></div>
         <div class="kpi-card amber"><div class="kpi-val amber" id="kpiTrial">—</div><div class="kpi-lbl">Em Trial</div></div>
         <div class="kpi-card"><div class="kpi-val" id="kpiFree">—</div><div class="kpi-lbl">Free / Starter</div></div>
         <div class="kpi-card blue"><div class="kpi-val blue" id="kpiMrr">—</div><div class="kpi-lbl">MRR Estimado</div></div>
@@ -665,7 +665,7 @@
               <div class="admin-sel-opt" data-val="free" onclick="pickSel('selPlanContainer','free','Free');filterCRM()">Free</div>
               <div class="admin-sel-opt" data-val="starter" onclick="pickSel('selPlanContainer','starter','Starter');filterCRM()">Starter</div>
               <div class="admin-sel-opt" data-val="trial" onclick="pickSel('selPlanContainer','trial','Trial');filterCRM()">Trial</div>
-              <div class="admin-sel-opt" data-val="plus" onclick="pickSel('selPlanContainer','plus','Pró');filterCRM()">Pró</div>
+              <div class="admin-sel-opt" data-val="plus" onclick="pickSel('selPlanContainer','plus','Pro');filterCRM()">Pro</div>
               <div class="admin-sel-opt" data-val="pro" onclick="pickSel('selPlanContainer','pro','Plus');filterCRM()">Plus</div>
             </div>
             <input type="hidden" id="crmPlanFilter" value="">
@@ -788,7 +788,7 @@
                 <div class="admin-sel-opt sel" onclick="pickSel('selNotifDestinoContainer','all','Todos os usuários')">Todos os usuários</div>
                 <div class="admin-sel-opt" onclick="pickSel('selNotifDestinoContainer','free','Free')">Free</div>
                 <div class="admin-sel-opt" onclick="pickSel('selNotifDestinoContainer','trial','Trial')">Trial</div>
-                <div class="admin-sel-opt" onclick="pickSel('selNotifDestinoContainer','plus','Pró')">Pró</div>
+                <div class="admin-sel-opt" onclick="pickSel('selNotifDestinoContainer','plus','Pro')">Pro</div>
                 <div class="admin-sel-opt" onclick="pickSel('selNotifDestinoContainer','pro','Plus')">Plus</div>
               </div>
               <input type="hidden" id="notifDestino" value="all">
@@ -938,7 +938,7 @@
           <label class="plan-chk-label"><input type="checkbox" name="flagPlan" value="free"> Free</label>
           <label class="plan-chk-label"><input type="checkbox" name="flagPlan" value="starter"> Starter</label>
           <label class="plan-chk-label"><input type="checkbox" name="flagPlan" value="trial"> Trial</label>
-          <label class="plan-chk-label"><input type="checkbox" name="flagPlan" value="plus"> Pró</label>
+          <label class="plan-chk-label"><input type="checkbox" name="flagPlan" value="plus"> Pro</label>
           <label class="plan-chk-label"><input type="checkbox" name="flagPlan" value="pro"> Plus</label>
         </div>
         <span style="font-size:.7rem;color:#9ca3af;margin-top:.375rem;display:block;">Deixe todos desmarcados = todos os planos</span>
@@ -994,7 +994,7 @@
     </div>
   </div>
 
-  <script type="module" src="js/admin.js?v=20261126-plan-labels"></script>
+  <script type="module" src="js/admin.js?v=20261126-prices2"></script>
 </body>
 </html>
 

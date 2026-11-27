@@ -21,6 +21,7 @@ const { createFinancialWrite } = require('./financial-write');
 const { createSecurityGuard, pruneSecurityLimits } = require('./security-guard');
 const { createSubscriptionChange } = require('./subscription-change');
 const { createSubscriptionUpgrade } = require('./subscription-upgrade');
+const { paidCycleBase } = require('./subscription-pricing');
 const { financialNotices, subscriptionDunningStage, subscriptionPushNotices, sendFinancialPush } = require('./financial-notifications');
 
 // Modelo multimodal configurável; validado na API da Groq em 24/10/2026.
@@ -103,9 +104,9 @@ const MP_WEBHOOK_URL    = process.env.MP_WEBHOOK_URL ||
   'https://bud-finance-backend.onrender.com/webhook/mercadopago';
 // planKey â†’ tÃ­tulo e preÃ§o mensal (BRL)
 const MP_PLANS = {
-  starter: { title: 'Bud Finance Starter', amount: 9.99  },
-  pro:     { title: 'Bud Finance Plus',     amount: 29.90 },
-  plus:    { title: 'Bud Finance Pró',    amount: 49.90 }
+  starter: { title: 'Bud Finance Starter', amount: 4.99  },
+  pro:     { title: 'Bud Finance Plus',     amount: 14.99 },
+  plus:    { title: 'Bud Finance Pro',    amount: 29.99 }
 };
 const MP_INDICACAO_DESCONTO = 0.15; // 15% somente na primeira cobrança do indicado
 const MP_BONUS_INDICADOR = 0.50; // 50% em uma próxima cobrança, uma vez por conta
@@ -489,7 +490,7 @@ app.post('/api/boas-vindas', async function (req, res) {
 });
 
 // â”€â”€â”€ POST /api/iniciar-trial â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Ativado automaticamente apÃ³s cadastro: concede 3 dias com acesso Pró.
+// Ativado automaticamente apÃ³s cadastro: concede 3 dias com acesso Pro.
 // Usa Firebase Admin SDK para contornar regras Firestore de create.
 app.post('/api/iniciar-trial', express.json(), async function (req, res) {
   if (!db) return res.status(503).json({ ok: false, error: 'Firebase Admin nÃ£o inicializado.' });
@@ -1340,7 +1341,7 @@ app.post('/api/processar-recorrentes', async function (req, res) {
     var userDoc = await db.collection('usuarios').doc(uid).get();
     var plano = userDoc.exists ? _effectivePlan(userDoc.data()) : 'free';
     if (!PLANOS_PERMITIDOS_REC.includes(plano)) {
-      return res.status(403).json({ error: 'Recurso disponÃ­vel apenas nos planos Plus, Pró e Trial.' });
+      return res.status(403).json({ error: 'Recurso disponÃ­vel apenas nos planos Plus, Pro e Trial.' });
     }
   } catch (_e) {
     return res.status(500).json({ error: 'Erro ao verificar plano do usuÃ¡rio.' });
@@ -1517,7 +1518,7 @@ app.post('/api/chat', async function (req, res) {
     var userSnap = await db.collection('usuarios').doc(uid).get();
     var plano = userSnap.exists ? _effectivePlan(userSnap.data()) : 'free';
     if (!PLANOS_CHAT.includes(plano)) {
-      return res.status(403).json({ error: 'Assistente IA disponÃ­vel apenas no plano Pró.' });
+      return res.status(403).json({ error: 'Assistente IA disponÃ­vel apenas no plano Pro.' });
     }
   } catch (_e) {
     return res.status(500).json({ error: 'Erro ao verificar plano.' });
@@ -1605,10 +1606,10 @@ app.post('/api/chat', async function (req, res) {
     '',
     '=== PLANOS E PREÃ‡OS ===',
     'â€¢ Gratuito (Free): funcionalidades bÃ¡sicas â€” lanÃ§amento manual de receitas e despesas, carteira, extrato, categorias, dashboard, metas e investimentos.',
-    'â€¢ Starter â€” R$ 9,99/mÃªs: tudo do Free + Mercado de compras, Limites por categoria, Comparativo mensal, RelatÃ³rios PDF/CSV.',
-    'â€¢ Plus â€” R$ 29,90/mÃªs: tudo do Starter + Recorrentes automÃ¡ticas, DÃ­vidas com Tabela Price, GrÃ¡ficos avanÃ§ados, ImportaÃ§Ã£o de extratos (PDF/OFX/CSV/imagem), Insights de saÃºde financeira, BalanÃ§o mensal.',
-    'â€¢ Pró â€” R$ 49,90/mÃªs: tudo do Plus + Assistente de IA (vocÃª, o Buddy), Assistente WhatsApp (em breve), Parcelamento inteligente de cartÃ£o via IA.',
-    'â€¢ Trial: 3 dias grÃ¡tis com funcionalidades Pró ao criar conta.',
+    'â€¢ Starter â€” R$ 4,99/mÃªs: tudo do Free + Mercado de compras, Limites por categoria, Comparativo mensal, RelatÃ³rios PDF/CSV.',
+    'â€¢ Plus â€” R$ 14,99/mÃªs: tudo do Starter + Recorrentes automÃ¡ticas, DÃ­vidas com Tabela Price, GrÃ¡ficos avanÃ§ados, ImportaÃ§Ã£o de extratos (PDF/OFX/CSV/imagem), Insights de saÃºde financeira, BalanÃ§o mensal.',
+    'â€¢ Pro â€” R$ 29,99/mÃªs: tudo do Plus + Assistente de IA (vocÃª, o Buddy), Assistente WhatsApp (em breve), Parcelamento inteligente de cartÃ£o via IA.',
+    'â€¢ Trial: 3 dias grÃ¡tis com funcionalidades Pro ao criar conta.',
     'Para assinar: acessar https://budsolucoes.com.br/budfinance/ (seÃ§Ã£o Planos) ou dentro do app em qualquer banner de upgrade.',
     '',
     '=== CONTATO E SUPORTE ===',
@@ -1634,7 +1635,7 @@ app.post('/api/chat', async function (req, res) {
     'â€¢ Extrato: histÃ³rico completo de transaÃ§Ãµes com filtros por data, categoria, tipo. Para lanÃ§ar: botÃ£o "+" no extrato ou dashboard.',
     'â€¢ Carteira (Contas): gerenciar contas bancÃ¡rias, poupanÃ§a, benefÃ­cios (vale alimentaÃ§Ã£o, etc). Importar extratos CSV/OFX/PDF/imagem via IA. Ver histÃ³rico de importaÃ§Ãµes anteriores.',
     'â€¢ TransferÃªncias: mover saldo entre contas cadastradas. Gera dois lanÃ§amentos automÃ¡ticos. BotÃ£o "Transferir" na tela Carteira.',
-    'â€¢ CartÃµes: gerenciar mÃºltiplos cartÃµes de crÃ©dito. Acompanhar fatura atual, limite disponÃ­vel, parcelas em aberto e parcelamento inteligente via IA (plano Pró). Pagar fatura de uma conta cadastrada.',
+    'â€¢ CartÃµes: gerenciar mÃºltiplos cartÃµes de crÃ©dito. Acompanhar fatura atual, limite disponÃ­vel, parcelas em aberto e parcelamento inteligente via IA (plano Pro). Pagar fatura de uma conta cadastrada.',
     'â€¢ Recorrentes: lanÃ§ar automaticamente contas fixas (aluguel, streaming, etc.) todo mÃªs no dia configurado. Suporta parcelas restantes. (plano Plus+)',
     'â€¢ DÃ­vidas: controlar emprÃ©stimos e financiamentos com Tabela Price, simulador de quitaÃ§Ã£o antecipada e acompanhamento de parcelas. (plano Plus+)',
     'â€¢ Metas: definir objetivos financeiros (viagem, reserva, etc) e acompanhar progresso com aportes manuais.',
@@ -1649,8 +1650,8 @@ app.post('/api/chat', async function (req, res) {
     'â€¢ Categorias: criar e personalizar categorias de gastos (Ã­cone, cor, nome).',
     'â€¢ Onboarding: ao criar a conta, fluxo guiado para cadastrar conta principal, renda e primeira despesa fixa.',
     'â€¢ ConfiguraÃ§Ãµes: mudar plano, tema de cor (8 opÃ§Ãµes: PadrÃ£o Gelo, Dark HBO e 6 temas coloridos), foto de perfil, ocultar valores (privacidade), exportar dados, excluir conta, resetar dados financeiros.',
-    'â€¢ Assistente de IA (Buddy â€” vocÃª): chat financeiro com contexto real do usuÃ¡rio, registro de transaÃ§Ãµes por voz/texto, chamados de suporte. (plano Pró)',
-    'â€¢ Assistente WhatsApp: controle financeiro direto pelo WhatsApp â€” EM BREVE, aguardando infraestrutura. (plano Pró)',
+    'â€¢ Assistente de IA (Buddy â€” vocÃª): chat financeiro com contexto real do usuÃ¡rio, registro de transaÃ§Ãµes por voz/texto, chamados de suporte. (plano Pro)',
+    'â€¢ Assistente WhatsApp: controle financeiro direto pelo WhatsApp â€” EM BREVE, aguardando infraestrutura. (plano Pro)',
     '',
     '=== PROBLEMAS COMUNS E SOLUÃ‡Ã•ES ===',
     '- TransaÃ§Ã£o nÃ£o aparece: checar filtros de data no Extrato (pode estar fora do perÃ­odo selecionado).',
@@ -2269,7 +2270,7 @@ app.post('/api/whatsapp/gerar-token', async function (req, res) {
     var userSnap = await db.collection('usuarios').doc(decoded.uid).get();
     var plano = _effectivePlan(userSnap.data());
     if (!['plus', 'pro', 'trial'].includes(plano)) {
-      return res.status(403).json({ error: 'Recurso disponÃ­vel apenas nos planos Pró, Plus e Trial.' });
+      return res.status(403).json({ error: 'Recurso disponÃ­vel apenas nos planos Pro, Plus e Trial.' });
     }
   } catch (_e) { return res.status(403).json({ error: 'Erro ao verificar plano.' }); }
 
@@ -2624,6 +2625,7 @@ async function _mpAgendarBeneficioIndicacao50(uid) {
   var snapshot = await ref.get();
   if (!snapshot.exists) return false;
   var profile = snapshot.data() || {}, reward = profile.beneficioIndicacao50 || {};
+  if (profile.planoTrocaLock?.until > Date.now()) return false;
   if (reward.status !== 'pending') return reward.status === 'scheduled';
   // O desconto de 50% não se acumula com os 15% do primeiro mês do indicado.
   if (profile.descontoIndicacaoPrimeiroMes && ['awaiting_payment', 'restoring'].includes(profile.descontoIndicacaoPrimeiroMes.status)) return false;
@@ -2669,6 +2671,7 @@ async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
   var eventProfile = await db.collection('usuarios').doc(uid).get();
   if (!eventProfile.exists) throw new Error('MP account profile not found');
   if (!_mpSubscriptionEventMatches(eventProfile.data(), preapprovalId)) return;
+  if (eventProfile.data().planoTrocaLock?.until > Date.now()) throw new Error('Subscription billing update in progress; retry event');
 
   var status = String(sub.status || '').toLowerCase();
 
@@ -2738,6 +2741,7 @@ async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
       }
       if (promoToRestore) {
         if (!Number.isFinite(promoToRestore.baseAmount) || promoToRestore.baseAmount <= 0) throw new Error('Invalid referral promotion base amount');
+        promoToRestore.baseAmount = MP_PLANS[planKey].amount;
         await _mpSetRecurringAmount(preapprovalId, promoToRestore.baseAmount);
       }
     }
@@ -2757,7 +2761,9 @@ async function _mpHandleSubscription(preapprovalId, paymentConfirmed) {
       expira.setMonth(expira.getMonth() + 1);
       expira.setDate(Math.min(day, new Date(expira.getFullYear(), expira.getMonth() + 1, 0).getDate()));
     }
+    var paidBase = paidCycleBase(planKey, paymentConfirmed, { ...currentProfile, mpSubscriptionId: preapprovalId });
     var activated = await _mpUpdateSubscriptionProfile(uid, preapprovalId, {
+      ...(paidBase ? { cicloPrecoBase: paidBase } : {}),
       plano:             planKey,
       planoExpira:       admin.firestore.Timestamp.fromDate(expira),
       mpSubscriptionId:  preapprovalId,
@@ -3385,7 +3391,7 @@ async function enviarLembretesDeAssinatura(hoje) {
         titulo = isTrial ? 'Seu período de teste está terminando' : 'Sua assinatura será renovada em breve';
         mensagem = isTrial
           ? 'Seu período de teste termina em ' + _formatDateBR(expira) + '. Escolha um plano para continuar usando os recursos premium.'
-          : 'Seu plano ' + ({ starter: 'Starter', pro: 'Plus', plus: 'Pró' }[plano] || plano) + ' será renovado em ' + _formatDateBR(expira) + '. Confira seus dados de pagamento para não perder o acesso.';
+          : 'Seu plano ' + ({ starter: 'Starter', pro: 'Plus', plus: 'Pro' }[plano] || plano) + ' será renovado em ' + _formatDateBR(expira) + '. Confira seus dados de pagamento para não perder o acesso.';
       } else if (dias <= 0 && dias >= -1) {
         tipoAviso = isTrial ? 'trial_encerrado' : 'assinatura_vencida';
         titulo = isTrial ? 'Seu período de teste terminou' : 'Sua assinatura venceu';

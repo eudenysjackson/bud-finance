@@ -48,7 +48,7 @@ test('renewal notices show the exact billing date and do not claim automatic ren
  assert.equal(subscriptionPushNotices({...profile,planoExpira:'2026-12-03T15:00:00Z'},'2026-10-31').length,0);
  assert.equal(subscriptionPushNotices({...profile,assinaturaStatus:'cancelled'},'2026-10-31').length,0);
  assert.match(subscriptionPushNotices({...profile,mpSubscriptionId:null},'2026-10-31')[0].title,/Vencimento/);
- assert.match(subscriptionPushNotices({...profile,planoTroca:{status:'scheduled',planKey:'plus'}},'2026-10-31')[0].title,/Pró/);
+ assert.match(subscriptionPushNotices({...profile,planoTroca:{status:'scheduled',planKey:'plus'}},'2026-10-31')[0].title,/Pro/);
 });
 
 test('overdue financial push is sent one day late and then weekly until confirmation', () => {

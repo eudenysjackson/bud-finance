@@ -503,7 +503,7 @@
       var members = [];
       var sib = label.nextElementSibling;
       while (sib && !sib.classList.contains('sidebar-group-label')) {
-        // Stop at the final divider that precedes Configurações (if present after Bud Pró group)
+        // Stop at the final divider that precedes Configurações (if present after Bud Pro group)
         members.push(sib);
         sib = sib.nextElementSibling;
       }
@@ -596,7 +596,7 @@
     free:    'Free',
     trial:   'Trial',
     starter: 'Starter',
-    plus:    'Pró',
+    plus:    'Pro',
     pro:     'Plus',
   };
 

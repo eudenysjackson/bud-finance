@@ -36,7 +36,7 @@ function renderEstado() {
   const headerText    = document.getElementById('headerStatusText');
 
   if (!PLANOS_WHATSAPP.includes(_userPlano)) {
-    // ── Gate: não é Pró ──────────────────────────────────────────────────
+    // ── Gate: não é Pro ──────────────────────────────────────────────────
     elPaywall.style.display  = 'block';
     elConteudo.style.display = 'none';
     if (headerBadge) headerBadge.style.display = 'none';

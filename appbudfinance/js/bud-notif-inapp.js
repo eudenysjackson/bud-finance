@@ -23,7 +23,7 @@
     if (end && (paid || plan === 'trial') && end - now <= 3 * 86400000) {
       var days = Math.max(1, Math.ceil((end - now) / 86400000));
       var nextPlan = profile.planoTroca?.status === 'scheduled' ? profile.planoTroca.planKey : plan;
-      var planName = {starter:'Starter',pro:'Plus',plus:'Pró'}[nextPlan] || 'atual';
+      var planName = {starter:'Starter',pro:'Plus',plus:'Pro'}[nextPlan] || 'atual';
       var automatic = profile.mpSubscriptionId && status === 'authorized';
       var message = plan === 'trial' ? 'Seu período de testes termina em ' + dueDate + '.' : automatic ? 'Renovação do plano ' + planName + ' em ' + dueDate + '. Próxima cobrança: ' + dueDate + '.' : 'Seu plano ' + planName + ' vence em ' + dueDate + '. Confira sua assinatura.';
       return { key: 'due-' + end.toISOString(), color: 'blue', emoji: '🔔', message: message, label: 'Ver assinatura', link: 'configuracoes.html' };

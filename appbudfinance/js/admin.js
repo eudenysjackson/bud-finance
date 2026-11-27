@@ -38,7 +38,7 @@ let _salesLoaded      = false;
 let _iaMetricsLoaded  = false;
 
 // ── Plan prices for MRR estimate ───────────────────────────────
-const PLAN_PRICES = { starter: 9.99, pro: 29.90, plus: 49.90 };
+const PLAN_PRICES = { starter: 4.99, pro: 14.99, plus: 29.99 };
 
 // ═══════════════════════════════════════════════════════════════
 //  HELPERS
@@ -73,7 +73,7 @@ function daysSince(ts) {
 function planBadge(plan) {
   const p = (plan || 'free').toLowerCase();
   const classes = { free:'plan-free', starter:'plan-starter', trial:'plan-trial', plus:'plan-plus', pro:'plan-pro', admin:'plan-admin' };
-  const labels  = { free:'Free', starter:'Starter', trial:'Trial', plus:'Pró', pro:'Plus', admin:'Admin' };
+  const labels  = { free:'Free', starter:'Starter', trial:'Trial', plus:'Pro', pro:'Plus', admin:'Admin' };
   return `<span class="plan-badge ${classes[p] || 'plan-free'}">${labels[p] || esc(p)}</span>`;
 }
 
@@ -321,7 +321,7 @@ async function loadOverview() {
     // Plan distribution
     const distData = [
       { label: 'Plus',     val: proN,      color: '#059669' },
-      { label: 'Pró',    val: plusN,     color: '#9333ea' },
+      { label: 'Pro',    val: plusN,     color: '#9333ea' },
       { label: 'Trial',   val: trialN,    color: '#ea580c' },
       { label: 'Starter', val: starterN,  color: '#2563eb' },
       { label: 'Free',    val: freeN,     color: '#94a3b8' },
@@ -985,7 +985,7 @@ window.deletePromo = function(id) {
 // ═══════════════════════════════════════════════════════════════
 const DEFAULT_FLAGS = [
   { nome: 'Compras',              key: 'compras',              desc: 'Exibe o menu e libera a tela de compras',      planos: ['free','starter','trial','plus','pro'], enabled: true },
-  { nome: 'Grupo Bud Pró',       key: 'grupo_bud_plus',       desc: 'Exibe o título Bud Pró na barra lateral',     planos: ['free','starter','trial','plus','pro'], enabled: true },
+  { nome: 'Grupo Bud Pro',       key: 'grupo_bud_plus',       desc: 'Exibe o título Bud Pro na barra lateral',     planos: ['free','starter','trial','plus','pro'], enabled: true },
   { nome: 'Dashboard Avançado',   key: 'dashboard_avancado',  desc: 'Gráficos e insights avançados no dashboard', planos: ['plus','pro'], enabled: true },
   { nome: 'Importação por IA',    key: 'importacao_ia',       desc: 'Importar extrato via Gemini/OCR',           planos: ['pro'],         enabled: true },
   { nome: 'Limites de Gastos',    key: 'limites_gastos',      desc: 'Definir orçamento por categoria',           planos: ['starter','trial','plus','pro'], enabled: true },

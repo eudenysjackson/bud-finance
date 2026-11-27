@@ -931,3 +931,5 @@ Validação:175 testes de release aprovados; redução de184 corresponde aos10 t
 10/11/2026: benefícios têm saldo próprio em Contas, sem fatura/limite de crédito. Conversão exige saldo real informado; limite não vira saldo. Conciliação explícita evita recarga duplicada e mantém cota vigente de contas.
 
 26/11/2026: renomeação comercial preserva identificadores permanentes. plus passa a exibir Pró; pro passa a exibir Plus. Sem migração de campos de plano, alteração de preços, cotas ou assinaturas. Ver PLANOS_ATUAIS.md.
+
+26/11/2026: Pro sem acento e novos preços4,99/14,99/29,99. Titular decidiu que assinantes atuais recebem novos preços na próxima renovação; ciclo já pago preservado no upgrade; descontos por indicação preservados. Cotas e IDs não mudam.

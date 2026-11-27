@@ -12,7 +12,7 @@ service cloud.firestore {
       return ['plano', 'planoExpira', 'planoAtivadoEm', 'planoAtualizadoEm',
         'mpSubscriptionId', 'mpPayerId', 'mpCheckout', 'fcmTokens', 'fcmToken', 'pushEnabled', 'assinaturaStatus', 'trialFim', 'trialIniciado', 'planoTroca', 'planoTrocaLock',
         'pagamentoPendente', 'pagamentoPendenteDesde', 'pagamentoPendentePagamentoId', 'ultimaCobrancaAprovadaEm', 'emailAssinaturaAvisos',
-        'planoUpgrade', 'upgradeCiclo', 'beneficioIndicacao50', 'descontoIndicacaoPrimeiroMes', 'primeiraCobrancaPagaEm', 'codigoIndicacaoAplicadoEm',
+        'planoUpgrade', 'upgradeCiclo', 'planoPreco', 'cicloPrecoBase', 'beneficioIndicacao50', 'descontoIndicacaoPrimeiroMes', 'primeiraCobrancaPagaEm', 'codigoIndicacaoAplicadoEm',
         '_deletionPending', 'pushConsentRevoked', 'pushConsentRevokedAt', 'role', 'bloqueado', 'status'];
     }
 
