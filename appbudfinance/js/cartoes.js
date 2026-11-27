@@ -1859,7 +1859,7 @@ function _renderConfiabilidadeBadge() {
 
 function abrirModalImportIA(cartaoId, manterArquivo = false) {
   if (window.BudPlanos.getMonthlyImportLimit(window._cartoesUserData || {}) === 0) {
-    showToast('Importações disponíveis no Plus e Pró. Escolha seu plano em Configurações → Dados.', 'erro');
+    showToast('Importações disponíveis no Plus e Pro. Escolha seu plano em Configurações → Dados.', 'erro');
     return;
   }
   if (window.budFeatureEnabled && !window.budFeatureEnabled('importacao_ia')) {

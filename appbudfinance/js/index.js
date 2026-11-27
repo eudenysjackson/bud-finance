@@ -460,7 +460,7 @@ async function continuarLogin(user, userData) {
 }
 
 function abrirCheckoutTesteLocal(user, planKey) {
-  var planos = { starter: ['Starter', 'R$ 9,99'], pro: ['Plus', 'R$ 29,90'], plus: ['Pró', 'R$ 49,90'] };
+  var planos = { starter: ['Starter', 'R$ 4,99'], pro: ['Plus', 'R$ 14,99'], plus: ['Pro', 'R$ 29,99'] };
   var plano = planos[planKey] || [planKey, ''];
   var overlay = document.createElement('div');
   overlay.setAttribute('role', 'dialog');
@@ -585,7 +585,7 @@ async function continuarEmail(user, params) {
     status.textContent = 'Escolha um plano para continuar ao Mercado Pago.';
     const plans = dialog.querySelector('[data-plans]');
     plans.style.cssText = 'display:grid;gap:8px';
-    for (const [key, label] of [['starter', 'Starter · R$ 9,99/mês'], ['pro', 'Plus · R$ 29,90/mês'], ['plus', 'Pró · R$ 49,90/mês']]) {
+    for (const [key, label] of [['starter', 'Starter · R$ 4,99/mês'], ['pro', 'Plus · R$ 14,99/mês'], ['plus', 'Pro · R$ 29,99/mês']]) {
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = label;

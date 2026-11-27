@@ -931,7 +931,7 @@ async function carregarPerfil(user) {
 
 // ─── Gestão de Assinatura (PEND-075) ─────────────────────────────────────
 function _renderizarSecaoPlano(plano, data) {
-  const LABELS = { free: 'Gratuito', starter: 'Starter', pro: 'Plus', plus: 'Pró', trial: 'Período Trial' };
+  const LABELS = { free: 'Gratuito', starter: 'Starter', pro: 'Plus', plus: 'Pro', trial: 'Período Trial' };
   const BADGE_COLORS = { free: '#94a3b8', starter: '#3b82f6', plus: '#7c3aed', pro: '#d97706', trial: '#059669' };
   const PLANOS_PAGOS = ['starter', 'pro', 'plus'];
 
@@ -959,8 +959,8 @@ function _renderizarSecaoPlano(plano, data) {
       free:    'Plano gratuito — acesso às funcionalidades básicas.',
       starter: 'Plano Starter ativo — funcionalidades essenciais.',
       pro:     'Plano Plus — 2 contas, 2 cartões, 15 lançamentos, 5 importações e 5 serviços de IA por mês.',
-      plus:    'Plano Pró ativo — contas, cartões e importações ilimitados.',
-      trial:   'Período de testes ativo — acesso aos recursos Pró por três dias.'
+      plus:    'Plano Pro ativo — contas, cartões e importações ilimitados.',
+      trial:   'Período de testes ativo — acesso aos recursos Pro por três dias.'
     };
     elDesc.textContent = descs[plano] || 'Plano ativo.';
     if (data.planoTroca && LABELS[data.planoTroca.planKey]) {
@@ -1022,7 +1022,7 @@ function _renderizarSecaoPlano(plano, data) {
     btn.style.cssText = 'padding:0.5rem 1rem;background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;border:none;border-radius:0.625rem;font-size:0.8125rem;font-weight:700;cursor:pointer;white-space:nowrap;';
     btn.onclick = async function () {
       if (data.mpSubscriptionId && PLANOS_PAGOS.includes(plano) && status !== 'pending') {
-        const prices={starter:9.99,pro:29.90,plus:49.90};
+        const prices={starter:4.99,pro:14.99,plus:29.99};
         if(prices[planoDest]>prices[plano])_confirmarUpgradeProporcional(planoDest,data);
         else _confirmarTrocaPlano(planoDest,data);
         return;
@@ -1052,17 +1052,17 @@ function _renderizarSecaoPlano(plano, data) {
     title.style.cssText = 'font-size:0.75rem;font-weight:700;color:var(--card-text-sec);margin-bottom:0.375rem;width:100%;';
     title.textContent = 'Escolha seu plano:';
     elBotoes.appendChild(title);
-    elBotoes.appendChild(_btnUpgrade('Starter — R$9,99/mês', 'starter'));
-    elBotoes.appendChild(_btnUpgrade('Plus — R$29,90/mês ⭐', 'pro'));
-    elBotoes.appendChild(_btnUpgrade('Pró — R$49,90/mês', 'plus'));
+    elBotoes.appendChild(_btnUpgrade('Starter — R$4,99/mês', 'starter'));
+    elBotoes.appendChild(_btnUpgrade('Plus — R$14,99/mês ⭐', 'pro'));
+    elBotoes.appendChild(_btnUpgrade('Pro — R$29,99/mês', 'plus'));
     elBotoes.style.flexDirection = 'column';
     elBotoes.style.alignItems = 'stretch';
   } else if (plano === 'starter') {
     elBotoes.appendChild(_btnUpgrade('⬆️ Upgrade para Plus', 'pro'));
-    elBotoes.appendChild(_btnUpgrade('⬆️ Upgrade para Pró', 'plus'));
+    elBotoes.appendChild(_btnUpgrade('⬆️ Upgrade para Pro', 'plus'));
     elBotoes.appendChild(_btnCancelar());
   } else if (plano === 'pro') {
-    elBotoes.appendChild(_btnUpgrade('⬆️ Upgrade para Pró', 'plus'));
+    elBotoes.appendChild(_btnUpgrade('⬆️ Upgrade para Pro', 'plus'));
     elBotoes.appendChild(_btnUpgrade('⬇️ Mudar para Starter', 'starter'));
     elBotoes.appendChild(_btnCancelar());
   } else if (plano === 'plus') {
@@ -1100,7 +1100,7 @@ function _confirmarUpgradeProporcional(planKey,data){
  pay.onclick=async()=>{if(busy||!quote)return;busy=true;pay.disabled=true;back.disabled=true;pay.textContent='Abrindo checkout…';try{const result=await upgradeRequest({action:'checkout',quoteId:quote.quoteId});window.location.assign(validCheckoutURL(result.init_point));}catch(e){busy=false;error.textContent=e.message;pay.disabled=false;back.disabled=false;pay.textContent='Tentar novamente';}};
 }
 function _confirmarTrocaPlano(planKey, data) {
-  const plans = { starter: ['Starter', 9.99], pro: ['Plus', 29.90], plus: ['Pró', 49.90] };
+  const plans = { starter: ['Starter', 4.99], pro: ['Plus', 14.99], plus: ['Pro', 29.99] };
   if (!plans[planKey]) return;
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:300;display:flex;align-items:center;justify-content:center;padding:1rem;';
@@ -1395,9 +1395,9 @@ const comparison = document.getElementById('cfgPlanComparison');
 if (comparison && window.BudPlanos) {
   for (const [plano, nome, preco] of [
     ['free', 'Gratuito', 'R$ 0'],
-    ['starter', 'Starter', 'R$ 9,99/mês'],
-    ['pro', 'Plus', 'R$ 29,90/mês'],
-    ['plus', 'Pró', 'R$ 49,90/mês']
+    ['starter', 'Starter', 'R$ 4,99/mês'],
+    ['pro', 'Plus', 'R$ 14,99/mês'],
+    ['plus', 'Pro', 'R$ 29,99/mês']
   ]) {
     const plans = window.BudPlanos;
     const profile = { plano };

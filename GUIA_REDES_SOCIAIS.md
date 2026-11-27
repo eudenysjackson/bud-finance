@@ -1,5 +1,7 @@
 # 📲 Guia de Redes Sociais — Bud Finance
 
+> Tabela vigente preparada em 26/11/2026: Starter R$ 4,99/mês; Plus R$ 14,99/mês; Pro (sem acento) R$ 29,99/mês. Mesmos recursos. Assinantes atuais recebem os valores na próxima renovação. Consulte PLANOS_ATUAIS.md; valores e grafias anteriores abaixo são históricos.
+
 > Atualização de nomes — 26/11/2026: Plus agora é Pró (R$ 49,90/mês, ilimitado); Pro agora é Plus (R$ 29,90/mês, 2 contas, 2 cartões, 15 lançamentos, 5 importações e 5 usos de IA por mês). O trial de três dias equivale ao Pró. Preços e recursos permanecem iguais. Consulte [PLANOS_ATUAIS.md](PLANOS_ATUAIS.md); referências antigas neste documento são históricas e não devem orientar novas peças.
 ### Manual de Postagens por Funcionalidade
 
