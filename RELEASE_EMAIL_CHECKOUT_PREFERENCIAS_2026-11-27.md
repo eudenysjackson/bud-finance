@@ -43,3 +43,6 @@ Viewport mobile solicitado não foi aplicado: largura medida1265px. Não declara
 Publicar frontend/backend juntos somente com autorização específica. Conferir revisão e página; preparar teste individual com token pessoal e CID pelo caminho que consulta supressões. Não enviar V3 com rota404/placeholder. Confirmação real de descadastro grava preferência e deve limitar-se ao destinatário de teste autorizado. Campanha coletiva continua sem autorização; verificar plano efetivo, consentimentos e supressões.
 
 Prévia http://127.0.0.1:13249/email.html: destinatário fictício, ledger local e checkout simulado. Script .tools/email-v3-preview.local.cjs ignorado. Amostra de QA descadastrada é diferente da amostra padrão oferecida ao titular. Ler AI_HANDOFF.md na mesma branch para retomar em outra máquina.
+
+## Atualização posterior — envio de prévia V3
+Em27/11 o titular solicitou explicitamente uma prévia no endereço pessoal escolhido. Enviada via Gmail com PNG/CID e faixa informando ausência de publicação, velocidade pública anterior e descadastro apenas demonstrativo/local. SENT/INBOX confirmados; nenhuma leitura humana afirmada. Não houve deploy ou alteração de preferência real. Esta anotação substitui somente o status anterior de sem e-mail V3; limitações de produção e autorização coletiva permanecem.
