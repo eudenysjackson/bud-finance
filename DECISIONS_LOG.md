@@ -939,3 +939,14 @@ Validação:175 testes de release aprovados; redução de184 corresponde aos10 t
 26/11/2026 — Console atual descontinuou registro reCAPTCHA clássico. Candidata App Check usa ReCaptchaEnterpriseProvider do SDK10.8.1, somente após confirmar Spark/Essentials sem faturamento (excedente retorna429). Sentry confirmado Developer sem cartão, com um evento sintético validado; SDK de replay/SCM não instalado. Metadados da conexão podem gerar localização aproximada apesar de IP não armazenado; política informada. Aceite dos termos Google Cloud/ativação da API requer confirmação no momento da ação e permanece pendente. Publicação depende da autorização específica prevista no protocolo.
 
 26/11/2026 — Performance: respeitar exports reais do SDK10.8.1; initializePerformance executa verificação interna, não existe isSupported nesse módulo. SDK inclui URL sem query, ID técnico de instalação e características de conexão mesmo com traços customizados. Restringir inicialização a rotas estáticas conhecidas sem fragmentos e informar na política; não prometer ausência de toda URL/metadado. App Check permanece observe e as regras Firebase continuam sem enforcement nesta entrega.
+
+26/11/2026 — Comunicação dos novos preços: titular esclareceu que Starter4,99/Plus14,99/Pro29,99 continuam para todos. Divulgar redução permanente, sem prazo promocional; substituir sugestão inicial de término Black Friday30/11 às22h. Preparação e envio de um teste ao titular autorizados, campanha coletiva depende de aprovação posterior. Nenhuma programação de reversão ou mudança financeira nesta tarefa.
+
+
+27/11/2026 — Material de e-mail deve usar imagem Buddy opaca PNG incorporada por CID e cada card deve selecionar diretamente o checkout autenticado do plano. Aproveitar rota existente com parâmetro checkout; nunca levar o cliente a procurar plano em Configurações nem incluir credenciais pessoais na URL. Sessão só é aproveitada no navegador onde estiver ativa. Não mudou identificação interna de planos, preço ou serviço EmailJS.
+
+
+27/11/2026 — Marketing: link individual assinado, confirmação POST e preferência persistente mínima por hash de e-mail em coleção privada. GET não descadastra para evitar leitores automáticos; conta/assinatura e transacionais preservados. Campanhas consultam supressão antes de cada envio; conector Gmail avulso não é motor de campanhas. Não pré-gerar contratos para ocultar latência: antecipar conexão e paralelizar verificações mantendo segurança/idempotência.
+
+
+27/11/2026 — Contratação por e-mail usa entrada dedicada App/Auth, sem Firestore/recursos gerais de login. Identidade/eligibilidade permanecem validadas no servidor. Links antigos têm atalho no head; entrar=1 preserva login/evita loop, sem autoridade de segurança. Verificação/magic links não são interceptados. Nenhum contrato pré-gerado, token em URL ou promessa de eliminar espera do provedor. Alterações só passam a valer após implantação.

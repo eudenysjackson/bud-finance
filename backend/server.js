@@ -22,6 +22,7 @@ const { createSecurityGuard, pruneSecurityLimits } = require('./security-guard')
 const { createSubscriptionChange } = require('./subscription-change');
 const { createSubscriptionUpgrade } = require('./subscription-upgrade');
 const { paidCycleBase } = require('./subscription-pricing');
+const { createMarketingPreferences } = require('./marketing-preferences');
 const { financialNotices, subscriptionDunningStage, subscriptionPushNotices, sendFinancialPush } = require('./financial-notifications');
 
 // Modelo multimodal configurável; validado na API da Groq em 24/10/2026.
@@ -221,7 +222,16 @@ function sanitizeStr(str) {
 }
 
 // â”€â”€â”€ Send email via EmailJS REST API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const marketingPreferences = createMarketingPreferences({db, secret:process.env.MARKETING_PREFERENCES_SECRET || EMAIL_VERIFICATION_SECRET, frontendURL:FRONTEND_URL});
+app.post('/api/marketing/unsubscribe', marketingPreferences.unsubscribe);
+
 async function sendEmailViaEmailJS(templateParams, templateId) {
+  if (templateParams.email_category === 'marketing') {
+    const preference = await marketingPreferences.prepare(templateParams.to_email);
+    if (!preference.allowed) return {skipped:true, reason:'marketing_unsubscribed'};
+    templateParams = {...templateParams, unsubscribe_url:preference.unsubscribeURL,
+      email_body:String(templateParams.email_body || '') + '\n\nDescadastrar dos e-mails promocionais: ' + preference.unsubscribeURL};
+  }
   var tid = templateId || EMAILJS_TEMPLATE_ID;
   if (!EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID || !tid) {
     throw new Error('EmailJS não configurado');
@@ -2422,7 +2432,7 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
   if (!idToken) return res.status(401).json({ error: 'Token ausente.' });
 
   var decoded;
-  try { decoded = await auth.verifyIdToken(idToken,true); }
+  try { decoded = req.budUser || await auth.verifyIdToken(idToken,true); }
   catch (_e) { return res.status(401).json({ error: 'Token invÃ¡lido.' }); }
 
   var uid   = decoded.uid;
@@ -2439,6 +2449,9 @@ app.post('/mercadopago/create-subscription', async function (req, res) {
   catch (_) { return res.status(503).json({ error: 'Não foi possível consultar o cadastro para iniciar a assinatura.' }); }
   if (!userSnap.exists) return res.status(503).json({ error: 'Não foi possível consultar o cadastro para iniciar a assinatura.' });
   var userProfile = userSnap.data() || {};
+  // The lightweight entry has no Firestore client. Enforce account eligibility here.
+  if (decoded.email_verified !== true) return res.status(403).json({error:'Confirme seu e-mail antes de contratar um plano.',code:'EMAIL_VERIFICATION_REQUIRED'});
+  if (userProfile.bloqueado === true || (userProfile.email && String(userProfile.email).trim().toLowerCase() !== String(email).trim().toLowerCase())) return res.status(403).json({error:'Não foi possível autorizar a contratação nesta conta.',code:'ACCOUNT_UNAVAILABLE'});
   var explicitRef = req.body.ref ? String(req.body.ref).trim() : '';
   var rawRef = explicitRef || String(userProfile.indicadoPor && userProfile.indicadoPor.codigo || '');
   var refCode = rawRef ? rawRef.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8) : null;

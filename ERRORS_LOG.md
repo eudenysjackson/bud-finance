@@ -925,3 +925,14 @@ Corrigido localmente. O saldo amortizado podia chegar a zero enquanto ainda havi
 Corrigido no candidato codex/monitoramento-fix-20261126: Performance10.8.1 não exporta isSupported; chamar essa função abortava inicialização no catch. Teste passou a reproduzir exports reais do CDN;214 regressões aprovadas, incluindo inicialização e preservação de App Check sem Performance em URLs não canônicas/fragmentos. Página raiz identificada como index. Em produção,403 App Check inicial era lista de APIs da chave Web sem App Check; permitidas apenas App Check e Remote Config além das seis APIs anteriores. ExchangeRecaptchaEnterpriseToken200 confirmado por métricas agregadas Google. Aguardar deploy corretivo e confirmar Performance no painel antes de declarar recebimento.
 
 26/11/2026 — RESOLVIDO/PUBLICADO: incompatibilidade Performance10.8.1 corrigida em PR72/1236477;214 testes/CI/Pages aprovados. Firebase exibiu page_ready_index com1amostra, confirmando SDK inicializado/recebimento.403 inicial App Check resolvido com inclusão de App Check/Remote Config na lista de APIs da chave Web usada em produção; resposta200 comprovada em métricas agregadas. Sem bloqueio de acesso/enforcement ou alteração financeira nesta validação.
+\n
+## Buddy com fundo preto no e-mail — 27/11/2026
+PDF recebido do teste confirmou retângulo preto e serrilhado no WebP transparente usado no e-mail, embora a prévia Chromium estivesse correta. Não foi comprovado em qual etapa do cliente/proxy/impressão ocorreu a conversão. Revisão V2 substitui por PNG RGB opaco1083×1452 incorporado ao MIME por CID e fundo branco. Releitura do envio confirmou image/png inline e referência correta; aparência no Gmail de destino aguarda o titular. Não alterar os mascotes do app por causa desse material.64 testes do fluxo de checkout/navegação/nomes aprovados; nenhuma publicação ou cobrança real.
+
+
+## Espera no checkout e descadastro por mailto — 27/11/2026
+Candidata reduz etapas redundantes e flash do formulário durante restauração, sem prometer ausência de cold start/latência do provedor. Mailto substituído por confirmação POST/preferência persistida e supressão de novas mensagens marketing.224 testes aprovados e QA desktop local confirmou bloqueio após descadastro fictício. Sem publicação/preferência real/e-mail V3. Ler release/handoff; não declarar aplicado em produção.
+
+
+## Demora observada na contratação por e-mail — 27/11/2026
+Vídeo11,57s usava versão pública antiga: branco em3s,login em6s e provedor carregando em9s. Preparada entrada mínima sem recursos do login completo e encaminhamento compatível dos links antigos.235 testes e QA local com Auth/checkout fictícios aprovados; não foi medido tempo de prestadores reais nem publicado. Não declarar resolvido em produção antes da implantação/medição. Ver RELEASE_CHECKOUT_DIRETO_2026-11-27.md.

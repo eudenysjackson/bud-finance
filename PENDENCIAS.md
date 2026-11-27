@@ -708,3 +708,22 @@ Conferência UI local abriu Alelo→Editar→benefício e quatro opções; não 
 26/11/2026 — Sentry/AppCheck publicados em d6fce0e, Pages45923495425 aprovado, backend na mesma revisão/env conferido. App Check registrado no Spark e token200 confirmado após corrigir lista de APIs da chave Web. Performance precisa do complemento SDK10.8.1 em .tools/monitoramento-fix-20261126 (codex/monitoramento-fix-20261126),214 testes aprovados. Acompanhar deploy/primeiro traço; detalhes no handoff/release dessa cópia. Não repetir POST de teste em produção rejeitado por auto-review.
 
 26/11/2026 — RESOLVIDO/PUBLICADO: monitoramento gratuito PR71 + complemento SDK PR72, revisão funcional1236477.214 testes e CI/Pages aprovados; backend na revisão exata. Sentry recebeu teste sintético, App Check token200 e Performance page_ready_index/1amostra conferidos. Modo App Check observe, Spark/Developer sem faturamento adicional. Entrega física do e-mail Sentry não conferida e enforcement futuro fora do escopo. Ver encerramento em AI_HANDOFF.md/release, sem repetir POST de teste rejeitado em produção.
+
+## PEND-SEG-TESTE-API-20261127 — teste adicional de escrita sem autenticação
+
+- Status: PENDENTE, a pedido do titular em26/11/2026; data prevista27/11/2026 (amanhã, America/Sao_Paulo). Não executar hoje nem agendar envio automático.
+- Objetivo: conferir em produção a recusa de uma solicitação vazia, sem credenciais, ao POST /api/financial/write; resultado esperado401, sem criar ou alterar lançamentos. É teste complementar, não funcionalidade ausente.
+- Contexto: tentativa anterior foi barrada por auto-review por faltar autorização específica do teste em produção e NÃO foi executada nem repetida por outro meio. Ao retomar, verificar escopo/autorização aplicável com o titular e revisão implantada antes do teste; não contornar nova rejeição. Não usar dados/credenciais de cliente nem testar uma gravação válida.
+- Não inclui ativar enforcement do App Check, alterar regras, cobrar, cancelar ou enviar comunicações. As três integrações de monitoramento já estão publicadas/validadas, conforme release e encerramento do handoff.
+
+## E-mail de novos preços — 26/11/2026
+PEND-MKT-NOVOS-PRECOS: HTML/texto e único teste ao titular preparados/enviados na branch codex/email-black-friday-20261126. Aguardar avaliação do teste e autorização específica antes de campanha aos usuários do Gratuito. Preços permanentes, sem prazo Black Friday, conforme decisão final. Conferir remetente oficial, supressões/consentimentos e plano efetivo no futuro disparo. Nenhum cliente recebeu este teste. Ver marketing/2026-11-novos-precos/README.md e AI_HANDOFF.md.
+
+
+27/11/2026 — PEND-MKT-NOVOS-PRECOS: V2 corrigiu retângulo preto/serrilhado do Buddy com PNG opaco incorporado e cards com checkout por plano. Teste V2 enviado apenas ao titular;64 testes existentes aprovados. Aguardar avaliação; campanha coletiva não autorizada. Sem publicação ou contratação real. Ver handoff e README de marketing na branch codex/email-checkout-20261127.
+
+
+27/11/2026 — PEND-MKT-NOVOS-PRECOS: V3 preparada,224 testes e pacote/scanner aprovados. Supressão/descadastro validados localmente; produção depende de autorização/publicação coordenada. Rodapé simplificado/WhatsApp e melhorias de entrada checkout prontas. Sem envio V3/campanha. QA mobile desta revisão não confirmado. Ler RELEASE_EMAIL_CHECKOUT_PREFERENCIAS_2026-11-27.md.
+
+
+27/11/2026 — Checkout ainda lento no vídeo: entrada mínima preparada na branch codex/checkout-direto-leve-20261127,235 testes/pacote/scanner aprovados. Vídeo era versão pública antiga; app/backend candidatos não publicados. Nova assinar.html/js e compatibilidade de links antigos aguardam autorização de implantação coordenada. Sem novo e-mail/campanha/checkout real. Ver RELEASE_CHECKOUT_DIRETO_2026-11-27.md.

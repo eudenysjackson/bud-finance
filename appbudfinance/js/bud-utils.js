@@ -198,6 +198,7 @@
 
   window.BUD_FEATURES_READY = new Promise(function (resolve) {
     function loadRemoteFlags() {
+      if (window.BudCheckoutEntry?.requested) { resolve(window.BUD_FEATURES); return; }
       if (!window.BUD_FIREBASE_CONFIG) { resolve(window.BUD_FEATURES); return; }
       Promise.all([
         import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'),
