@@ -718,3 +718,6 @@ Conferência UI local abriu Alelo→Editar→benefício e quatro opções; não 
 
 ## E-mail de novos preços — 26/11/2026
 PEND-MKT-NOVOS-PRECOS: HTML/texto e único teste ao titular preparados/enviados na branch codex/email-black-friday-20261126. Aguardar avaliação do teste e autorização específica antes de campanha aos usuários do Gratuito. Preços permanentes, sem prazo Black Friday, conforme decisão final. Conferir remetente oficial, supressões/consentimentos e plano efetivo no futuro disparo. Nenhum cliente recebeu este teste. Ver marketing/2026-11-novos-precos/README.md e AI_HANDOFF.md.
+
+
+27/11/2026 — PEND-MKT-NOVOS-PRECOS: V2 corrigiu retângulo preto/serrilhado do Buddy com PNG opaco incorporado e cards com checkout por plano. Teste V2 enviado apenas ao titular;64 testes existentes aprovados. Aguardar avaliação; campanha coletiva não autorizada. Sem publicação ou contratação real. Ver handoff e README de marketing na branch codex/email-checkout-20261127.

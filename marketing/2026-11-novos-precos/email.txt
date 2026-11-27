@@ -5,24 +5,26 @@ Você já conhece o Bud Finance. Agora, dar o próximo passo ficou mais acessív
 STARTER — R$ 4,99 por mês
 1 conta, 1 cartão e 10 lançamentos por mês.
 Sem importações e sem recursos de IA.
+Assinar Starter: https://budsolucoes.com.br/appbudfinance/?checkout=starter
 
 PLUS — R$ 14,99 por mês
 2 contas, 2 cartões e 15 lançamentos por mês.
 5 importações e 5 usos de IA por mês.
+Assinar Plus: https://budsolucoes.com.br/appbudfinance/?checkout=pro
 
 PRO — R$ 29,99 por mês
 Contas, cartões e lançamentos ilimitados.
 Importações e recursos de IA sem cotas do plano.
 Todos os recursos disponíveis do app.
+Assinar Pro: https://budsolucoes.com.br/appbudfinance/?checkout=plus
 
 Organize contas, cartões de crédito e benefícios como VT, VR e VA. Acompanhe dívidas, parcelas e metas. Nos planos Plus e Pro, use IA para ajudar na leitura de faturas, extratos e contratos, revisando os dados antes de salvar.
 
 Benefícios ocupam a cota de contas. Cada parcela conta como um lançamento no mês da fatura. IA sujeita à disponibilidade do serviço.
 
-ESCOLHER MEU PLANO NO APP:
-https://budsolucoes.com.br/appbudfinance/configuracoes?aba=dados
+É só tocar no link do plano escolhido. Se você já estiver logado neste navegador, continuará direto para o pagamento. Caso precise entrar, o plano escolhido será mantido. Não precisa procurar em Configurações.
 
-Entre na sua conta e acesse Configurações → Dados. Seu plano só muda após você concluir a contratação e o pagamento ser aprovado.
+Confira o valor no checkout antes de pagar. Seu plano só muda após a conclusão da contratação e a aprovação do pagamento.
 
 Novos preços mensais vigentes, sem prazo promocional de encerramento. A assinatura tem renovação mensal. Você pode continuar usando o plano Gratuito se preferir.
 
