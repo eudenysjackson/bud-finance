@@ -31,3 +31,13 @@ Prévia http://127.0.0.1:13250/email.html; script .tools/direct-checkout-preview
 Publicar frontend/backend coordenados somente após autorização específica, incluindo descadastro anterior. Não enviar os cards novos antes de existir a rota pública. Testar depois o destinatário individual já autorizado e sua preferência, sem disparo coletivo.
 
 O vídeo/e-mail anterior continua usando código público antigo até a publicação; reenviar HTML sozinho não ativa a otimização. Ainda será necessário obter a resposta autenticada e criar/reutilizar o checkout no Mercado Pago. Inicialização do servidor, rede e carregamento do provedor podem demorar; não prometer instantaneidade ou atribuir um tempo novo sem medição real.
+
+## Publicação confirmada — 27/11/2026
+
+Autorização específica do titular recebida antes da integração. PR74: https://github.com/eudenysjackson/bud-finance/pull/74. Revisão integrada e publicada:4f933bcd37d6548cf24fa2fd6fe81621bc88487f.235 regressões locais aprovadas novamente; CI46078511688 aprovado, incluindo pacote e scanner. Pages46078765435 concluído com sucesso após gate do backend: https://github.com/eudenysjackson/bud-finance/actions/runs/46078765435.
+
+Render bud-finance-backend mostrou4f933bc como Live/Deployed, deploy dep-dc50h2ojo6nc73c9vda0. GET /api/ping confirmou a revisão completa. Serviço existente Starter preservado, sem mudança de plano/env/regras/índices. Não atribuir esta espera a um plano gratuito do Render.
+
+GETs públicos200 e conteúdo igual ao candidato após normalizar CRLF/LF: assinar.html, js/assinar.js, js/checkout-entry.js, js/checkout-client.js, preferencias-email.html, js/email-preferences.js e index.html. Browser público confirmou rejeição de plano inválido sem contratar e página de preferências sem token pedindo link completo, sem gravar preferência.
+
+A otimização está publicada e inclui encaminhamento dos cards antigos. Velocidade real no celular ainda depende da avaliação do titular e dos tempos de Auth/rede/Mercado Pago; esta conferência não criou contratos para medir tempo. Sem pagamento, cancelamento, preferência real alterada ou campanha coletiva. Não foi enviado novo e-mail V4: a V3 recebida anteriormente continua com descadastro apenas demonstrativo/local; não reutilizá-la como campanha nem afirmar que seu link de descadastro antigo virou produção. Um próximo teste completo do e-mail deve ser preparado por marketing-preferences.prepare/render com supressão consultada e link individual de produção, preservando CID.

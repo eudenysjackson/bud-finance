@@ -936,3 +936,6 @@ Candidata reduz etapas redundantes e flash do formulário durante restauração,
 
 ## Demora observada na contratação por e-mail — 27/11/2026
 Vídeo11,57s usava versão pública antiga: branco em3s,login em6s e provedor carregando em9s. Preparada entrada mínima sem recursos do login completo e encaminhamento compatível dos links antigos.235 testes e QA local com Auth/checkout fictícios aprovados; não foi medido tempo de prestadores reais nem publicado. Não declarar resolvido em produção antes da implantação/medição. Ver RELEASE_CHECKOUT_DIRETO_2026-11-27.md.
+
+
+27/11/2026 — Complemento publicado: entrada mínima e descadastro PR74/4f933bc,235 testes/CI/Pages aprovados; backend Live/revisão confirmada e7 arquivos públicos iguais ao candidato. Flash do login completo removido da entrada autenticada específica; desempenho no aparelho ainda aguarda comparação do titular. Não afirmar latência zero ou teste financeiro real. Render existente é Starter, sem evidência para atribuir espera a free tier. Descadastro de produção disponível para próximos links assinados; V3 antiga permanece demonstrativa.
