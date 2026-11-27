@@ -24,6 +24,23 @@ test('sales cards and backend associate new names with the requested prices and 
   assert.match(server,/pro:\s*\{ title: 'Bud Finance Plus',\s*amount: 14\.99/);
   assert.match(server,/plus:\s*\{ title: 'Bud Finance Pro',\s*amount: 29\.99/);
   assert.match(html,/teste grátis dá acesso ao Pro por três dias/);
+  for(const [key,integer] of [['starter','4'],['pro','14'],['plus','29']]){
+    const card=html.match(new RegExp('id="plan-price-'+key+'"[^\\n]+'))[0];
+    assert.match(card,new RegExp('class="amount">'+integer+'<span[^>]+>,99'));
+  }
+});
+
+test('referral sales view uses the new full prices and correctly rounded first-month discounts',()=>{
+  const source=read('appbudfinance/js/vendas.js');
+  const elements=Object.fromEntries(['plan-price-starter','plan-price-pro','plan-price-plus','ref-banner'].map(id=>[id,{style:{},innerHTML:''}]));
+  const context={document:{getElementById:id=>elements[id]},URLSearchParams,window:{location:{search:'?ref=FICTICIO'}}};
+  vm.runInNewContext('let _refCode=null;'+source.slice(source.indexOf('function _makeDiscountedPrice'),source.indexOf('// ── Toast helper'))+';_applyRefDiscount();',context);
+  for(const [key,full,integer,dec] of [['starter','4,99','4','24'],['pro','14,99','12','74'],['plus','29,99','25','49']]){
+    const html=elements['plan-price-'+key].innerHTML;
+    assert(html.includes('R$ '+full+'/mês'));
+    assert(html.includes('class="amount">'+integer+'<span style="font-size:1.4rem">,'+dec));
+  }
+  assert.equal(elements['ref-banner'].style.display,'block');
 });
 
 test('existing customers and scheduled plan changes receive the correct renewal name',()=>{
