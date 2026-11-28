@@ -733,3 +733,6 @@ PEND-MKT-NOVOS-PRECOS: HTML/texto e único teste ao titular preparados/enviados 
 
 
 27/11/2026 — PEND-GESTOR-MARKETING-ATIVACAO: primeira versão local pronta/247testes e smoke emulado aprovados. Aguardar avaliação visual; configurar template de marketing exclusivo e teste real autorizado, publicar Gestor/Clientes/índice/regras/backend coordenados somente após autorização. Nenhum envio real novo. Automação Codex30/11 preservada e não deve ser duplicada. Ler release e handoff da branch codex/gestor-marketing-20261127.
+
+
+28/11/2026 — RESOLVIDO LOCALMENTE: edição/salvamento Marketing, PATCH/CORS e ação explícita de voltar ao rascunho sem envios iniciados.250testes, smoke HTTP e browser salvar/reabrir aprovados. Pendência de ativação/publicação do módulo permanece. Branch codex/gestor-edicao-campanhas-20261128.

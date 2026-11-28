@@ -41,14 +41,15 @@ export function setupMarketing(request, syncSelects) {
  <header class="mk-heading"><div><p class="mk-eyebrow">RELACIONAMENTO COM CLIENTES</p><h1>E-mail marketing</h1><p>Uma boa mensagem, para o público certo.</p></div><button id="mk-new" class="desk-primary">＋ Nova campanha</button></header>
  <p id="mk-notice" class="mk-notice" role="status"></p><p id="mk-feedback" class="desk-status" role="status" aria-live="polite"></p>
  <div id="mk-home"><div class="mk-stats" id="mk-stats"></div><div class="mk-list-head"><h2>Suas campanhas</h2><button id="mk-refresh" class="desk-secondary">Atualizar</button></div><div id="mk-list" class="mk-list"></div></div>
- <section id="mk-editor" hidden><div class="mk-toolbar"><button id="mk-back" class="desk-secondary">← Campanhas</button><span id="mk-state" class="mk-badge"></span><button id="mk-copy" class="desk-secondary">Duplicar</button></div>
- <div class="mk-workspace"><form id="mk-form" class="mk-panel"><h2>Conteúdo da campanha</h2><label>Nome interno<input name="name" maxlength="100" required placeholder="Ex.: Novos preços do Finance"></label><label>Assunto do e-mail<input name="subject" maxlength="140" required placeholder="O que o cliente verá na caixa de entrada"></label>
+ <section id="mk-editor" hidden><div class="mk-toolbar"><button id="mk-back" class="desk-secondary">← Campanhas</button><span id="mk-state" class="mk-badge"></span><button id="mk-edit" class="desk-primary" hidden>Desfazer agendamento e editar</button><button id="mk-copy" class="desk-secondary">Duplicar</button></div>
+ <p id="mk-edit-notice" class="mk-notice"></p><div class="mk-workspace"><form id="mk-form" class="mk-panel"><h2>Conteúdo da campanha</h2><label>Nome interno<input name="name" maxlength="100" required placeholder="Ex.: Novos preços do Finance"></label><label>Assunto do e-mail<input name="subject" maxlength="140" required placeholder="O que o cliente verá na caixa de entrada"></label>
  <div class="mk-two"><label>Modelo<select name="template"><option value="plans">Apresentação dos planos</option><option value="news">Novidades do aplicativo</option></select></label><label>Aplicativo<input value="Bud Finance" readonly></label></div>
  <label>Título principal<input name="title" maxlength="140" required></label><label>Mensagem<textarea name="body" rows="5" maxlength="3000" required></textarea></label><label id="mk-button-label">Texto do botão<input name="button" maxlength="60" value="Conheça o Bud Finance"></label><label class="mk-check"><input name="buddy" type="checkbox" checked> Incluir o Buddy</label>
  <h2>Quem vai receber</h2><div class="mk-two"><label>Plano atual<select name="plan"><option value="free">Gratuito</option><option value="trial">Teste Pro ativo</option><option value="starter">Starter</option><option value="pro">Plus</option><option value="plus">Pro</option><option value="all">Todos os planos</option></select></label><label>Sem usar há<select name="inactiveDays"><option value="0">Qualquer período</option><option value="7">7 dias</option><option value="15">15 dias</option><option value="30">30 dias</option><option value="60">60 dias</option><option value="90">90 dias</option></select></label></div><label>Cadastrados a partir de (opcional)<input name="registeredAfter" type="date"></label><p class="mk-help">Descadastros e contas bloqueadas são excluídos. O plano será conferido novamente antes de enviar. O filtro de inatividade considera apenas cadastros com data de acesso registrada.</p>
  <button class="desk-primary" type="submit">Salvar rascunho</button></form>
  <div class="mk-panel mk-preview"><div class="mk-list-head"><h2>Prévia</h2><div><button id="mk-desktop" class="desk-secondary">Computador</button> <button id="mk-mobile" class="desk-secondary">Celular</button></div></div><div class="mk-frame-wrap"><iframe id="mk-frame" title="Prévia do e-mail" sandbox="" referrerpolicy="no-referrer"></iframe></div><div class="mk-actions"><button id="mk-preview" class="desk-secondary">Atualizar prévia e público</button><button id="mk-test" class="desk-secondary">Enviar teste para mim</button><button id="mk-schedule" class="desk-primary">Revisar envio</button></div><p id="mk-tested" class="mk-help"></p><div id="mk-audience" class="mk-audience"></div></div></div>
  <section class="mk-panel mk-history"><div class="mk-list-head"><h2>Histórico de envios</h2><div id="mk-controls"></div></div><p class="mk-help">Aceito pelo provedor não confirma entrega ou leitura. Pausar ou cancelar interrompe os próximos envios; mensagens já em processamento podem terminar.</p><div id="mk-history"></div></section></section>
+ <dialog id="mk-edit-confirm" class="mk-confirm"><h2>Editar esta campanha?</h2><p>O agendamento atual será desfeito e os destinatários em espera sairão da fila. Você poderá alterar o conteúdo e o público, enviar um novo teste e confirmar outra data.</p><p id="mk-edit-error" role="status"></p><div class="mk-actions"><button id="mk-edit-close" class="desk-secondary">Manter como está</button><button id="mk-edit-accept" class="desk-primary">Desfazer agendamento e editar</button></div></dialog>
  <dialog id="mk-confirm" class="mk-confirm"><h2>Confirmar campanha</h2><p id="mk-confirm-summary"></p><label>Quando enviar<select id="mk-when"><option value="now">Enviar agora</option><option value="schedule">Agendar data e horário</option></select></label><label id="mk-date-label" hidden>Data e hora de Brasília<input id="mk-date" type="datetime-local"></label><label class="mk-check"><input id="mk-authorize" type="checkbox"> Revisei o teste, o conteúdo e o público. Autorizo este envio.</label><p id="mk-confirm-status" role="status"></p><div class="mk-actions"><button id="mk-close" class="desk-secondary">Voltar</button><button id="mk-confirm-send" class="desk-primary">Confirmar envio</button></div></dialog>`;
   content.append(root);
   syncSelects();
@@ -122,7 +123,11 @@ export function setupMarketing(request, syncSelects) {
       : enabled
         ? "Envio configurado. Teste o conteúdo antes de confirmar uma campanha."
         : "Rascunhos e prévias disponíveis. O envio depende da configuração do template de marketing no servidor.";
-    const items = result.campaigns;
+    const items = [...result.campaigns].sort(
+      (a, b) =>
+        Number(b.status === "draft") - Number(a.status === "draft") ||
+        b.updatedAt - a.updatedAt,
+    );
     $("stats").replaceChildren();
     for (const [label, value] of [
       ["Campanhas recentes", items.length],
@@ -166,7 +171,8 @@ export function setupMarketing(request, syncSelects) {
         (labels[item.status] || item.status) +
         (item.scheduledAt ? " · " + date(item.scheduledAt) : "");
       open.className = "desk-secondary";
-      open.textContent = "Abrir campanha";
+      open.textContent =
+        item.status === "draft" ? "Editar campanha" : "Ver campanha";
       open.onclick = () => run(() => openCampaign(item.id));
       text.append(tag, title, subject);
       card.append(text, open);
@@ -191,6 +197,20 @@ export function setupMarketing(request, syncSelects) {
     for (const name of ["plan", "inactiveDays", "registeredAfter"])
       field(name).value = d.segment[name] ?? "";
     const locked = c.status !== "draft";
+    const canReopen =
+      ["queued", "paused", "cancelled"].includes(c.status) &&
+      (!c.counts || c.counts.total === c.counts.pending);
+    $("edit").hidden = !locked || !canReopen;
+    $("copy").textContent = locked
+      ? "Criar versão editável"
+      : "Duplicar campanha";
+    $("edit-notice").hidden = false;
+    $("edit-notice").textContent = !locked
+      ? "Edite os campos abaixo e salve o rascunho. A prévia acompanha a versão salva."
+      : canReopen
+        ? "Esta campanha tem um envio confirmado. Use Desfazer agendamento e editar para voltar ao rascunho."
+        : "Este conteúdo foi confirmado ou já possui histórico. Use Criar versão editável para fazer alterações em um novo rascunho.";
+
     [...form.elements].forEach((el) => (el.disabled = locked));
     $("test").disabled = locked || !enabled;
     $("schedule").disabled = locked || !enabled;
@@ -217,7 +237,7 @@ export function setupMarketing(request, syncSelects) {
     if (active?.status !== "draft") return;
     const result = await request(
       "marketing" + (active?.id ? "/" + active.id : ""),
-      { method: active?.id ? "PUT" : "POST", data: values() },
+      { method: active?.id ? "PATCH" : "POST", data: values() },
     );
     active = { id: result.id, ...result.campaign };
     dirty = false;
@@ -306,7 +326,10 @@ export function setupMarketing(request, syncSelects) {
   });
   form.onsubmit = (e) => {
     e.preventDefault();
-    run(save);
+    run(async () => {
+      await save();
+      await showPreview();
+    });
   };
   $("new").onclick = () => {
     fill({
@@ -327,6 +350,28 @@ export function setupMarketing(request, syncSelects) {
     $("audience").textContent =
       "Salve e atualize a prévia para conferir o público.";
   };
+  $("edit").onclick = () => {
+    $("edit-error").textContent = "";
+    $("edit-confirm").showModal();
+  };
+  $("edit-close").onclick = () => $("edit-confirm").close();
+  $("edit-accept").onclick = () =>
+    run(async () => {
+      try {
+        await request("marketing/" + active.id + "/control", {
+          method: "POST",
+          data: { action: "edit" },
+        });
+        $("edit-confirm").close();
+        await openCampaign(active.id);
+        say(
+          "Agendamento desfeito. Agora você pode editar e salvar o rascunho.",
+        );
+        field("subject").focus();
+      } catch (e) {
+        $("edit-error").textContent = e.message;
+      }
+    });
   $("copy").onclick = () =>
     run(async () => {
       const d = values();
@@ -416,6 +461,7 @@ export function setupMarketing(request, syncSelects) {
       active = null;
       preview = null;
       $("confirm").close();
+      $("edit-confirm").close();
       $("list").replaceChildren();
       $("history").replaceChildren();
       $("audience").replaceChildren();

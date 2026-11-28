@@ -953,3 +953,6 @@ Validação:175 testes de release aprovados; redução de184 corresponde aos10 t
 
 
 27/11/2026 — Primeira central de marketing usa modelos em blocos sem HTML livre, destinatários fixados ao aprovar e elegibilidade/supressão conferidas novamente no envio. Teste de mesma revisão/preço e confirmação explícita obrigatórios. Não repetir resposta incerta de provedor sem reconciliação, evitando falsa promessa de exactly-once externo. Fila no servidor; transacionais preservados, novo template EmailJS isolado/flag opt-in, emulador sem tráfego de envio. Protótipo de Visão Geral rejeitado não integrado.
+
+
+28/11/2026 — Campanha confirmada pode voltar ao rascunho somente se TODOS os destinatários ainda estiverem pending, em transação com remoção da fila, revisão nova e novo teste/aprovação obrigatórios. Históricos iniciados/recusados/incertos preservados e exigem nova versão. Atualiza a regra anterior de somente duplicar após confirmação. Backend/editor usam PATCH do CORS existente; não ampliar métodos globais para corrigir um formulário.

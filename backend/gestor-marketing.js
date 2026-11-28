@@ -327,6 +327,44 @@ function createMarketing({
     return { ok: true, count: a.candidates.length, scheduledAt: at, simulated };
   }
   async function control(id, action, actor) {
+    if (action === "edit") {
+      const r = ref(id);
+      await db.runTransaction(async (tx) => {
+        const snapshot = await tx.get(r),
+          c = snapshot.data();
+        if (!c || !["queued", "paused", "cancelled"].includes(c.status))
+          throw fail("Crie uma nova versão para editar esta campanha.", 409);
+        const roster = await tx.get(r.collection("recipients"));
+        if (roster.docs.some((d) => d.data().state !== "pending"))
+          throw fail(
+            "O envio já começou. Crie uma nova versão para preservar o histórico.",
+            409,
+          );
+        for (const d of roster.docs) tx.delete(d.ref);
+        tx.update(r, {
+          status: "draft",
+          revision: c.revision + 1,
+          testedDigest: null,
+          testedAt: null,
+          approvedDigest: null,
+          approvedBy: null,
+          approvedAt: null,
+          scheduledAt: null,
+          counts: {},
+          lastError: null,
+          updatedAt: now(),
+          updatedBy: actor,
+          lastEdit: {
+            at: now(),
+            by: actor,
+            previousStatus: c.status,
+            previousSchedule: c.scheduledAt || null,
+            removedPending: roster.docs.length,
+          },
+        });
+      });
+      return { ok: true };
+    }
     if (!["pause", "resume", "cancel"].includes(action))
       throw fail("Ação inválida.");
     await db.runTransaction(async (tx) => {
@@ -409,7 +447,11 @@ function createMarketing({
           const claimed = await db.runTransaction(async (tx) => {
             const [cs, rs] = await Promise.all([tx.get(ref(d.id)), tx.get(r)]),
               state = rs.data();
-            if (!["queued", "sending"].includes(cs.data()?.status))
+            if (
+              !["queued", "sending"].includes(cs.data()?.status) ||
+              cs.data()?.revision !== c.revision ||
+              cs.data()?.approvedDigest !== c.approvedDigest
+            )
               return false;
             if (state?.state === "sending") {
               if (state.startedAt < now() - 120000)
@@ -533,18 +575,18 @@ function registerMarketing(app, { service, ownerOnly, limit = () => false }) {
           return res.status(429).json({ error: "Aguarde antes de repetir." });
         res.json(await fn(req));
       } catch (e) {
-        res
-          .status(e.status || 503)
-          .json({
-            error: e.status
-              ? e.message
-              : "Não foi possível concluir. Tente novamente.",
-          });
+        res.status(e.status || 503).json({
+          error: e.status
+            ? e.message
+            : "Não foi possível concluir. Tente novamente.",
+        });
       }
     });
   route("get", "", () => service.list());
   route("post", "", (r) => service.save(null, r.body, r.gestorOwner));
-  route("put", "/:id", (r) => service.save(r.params.id, r.body, r.gestorOwner));
+  route("patch", "/:id", (r) =>
+    service.save(r.params.id, r.body, r.gestorOwner),
+  );
   route("get", "/:id", (r) => service.detail(r.params.id));
   route("get", "/:id/preview", (r) => service.preview(r.params.id));
   route("post", "/:id/test", (r) => service.test(r.params.id, r.gestorOwner));

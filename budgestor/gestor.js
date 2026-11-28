@@ -4,7 +4,7 @@ import {
   onAuthStateChanged, signInWithCustomToken, signInWithEmailAndPassword, signInWithPopup, signOut
 } from 'https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js';
 import './config.js';
-import { setupMarketing } from './marketing.js?v=20261127';
+import { setupMarketing } from './marketing.js?v=20261128-edit';
 import { setupClients } from './clientes.js?v=20261112-sidebar';
 import { setupSelects } from './selects.js?v=20261112-sidebar';
 

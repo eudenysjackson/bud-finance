@@ -31,6 +31,7 @@ function database(initial = {}) {
       if (!state.has(path)) throw Error("missing");
       state.set(path, { ...state.get(path), ...structuredClone(v) });
     },
+    delete: async () => state.delete(path),
     collection: (n) => collection(path + "/" + n),
   });
   function collection(path, filters = [], sort = null, max = Infinity) {
@@ -81,6 +82,7 @@ function database(initial = {}) {
           get: (r) => r.get(),
           set: (r, v) => writes.push(() => r.set(v)),
           update: (r, v) => writes.push(() => r.update(v)),
+          delete: (r) => writes.push(() => r.delete()),
         });
         for (const w of writes) await w();
         return result;
@@ -346,7 +348,7 @@ test("all campaign endpoints require owner middleware; provider disabled blocks 
     app = {
       get: (...x) => registered.push(x),
       post: (...x) => registered.push(x),
-      put: (...x) => registered.push(x),
+      patch: (...x) => registered.push(x),
     };
   registerMarketing(app, { service: {}, ownerOnly: guard });
   assert.equal(registered.length, 8);
@@ -363,3 +365,83 @@ test("all campaign endpoints require owner middleware; provider disabled blocks 
   assert.equal(calls, 0);
 });
 module.exports = { database };
+
+test("reopening a scheduled campaign atomically clears pending roster and proof, then requires a new test", async () => {
+  const s = setup(),
+    id = await draft(s);
+  await queue(s, id, new Date(s.now() + 3600000).toISOString());
+  s.sent.length = 0;
+  await s.service.control(id, "edit", "owner");
+  const reopened = await s.service.detail(id);
+  assert.equal(reopened.status, "draft");
+  assert.equal(reopened.revision, 2);
+  assert.equal(reopened.counts.total, 0);
+  assert.equal(reopened.testedDigest, null);
+  assert.equal(reopened.scheduledAt, null);
+  await s.service.save(
+    id,
+    { ...input, subject: "Novo assunto", revision: 2 },
+    "owner",
+  );
+  const p = await s.service.preview(id);
+  await assert.rejects(
+    s.service.queue(
+      id,
+      { revision: 3, audienceToken: p.audienceToken, confirm: true },
+      "owner",
+    ),
+  );
+  s.advance(7200000);
+  await s.service.tick();
+  assert.equal(s.sent.length, 0);
+  await queue(s, id);
+  s.sent.length = 0;
+  await s.service.tick();
+  assert.equal(s.sent.length, 2);
+  assert(s.sent.every((m) => m.subject === "Novo assunto"));
+});
+test("editing refuses any started or uncertain recipient without losing its history", async () => {
+  for (const state of ["sending", "sent", "unknown", "failed", "skipped"]) {
+    const s = setup(),
+      id = await draft(s);
+    await queue(s, id);
+    const rows = await s.db
+      .collection("_gestor_campaigns")
+      .doc(id)
+      .collection("recipients")
+      .get();
+    await rows.docs[0].ref.update({ state });
+    await assert.rejects(s.service.control(id, "edit", "owner"));
+    assert.equal((await rows.docs[0].ref.get()).data().state, state);
+    assert.equal((await s.service.detail(id)).revision, 1);
+  }
+});
+
+test("worker holding an old roster cannot send it after editing and approving a new revision", async () => {
+  const s = setup(),
+    id = await draft(s);
+  await queue(s, id);
+  s.sent.length = 0;
+  const transact = s.db.runTransaction.bind(s.db);
+  let once = true;
+  s.db.runTransaction = async (fn) => {
+    if (once) {
+      once = false;
+      await s.service.control(id, "edit", "owner");
+      const c = await s.service.load(id);
+      await s.service.save(
+        id,
+        { ...input, subject: "Versão nova", revision: c.revision },
+        "owner",
+      );
+      await queue(s, id);
+      s.sent.length = 0;
+    }
+    return transact(fn);
+  };
+  await s.service.tick();
+  assert.equal(s.sent.length, 0);
+  await s.service.tick();
+  assert.equal(s.sent.length, 2);
+  assert(s.sent.every((m) => m.subject === "Versão nova"));
+});

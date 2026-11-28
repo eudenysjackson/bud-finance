@@ -24,6 +24,7 @@ async function request(path, token, method = "GET", body) {
     method,
     headers: {
       ...(token ? { Authorization: "Bearer " + token } : {}),
+      Origin: "http://127.0.0.1:5502",
       ...(body ? { "Content-Type": "application/json" } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -33,14 +34,12 @@ async function request(path, token, method = "GET", body) {
 (async () => {
   const owner = await sign("marketing.admin@example.test", "BudMarketing!2026");
   try {
-    await admin
-      .auth()
-      .createUser({
-        uid: "marketing-demo-customer",
-        email: "customer@example.test",
-        password: "MarketingCustomer!2026",
-        emailVerified: true,
-      });
+    await admin.auth().createUser({
+      uid: "marketing-demo-customer",
+      email: "customer@example.test",
+      password: "MarketingCustomer!2026",
+      emailVerified: true,
+    });
   } catch (e) {
     if (e.code !== "auth/uid-already-exists") throw e;
   }
@@ -67,13 +66,44 @@ async function request(path, token, method = "GET", body) {
   const saved = await request("", owner, "POST", input);
   assert.equal(saved.status, 200);
   const id = saved.body.id;
+  const preflight = await fetch(
+    "http://127.0.0.1:3000/api/gestor/marketing/" + id,
+    {
+      method: "OPTIONS",
+      headers: {
+        Origin: "http://127.0.0.1:5502",
+        "Access-Control-Request-Method": "PATCH",
+        "Access-Control-Request-Headers": "authorization,content-type",
+      },
+    },
+  );
+  assert.equal(preflight.status, 204);
+  assert(
+    preflight.headers
+      .get("access-control-allow-methods")
+      .split(",")
+      .includes("PATCH"),
+  );
+  const edited = await request("/" + id, owner, "PATCH", {
+    ...input,
+    title: "Título editado pelo navegador",
+    revision: 1,
+  });
+  assert.equal(edited.status, 200);
+  const revision = edited.body.campaign.revision;
+  assert.equal(revision, 2);
+  assert.equal(
+    (await request("/" + id, owner)).body.draft.title,
+    "Título editado pelo navegador",
+  );
+
   const p = await request("/" + id + "/preview", owner);
   assert.equal(p.status, 200);
   assert.equal(p.body.count, 2);
   assert.equal(
     (
       await request("/" + id + "/queue", owner, "POST", {
-        revision: 1,
+        revision,
         confirm: true,
         audienceToken: p.body.audienceToken,
       })
@@ -85,7 +115,7 @@ async function request(path, token, method = "GET", body) {
     true,
   );
   const queued = await request("/" + id + "/queue", owner, "POST", {
-    revision: 1,
+    revision,
     confirm: true,
     audienceToken: p.body.audienceToken,
     scheduledAt: new Date(Date.now() + 600000).toISOString(),
@@ -94,7 +124,7 @@ async function request(path, token, method = "GET", body) {
   assert.equal(
     (
       await request("/" + id + "/queue", owner, "POST", {
-        revision: 1,
+        revision,
         confirm: true,
         audienceToken: p.body.audienceToken,
       })
@@ -108,7 +138,7 @@ async function request(path, token, method = "GET", body) {
     );
   assert.equal((await request("/" + id, owner)).body.status, "cancelled");
   console.log(
-    "PASS localhost: anon401, cliente403, proprietário200, Firestore direto403, rascunho persistido, público2, teste obrigatório simulado, agendamento sem duplicidade, pausa/retomada/cancelamento.",
+    "PASS localhost: anon401, cliente403, proprietário200, Firestore direto403, rascunho editado via PATCH/CORS e persistido, público2, teste obrigatório simulado, agendamento sem duplicidade, pausa/retomada/cancelamento.",
   );
   await admin.app().delete();
 })().catch((error) => {

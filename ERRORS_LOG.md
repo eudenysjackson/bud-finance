@@ -942,3 +942,6 @@ Vídeo11,57s usava versão pública antiga: branco em3s,login em6s e provedor ca
 
 
 27/11/2026 — QA da central Marketing local: CORS recusou prévia13252; usada5502 já permitida, sem abertura de CORS em produção. Limite de5ações compartilhado interrompia uso do editor/controle; restrição de teste/fila agora separada por ação/campanha e guarda persistente global mantida. HTTP emulado posterior passou. Primeira suíte na worktree nova falhou por dependências ausentes; junction para instalação existente resolveu e247 testes passaram. Sem falhas observadas de envio real, pois transporte foi simulado.
+
+
+28/11/2026 — Gestor Marketing: edição existente falhava no browser (PUT não permitido no CORS); API/editor passaram a PATCH e smoke inclui preflight/Origin. Agendadas sem processamento agora voltam a rascunho com confirmação e invalidação do roster/teste; histórico iniciado não é apagado.250testes e QA real de salvar/reabrir em emulador aprovados. Não publicado.
