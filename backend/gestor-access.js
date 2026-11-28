@@ -1,5 +1,6 @@
 const { createHash, randomBytes } = require('node:crypto');
 const { normalizeCpf, cpfDigest } = require('./gestor-cpf');
+const { registerGestorClients } = require('./gestor-clientes');
 
 const inbox = 'budsolucoes@gmail.com';
 const gestorUrl = 'https://budsolucoes.com.br/budgestor/';
@@ -7,7 +8,7 @@ const digest = value => createHash('sha256').update(value).digest('hex');
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const day = 24 * 60 * 60 * 1000;
 
-function registerGestorAccess(app, { db, auth, emulator, sendEmail, limit }) {
+function registerGestorAccess(app, { db, auth, emulator, sendEmail, limit, clientSupport, marketing }) {
   const requests = () => db.collection('_gestor_access_requests');
   const ownerRef = () => db.doc('_gestor_private/owner');
   const cpfSecret = process.env.GESTOR_CPF_SECRET || (emulator ? 'gestor-local-cpf-only' : '');
@@ -49,6 +50,16 @@ function registerGestorAccess(app, { db, auth, emulator, sendEmail, limit }) {
     req.gestorOwner = identity.uid;
     next();
   }
+
+  registerGestorClients(app, { db, auth, limit, clientSupport, ownerOnly: [ownerOnly, async (req, res, next) => {
+    try {
+      const profile = (await ownerRef().get()).data();
+      if (profile?.uid !== req.gestorOwner) return res.sendStatus(403);
+      next();
+    } catch { return res.sendStatus(503); }
+  }] });
+
+  if (marketing) require('./gestor-marketing').registerMarketing(app, {service:marketing,limit,ownerOnly:[ownerOnly,async(req,res,next)=>{try{const p=(await ownerRef().get()).data();if(p?.uid!==req.gestorOwner)return res.sendStatus(403);next();}catch{return res.sendStatus(503);}}]});
 
   function publicProfile(profile) {
     return {

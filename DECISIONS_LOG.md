@@ -950,3 +950,6 @@ Validação:175 testes de release aprovados; redução de184 corresponde aos10 t
 
 
 27/11/2026 — Contratação por e-mail usa entrada dedicada App/Auth, sem Firestore/recursos gerais de login. Identidade/eligibilidade permanecem validadas no servidor. Links antigos têm atalho no head; entrar=1 preserva login/evita loop, sem autoridade de segurança. Verificação/magic links não são interceptados. Nenhum contrato pré-gerado, token em URL ou promessa de eliminar espera do provedor. Alterações só passam a valer após implantação.
+
+
+27/11/2026 — Primeira central de marketing usa modelos em blocos sem HTML livre, destinatários fixados ao aprovar e elegibilidade/supressão conferidas novamente no envio. Teste de mesma revisão/preço e confirmação explícita obrigatórios. Não repetir resposta incerta de provedor sem reconciliação, evitando falsa promessa de exactly-once externo. Fila no servidor; transacionais preservados, novo template EmailJS isolado/flag opt-in, emulador sem tráfego de envio. Protótipo de Visão Geral rejeitado não integrado.

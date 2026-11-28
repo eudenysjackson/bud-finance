@@ -730,3 +730,6 @@ PEND-MKT-NOVOS-PRECOS: HTML/texto e único teste ao titular preparados/enviados 
 
 
 27/11/2026 — PUBLICADO: checkout mínimo/compatibilidade de cards antigos e preferências de marketing, PR74/4f933bc,235 testes/CI/Pages aprovados e Render Live na revisão exata. Pendente apenas avaliação de velocidade pelo titular e futuro teste individual com link de descadastro de produção; V3 anterior é demonstrativa. Campanha continua sem autorização. Ver encerramento AI_HANDOFF.md e releases. PEND-SEG-TESTE-API-20261127 preservada.
+
+
+27/11/2026 — PEND-GESTOR-MARKETING-ATIVACAO: primeira versão local pronta/247testes e smoke emulado aprovados. Aguardar avaliação visual; configurar template de marketing exclusivo e teste real autorizado, publicar Gestor/Clientes/índice/regras/backend coordenados somente após autorização. Nenhum envio real novo. Automação Codex30/11 preservada e não deve ser duplicada. Ler release e handoff da branch codex/gestor-marketing-20261127.

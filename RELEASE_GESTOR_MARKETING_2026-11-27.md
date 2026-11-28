@@ -1,0 +1,36 @@
+# Central de e-mail marketing do Bud Gestor — 27/11/2026
+
+## Estado
+Implementação local em codex/gestor-marketing-20261127, cópia .tools/gestor-marketing-20261127. Base: Finance4f933bc e ponto de retorno Clientes ea25629. Integração preserva preços/guardas do Finance e ações de Clientes; NÃO inclui o protótipo de Visão Geral/Vendas rejeitado. Nenhuma publicação, configuração de fornecedor, campanha real ou migração de dados de produção foi realizada.
+
+## Uso
+Marketing no menu do Gestor: campanhas recentes, criação e duplicação, modelos Planos/Novidades, assunto/título/mensagem, Buddy opcional, prévia computador/celular, público Finance por plano/data de cadastro/inatividade, envio de teste ao próprio administrador, revisão com confirmação explícita, envio imediato ou data/hora de Brasília, pausa/retomada/cancelamento dos próximos envios e histórico por destinatário. Inatividade desconhecida fica fora do filtro; não inventar engajamento. Logo/Buddy são assets aprovados, sem upload/HTML arbitrário. Produtos futuros não aparecem como integrações já prontas.
+
+## Segurança e persistência
+API /api/gestor/marketing usa sessão verificada/revogação e conferência do UID proprietário em _gestor_private/owner. Coleção raiz privada _gestor_campaigns com recipients; acesso direto negado pelas regras. Histórico de Clientes/_gestor_plan_history/_gestor_support_notes integrado do ramo anterior continua privado. Nenhuma permissão nova é concedida a clientes.
+
+Rascunhos têm revisão. Teste aceito para o mesmo conteúdo/preços é requisito de confirmação. Prévia retorna fingerprint do público; se mudar, nova revisão é exigida. Roster fica fixo na aprovação, sem adicionar cadastros novos depois. Antes de cada envio, recarrega perfil, plano efetivo, bloqueio/exclusão, consentimentos negativos e supressão por marketing-preferences.render; endereço alterado não recebe a mensagem antiga. Expiração do trial usa a política vigente. Mudança nos preços/conteúdo pausa a campanha.
+
+Claim por destinatário em transação antes do provedor evita dois workers enviarem a mesma mensagem. Timeout/falha de confirmação ou claim abandonado vira Sem confirmação, sem retry automático. Rejeição conhecida vira Recusado. Sucesso significa aceitação do provedor, não entrega/leitura. Não há pixel ou relatório de abertura. Pausa/cancelamento não recolhe mensagens já processadas. Para alterar conteúdo após confirmar, duplicar; campanhas canceladas não reutilizam roster antigo.
+
+Worker a cada30s no backend, retomando agendamentos vencidos após reinício. Não depende do navegador/PC após implantação do backend. Instância deve estar ativa; não prometer segundo exato. Índice novo status+scheduledAt em _gestor_campaigns incluso em firestore.indexes.json. Primeira versão limita250 destinatários e varredura1000perfis para não enviar segmentos truncados; lista últimas60campanhas. Ampliar com paginação dedicada se necessário.
+
+## Serviço de envio
+Transacionais EmailJS existentes preservados. Adaptador de marketing separado, sem biblioteca/serviço pago novo. Emulador sempre simula e nunca chama provedor. Produção só habilita com MARKETING_SEND_ENABLED=true, EMAILJS_TEMPLATE_MARKETING e credenciais EmailJS já existentes. Sem configuração, rascunho/prévia funcionam e teste/confirmação são recusados.
+
+Template exclusivo: copiar backend/emailjs-template-marketing.html como conteúdo do editor HTML do EmailJS, destinatário {{to_email}}, assunto {{email_subject}}, nome Bud Soluções, Reply-To {{reply_to}}. Somente o backend gera email_html escapado, sem HTML livre do editor. Não modificar templates de verificação/recuperação. HTML usa imagem PNG opaca pública budgestor/assets/buddy-email.png; não usa CID neste transporte e requer publicar o asset junto do frontend. Teste em caixa real é obrigatório antes de habilitar campanha pública.
+
+Documentação primária consultada: https://www.emailjs.com/docs/user-guide/dynamic-variables-templates/ e https://www.emailjs.com/docs/rest-api/send/. Variáveis dinâmicas de até50KB; adaptador limita48KB e espaça chamadas em1100ms (limite documentado1requisição/s). Sem promessa de cota gratuita ilimitada. Resultado incerto exige conferência no provedor antes de qualquer novo envio.
+
+## Validação
+247 regressões aprovadas, incluindo11novos testes da central. Testes: escape, mapa comercial, elegibilidade/trial, deduplicação/supressão, teste do proprietário, revisão/público alterado, agenda futura, concorrência de workers, exclusão após assinatura/descadastro, pausa/retomada/cancelamento, preço alterado, rejeição versus timeout e claim abandonado.
+HTTP nos emuladores: anônimo401, cliente comum403, proprietário200, Firestore direto403, rascunho persistido, público2, teste obrigatório simulado, agendamento sem duplicidade e controles persistidos. API de produção não foi operada.
+Browser: login fictício, Clientes/Marketing, modelo Planos com preços/links corretos e Buddy, público2, teste simulado, confirmação recusada sem checkbox, confirmação aceita, formulário travado após agendar. Worker do servidor concluiu2envios simulados sem intervenção, registrado como completed/sent2. Layout390px medido, scrollWidth375 sem overflow horizontal; screenshot conferido. Sem erros de console no checkpoint. Não equivale a homologação em iPhone/cliente de e-mail real.
+Primeiro teste HTTP atingiu limite de5ações compartilhado; separado por ação/campanha para teste/fila, mantendo a guarda persistente global. Primeiro localhost13252 não estava no CORS DEV; prévia mudou para5502 já permitida, sem alterar CORS de produção. Dependências locais reutilizadas por junction ignorada; pacote público e scanner executados sem segredos.
+
+## Retomada/local e pendências de ativação
+Prévia http://127.0.0.1:5502/budgestor/ com Auth9099/Firestore8080/backend3000, projeto bud-finance-local. scripts/seed-marketing-local.cjs só aceita emuladores loopback e prepara dados fictícios; scripts/smoke-marketing-local.cjs confere API e isolamento. Conta de demonstração está documentada no seed (não é conta de produção). Não transferir credenciais reais/Git snapshots entre máquinas.
+
+Antes de produção: aprovação visual do titular, conferir integração Clientes/regras/índice novos, configurar template exclusivo sem mexer nos transacionais, testar e-mail real apenas com autorização/destinatário escolhido, depois publicação coordenada frontend/backend/regras/índice e habilitação explícita. Não ativar envios por inferência. Campanhas de27/11 e reenvio30/11 já autorizados continuam registrados no fluxo anterior: NÃO importar/disparar duplicados pelo Gestor. Automação Codex reenviar-campanha-bud-finance permanece inalterada.
+
+Validação final após formatação:247/247testes aprovados; pacote regenerado preservando o anterior em .tools/artifact-before-format,132arquivos públicos/27backend, hashes/manifesto e scanner aprovados. Sem marcadores de conflito. Nenhum segredo/dado real foi usado na massa local.

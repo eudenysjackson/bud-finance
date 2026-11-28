@@ -939,3 +939,6 @@ Vídeo11,57s usava versão pública antiga: branco em3s,login em6s e provedor ca
 
 
 27/11/2026 — Complemento publicado: entrada mínima e descadastro PR74/4f933bc,235 testes/CI/Pages aprovados; backend Live/revisão confirmada e7 arquivos públicos iguais ao candidato. Flash do login completo removido da entrada autenticada específica; desempenho no aparelho ainda aguarda comparação do titular. Não afirmar latência zero ou teste financeiro real. Render existente é Starter, sem evidência para atribuir espera a free tier. Descadastro de produção disponível para próximos links assinados; V3 antiga permanece demonstrativa.
+
+
+27/11/2026 — QA da central Marketing local: CORS recusou prévia13252; usada5502 já permitida, sem abertura de CORS em produção. Limite de5ações compartilhado interrompia uso do editor/controle; restrição de teste/fila agora separada por ação/campanha e guarda persistente global mantida. HTTP emulado posterior passou. Primeira suíte na worktree nova falhou por dependências ausentes; junction para instalação existente resolveu e247 testes passaram. Sem falhas observadas de envio real, pois transporte foi simulado.

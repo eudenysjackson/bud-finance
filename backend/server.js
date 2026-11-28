@@ -126,6 +126,7 @@ app.use(monitoring.middleware);
 app.disable('x-powered-by');
 app.use(privateHeaders);
 app.use('/api/financial/write', express.json({ limit: '2mb' }));
+app.use('/api/gestor/clients/finance/:id/support', express.json({ limit: '360kb' }));
 app.use(express.json({ limit: '200kb' })); // aumentado para suportar mensagens com extratos/planilhas do Assistente IA
 
 // A3 fix: CORS allowlist split por NODE_ENV (dev permite localhost; prod sÃ³ domÃ­nios pÃºblicos).
@@ -269,11 +270,52 @@ function hashVerificationCode(uid, code) {
     .digest('hex');
 }
 
+const { recordPlanChange } = require('./gestor-clientes');
+const marketingSender = require('./marketing-sender').createMarketingSender({simulated:process.env.BUD_USE_EMULATOR==='true'});
+const gestorMarketing = require('./gestor-marketing').createMarketing({db,preferences:marketingPreferences,send:marketingSender.send,origin:process.env.BUD_USE_EMULATOR==='true'?new URL(FRONTEND_URL).origin:'https://budsolucoes.com.br',enabled:marketingSender.ready,simulated:process.env.BUD_USE_EMULATOR==='true',catalog:()=>({starter:MP_PLANS.starter.amount,pro:MP_PLANS.pro.amount,plus:MP_PLANS.plus.amount})});
+const marketingTimer=setInterval(()=>gestorMarketing.tick().catch(()=>console.error('[Marketing] processamento pendente')),30000);marketingTimer.unref?.();
 require('./gestor-access').registerGestorAccess(app, {
+  marketing:gestorMarketing,
   db,
   auth,
   emulator: process.env.BUD_USE_EMULATOR === 'true',
   limit: isRateLimited,
+  clientSupport: {
+    applyReferral: applyFinanceReferral,
+    async sendAccessEmail(user, action) {
+      if (process.env.BUD_USE_EMULATOR === 'true') return;
+      const verify = action === 'verify-email';
+      const link = verify ? await auth.generateEmailVerificationLink(user.email)
+        : await auth.generatePasswordResetLink(user.email);
+      const code = new URL(link).searchParams.get('oobCode');
+      if (!code) throw new Error('Link de acesso indisponível.');
+      const mode = verify ? 'verifyEmail' : 'resetPassword';
+      const title = verify ? 'Confirme seu e-mail' : 'Redefina sua senha';
+      const actionUrl = FRONTEND_URL.replace(/\/$/, '') + '/acao-auth.html?mode=' + mode + '&oobCode=' + encodeURIComponent(code);
+      await sendCommunicationEmail({
+        to_email: user.email,
+        to_name: sanitizeStr(user.displayName || 'Cliente Bud Finance'),
+        email_subject: '[Bud Finance] ' + title,
+        email_title: title,
+        email_preheader: 'Solicitação de atendimento do Bud Finance',
+        email_body: 'Use o botão abaixo para concluir a solicitação de atendimento.',
+        action_label: title,
+        action_url: actionUrl,
+        reset_url: actionUrl
+      });
+    },
+    async subscription(id) {
+      if (process.env.BUD_USE_EMULATOR === 'true') return { status: 'authorized' };
+      if (!MP_ACCESS_TOKEN) throw new Error('Mercado Pago indisponível.');
+      const response = await fetch('https://api.mercadopago.com/preapproval/' + encodeURIComponent(id), {
+        headers: { Authorization: 'Bearer ' + MP_ACCESS_TOKEN },
+        signal: AbortSignal.timeout(8000)
+      });
+      if (!response.ok) throw new Error('Consulta indisponível.');
+      const data = await response.json();
+      return { status: data.status, createdAt: data.date_created, nextCharge: data.next_payment_date };
+    }
+  },
   sendEmail(params, template) {
     const gestorParams = { app_name: 'Bud Gestor', app_url: 'https://budsolucoes.com.br/budgestor/', ...params };
     if (!template && !EMAILJS_TEMPLATE_COMUNICACAO) throw new Error('Template Bud Gestor não configurado');
@@ -528,6 +570,7 @@ app.post('/api/iniciar-trial', express.json(), async function (req, res) {
       if (!snap.exists) throw new Error('Perfil indisponível.');
       const data = snap.data();
       if (data.trialIniciado || (data.plano && data.plano !== 'free')) return;
+      recordPlanChange(transaction, ref, data, { plano: 'trial' }, admin.firestore.FieldValue.serverTimestamp());
       transaction.update(ref, {
         plano: 'trial',
         trialFim: admin.firestore.Timestamp.fromMillis(Date.now() + 3 * 86400000),
@@ -561,6 +604,7 @@ app.post('/api/expirar-trial', express.json(), async function (req, res) {
       const snap = await transaction.get(ref);
       if (!snap.exists || snap.data().plano !== 'trial') return;
       if (planPolicy.effectivePlan(snap.data()) !== 'free') return;
+      recordPlanChange(transaction, ref, snap.data(), { plano: 'free' }, admin.firestore.FieldValue.serverTimestamp());
       transaction.update(ref, { plano: 'free', trialFim: admin.firestore.FieldValue.delete() });
     });
     return res.json({ ok: true });
@@ -2375,9 +2419,13 @@ app.post('/api/indicacao/aplicar', async function (req, res) {
   var decoded;
   try { decoded = await auth.verifyIdToken(idToken,true); }
   catch (_) { return res.status(401).json({ error: 'Sessão inválida.' }); }
-  var code = String(req.body.codigo || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32);
+  return applyFinanceReferral(decoded.uid, req.body?.codigo, res);
+});
+
+async function applyFinanceReferral(uid, input, res) {
+  var code = String(input || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32);
   if (!/^[A-Z0-9]{8}$/.test(code)) return res.status(400).json({ error: 'Informe um código de indicação válido com 8 caracteres.' });
-  var userRef = db.collection('usuarios').doc(decoded.uid);
+  var userRef = db.collection('usuarios').doc(uid);
   var userSnap = await userRef.get();
   if (!userSnap.exists) return res.status(404).json({ error: 'Cadastro não encontrado.' });
   var current = userSnap.data() || {};
@@ -2391,14 +2439,15 @@ app.post('/api/indicacao/aplicar', async function (req, res) {
   var refSnap = await db.collection('usuarios').where('codigoIndicacao', '==', code).limit(2).get();
   if (refSnap.size !== 1) return res.status(400).json({ error: 'Código não encontrado ou indisponível.' });
   var referrerDoc = refSnap.docs[0];
-  if (referrerDoc.id === decoded.uid) return res.status(400).json({ error: 'Você não pode usar o próprio código.' });
+  if (referrerDoc.id === uid) return res.status(400).json({ error: 'Você não pode usar o próprio código.' });
   var referrer = referrerDoc.data() || {};
-  var referralRef = referrerDoc.ref.collection('indicacoes').doc(decoded.uid);
+  var referralRef = referrerDoc.ref.collection('indicacoes').doc(uid);
   try {
     await db.runTransaction(async function (transaction) {
       var fresh = await transaction.get(userRef);
       if (!fresh.exists) throw Object.assign(new Error('Cadastro não encontrado.'), { status: 404 });
       var data = fresh.data() || {};
+      if (data._deletionPending || data.bloqueado) throw Object.assign(new Error('Cadastro indisponível.'), { status: 409 });
       if (data.indicadoPor) {
         if (String(data.indicadoPor.codigo || '').toUpperCase() !== code) throw Object.assign(new Error('Uma indicação já está vinculada a esta conta.'), { status: 409 });
         return;
@@ -2411,7 +2460,7 @@ app.post('/api/indicacao/aplicar', async function (req, res) {
         codigoIndicacaoAplicadoEm: admin.firestore.FieldValue.serverTimestamp()
       });
       transaction.set(referralRef, {
-        indicadoUid: decoded.uid,
+        indicadoUid: uid,
         data: admin.firestore.FieldValue.serverTimestamp(),
         assinouPlano: false
       }, { merge: true });
@@ -2420,7 +2469,7 @@ app.post('/api/indicacao/aplicar', async function (req, res) {
   } catch (error) {
     return res.status(error.status || 503).json({ error: error.message || 'Não foi possível aplicar o código.' });
   }
-});
+}
 
 app.post('/mercadopago/create-subscription', async function (req, res) {
   if (!MP_ACCESS_TOKEN) return res.status(503).json({ error: 'Pagamentos nÃ£o configurados.' });
@@ -2615,6 +2664,7 @@ async function _mpUpdateSubscriptionProfile(uid, subscriptionId, data, expectedP
     if (!snapshot.exists) throw new Error('MP account profile not found');
     if (!_mpSubscriptionEventMatches(snapshot.data(), subscriptionId)) return false;
     if (expectedPlan !== undefined && snapshot.data().plano !== expectedPlan) throw new Error('MP plan changed concurrently; retry event');
+    recordPlanChange(transaction, ref, snapshot.data(), data, admin.firestore.FieldValue.serverTimestamp());
     transaction.update(ref, data);
     return true;
   });
@@ -3085,6 +3135,9 @@ app.post('/mercadopago/cancelar-assinatura', express.json(), async function (req
       const fresh = await transaction.get(userRef);
       if (!fresh.exists || fresh.data().mpSubscriptionId !== subId) return;
       const stillPending = fresh.data().assinaturaStatus === 'pending' && fresh.data().mpCheckout?.state === 'pending';
+      if (!stillPending) recordPlanChange(transaction, userRef, fresh.data(), {
+        plano: 'free', assinaturaStatus: 'cancelled'
+      }, admin.firestore.FieldValue.serverTimestamp());
       transaction.update(userRef, {
       ...(!stillPending ? {
         plano: 'free',

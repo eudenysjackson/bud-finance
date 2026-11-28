@@ -817,3 +817,6 @@ Conferência UI local abriu Alelo→Editar→benefício e quatro opções; não 
 
 
 27/11/2026 — Candidata não publicada: assinar.html/js é entrada mínima App/Auth+checkout-client. checkout-entry.js encaminha URLs legadas em hosts oficiais antes do app-shell; entrar=1 mantém login. Backend create-subscription reforça e-mail verificado/bloqueio/identidade de perfil. checkout-client propaga status/code. Novos cards usam rota dedicada; IDs de planos preservados. Ver release direto para235 testes, demonstração e limites; publicar junto da preferência de marketing anterior.
+
+
+27/11/2026 — Candidata Gestor Marketing: budgestor/marketing.js/css integra menu existente de Clientes. backend/gestor-marketing.js concentra validação/editor escapado, segmentos, revisão/teste/aprovação, roster/claims/worker em _gestor_campaigns/recipients; marketing-sender.js adapta EmailJS exclusivo desabilitado por padrão. MarketingPreferences existente assina link e consulta supressão por envio. Guard do proprietário e regras privadas; índice status+scheduledAt. Detalhes e limites em RELEASE_GESTOR_MARKETING_2026-11-27.md. Não publicado.
