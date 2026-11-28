@@ -817,3 +817,6 @@ Conferência UI local abriu Alelo→Editar→benefício e quatro opções; não 
 
 
 27/11/2026 — Candidata não publicada: assinar.html/js é entrada mínima App/Auth+checkout-client. checkout-entry.js encaminha URLs legadas em hosts oficiais antes do app-shell; entrar=1 mantém login. Backend create-subscription reforça e-mail verificado/bloqueio/identidade de perfil. checkout-client propaga status/code. Novos cards usam rota dedicada; IDs de planos preservados. Ver release direto para235 testes, demonstração e limites; publicar junto da preferência de marketing anterior.
+
+
+28/11/2026 — Referência ativa do Gestor volta à base de acesso publicada4f933bc na branch codex/gestor-somente-login-20261128, sem menus Clientes/Marketing/Visão Geral ou worker de campanhas. Auth e gestor-access/gestor-cpf permanecem originais. Código dos módulos preservado em branches arquivadas, sem dados reais removidos.

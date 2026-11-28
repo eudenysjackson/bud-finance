@@ -730,3 +730,6 @@ PEND-MKT-NOVOS-PRECOS: HTML/texto e único teste ao titular preparados/enviados 
 
 
 27/11/2026 — PUBLICADO: checkout mínimo/compatibilidade de cards antigos e preferências de marketing, PR74/4f933bc,235 testes/CI/Pages aprovados e Render Live na revisão exata. Pendente apenas avaliação de velocidade pelo titular e futuro teste individual com link de descadastro de produção; V3 anterior é demonstrativa. Campanha continua sem autorização. Ver encerramento AI_HANDOFF.md e releases. PEND-SEG-TESTE-API-20261127 preservada.
+
+
+28/11/2026 — Gestor: pendências de ativação/publicação dos painéis arquivadas por decisão do titular. Manter somente login/fluxos relacionados já aprovados. Clientes/Marketing/Visão Geral só retomar com novo pedido; referência ativa codex/gestor-somente-login-20261128. Nenhum deploy nesta etapa.
